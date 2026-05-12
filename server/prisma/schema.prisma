@@ -1,0 +1,207 @@
+// Prisma schema для CRM/ERP детского сада.
+// PostgreSQL. Все денежные поля — Decimal (точность 12,2) либо Float
+// (мы используем Float для упрощения; в финансовых проектах лучше Decimal).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  TEACHER
+  PARENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  SICK
+  VACATION
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACK
+  DINNER
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String
+  fullName      String
+  role          Role     @default(ADMIN)
+  avatarUrl     String?
+  groupId       String?
+  childId       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  group         Group?   @relation("GroupTeacher", fields: [groupId], references: [id])
+  child         Child?   @relation(fields: [childId], references: [id])
+  notifications Notification[]
+}
+
+model Group {
+  id                   String   @id @default(cuid())
+  name                 String
+  ageRange             String
+  monthlyFee           Float    @default(0)
+  fixedMonthlyExpense  Float    @default(0)
+  color                String   @default("#6366f1")
+  teacherId            String?  @unique
+  createdAt            DateTime @default(now())
+
+  children             Child[]
+  expenses             Expense[]
+  extraIncome          ExtraIncome[]
+  schedule             ScheduleItem[]
+  teachers             User[]   @relation("GroupTeacher")
+  Staff                Staff[]
+}
+
+model Child {
+  id            String   @id @default(cuid())
+  firstName     String
+  lastName      String
+  middleName    String?
+  birthDate     DateTime
+  gender        Gender
+  groupId       String
+  photoUrl      String?
+  medicalNotes  String?
+  notes         String?
+
+  motherName    String?
+  motherPhone   String?
+  fatherName    String?
+  fatherPhone   String?
+  address       String?
+  extraContact  String?
+  telegram      String?
+  whatsapp      String?
+
+  monthlyFee    Float?
+  createdAt     DateTime @default(now())
+
+  group         Group    @relation(fields: [groupId], references: [id])
+  attendance    Attendance[]
+  payments      Payment[]
+  users         User[]
+}
+
+model Staff {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  middleName  String?
+  position    String
+  phone       String
+  email       String?
+  groupId     String?
+  salary      Float    @default(0)
+  hireDate    DateTime
+  createdAt   DateTime @default(now())
+
+  group       Group?   @relation(fields: [groupId], references: [id])
+}
+
+model Attendance {
+  id        String           @id @default(cuid())
+  childId   String
+  date      DateTime
+  status    AttendanceStatus
+  note      String?
+
+  child     Child            @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, date])
+}
+
+model Payment {
+  id        String         @id @default(cuid())
+  childId   String
+  month     String         // YYYY-MM
+  amount    Float
+  paid      Boolean        @default(false)
+  paidAt    DateTime?
+  method    PaymentMethod?
+  comment   String?
+  createdAt DateTime       @default(now())
+
+  child     Child          @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, month])
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  category    String
+  description String
+  amount      Float
+  month       String
+  groupId     String?
+  createdAt   DateTime @default(now())
+
+  group       Group?   @relation(fields: [groupId], references: [id])
+}
+
+model ExtraIncome {
+  id        String   @id @default(cuid())
+  title     String
+  amount    Float
+  month     String
+  groupId   String?
+  comment   String?
+  createdAt DateTime @default(now())
+
+  group     Group?   @relation(fields: [groupId], references: [id])
+}
+
+model ScheduleItem {
+  id        String   @id @default(cuid())
+  groupId   String
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  activity  String
+
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+}
+
+model MenuItem {
+  id        String   @id @default(cuid())
+  date      DateTime
+  mealType  MealType
+  dishes    String
+}
+
+model Notification {
+  id          String   @id @default(cuid())
+  userId      String?
+  title       String
+  description String?
+  type        String   @default("info")
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id])
+}

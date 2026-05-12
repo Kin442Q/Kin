@@ -1,0 +1,3 @@
+/** Короткий уникальный идентификатор. Достаточно для клиентских моков и временных id. */
+export const uid = (): string =>
+  Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4)

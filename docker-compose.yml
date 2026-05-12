@@ -1,0 +1,65 @@
+version: '3.9'
+
+# ============================================================
+# Полный стек: Postgres + backend (Express+Prisma) + frontend.
+#
+# Запуск:
+#   docker compose up --build
+# После старта:
+#   - API:      http://localhost:4000
+#   - Frontend: http://localhost:5173
+# ============================================================
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: kg-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: kg_user
+      POSTGRES_PASSWORD: kg_pass
+      POSTGRES_DB: kg_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - kg_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U kg_user -d kg_db']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: kg-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://kg_user:kg_pass@db:5432/kg_db?schema=public
+      JWT_SECRET: super-secret-change-me
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - '4000:4000'
+    command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/index.js"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kg-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      VITE_API_URL: http://localhost:4000/api
+    ports:
+      - '5173:5173'
+
+volumes:
+  kg_db_data:

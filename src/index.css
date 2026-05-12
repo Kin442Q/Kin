@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Глобальные CSS-переменные. Меняются через [data-theme] в html
+   ============================================================ */
+:root {
+  --bg-grad: radial-gradient(1200px 600px at 10% -10%, #e0e7ff 0%, transparent 60%),
+             radial-gradient(900px 500px at 110% 10%, #ddd6fe 0%, transparent 60%),
+             linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(15, 23, 42, 0.06);
+  --glass-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
+  --text-primary: #0f172a;
+  --text-muted: #64748b;
+  --sidebar-bg: rgba(255, 255, 255, 0.7);
+  --sidebar-border: rgba(15, 23, 42, 0.06);
+  --scrollbar-track: #f1f5f9;
+  --scrollbar-thumb: #cbd5e1;
+}
+
+html[data-theme='dark'] {
+  --bg-grad: radial-gradient(1200px 600px at 10% -10%, #1e1b4b 0%, transparent 60%),
+             radial-gradient(900px 500px at 110% 10%, #312e81 0%, transparent 60%),
+             linear-gradient(180deg, #0b1020 0%, #0a0f1c 100%);
+  --glass-bg: rgba(17, 24, 39, 0.6);
+  --glass-border: rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --sidebar-bg: rgba(17, 24, 39, 0.65);
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+  --scrollbar-track: #0f172a;
+  --scrollbar-thumb: #334155;
+}
+
+@layer base {
+  html {
+    font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+  }
+  body {
+    @apply antialiased;
+    background: var(--bg-grad);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    min-height: 100vh;
+  }
+  .text-muted { color: var(--text-muted); }
+}
+
+@layer components {
+  /* Glassmorphism-карточка */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 16px;
+  }
+  .glass-hover {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .glass-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+  }
+  .kpi-gradient {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.06));
+  }
+  .kpi-gradient-emerald {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(14, 165, 233, 0.06));
+  }
+  .kpi-gradient-amber {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.10), rgba(239, 68, 68, 0.06));
+  }
+  .kpi-gradient-rose {
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.10), rgba(168, 85, 247, 0.06));
+  }
+}
+
+/* Скроллбары */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Антд-tweaks под glass */
+.ant-layout, .ant-layout-content, .ant-layout-header, .ant-layout-sider {
+  background: transparent !important;
+}
+.ant-table-wrapper .ant-table {
+  background: transparent;
+}
+
+/* Градиентный логотип */
+.logo-gradient {
+  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+.custom-sidebar-menu.ant-menu-inline-collapsed .ant-menu-item {
+  width: 52px;
+  height: 52px;
+  margin-inline: auto;
+  padding-inline: 0 !important;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 16px;
+}
