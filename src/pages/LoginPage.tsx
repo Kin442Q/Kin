@@ -6,10 +6,12 @@ import {
   Typography,
   App as AntdApp,
   Spin,
+  Tabs,
 } from 'antd'
 import {
   LockOutlined,
   MailOutlined,
+  PhoneOutlined,
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
@@ -25,13 +27,14 @@ export default function LoginPage() {
   const { message } = AntdApp.useApp()
   const [loading, setLoading] = useState(false)
 
-  const onFinish = async (values: { email: string; password: string }) => {
+  const onFinish = async (values: { email?: string; phone?: string; password: string }) => {
     try {
       setLoading(true)
-      const response = await http.post('/v1/auth/login', {
-        email: values.email.trim().toLowerCase(),
-        password: values.password,
-      })
+      const loginData = values.phone
+        ? { phone: values.phone.trim(), password: values.password }
+        : { email: values.email?.trim().toLowerCase(), password: values.password }
+
+      const response = await http.post('/v1/auth/login', loginData)
 
       const { user, accessToken } = response.data
 
@@ -81,32 +84,71 @@ export default function LoginPage() {
         </div>
 
         <Spin spinning={loading}>
-          <Form
-            layout="vertical"
-            onFinish={onFinish}
-          >
-            <Form.Item
-              label="Email"
-              name="email"
-              rules={[{ required: true, message: 'Введите email' }]}
-            >
-              <Input prefix={<MailOutlined />} placeholder="admin@kindergarten.tj" size="large" disabled={loading} />
-            </Form.Item>
-            <Form.Item
-              label="Пароль"
-              name="password"
-              rules={[{ required: true, message: 'Введите пароль' }]}
-            >
-              <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" disabled={loading} />
-            </Form.Item>
-            <Button type="primary" htmlType="submit" size="large" block loading={loading}>
-              Войти
-            </Button>
-          </Form>
+          <Tabs
+            defaultActiveKey="admin"
+            items={[
+              {
+                key: 'admin',
+                label: '👤 Администратор',
+                children: (
+                  <Form
+                    layout="vertical"
+                    onFinish={onFinish}
+                  >
+                    <Form.Item
+                      label="Email"
+                      name="email"
+                      rules={[{ required: true, message: 'Введите email' }]}
+                    >
+                      <Input prefix={<MailOutlined />} placeholder="admin@kindergarten.tj" size="large" disabled={loading} />
+                    </Form.Item>
+                    <Form.Item
+                      label="Пароль"
+                      name="password"
+                      rules={[{ required: true, message: 'Введите пароль' }]}
+                    >
+                      <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" disabled={loading} />
+                    </Form.Item>
+                    <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+                      Войти
+                    </Button>
+                  </Form>
+                ),
+              },
+              {
+                key: 'teacher',
+                label: '👨‍🏫 Воспитатель',
+                children: (
+                  <Form
+                    layout="vertical"
+                    onFinish={onFinish}
+                  >
+                    <Form.Item
+                      label="Номер телефона"
+                      name="phone"
+                      rules={[{ required: true, message: 'Введите номер телефона' }]}
+                    >
+                      <Input prefix={<PhoneOutlined />} placeholder="+992 90 123 45 67" size="large" disabled={loading} />
+                    </Form.Item>
+                    <Form.Item
+                      label="Пароль"
+                      name="password"
+                      rules={[{ required: true, message: 'Введите пароль' }]}
+                    >
+                      <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" disabled={loading} />
+                    </Form.Item>
+                    <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+                      Войти
+                    </Button>
+                  </Form>
+                ),
+              },
+            ]}
+          />
         </Spin>
 
         <Paragraph className="!mt-6 !mb-0 text-center text-xs text-muted">
-          Для входа используйте учетные данные администратора
+          Выберите тип пользователя и введите ваши учетные данные
         </Paragraph>
       </motion.div>
     </div>

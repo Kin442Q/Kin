@@ -99,9 +99,12 @@ export default function TeachersPage() {
     try {
       const v = await form.validateFields()
 
+      // Генерируем email из телефона, если не указан
+      const email = v.email?.trim() || `teacher-${v.phone.replace(/\D/g, '')}@kindergarten.tj`
+
       // Email должен быть уникальным
       const emailTaken = accounts.find(
-        (a) => a.email.toLowerCase() === v.email.toLowerCase() && a.id !== editing?.id,
+        (a) => a.email.toLowerCase() === email.toLowerCase() && a.id !== editing?.id,
       )
       if (emailTaken) {
         message.error('Этот email уже используется')
@@ -110,8 +113,8 @@ export default function TeachersPage() {
 
       const data: Account = {
         id: editing?.id ?? uid(),
-        email: v.email.trim(),
-        password: v.password || editing?.password || 'demo',
+        email,
+        password: v.password || editing?.password || 'Teacher123!',
         fullName: v.fullName.trim(),
         role: 'teacher',
         groupId: v.groupId,
@@ -342,13 +345,12 @@ export default function TeachersPage() {
 
           <Form.Item
             name="email"
-            label="Email (используется для входа)"
+            label="Email (для системы, необязательно)"
             rules={[
-              { required: true, message: 'Введите email' },
               { type: 'email', message: 'Некорректный email' },
             ]}
           >
-            <Input prefix={<MailOutlined />} placeholder="teacher@kg.app" />
+            <Input prefix={<MailOutlined />} placeholder="example@kg.app" />
           </Form.Item>
 
           <Form.Item
@@ -403,8 +405,17 @@ export default function TeachersPage() {
             />
           </Form.Item>
 
-          <Form.Item name="phone" label="Телефон">
-            <Input prefix={<PhoneOutlined />} placeholder="+992 …" />
+          <Form.Item
+            name="phone"
+            label="Номер телефона (используется для входа)"
+            rules={[{ required: true, message: 'Введите номер телефона' }]}
+            extra={
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Учитель будет входить по этому номеру и пароля
+              </Text>
+            }
+          >
+            <Input prefix={<PhoneOutlined />} placeholder="+992 90 123 45 67" />
           </Form.Item>
 
           <Alert
