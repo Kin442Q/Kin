@@ -1,14 +1,14 @@
 version: '3.9'
 
-# ============================================================
-# Полный стек: Postgres + backend (Express+Prisma) + frontend.
-#
+# ============================================================================
+# Full stack: Postgres + Redis + NestJS API + Vite frontend.
 # Запуск:
 #   docker compose up --build
 # После старта:
-#   - API:      http://localhost:4000
+#   - API:      http://localhost:4000/api/v1
+#   - Swagger:  http://localhost:4000/api/docs
 #   - Frontend: http://localhost:5173
-# ============================================================
+# ============================================================================
 
 services:
   db:
@@ -29,24 +29,45 @@ services:
       timeout: 5s
       retries: 10
 
-  backend:
+  redis:
+    image: redis:7-alpine
+    container_name: kg-redis
+    restart: unless-stopped
+    command: ['redis-server', '--save', '60', '1']
+    ports:
+      - '6379:6379'
+    volumes:
+      - kg_redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
     build:
       context: ./server
       dockerfile: Dockerfile
-    container_name: kg-backend
+    container_name: kg-api
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://kg_user:kg_pass@db:5432/kg_db?schema=public
-      JWT_SECRET: super-secret-change-me
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: change-me-access-secret
+      JWT_REFRESH_SECRET: change-me-refresh-secret
+      JWT_ACCESS_TTL: 15m
+      JWT_REFRESH_TTL: 30d
       CORS_ORIGIN: http://localhost:5173
     ports:
       - '4000:4000'
-    command: sh -c "npx prisma migrate deploy && npx prisma db seed && node dist/index.js"
 
   frontend:
     build:
@@ -55,11 +76,12 @@ services:
     container_name: kg-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      - api
     environment:
-      VITE_API_URL: http://localhost:4000/api
+      VITE_API_URL: http://localhost:4000/api/v1
     ports:
       - '5173:5173'
 
 volumes:
   kg_db_data:
+  kg_redis_data:

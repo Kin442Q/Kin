@@ -1,58 +1,26 @@
-import { useEffect } from 'react'
 import {
   Form,
   Input,
   Button,
   Typography,
-  Divider,
-  Tag,
   App as AntdApp,
 } from 'antd'
 import {
   LockOutlined,
   MailOutlined,
-  CrownOutlined,
-  TeamOutlined,
-  UserOutlined,
-  HeartOutlined,
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { useDataStore } from '../store/dataStore'
-import type { Role, User } from '../types'
+import type { User } from '../types'
 
-const { Title, Paragraph, Text } = Typography
-
-/**
- * Демо-пресеты для быстрого входа. Email-ы совпадают с теми, что создаются
- * в seedDemo(). Если в сторе ещё нет accounts — кнопки всё равно работают,
- * мы посеетдим данные и попробуем войти ещё раз.
- */
-const ROLE_PRESETS: {
-  role: Role
-  label: string
-  email: string
-  color: string
-  icon: React.ReactNode
-}[] = [
-  { role: 'super_admin', label: 'Super Admin', email: 'super@kg.app', color: 'magenta', icon: <CrownOutlined /> },
-  { role: 'admin', label: 'Admin', email: 'admin@kg.app', color: 'geekblue', icon: <UserOutlined /> },
-  { role: 'teacher', label: 'Воспитатель', email: 'zarina@kg.app', color: 'green', icon: <TeamOutlined /> },
-  { role: 'parent', label: 'Родитель', email: 'parent@kg.app', color: 'volcano', icon: <HeartOutlined /> },
-]
+const { Title, Paragraph } = Typography
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
-  const accounts = useDataStore((s) => s.accounts)
-  const seedDemo = useDataStore((s) => s.seedDemo)
   const { message } = AntdApp.useApp()
-
-  // Если в сторе нет ни одной учётки — подсадим демо-данные.
-  useEffect(() => {
-    if (accounts.length === 0) seedDemo()
-  }, [accounts.length, seedDemo])
 
   const onFinish = (values: { email: string; password: string }) => {
     const email = values.email.trim().toLowerCase()
@@ -79,15 +47,6 @@ export default function LoginPage() {
     login(user)
     message.success(`Добро пожаловать, ${user.fullName}`)
     navigate('/admin/dashboard', { replace: true })
-  }
-
-  const quickLogin = (role: Role) => {
-    const preset = ROLE_PRESETS.find((p) => p.role === role)!
-    // На случай, если seed ещё не отработал — гарантируем
-    if (useDataStore.getState().accounts.length === 0) {
-      seedDemo()
-    }
-    onFinish({ email: preset.email, password: 'demo' })
   }
 
   return (
@@ -118,14 +77,13 @@ export default function LoginPage() {
         <Form
           layout="vertical"
           onFinish={onFinish}
-          initialValues={{ email: 'admin@kg.app', password: 'demo' }}
         >
           <Form.Item
             label="Email"
             name="email"
             rules={[{ required: true, message: 'Введите email' }]}
           >
-            <Input prefix={<MailOutlined />} placeholder="admin@kg.app" size="large" />
+            <Input prefix={<MailOutlined />} placeholder="admin@example.com" size="large" />
           </Form.Item>
           <Form.Item
             label="Пароль"
@@ -139,31 +97,8 @@ export default function LoginPage() {
           </Button>
         </Form>
 
-        <Divider plain>
-          <Text type="secondary" style={{ fontSize: 12 }}>
-            Быстрый вход (демо)
-          </Text>
-        </Divider>
-
-        <div className="grid grid-cols-2 gap-2">
-          {ROLE_PRESETS.map((p) => (
-            <motion.button
-              key={p.role}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              type="button"
-              onClick={() => quickLogin(p.role)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg border border-black/5 dark:border-white/10 text-sm hover:bg-black/5 dark:hover:bg-white/5 transition"
-            >
-              <Tag color={p.color} style={{ margin: 0 }} icon={p.icon}>
-                {p.label}
-              </Tag>
-            </motion.button>
-          ))}
-        </div>
-
         <Paragraph className="!mt-6 !mb-0 text-center text-xs text-muted">
-          Учителей можно создавать в разделе «Учителя» под админом.
+          Для входа используйте учетные данные администратора
         </Paragraph>
       </motion.div>
     </div>

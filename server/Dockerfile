@@ -1,21 +1,40 @@
-# --- Backend (Express + Prisma) ---
+# ============================================================================
+# KinderCRM Backend — multi-stage NestJS Dockerfile
+# ============================================================================
+# Stage 1: install all deps (incl. dev) + prisma generate
 FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
+COPY prisma ./prisma
+RUN npm ci --include=dev && npx prisma generate
 
+# Stage 2: build
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npx prisma generate
+COPY --from=deps /app/prisma ./prisma
+COPY tsconfig*.json nest-cli.json ./
+COPY src ./src
 RUN npm run build
 
-FROM node:20-alpine
+# Stage 3: production image
+FROM node:20-alpine AS runner
+ENV NODE_ENV=production
+ENV TZ=Asia/Dushanbe
 WORKDIR /app
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/prisma ./prisma
+
+# Только prod-deps
 COPY package*.json ./
+RUN npm ci --omit=dev && npm cache clean --force
+
+# Prisma client + миграции
+COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/dist ./dist
+
+USER node
 EXPOSE 4000
-CMD ["node", "dist/index.js"]
+
+# При первом старте применяем миграции, затем стартуем API.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
