@@ -22,6 +22,7 @@ import { FinanceModule } from './modules/finance/finance.module'
 import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { NotificationsModule } from './modules/notifications/notifications.module'
 import { HealthModule } from './modules/health/health.module'
+import { TelegramModule } from './modules/telegram/telegram.module'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
@@ -68,6 +69,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     AnalyticsModule,
     NotificationsModule,
     HealthModule,
+    TelegramModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.
