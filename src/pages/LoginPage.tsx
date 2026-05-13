@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import {
   Form,
   Input,
   Button,
   Typography,
   App as AntdApp,
+  Spin,
 } from 'antd'
 import {
   LockOutlined,
@@ -12,7 +14,7 @@ import {
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { useDataStore } from '../store/dataStore'
+import { http } from '../api'
 import type { User } from '../types'
 
 const { Title, Paragraph } = Typography
@@ -21,32 +23,36 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
   const { message } = AntdApp.useApp()
+  const [loading, setLoading] = useState(false)
 
-  const onFinish = (values: { email: string; password: string }) => {
-    const email = values.email.trim().toLowerCase()
-    const account = useDataStore
-      .getState()
-      .accounts.find((a) => a.email.toLowerCase() === email)
+  const onFinish = async (values: { email: string; password: string }) => {
+    try {
+      setLoading(true)
+      const response = await http.post('/v1/auth/login', {
+        email: values.email.trim().toLowerCase(),
+        password: values.password,
+      })
 
-    if (!account) {
-      message.error('Пользователь не найден')
-      return
-    }
-    if (account.password !== values.password) {
-      message.error('Неверный пароль')
-      return
-    }
+      const { user, accessToken } = response.data
 
-    const user: User = {
-      id: account.id,
-      fullName: account.fullName,
-      email: account.email,
-      role: account.role,
-      groupId: account.groupId,
+      // Сохраняем пользователя и токен
+      login({
+        id: user.id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        groupId: user.groupId,
+        childId: user.childId,
+      }, accessToken)
+
+      message.success(`Добро пожаловать, ${user.fullName}`)
+      navigate('/admin/dashboard', { replace: true })
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.message || 'Ошибка входа'
+      message.error(errorMsg)
+    } finally {
+      setLoading(false)
     }
-    login(user)
-    message.success(`Добро пожаловать, ${user.fullName}`)
-    navigate('/admin/dashboard', { replace: true })
   }
 
   return (
@@ -74,28 +80,30 @@ export default function LoginPage() {
           </Paragraph>
         </div>
 
-        <Form
-          layout="vertical"
-          onFinish={onFinish}
-        >
-          <Form.Item
-            label="Email"
-            name="email"
-            rules={[{ required: true, message: 'Введите email' }]}
+        <Spin spinning={loading}>
+          <Form
+            layout="vertical"
+            onFinish={onFinish}
           >
-            <Input prefix={<MailOutlined />} placeholder="admin@example.com" size="large" />
-          </Form.Item>
-          <Form.Item
-            label="Пароль"
-            name="password"
-            rules={[{ required: true, message: 'Введите пароль' }]}
-          >
-            <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" size="large" block>
-            Войти
-          </Button>
-        </Form>
+            <Form.Item
+              label="Email"
+              name="email"
+              rules={[{ required: true, message: 'Введите email' }]}
+            >
+              <Input prefix={<MailOutlined />} placeholder="admin@kindergarten.tj" size="large" disabled={loading} />
+            </Form.Item>
+            <Form.Item
+              label="Пароль"
+              name="password"
+              rules={[{ required: true, message: 'Введите пароль' }]}
+            >
+              <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" disabled={loading} />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+              Войти
+            </Button>
+          </Form>
+        </Spin>
 
         <Paragraph className="!mt-6 !mb-0 text-center text-xs text-muted">
           Для входа используйте учетные данные администратора
