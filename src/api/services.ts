@@ -5,6 +5,7 @@ import type {
   Expense,
   ExtraIncome,
   Group,
+  Meeting,
   MenuItem,
   Payment,
   ScheduleItem,
@@ -194,6 +195,31 @@ export const analyticsService = {
         }>
       >('/v1/analytics/trend', { params: { months } })
       .then((r) => r.data),
+}
+
+// Meetings (родительские собрания)
+export const meetingsService = {
+  list: (groupId?: string) =>
+    http
+      .get<Meeting[]>('/v1/meetings', { params: groupId ? { groupId } : {} })
+      .then((r) => r.data),
+  create: (data: {
+    groupId: string
+    title: string
+    scheduledAt: string
+    location?: string
+    description?: string
+  }) => http.post<Meeting>('/v1/meetings', data).then((r) => r.data),
+  update: (
+    id: string,
+    data: Partial<{
+      title: string
+      scheduledAt: string
+      location: string
+      description: string
+    }>,
+  ) => http.patch<Meeting>(`/v1/meetings/${id}`, data).then((r) => r.data),
+  remove: (id: string) => http.delete(`/v1/meetings/${id}`),
 }
 
 // Notifications

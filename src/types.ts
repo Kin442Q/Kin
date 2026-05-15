@@ -206,6 +206,22 @@ export interface ExtraIncome {
   createdAt: string
 }
 
+// --- Родительские собрания ----------------------------------
+export interface Meeting {
+  id: string
+  groupId: string
+  title: string
+  /** ISO datetime — когда состоится собрание */
+  scheduledAt: string
+  location?: string | null
+  description?: string | null
+  createdById?: string | null
+  createdAt: string
+  updatedAt: string
+  /** Иногда бэк отдаёт связанную группу (id/name/color) */
+  group?: { id: string; name: string; color?: string }
+}
+
 // --- Уведомления / лог --------------------------------------
 export interface AppNotification {
   id: string

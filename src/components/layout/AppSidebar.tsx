@@ -98,6 +98,12 @@ const NAV: NavEntry[] = [
     roles: ["SUPER_ADMIN", "admin", "TEACHER"],
   },
   {
+    key: "/admin/meetings",
+    label: "Собрания",
+    icon: <TeamOutlined />,
+    roles: ["SUPER_ADMIN", "admin", "TEACHER"],
+  },
+  {
     key: "/admin/menu",
     label: "Меню",
     icon: <CoffeeOutlined />,

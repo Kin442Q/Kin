@@ -25,6 +25,16 @@ interface PaymentNotification {
   month?: string
 }
 
+interface MeetingNotification {
+  /** Все телефоны родителей детей группы (мама/папа), уже плоским списком */
+  phones: string[]
+  groupName: string
+  title: string
+  scheduledAt: Date
+  location?: string | null
+  description?: string | null
+}
+
 @Injectable()
 export class TelegramLinkService {
   private readonly logger = new Logger(TelegramLinkService.name)
@@ -156,6 +166,50 @@ ${groupLine}${monthLine}
     return { success: true, sent: chatIds.length }
   }
 
+  /**
+   * Уведомить всех родителей группы о родительском собрании.
+   * Дедуплицируем chatId, чтобы родитель с двумя детьми не получил дубликат.
+   */
+  async sendMeetingNotification(item: MeetingNotification) {
+    const chatIds = await this.resolveChatIds(item.phones || [])
+    const unique = Array.from(new Set(chatIds))
+
+    if (unique.length === 0) {
+      return {
+        success: false,
+        sent: 0,
+        reason: 'Никто из родителей группы не привязан к боту',
+      }
+    }
+
+    const dateStr = formatMeetingDate(item.scheduledAt)
+    const locationLine = item.location
+      ? `📍 Место: <b>${escapeHtml(item.location)}</b>\n`
+      : ''
+    const descLine = item.description
+      ? `\n📝 ${escapeHtml(item.description)}`
+      : ''
+
+    const text = `
+📣 <b>Родительское собрание</b>
+
+👥 Группа: <b>${escapeHtml(item.groupName)}</b>
+🗓️ Дата: <b>${dateStr}</b>
+${locationLine}🔔 Тема: <b>${escapeHtml(item.title)}</b>${descLine}
+
+Пожалуйста, не пропустите!
+    `.trim()
+
+    for (const chatId of unique) {
+      await this.enqueueMessage(chatId, text)
+    }
+
+    this.logger.log(
+      `[telegram] Уведомление о собрании "${item.title}" отправлено ${unique.length} родителям`,
+    )
+    return { success: true, sent: unique.length }
+  }
+
   private async enqueueReminder(chatId: number, item: ReminderItem) {
     const monthLine = item.month ? `🗓️ Месяц: <b>${item.month}</b>\n` : ''
     const groupLine = item.groupName
@@ -183,4 +237,25 @@ ${groupLine}${monthLine}
       parse_mode: 'HTML',
     })
   }
+}
+
+const MONTHS_RU = [
+  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+]
+
+function formatMeetingDate(d: Date): string {
+  const day = d.getDate()
+  const month = MONTHS_RU[d.getMonth()]
+  const year = d.getFullYear()
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `${day} ${month} ${year}, ${hh}:${mm}`
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
 }

@@ -273,6 +273,7 @@ model Group {
   attendance           Attendance[]
   salaries             Salary[]
   monthlyReports       MonthlyReport[]
+  meetings             Meeting[]
 
   @@index([isActive])
   @@index([kindergartenId])
@@ -486,6 +487,27 @@ model MonthlyReport {
 
   @@unique([groupId, month])
   @@index([month])
+}
+
+// ---------------------------------------------------------------------------
+// MEETINGS (родительские собрания)
+// ---------------------------------------------------------------------------
+
+model Meeting {
+  id          String   @id @default(cuid())
+  groupId     String
+  title       String
+  scheduledAt DateTime           // дата и время проведения
+  location    String?            // место/кабинет
+  description String?            // повестка
+  createdById String?            // user.id создателя (учитель/админ)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group       Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@index([groupId, scheduledAt])
+  @@index([scheduledAt])
 }
 
 // ---------------------------------------------------------------------------

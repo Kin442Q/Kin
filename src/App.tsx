@@ -18,6 +18,7 @@ import StaffPage from "./pages/StaffPage";
 import TeachersPage from "./pages/TeachersPage";
 import KindergartensPage from "./pages/KindergartensPage";
 import SchedulePage from "./pages/SchedulePage";
+import MeetingsPage from "./pages/MeetingsPage";
 import MenuPage from "./pages/MenuPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from "./pages/NotFoundPage";
@@ -135,6 +136,14 @@ export default function App() {
               element={
                 <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
                   <SchedulePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="meetings"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                  <MeetingsPage />
                 </RequireRole>
               }
             />
