@@ -11,17 +11,36 @@ interface AuthState {
 }
 
 /**
- * Хранилище авторизации. В продакшен-интеграции токен приходит из
- * backend /auth/login. В демо-режиме (без backend) login принимает
- * заранее сформированного пользователя из mock-данных.
+ * Если сменился пользователь (или это первый логин) — очищаем
+ * локальные данные предыдущего садика. Это важно для multi-tenant,
+ * чтобы новый владелец не видел чужие данные из localStorage.
  */
+function resetTenantData(previousUserId: string | null, newUserId: string) {
+  if (previousUserId !== newUserId) {
+    // Динамический импорт чтобы избежать циклической зависимости
+    import('./dataStore').then(({ useDataStore }) => {
+      useDataStore.getState().resetAll()
+    })
+  }
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
       user: null,
       token: null,
-      login: (user, token = 'demo-token') => set({ user, token }),
-      logout: () => set({ user: null, token: null }),
+      login: (user, token = 'demo-token') => {
+        const prev = get().user
+        resetTenantData(prev?.id || null, user.id)
+        set({ user, token })
+      },
+      logout: () => {
+        // При выходе тоже чистим — следующий вход начнётся с чистого листа
+        import('./dataStore').then(({ useDataStore }) => {
+          useDataStore.getState().resetAll()
+        })
+        set({ user: null, token: null })
+      },
       hasRole: (...roles) => {
         const u = get().user
         if (!u) return false

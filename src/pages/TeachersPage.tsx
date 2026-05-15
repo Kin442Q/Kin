@@ -6,7 +6,9 @@ import {
   Col,
   Drawer,
   Form,
+  Grid,
   Input,
+  Modal,
   Popconfirm,
   Row,
   Select,
@@ -28,16 +30,29 @@ import {
   MailOutlined,
   PhoneOutlined,
   KeyOutlined,
+  ReloadOutlined,
+  CopyOutlined,
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 
+import { useEffect } from 'react'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
-import { uid } from '../lib/uid'
-import type { Account } from '../types'
+import { http } from '../api'
+
+interface TeacherApi {
+  id: string
+  email: string
+  fullName: string
+  phone: string | null
+  groupId: string | null
+  isActive: boolean
+  createdAt?: string
+}
 
 const { Text } = Typography
+const { useBreakpoint } = Grid
 
 /**
  * Регистрация учителей.
@@ -48,22 +63,57 @@ const { Text } = Typography
  */
 export default function TeachersPage() {
   const { message } = AntdApp.useApp()
-  const accounts = useDataStore((s) => s.accounts)
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const groups = useDataStore((s) => s.groups)
-  const upsertAccount = useDataStore((s) => s.upsertAccount)
-  const deleteAccount = useDataStore((s) => s.deleteAccount)
 
+  const [teachers, setTeachers] = useState<TeacherApi[]>([])
+  const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [groupFilter, setGroupFilter] = useState<string | undefined>()
   const [drawerOpen, setDrawerOpen] = useState(false)
-  const [editing, setEditing] = useState<Account | null>(null)
+  const [editing, setEditing] = useState<TeacherApi | null>(null)
+  const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
 
-  // Только учителя
-  const teachers = useMemo(
-    () => accounts.filter((a) => a.role === 'teacher'),
-    [accounts],
-  )
+  // Модалка с учётными данными после создания
+  const [credentialsModal, setCredentialsModal] = useState<{
+    fullName: string
+    phone: string
+    password: string
+  } | null>(null)
+
+  const generatePassword = () => {
+    const chars =
+      'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+    let pwd = ''
+    for (let i = 0; i < 8; i++) {
+      pwd += chars[Math.floor(Math.random() * chars.length)]
+    }
+    form.setFieldsValue({ password: pwd })
+  }
+
+  // Загружаем учителей с бекенда
+  const loadTeachers = async () => {
+    try {
+      setLoading(true)
+      const res = await http.get<TeacherApi[]>('/v1/users/teachers')
+      setTeachers(res.data)
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось загрузить учителей'
+      message.error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadTeachers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const list = useMemo(() => {
     let r = teachers
@@ -89,51 +139,83 @@ export default function TeachersPage() {
     setDrawerOpen(true)
   }
 
-  const openEdit = (t: Account) => {
+  const openEdit = (t: TeacherApi) => {
     setEditing(t)
-    form.setFieldsValue({ ...t, password: '' })
+    form.setFieldsValue({
+      fullName: t.fullName,
+      email: t.email,
+      phone: t.phone,
+      groupId: t.groupId,
+      password: '',
+    })
     setDrawerOpen(true)
   }
 
   const submit = async () => {
     try {
       const v = await form.validateFields()
+      setSubmitting(true)
 
-      // Генерируем email из телефона, если не указан
-      const email = v.email?.trim() || `teacher-${v.phone.replace(/\D/g, '')}@kindergarten.tj`
-
-      // Email должен быть уникальным
-      const emailTaken = accounts.find(
-        (a) => a.email.toLowerCase() === email.toLowerCase() && a.id !== editing?.id,
-      )
-      if (emailTaken) {
-        message.error('Этот email уже используется')
-        return
+      if (editing) {
+        // Обновление
+        const body: Record<string, unknown> = {
+          fullName: v.fullName.trim(),
+          phone: v.phone,
+          groupId: v.groupId ?? null,
+        }
+        if (v.email) body.email = v.email.trim()
+        if (v.password) body.password = v.password
+        await http.patch(`/v1/users/teacher/${editing.id}`, body)
+        message.success('Учётка учителя обновлена')
+      } else {
+        // Создание
+        if (!v.password || v.password.length < 6) {
+          message.error('Пароль минимум 6 символов')
+          return
+        }
+        await http.post('/v1/users/teacher', {
+          fullName: v.fullName.trim(),
+          phone: v.phone,
+          email: v.email?.trim() || undefined,
+          password: v.password,
+          groupId: v.groupId || undefined,
+        })
+        message.success('Учитель зарегистрирован')
+        // Показываем учётные данные админу — последний шанс их увидеть
+        setCredentialsModal({
+          fullName: v.fullName.trim(),
+          phone: v.phone,
+          password: v.password,
+        })
       }
 
-      const data: Account = {
-        id: editing?.id ?? uid(),
-        email,
-        password: v.password || editing?.password || 'Teacher123!',
-        fullName: v.fullName.trim(),
-        role: 'teacher',
-        groupId: v.groupId,
-        phone: v.phone,
-        createdAt: editing?.createdAt ?? new Date().toISOString(),
-      }
-      upsertAccount(data)
       setDrawerOpen(false)
-      message.success(
-        editing ? 'Учётка учителя обновлена' : 'Учитель зарегистрирован',
-      )
-    } catch {
-      /* validation */
+      await loadTeachers()
+    } catch (err: any) {
+      // Если это ошибка валидации формы — пропускаем
+      if (err?.errorFields) return
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось сохранить учителя'
+      message.error(msg)
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  const remove = (t: Account) => {
-    deleteAccount(t.id)
-    message.success(`Учётка «${t.fullName}» удалена`)
+  const remove = async (t: TeacherApi) => {
+    try {
+      await http.delete(`/v1/users/teacher/${t.id}`)
+      message.success(`Учётка «${t.fullName}» удалена`)
+      await loadTeachers()
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось удалить учителя'
+      message.error(msg)
+    }
   }
 
   return (
@@ -216,8 +298,9 @@ export default function TeachersPage() {
             </Col>
           </Row>
 
-          <Table
+          <Table<TeacherApi>
             rowKey="id"
+            loading={loading}
             dataSource={list}
             pagination={{ pageSize: 10 }}
             scroll={{ x: 700 }}
@@ -226,7 +309,7 @@ export default function TeachersPage() {
               {
                 title: 'Учитель',
                 key: 'fio',
-                render: (_, t: Account) => (
+                render: (_, t) => (
                   <Space>
                     <Avatar
                       size={36}
@@ -248,7 +331,7 @@ export default function TeachersPage() {
                 dataIndex: 'groupId',
                 filters: groups.map((g) => ({ text: g.name, value: g.id })),
                 onFilter: (v, t) => t.groupId === v,
-                render: (groupId?: string) => {
+                render: (groupId?: string | null) => {
                   if (!groupId) return <Tag color="default">Не назначена</Tag>
                   const g = groups.find((x) => x.id === groupId)
                   if (!g) return <Tag color="red">Удалена</Tag>
@@ -268,7 +351,7 @@ export default function TeachersPage() {
               {
                 title: 'Телефон',
                 dataIndex: 'phone',
-                render: (v?: string) =>
+                render: (v?: string | null) =>
                   v ? (
                     <Text>
                       <PhoneOutlined /> {v}
@@ -278,16 +361,14 @@ export default function TeachersPage() {
                   ),
               },
               {
-                title: 'Пароль',
-                dataIndex: 'password',
-                render: (v: string) => (
-                  <Space>
-                    <KeyOutlined />
-                    <Text copyable={{ text: v }} style={{ fontFamily: 'monospace' }}>
-                      ••••••
-                    </Text>
-                  </Space>
-                ),
+                title: 'Статус',
+                dataIndex: 'isActive',
+                render: (active: boolean) =>
+                  active ? (
+                    <Tag color="green">Активен</Tag>
+                  ) : (
+                    <Tag color="red">Заблокирован</Tag>
+                  ),
               },
               {
                 title: '',
@@ -321,14 +402,14 @@ export default function TeachersPage() {
 
       <Drawer
         title={editing ? 'Редактировать учителя' : 'Регистрация учителя'}
-        width={460}
+        width={isMobile ? '100%' : 460}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         destroyOnClose
         extra={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Отмена</Button>
-            <Button type="primary" onClick={submit}>
+            <Button type="primary" loading={submitting} onClick={submit}>
               {editing ? 'Сохранить' : 'Создать'}
             </Button>
           </Space>
@@ -361,11 +442,34 @@ export default function TeachersPage() {
                 ? []
                 : [
                     { required: true, message: 'Введите пароль' },
-                    { min: 4, message: 'Минимум 4 символа' },
+                    { min: 6, message: 'Минимум 6 символов' },
                   ]
             }
+            extra={
+              !editing && (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  💡 Сгенерируйте пароль или придумайте свой. После сохранения он будет показан один раз.
+                </Text>
+              )
+            }
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="••••••••" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder="••••••••"
+              addonAfter={
+                <Tooltip title="Сгенерировать пароль">
+                  <Button
+                    type="text"
+                    size="small"
+                    icon={<ReloadOutlined />}
+                    onClick={generatePassword}
+                    style={{ border: 'none', height: 'auto', padding: '0 4px' }}
+                  >
+                    Создать
+                  </Button>
+                </Tooltip>
+              }
+            />
           </Form.Item>
 
           <Form.Item
@@ -422,10 +526,158 @@ export default function TeachersPage() {
             type="info"
             showIcon
             message="После создания"
-            description="Передайте учителю его email и пароль. Он сможет войти и работать только со своей группой."
+            description="Вы увидите телефон и пароль один раз — обязательно сохраните или передайте учителю."
           />
         </Form>
       </Drawer>
+
+      <Modal
+        title={
+          <Space>
+            <KeyOutlined style={{ color: '#10b981' }} />
+            <span>Учётные данные учителя</span>
+          </Space>
+        }
+        open={!!credentialsModal}
+        onCancel={() => setCredentialsModal(null)}
+        footer={[
+          <Button
+            key="copy-all"
+            icon={<CopyOutlined />}
+            onClick={() => {
+              if (!credentialsModal) return
+              const text =
+                `Логин для входа в KinderCRM\n\n` +
+                `👨‍🏫 ${credentialsModal.fullName}\n` +
+                `📱 Телефон: ${credentialsModal.phone}\n` +
+                `🔑 Пароль: ${credentialsModal.password}\n\n` +
+                `Выбирайте на странице входа вкладку "Воспитатель".`
+              navigator.clipboard.writeText(text)
+              message.success('Скопировано в буфер обмена')
+            }}
+          >
+            Скопировать всё
+          </Button>,
+          <Button
+            key="close"
+            type="primary"
+            onClick={() => setCredentialsModal(null)}
+          >
+            Готово
+          </Button>,
+        ]}
+        width={isMobile ? '100%' : 480}
+      >
+        {credentialsModal && (
+          <div>
+            <Alert
+              type="warning"
+              showIcon
+              message="Сохраните пароль сейчас!"
+              description="После закрытия этого окна пароль больше нельзя будет увидеть — только сбросить."
+              style={{ marginBottom: 16 }}
+            />
+
+            <div
+              style={{
+                background: 'rgba(99, 102, 241, 0.05)',
+                border: '1px solid rgba(99, 102, 241, 0.2)',
+                borderRadius: 12,
+                padding: 16,
+              }}
+            >
+              <div style={{ marginBottom: 12 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Учитель
+                </Text>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>
+                  {credentialsModal.fullName}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  <PhoneOutlined /> Телефон (логин)
+                </Text>
+                <div
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: 16,
+                    fontWeight: 600,
+                    background: '#fff',
+                    padding: '6px 10px',
+                    borderRadius: 8,
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span>{credentialsModal.phone}</span>
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<CopyOutlined />}
+                    onClick={() => {
+                      navigator.clipboard.writeText(credentialsModal.phone)
+                      message.success('Телефон скопирован')
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  <LockOutlined /> Пароль
+                </Text>
+                <div
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: 16,
+                    fontWeight: 600,
+                    background: '#fff',
+                    padding: '6px 10px',
+                    borderRadius: 8,
+                    border: '1px solid #e2e8f0',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <span>{credentialsModal.password}</span>
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<CopyOutlined />}
+                    onClick={() => {
+                      navigator.clipboard.writeText(credentialsModal.password)
+                      message.success('Пароль скопирован')
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div
+              style={{
+                marginTop: 16,
+                fontSize: 13,
+                color: '#64748b',
+                lineHeight: 1.6,
+              }}
+            >
+              <b>Что передать учителю:</b>
+              <ol style={{ paddingLeft: 20, margin: '6px 0' }}>
+                <li>Открыть страницу входа</li>
+                <li>
+                  Выбрать вкладку <b>"👨‍🏫 Воспитатель"</b>
+                </li>
+                <li>Ввести номер телефона и пароль</li>
+              </ol>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

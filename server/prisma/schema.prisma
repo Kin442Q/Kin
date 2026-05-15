@@ -65,6 +65,19 @@ enum ExpenseCategory {
   OTHER
 }
 
+enum StaffPosition {
+  TEACHER_ASSISTANT
+  HEAD_MASTER
+  METHODIST
+  NURSE
+  COOK
+  PSYCHOLOGIST
+  MUSIC_TEACHER
+  GUARD
+  CLEANER
+  OTHER
+}
+
 enum NotificationChannel {
   IN_APP
   EMAIL
@@ -89,6 +102,88 @@ enum AuditAction {
 }
 
 // ---------------------------------------------------------------------------
+// KINDERGARTEN (мульти-тенант: каждый садик = отдельный изолированный аккаунт)
+// ---------------------------------------------------------------------------
+
+model Kindergarten {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique  // короткий ID для URL/команд
+  address       String?
+  phone         String?
+  isActive      Boolean  @default(true)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  users         User[]
+  groups        Group[]
+  students      Student[]
+  expenses      Expense[]
+  extraIncomes  ExtraIncome[]
+  staff         Staff[]
+  menuItems     MenuItem[]
+
+  @@index([isActive])
+}
+
+// ---------------------------------------------------------------------------
+// MENU (питание)
+// ---------------------------------------------------------------------------
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACK
+  DINNER
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  date        DateTime @db.Date
+  meal        MealType
+  title       String
+  description String?
+  calories    Int?
+
+  kindergartenId String
+  kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([kindergartenId, date])
+  @@index([date])
+}
+
+// ---------------------------------------------------------------------------
+// STAFF (сотрудники садика, не учителя — для них есть User с role=TEACHER)
+// ---------------------------------------------------------------------------
+
+model Staff {
+  id           String   @id @default(cuid())
+  firstName    String
+  lastName     String
+  middleName   String?
+  position     StaffPosition
+  phone        String
+  email        String?
+  /// id группы, если сотрудник закреплён за группой (например, помощник воспитателя)
+  groupId      String?
+  salary       Decimal  @db.Decimal(12, 2) @default(0)
+  hireDate     DateTime
+
+  kindergartenId String
+  kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([kindergartenId])
+  @@index([position])
+}
+
+// ---------------------------------------------------------------------------
 // USERS / AUTH
 // ---------------------------------------------------------------------------
 
@@ -100,6 +195,11 @@ model User {
   role          Role     @default(TEACHER)
   avatarUrl     String?
   phone         String?
+
+  /// Для multi-tenant: к какому садику принадлежит пользователь.
+  /// NULL = глобальный супер-админ, видит все садики.
+  kindergartenId String?
+  kindergarten   Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
 
   /// Для TEACHER — id привязанной группы.
   /// (Может остаться NULL, пока админ не назначит группу.)
@@ -122,6 +222,7 @@ model User {
 
   @@index([role])
   @@index([groupId])
+  @@index([kindergartenId])
 }
 
 /// Refresh-токены хранятся в БД, чтобы их можно было отзывать.
@@ -160,6 +261,10 @@ model Group {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  /// Multi-tenant: к какому садику принадлежит группа
+  kindergartenId       String?
+  kindergarten         Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
   students             Student[]
   teachers             User[]          @relation("GroupTeachers")
   schedule             ScheduleItem[]
@@ -170,6 +275,7 @@ model Group {
   monthlyReports       MonthlyReport[]
 
   @@index([isActive])
+  @@index([kindergartenId])
 }
 
 // ---------------------------------------------------------------------------
@@ -207,6 +313,10 @@ model Student {
   groupId       String
   group         Group         @relation(fields: [groupId], references: [id])
 
+  /// Multi-tenant: к какому садику принадлежит ребёнок
+  kindergartenId String?
+  kindergarten   Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
   attendance    Attendance[]
   payments      Payment[]
   parents       User[]        // PARENT-аккаунты, привязанные к ребёнку
@@ -217,6 +327,7 @@ model Student {
   @@index([groupId])
   @@index([status])
   @@index([lastName, firstName])
+  @@index([kindergartenId])
 }
 
 // ---------------------------------------------------------------------------
@@ -297,8 +408,13 @@ model ExtraIncome {
 
   group     Group?   @relation(fields: [groupId], references: [id])
 
+  /// Multi-tenant
+  kindergartenId String?
+  kindergarten   Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
   @@index([month])
   @@index([groupId, month])
+  @@index([kindergartenId])
 }
 
 // ---------------------------------------------------------------------------
@@ -317,9 +433,14 @@ model Expense {
 
   group       Group?          @relation(fields: [groupId], references: [id])
 
+  /// Multi-tenant
+  kindergartenId String?
+  kindergarten   Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
   @@index([month])
   @@index([groupId, month])
   @@index([month, category])
+  @@index([kindergartenId])
 }
 
 // ---------------------------------------------------------------------------
@@ -365,6 +486,26 @@ model MonthlyReport {
 
   @@unique([groupId, month])
   @@index([month])
+}
+
+// ---------------------------------------------------------------------------
+// PHONE → TELEGRAM CHAT LINKS (привязка телефонов родителей к Telegram чатам)
+// ---------------------------------------------------------------------------
+
+model PhoneChatLink {
+  id            String   @id @default(cuid())
+  /// Нормализованный номер телефона (только цифры, без + и пробелов)
+  phoneNormalized String @unique
+  /// Telegram chat ID родителя
+  chatId        BigInt
+  /// Имя/фамилия из профиля Telegram (для отладки)
+  fullName      String?
+  username      String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([chatId])
 }
 
 // ---------------------------------------------------------------------------

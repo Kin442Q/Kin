@@ -215,3 +215,99 @@ html[data-theme='dark'] {
 .nav-menu .ant-menu-item-selected svg {
   filter: drop-shadow(0 0 8px currentColor);
 }
+
+/* Collapsed sidebar: center icons and make them larger */
+.nav-menu.ant-menu-inline-collapsed .ant-menu-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  text-align: center !important;
+}
+
+.nav-menu.ant-menu-inline-collapsed .ant-menu-item .ant-menu-item-icon,
+.nav-menu.ant-menu-inline-collapsed .ant-menu-item .anticon {
+  font-size: 20px;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+.nav-menu.ant-menu-inline-collapsed .ant-menu-title-content {
+  display: none !important;
+}
+
+/* ============================================================
+   MOBILE RESPONSIVE TWEAKS
+   ============================================================ */
+
+@media (max-width: 768px) {
+  /* Tables: smaller cells and horizontal scroll on small screens */
+  .ant-table-cell {
+    padding: 8px 6px !important;
+    font-size: 13px;
+  }
+
+  /* Page heading */
+  .ant-typography h3,
+  h3.ant-typography {
+    font-size: 18px !important;
+  }
+
+  /* Cards: tighter padding on mobile */
+  .ant-card-body {
+    padding: 12px !important;
+  }
+
+  /* Stat cards: smaller text */
+  .stat-card .stat-value {
+    font-size: 18px;
+  }
+
+  /* Modal: limit width to viewport */
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto !important;
+  }
+  .ant-modal-content {
+    padding: 16px !important;
+  }
+
+  /* Drawer body padding tighter on mobile */
+  .ant-drawer-body {
+    padding: 14px !important;
+  }
+
+  /* Buttons less roomy on mobile */
+  .ant-btn {
+    padding-inline: 12px;
+  }
+
+  /* DatePicker fills width on mobile */
+  .ant-picker {
+    width: 100% !important;
+  }
+
+  /* Form: less vertical space */
+  .ant-form-item {
+    margin-bottom: 12px !important;
+  }
+
+  /* Tabs: tighter */
+  .ant-tabs-tab {
+    padding: 8px 10px !important;
+  }
+
+  /* Page header: full width actions */
+  .page-actions-wrap {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
+
+/* Touch-friendly button sizes */
+@media (max-width: 480px) {
+  .ant-btn-sm {
+    min-height: 32px;
+    padding-inline: 10px;
+  }
+}

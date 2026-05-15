@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Card,
@@ -27,19 +27,45 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { formatMoney } from '../lib/format'
-import { uid } from '../lib/uid'
+import { http } from '../api'
+import {
+  toBackendCategory,
+  toRussianCategory,
+  ExpenseCategoryEnum,
+} from '../lib/expenseCategoryMap'
 import { EXPENSE_CATEGORIES, Expense, ExpenseCategory } from '../types'
 
+interface ExpenseApi {
+  id: string
+  category: ExpenseCategoryEnum
+  description: string
+  amount: number | string
+  month: string
+  groupId: string | null
+  createdAt: string
+  group?: { id: string; name: string; color: string } | null
+}
+
 const { Text, Title } = Typography
+
+interface ExtraIncomeApi {
+  id: string
+  title: string
+  amount: number | string
+  month: string
+  groupId: string | null
+  comment: string | null
+  createdAt: string
+}
 
 export default function ExpensesPage() {
   const { message } = AntdApp.useApp()
   const groups = useDataStore((s) => s.groups)
-  const expenses = useDataStore((s) => s.expenses)
-  const extraIncome = useDataStore((s) => s.extraIncome)
-  const upsertExpense = useDataStore((s) => s.upsertExpense)
-  const deleteExpense = useDataStore((s) => s.deleteExpense)
-  const upsertExtraIncome = useDataStore((s) => s.upsertExtraIncome)
+
+  const [expensesApi, setExpensesApi] = useState<ExpenseApi[]>([])
+  const [extraIncomeApi, setExtraIncomeApi] = useState<ExtraIncomeApi[]>([])
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
   const [month, setMonth] = useState(dayjs().format('YYYY-MM'))
   const [modalOpen, setModalOpen] = useState(false)
@@ -48,13 +74,62 @@ export default function ExpensesPage() {
   const [form] = Form.useForm()
   const [incomeForm] = Form.useForm()
 
-  const monthExpenses = useMemo(
-    () => expenses.filter((e) => e.month === month),
-    [expenses, month],
+  const loadAll = async (m: string) => {
+    try {
+      setLoading(true)
+      const [expRes, incRes] = await Promise.all([
+        http.get<ExpenseApi[]>('/v1/expenses', { params: { month: m } }),
+        http.get<ExtraIncomeApi[]>('/v1/extra-income', {
+          params: { month: m },
+        }),
+      ])
+      setExpensesApi(expRes.data)
+      setExtraIncomeApi(incRes.data)
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось загрузить данные'
+      message.error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadExpenses = (m: string) => loadAll(m)
+
+  useEffect(() => {
+    loadAll(month)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [month])
+
+  // Преобразуем API данные в формат, совместимый с UI (русские категории)
+  const monthExpenses = useMemo<Expense[]>(
+    () =>
+      expensesApi.map((e) => ({
+        id: e.id,
+        category: toRussianCategory(e.category) as ExpenseCategory,
+        description: e.description,
+        amount: Number(e.amount) || 0,
+        month: e.month,
+        groupId: e.groupId || undefined,
+        createdAt: e.createdAt,
+      })),
+    [expensesApi],
   )
+
   const monthExtra = useMemo(
-    () => extraIncome.filter((e) => e.month === month),
-    [extraIncome, month],
+    () =>
+      extraIncomeApi.map((e) => ({
+        id: e.id,
+        title: e.title,
+        amount: Number(e.amount) || 0,
+        month: e.month,
+        groupId: e.groupId || undefined,
+        comment: e.comment || undefined,
+        createdAt: e.createdAt,
+      })),
+    [extraIncomeApi],
   )
 
   const total = monthExpenses.reduce((s, e) => s + e.amount, 0)
@@ -93,40 +168,86 @@ export default function ExpensesPage() {
   const submit = async () => {
     try {
       const values = await form.validateFields()
-      const data: Expense = {
-        id: editing?.id ?? uid(),
-        category: values.category as ExpenseCategory,
+      setSubmitting(true)
+
+      const body = {
+        category: toBackendCategory(values.category),
         description: values.description,
-        amount: values.amount,
+        amount: Number(values.amount),
         month: dayjs(values.month).format('YYYY-MM'),
-        groupId: values.groupId || undefined,
-        createdAt: editing?.createdAt ?? new Date().toISOString(),
+        groupId: values.groupId || null,
       }
-      upsertExpense(data)
+
+      if (editing) {
+        await http.patch(`/v1/expenses/${editing.id}`, body)
+        message.success('Сохранено')
+      } else {
+        await http.post('/v1/expenses', body)
+        message.success('Расход добавлен')
+      }
+
       setModalOpen(false)
-      message.success(editing ? 'Сохранено' : 'Расход добавлен')
-    } catch {
-      /* validation */
+      const targetMonth = dayjs(values.month).format('YYYY-MM')
+      if (targetMonth === month) {
+        await loadExpenses(month)
+      } else {
+        setMonth(targetMonth)
+      }
+    } catch (err: any) {
+      if (err?.errorFields) return
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось сохранить расход'
+      message.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const removeExpense = async (id: string) => {
+    try {
+      await http.delete(`/v1/expenses/${id}`)
+      message.success('Удалено')
+      await loadExpenses(month)
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось удалить расход'
+      message.error(msg)
     }
   }
 
   const submitIncome = async () => {
     try {
       const v = await incomeForm.validateFields()
-      upsertExtraIncome({
-        id: uid(),
+      setSubmitting(true)
+      const targetMonth = dayjs(v.month).format('YYYY-MM')
+      await http.post('/v1/extra-income', {
         title: v.title,
-        amount: v.amount,
-        month: dayjs(v.month).format('YYYY-MM'),
-        groupId: v.groupId,
-        comment: v.comment,
-        createdAt: new Date().toISOString(),
+        amount: Number(v.amount),
+        month: targetMonth,
+        groupId: v.groupId || undefined,
+        comment: v.comment || undefined,
       })
       setIncomeModal(false)
       message.success('Дополнительный доход добавлен')
       incomeForm.resetFields()
-    } catch {
-      /* */
+      if (targetMonth === month) {
+        await loadAll(month)
+      } else {
+        setMonth(targetMonth)
+      }
+    } catch (err: any) {
+      if (err?.errorFields) return
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось добавить'
+      message.error(msg)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -224,6 +345,7 @@ export default function ExpensesPage() {
         <Title level={5}>Список расходов</Title>
         <Table
           rowKey="id"
+          loading={loading}
           dataSource={monthExpenses}
           pagination={{ pageSize: 10 }}
           columns={[
@@ -258,7 +380,10 @@ export default function ExpensesPage() {
                   <Tooltip title="Редактировать">
                     <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEdit(e)} />
                   </Tooltip>
-                  <Popconfirm title="Удалить?" onConfirm={() => deleteExpense(e.id)}>
+                  <Popconfirm
+                    title="Удалить?"
+                    onConfirm={() => removeExpense(e.id)}
+                  >
                     <Button size="small" type="text" danger icon={<DeleteOutlined />} />
                   </Popconfirm>
                 </Space>
@@ -296,6 +421,7 @@ export default function ExpensesPage() {
         onCancel={() => setModalOpen(false)}
         okText={editing ? 'Сохранить' : 'Добавить'}
         cancelText="Отмена"
+        confirmLoading={submitting}
         destroyOnClose
       >
         <Form layout="vertical" form={form}>
@@ -333,6 +459,7 @@ export default function ExpensesPage() {
         onCancel={() => setIncomeModal(false)}
         okText="Добавить"
         cancelText="Отмена"
+        confirmLoading={submitting}
         destroyOnClose
       >
         <Form layout="vertical" form={incomeForm}>

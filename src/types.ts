@@ -3,7 +3,16 @@
    ============================================================ */
 
 // --- Роли пользователей --------------------------------------
-export type Role = 'super_admin' | 'admin' | 'teacher' | 'parent'
+// Бекенд возвращает SUPER_ADMIN/ADMIN/TEACHER/PARENT (uppercase),
+// но в коде остались сравнения с lowercase — поддерживаем оба.
+export type Role =
+  | 'SUPER_ADMIN'
+  | 'ADMIN'
+  | 'admin'
+  | 'TEACHER'
+  | 'teacher'
+  | 'PARENT'
+  | 'parent'
 
 export interface User {
   id: string
@@ -11,6 +20,8 @@ export interface User {
   email: string
   role: Role
   avatarUrl?: string
+  /** Multi-tenant: id садика. null = глобальный супер-админ */
+  kindergartenId?: string | null
   /** Для роли teacher — id назначенной группы */
   groupId?: string
   /** Для роли parent — id ребёнка */

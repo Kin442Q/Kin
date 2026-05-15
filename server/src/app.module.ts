@@ -13,12 +13,18 @@ import { BullInfraModule } from './infrastructure/bullmq/bull.module'
 
 import { AuthModule } from './modules/auth/auth.module'
 import { UsersModule } from './modules/users/users.module'
+import { KindergartensModule } from './modules/kindergartens/kindergartens.module'
 import { GroupsModule } from './modules/groups/groups.module'
 import { StudentsModule } from './modules/students/students.module'
 import { TeachersModule } from './modules/teachers/teachers.module'
+import { StaffModule } from './modules/staff/staff.module'
 import { AttendanceModule } from './modules/attendance/attendance.module'
 import { ScheduleModule } from './modules/schedule/schedule.module'
 import { FinanceModule } from './modules/finance/finance.module'
+import { PaymentsModule } from './modules/payments/payments.module'
+import { ExpensesModule } from './modules/expenses/expenses.module'
+import { ExtraIncomeModule } from './modules/extra-income/extra-income.module'
+import { MenuModule } from './modules/menu/menu.module'
 import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { NotificationsModule } from './modules/notifications/notifications.module'
 import { HealthModule } from './modules/health/health.module'
@@ -60,12 +66,18 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     // Доменные модули
     AuthModule,
     UsersModule,
+    KindergartensModule,
     GroupsModule,
     StudentsModule,
     TeachersModule,
+    StaffModule,
     AttendanceModule,
     ScheduleModule,
     FinanceModule,
+    PaymentsModule,
+    ExpensesModule,
+    ExtraIncomeModule,
+    MenuModule,
     AnalyticsModule,
     NotificationsModule,
     HealthModule,

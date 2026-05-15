@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Avatar,
   Button,
@@ -7,6 +7,7 @@ import {
   DatePicker,
   Drawer,
   Form,
+  Grid,
   Input,
   InputNumber,
   Popconfirm,
@@ -35,23 +36,88 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { formatDate, formatMoney } from '../lib/format'
-import { uid } from '../lib/uid'
+import { http } from '../api'
+import {
+  toBackendPosition,
+  toRussianPosition,
+  StaffPositionEnum,
+} from '../lib/positionMap'
 import { POSITIONS, Position, Staff } from '../types'
 
+// 'Воспитатель' создаётся через /admin/teachers (User с role=TEACHER), а не Staff
+const STAFF_POSITIONS = POSITIONS.filter((p) => p !== 'Воспитатель')
+
+interface StaffApi {
+  id: string
+  firstName: string
+  lastName: string
+  middleName: string | null
+  position: StaffPositionEnum
+  phone: string
+  email: string | null
+  groupId: string | null
+  salary: number | string
+  hireDate: string
+  createdAt: string
+}
+
 const { Text } = Typography
+const { useBreakpoint } = Grid
 
 export default function StaffPage() {
   const { message } = AntdApp.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const groups = useDataStore((s) => s.groups)
-  const staff = useDataStore((s) => s.staff)
-  const upsertStaff = useDataStore((s) => s.upsertStaff)
-  const deleteStaff = useDataStore((s) => s.deleteStaff)
 
+  const [staffApi, setStaffApi] = useState<StaffApi[]>([])
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [search, setSearch] = useState('')
   const [posFilter, setPosFilter] = useState<Position | undefined>()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Staff | null>(null)
   const [form] = Form.useForm()
+
+  const loadStaff = async () => {
+    try {
+      setLoading(true)
+      const res = await http.get<StaffApi[]>('/v1/staff')
+      setStaffApi(res.data)
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось загрузить сотрудников'
+      message.error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadStaff()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Преобразуем API данные → формат UI (с русскими позициями)
+  const staff: Staff[] = useMemo(
+    () =>
+      staffApi.map((s) => ({
+        id: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        middleName: s.middleName || undefined,
+        position: toRussianPosition(s.position) as Position,
+        phone: s.phone,
+        email: s.email || undefined,
+        groupId: s.groupId || undefined,
+        salary: Number(s.salary) || 0,
+        hireDate: s.hireDate.slice(0, 10),
+        createdAt: s.createdAt,
+      })),
+    [staffApi],
+  )
 
   const list = useMemo(() => {
     let r = staff
@@ -59,7 +125,17 @@ export default function StaffPage() {
     if (search.trim()) {
       const q = search.toLowerCase()
       r = r.filter((s) =>
-        (s.firstName + ' ' + s.lastName + ' ' + s.phone + ' ' + (s.email || '')).toLowerCase().includes(q),
+        (
+          s.firstName +
+          ' ' +
+          s.lastName +
+          ' ' +
+          s.phone +
+          ' ' +
+          (s.email || '')
+        )
+          .toLowerCase()
+          .includes(q),
       )
     }
     return r
@@ -70,7 +146,11 @@ export default function StaffPage() {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ position: 'Воспитатель', hireDate: dayjs(), salary: 3500 })
+    form.setFieldsValue({
+      position: 'Помощник воспитателя',
+      hireDate: dayjs(),
+      salary: 3500,
+    })
     setDrawerOpen(true)
   }
 
@@ -83,24 +163,53 @@ export default function StaffPage() {
   const submit = async () => {
     try {
       const v = await form.validateFields()
-      const data: Staff = {
-        id: editing?.id ?? uid(),
+      setSubmitting(true)
+
+      const body = {
         firstName: v.firstName,
         lastName: v.lastName,
-        middleName: v.middleName,
-        position: v.position,
+        middleName: v.middleName || undefined,
+        position: toBackendPosition(v.position),
         phone: v.phone,
-        email: v.email,
-        groupId: v.groupId,
-        salary: v.salary || 0,
+        email: v.email || undefined,
+        groupId: v.groupId || null,
+        salary: Number(v.salary) || 0,
         hireDate: dayjs(v.hireDate).format('YYYY-MM-DD'),
-        createdAt: editing?.createdAt ?? new Date().toISOString(),
       }
-      upsertStaff(data)
+
+      if (editing) {
+        await http.patch(`/v1/staff/${editing.id}`, body)
+        message.success('Сотрудник обновлён')
+      } else {
+        await http.post('/v1/staff', body)
+        message.success('Сотрудник добавлен')
+      }
+
       setDrawerOpen(false)
-      message.success(editing ? 'Сотрудник обновлён' : 'Сотрудник добавлен')
-    } catch {
-      /* validation */
+      await loadStaff()
+    } catch (err: any) {
+      if (err?.errorFields) return
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось сохранить сотрудника'
+      message.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const removeStaff = async (id: string) => {
+    try {
+      await http.delete(`/v1/staff/${id}`)
+      message.success('Сотрудник удалён')
+      await loadStaff()
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось удалить сотрудника'
+      message.error(msg)
     }
   }
 
@@ -157,13 +266,14 @@ export default function StaffPage() {
                 placeholder="Все должности"
                 value={posFilter}
                 onChange={(v) => setPosFilter(v as Position | undefined)}
-                options={POSITIONS.map((p) => ({ value: p, label: p }))}
+                options={STAFF_POSITIONS.map((p) => ({ value: p, label: p }))}
               />
             </Col>
           </Row>
 
           <Table
             rowKey="id"
+            loading={loading}
             dataSource={list}
             pagination={{ pageSize: 10 }}
             scroll={{ x: 800 }}
@@ -236,7 +346,10 @@ export default function StaffPage() {
                     <Tooltip title="Редактировать">
                       <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEdit(s)} />
                     </Tooltip>
-                    <Popconfirm title="Удалить сотрудника?" onConfirm={() => { deleteStaff(s.id); message.success('Удалено') }}>
+                    <Popconfirm
+                      title="Удалить сотрудника?"
+                      onConfirm={() => removeStaff(s.id)}
+                    >
                       <Button size="small" type="text" danger icon={<DeleteOutlined />} />
                     </Popconfirm>
                   </Space>
@@ -249,14 +362,14 @@ export default function StaffPage() {
 
       <Drawer
         title={editing ? 'Редактировать сотрудника' : 'Новый сотрудник'}
-        width={460}
+        width={isMobile ? '100%' : 460}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         destroyOnClose
         extra={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Отмена</Button>
-            <Button type="primary" onClick={submit}>
+            <Button type="primary" loading={submitting} onClick={submit}>
               Сохранить
             </Button>
           </Space>
@@ -276,7 +389,7 @@ export default function StaffPage() {
             </Col>
           </Row>
           <Form.Item name="position" label="Должность" rules={[{ required: true }]}>
-            <Select options={POSITIONS.map((p) => ({ value: p, label: p }))} />
+            <Select options={STAFF_POSITIONS.map((p) => ({ value: p, label: p }))} />
           </Form.Item>
           <Form.Item name="groupId" label="Группа (если применимо)">
             <Select allowClear options={groups.map((g) => ({ value: g.id, label: g.name }))} />

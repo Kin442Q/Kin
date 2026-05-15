@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Card,
@@ -14,50 +14,113 @@ import {
   TimePicker,
   App as AntdApp,
 } from 'antd'
-import { CalendarOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
+import {
+  CalendarOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
 import PageHeader from '../components/PageHeader'
 import { useDataStore } from '../store/dataStore'
-import { uid } from '../lib/uid'
+import { http } from '../api'
 import { ScheduleItem } from '../types'
 
-const DAYS = ['', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
+const DAYS = [
+  '',
+  'Понедельник',
+  'Вторник',
+  'Среда',
+  'Четверг',
+  'Пятница',
+  'Суббота',
+  'Воскресенье',
+]
 
 export default function SchedulePage() {
   const { message } = AntdApp.useApp()
   const groups = useDataStore((s) => s.groups)
-  const schedule = useDataStore((s) => s.schedule)
-  const upsert = useDataStore((s) => s.upsertSchedule)
-  const remove = useDataStore((s) => s.deleteSchedule)
 
-  const [groupId, setGroupId] = useState<string | undefined>(groups[0]?.id)
+  const [items, setItems] = useState<ScheduleItem[]>([])
+  const [loading, setLoading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+
+  const [groupId, setGroupId] = useState<string | undefined>(undefined)
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
 
-  const items = useMemo(
-    () => schedule.filter((s) => !groupId || s.groupId === groupId).sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)),
-    [schedule, groupId],
+  const load = async () => {
+    try {
+      setLoading(true)
+      const res = await http.get<ScheduleItem[]>('/v1/schedule', {
+        params: groupId ? { groupId } : undefined,
+      })
+      setItems(res.data || [])
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось загрузить расписание'
+      message.error(msg)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groupId])
+
+  const sorted = useMemo(
+    () =>
+      [...items].sort(
+        (a, b) =>
+          a.dayOfWeek - b.dayOfWeek ||
+          a.startTime.localeCompare(b.startTime),
+      ),
+    [items],
   )
 
   const submit = async () => {
     try {
       const v = await form.validateFields()
-      const data: ScheduleItem = {
-        id: uid(),
+      setSubmitting(true)
+      await http.post('/v1/schedule', {
         groupId: v.groupId,
         dayOfWeek: v.dayOfWeek,
         startTime: dayjs(v.startTime).format('HH:mm'),
         endTime: dayjs(v.endTime).format('HH:mm'),
         activity: v.activity,
-      }
-      upsert(data)
+      })
       setOpen(false)
       form.resetFields()
       message.success('Добавлено')
-    } catch {
-      /* */
+      await load()
+    } catch (err: any) {
+      if (err?.errorFields) return
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось добавить'
+      message.error(msg)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const remove = async (id: string) => {
+    try {
+      await http.delete(`/v1/schedule/${id}`)
+      message.success('Удалено')
+      await load()
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось удалить'
+      message.error(msg)
     }
   }
 
@@ -77,7 +140,11 @@ export default function SchedulePage() {
               onChange={setGroupId}
               options={groups.map((g) => ({ value: g.id, label: g.name }))}
             />
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setOpen(true)}>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setOpen(true)}
+            >
               Добавить
             </Button>
           </Space>
@@ -92,7 +159,8 @@ export default function SchedulePage() {
         <Card className="glass" bordered={false}>
           <Table
             rowKey="id"
-            dataSource={items}
+            loading={loading}
+            dataSource={sorted}
             pagination={false}
             columns={[
               {
@@ -115,13 +183,20 @@ export default function SchedulePage() {
               {
                 title: 'Группа',
                 dataIndex: 'groupId',
-                render: (v: string) => groups.find((g) => g.id === v)?.name || '—',
+                render: (v: string) =>
+                  groups.find((g) => g.id === v)?.name || '—',
               },
               {
                 title: '',
                 key: 'a',
                 render: (_, r) => (
-                  <Button danger size="small" type="text" icon={<DeleteOutlined />} onClick={() => remove(r.id)} />
+                  <Button
+                    danger
+                    size="small"
+                    type="text"
+                    icon={<DeleteOutlined />}
+                    onClick={() => remove(r.id)}
+                  />
                 ),
               },
             ]}
@@ -136,28 +211,56 @@ export default function SchedulePage() {
         onCancel={() => setOpen(false)}
         okText="Добавить"
         cancelText="Отмена"
+        confirmLoading={submitting}
         destroyOnClose
       >
         <Form layout="vertical" form={form}>
-          <Form.Item name="groupId" label="Группа" rules={[{ required: true }]}>
-            <Select options={groups.map((g) => ({ value: g.id, label: g.name }))} />
+          <Form.Item
+            name="groupId"
+            label="Группа"
+            rules={[{ required: true }]}
+          >
+            <Select
+              options={groups.map((g) => ({ value: g.id, label: g.name }))}
+            />
           </Form.Item>
-          <Form.Item name="dayOfWeek" label="День недели" rules={[{ required: true }]}>
-            <Select options={DAYS.slice(1).map((d, i) => ({ value: i + 1, label: d }))} />
+          <Form.Item
+            name="dayOfWeek"
+            label="День недели"
+            rules={[{ required: true }]}
+          >
+            <Select
+              options={DAYS.slice(1).map((d, i) => ({
+                value: i + 1,
+                label: d,
+              }))}
+            />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="startTime" label="Начало" rules={[{ required: true }]}>
+              <Form.Item
+                name="startTime"
+                label="Начало"
+                rules={[{ required: true }]}
+              >
                 <TimePicker style={{ width: '100%' }} format="HH:mm" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="endTime" label="Конец" rules={[{ required: true }]}>
+              <Form.Item
+                name="endTime"
+                label="Конец"
+                rules={[{ required: true }]}
+              >
                 <TimePicker style={{ width: '100%' }} format="HH:mm" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="activity" label="Активность" rules={[{ required: true }]}>
+          <Form.Item
+            name="activity"
+            label="Активность"
+            rules={[{ required: true }]}
+          >
             <Input placeholder="Например: Развитие речи" />
           </Form.Item>
         </Form>

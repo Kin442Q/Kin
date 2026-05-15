@@ -32,14 +32,30 @@ export class AuthService {
   ) {}
 
   // -------------------------------------------------------------------
-  // Login
+  // Login — поддерживает вход по email ИЛИ по телефону
   // -------------------------------------------------------------------
   async login(dto: LoginDto, meta: { userAgent?: string; ip?: string }) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } })
-    if (!user || !user.isActive) throw new UnauthorizedException('Неверный email или пароль')
+    if (!dto.email && !dto.phone) {
+      throw new UnauthorizedException('Введите email или телефон')
+    }
+
+    let user: User | null = null
+    if (dto.email) {
+      user = await this.prisma.user.findUnique({
+        where: { email: dto.email.toLowerCase().trim() },
+      })
+    } else if (dto.phone) {
+      user = await this.prisma.user.findFirst({
+        where: { phone: dto.phone.trim() },
+      })
+    }
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Неверный логин или пароль')
+    }
 
     const ok = await bcrypt.compare(dto.password, user.passwordHash)
-    if (!ok) throw new UnauthorizedException('Неверный email или пароль')
+    if (!ok) throw new UnauthorizedException('Неверный логин или пароль')
 
     const tokens = await this.issueTokens(user, meta)
 
@@ -134,6 +150,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      kindergartenId: user.kindergartenId ?? null,
       groupId: user.groupId ?? null,
       childId: user.childId ?? null,
       jti: accessJti,
@@ -171,6 +188,7 @@ export class AuthService {
       email: user.email,
       fullName: user.fullName,
       role: user.role,
+      kindergartenId: user.kindergartenId,
       groupId: user.groupId,
       childId: user.childId,
       avatarUrl: user.avatarUrl,

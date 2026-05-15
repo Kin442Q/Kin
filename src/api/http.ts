@@ -54,6 +54,17 @@ http.interceptors.response.use(
       meta.logEntry.duration = Date.now() - meta.timestamp
       requestLog.push(meta.logEntry)
     }
+
+    // Бекенд оборачивает ответы в { data: ... } через TransformInterceptor.
+    // Разворачиваем здесь, чтобы вызывающий код видел сразу полезную нагрузку.
+    if (
+      response.data &&
+      typeof response.data === 'object' &&
+      'data' in response.data &&
+      Object.keys(response.data).every((k) => k === 'data' || k === 'meta')
+    ) {
+      response.data = (response.data as { data: unknown }).data
+    }
     return response
   },
   (error) => {

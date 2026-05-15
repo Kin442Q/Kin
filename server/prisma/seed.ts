@@ -14,6 +14,34 @@ async function main() {
   const pwAdmin = await bcrypt.hash('Admin123456!', 10)
   const pwTeacher = await bcrypt.hash('Teacher123456!', 10)
 
+  // ---------- Глобальный супер-админ (владелец платформы) --------
+  // У этого пользователя НЕТ kindergartenId — он управляет всеми садиками.
+  const pwOwner = await bcrypt.hash('Owner123456!', 10)
+  await prisma.user.upsert({
+    where: { email: 'owner@kindergarten.tj' },
+    update: { kindergartenId: null, role: 'SUPER_ADMIN' },
+    create: {
+      email: 'owner@kindergarten.tj',
+      passwordHash: pwOwner,
+      fullName: 'Владелец платформы',
+      role: 'SUPER_ADMIN',
+      kindergartenId: null,
+      isActive: true,
+    },
+  })
+
+  // ---------- Садик (multi-tenant) ------------------------------
+  const kindergarten = await prisma.kindergarten.upsert({
+    where: { slug: 'default' },
+    update: {},
+    create: {
+      slug: 'default',
+      name: 'Мой Детский Сад',
+      address: 'Душанбе',
+      isActive: true,
+    },
+  })
+
   // ---------- Группы --------------------------------------------
   const groups = [
     { id: 'g-sun',    name: 'Солнышко',  ageRange: '3–4 года', capacity: 20, monthlyFee: 1200, fixedMonthlyExpense: 6000, color: '#f59e0b' },
@@ -22,19 +50,37 @@ async function main() {
     { id: 'g-flower', name: 'Цветочек',  ageRange: '2–3 года', capacity: 20, monthlyFee: 1100, fixedMonthlyExpense: 7500, color: '#ec4899' },
   ]
   for (const g of groups) {
-    await prisma.group.upsert({ where: { id: g.id }, update: g, create: g })
+    await prisma.group.upsert({
+      where: { id: g.id },
+      update: { ...g, kindergartenId: kindergarten.id },
+      create: { ...g, kindergartenId: kindergarten.id },
+    })
   }
 
   // ---------- Пользователи: 2 админа и 4 учителя ----------------
   await prisma.user.upsert({
     where: { email: 'admin@kindergarten.tj' },
-    update: {},
-    create: { email: 'admin@kindergarten.tj', passwordHash: pwAdmin, fullName: 'Администратор', role: 'ADMIN', isActive: true },
+    update: { kindergartenId: kindergarten.id },
+    create: {
+      email: 'admin@kindergarten.tj',
+      passwordHash: pwAdmin,
+      fullName: 'Администратор',
+      role: 'ADMIN',
+      isActive: true,
+      kindergartenId: kindergarten.id,
+    },
   })
   await prisma.user.upsert({
     where: { email: 'superadmin@kindergarten.tj' },
-    update: {},
-    create: { email: 'superadmin@kindergarten.tj', passwordHash: pwAdmin, fullName: 'Super Admin', role: 'SUPER_ADMIN', isActive: true },
+    update: { kindergartenId: kindergarten.id },
+    create: {
+      email: 'superadmin@kindergarten.tj',
+      passwordHash: pwAdmin,
+      fullName: 'Super Admin',
+      role: 'SUPER_ADMIN',
+      isActive: true,
+      kindergartenId: kindergarten.id,
+    },
   })
 
   const teachers: Array<[string, string, string]> = [
@@ -46,8 +92,16 @@ async function main() {
   for (const [email, fullName, groupId] of teachers) {
     await prisma.user.upsert({
       where: { email },
-      update: { groupId, role: 'TEACHER', isActive: true },
-      create: { email, passwordHash: pwTeacher, fullName, role: 'TEACHER', groupId, isActive: true },
+      update: { groupId, role: 'TEACHER', isActive: true, kindergartenId: kindergarten.id },
+      create: {
+        email,
+        passwordHash: pwTeacher,
+        fullName,
+        role: 'TEACHER',
+        groupId,
+        isActive: true,
+        kindergartenId: kindergarten.id,
+      },
     })
   }
 
@@ -65,7 +119,7 @@ async function main() {
       const id = `s-${g.id}-${i + 1}`
       const student = await prisma.student.upsert({
         where: { id },
-        update: {},
+        update: { kindergartenId: kindergarten.id },
         create: {
           id,
           firstName: (isF ? namesF : namesM)[(ix + i) % 5],
@@ -73,6 +127,7 @@ async function main() {
           gender: isF ? 'FEMALE' : 'MALE',
           birthDate: new Date(2022, i % 12, 15),
           groupId: g.id,
+          kindergartenId: kindergarten.id,
           motherName: 'Мама',
           motherPhone: '+992 90 100 0' + (100 + i),
           monthlyFee: g.monthlyFee,
@@ -106,18 +161,28 @@ async function main() {
   ] as const
   for (const e of expenses) {
     await prisma.expense.create({
-      data: { category: e.category, description: e.description, amount: e.amount, month },
+      data: {
+        category: e.category,
+        description: e.description,
+        amount: e.amount,
+        month,
+        kindergartenId: kindergarten.id,
+      },
     })
   }
 
   console.log('✓ Seed выполнен. Учетные данные:')
   console.log('')
-  console.log('👤 АДМИНИСТРАТОР:')
-  console.log('   Email: admin@kindergarten.tj')
+  console.log('🌐 ВЛАДЕЛЕЦ ПЛАТФОРМЫ (управляет всеми садиками):')
+  console.log('   Email: owner@kindergarten.tj')
+  console.log('   Пароль: Owner123456!')
+  console.log('')
+  console.log('👑 SUPER ADMIN садика "Мой Детский Сад":')
+  console.log('   Email: superadmin@kindergarten.tj')
   console.log('   Пароль: Admin123456!')
   console.log('')
-  console.log('👑 SUPER ADMIN:')
-  console.log('   Email: superadmin@kindergarten.tj')
+  console.log('👤 АДМИНИСТРАТОР садика:')
+  console.log('   Email: admin@kindergarten.tj')
   console.log('   Пароль: Admin123456!')
   console.log('')
   console.log('👨‍🏫 УЧИТЕЛЯ (одинаковый пароль: Teacher123456!):')

@@ -38,10 +38,11 @@ import dayjs from "dayjs";
 
 import PageHeader from "../components/PageHeader";
 import { useDataStore } from "../store/dataStore";
+import { refreshTenantData } from "../hooks/useTenantSync";
+import { http } from "../api";
 import type { Group, GroupFinance } from "../types";
 import { calcGroupFinances } from "../lib/finance";
 import { formatMoney, formatPercent } from "../lib/format";
-import { uid } from "../lib/uid";
 
 const { Text, Title } = Typography;
 
@@ -74,12 +75,11 @@ export default function GroupsPage() {
   const extraIncome = useDataStore((s) => s.extraIncome);
   const attendance = useDataStore((s) => s.attendance);
   const staff = useDataStore((s) => s.staff);
-  const upsertGroup = useDataStore((s) => s.upsertGroup);
-  const deleteGroup = useDataStore((s) => s.deleteGroup);
 
   const [month, setMonth] = useState<string>(dayjs().format("YYYY-MM"));
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Group | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
 
   const finances = useMemo<GroupFinance[]>(
@@ -143,27 +143,50 @@ export default function GroupsPage() {
   const submit = async () => {
     try {
       const values = await form.validateFields();
-      const data: Group = {
-        id: editing?.id ?? uid(),
+      setSubmitting(true);
+
+      const body = {
         name: values.name,
         ageRange: values.ageRange,
         monthlyFee: Number(values.monthlyFee || 0),
         fixedMonthlyExpense: Number(values.fixedMonthlyExpense || 0),
-        teacherId: values.teacherId,
         color: values.color || COLORS[0],
-        createdAt: editing?.createdAt ?? new Date().toISOString(),
       };
-      upsertGroup(data);
+
+      if (editing) {
+        await http.patch(`/v1/groups/${editing.id}`, body);
+        message.success("Группа обновлена");
+      } else {
+        await http.post("/v1/groups", body);
+        message.success("Группа создана");
+      }
+
       setModalOpen(false);
-      message.success(editing ? "Группа обновлена" : "Группа создана");
-    } catch {
-      /* validation */
+      refreshTenantData();
+    } catch (err: any) {
+      if (err?.errorFields) return; // ошибка валидации формы
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Не удалось сохранить группу";
+      message.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const remove = (g: Group) => {
-    deleteGroup(g.id);
-    message.success(`Группа «${g.name}» удалена`);
+  const remove = async (g: Group) => {
+    try {
+      await http.delete(`/v1/groups/${g.id}`);
+      message.success(`Группа «${g.name}» удалена`);
+      refreshTenantData();
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Не удалось удалить группу";
+      message.error(msg);
+    }
   };
 
   const columns = [
@@ -401,7 +424,7 @@ export default function GroupsPage() {
             transition={{ duration: 0.4, delay: 0.2 }}
           >
             <Card className="glass" bordered={false}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 lg:w-[700px]">
                 <Title level={5} style={{ margin: 0 }}>
                   <RiseOutlined /> Прибыль по группам
                 </Title>
@@ -528,6 +551,7 @@ export default function GroupsPage() {
         onCancel={() => setModalOpen(false)}
         okText={editing ? "Сохранить" : "Создать"}
         cancelText="Отмена"
+        confirmLoading={submitting}
         destroyOnClose
       >
         <Form layout="vertical" form={form}>

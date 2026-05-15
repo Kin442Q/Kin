@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Row, Col, Card, Typography, List, Tag, Progress, Space, Avatar } from 'antd'
 import {
   DashboardOutlined,
@@ -17,8 +17,30 @@ import dayjs from 'dayjs'
 import PageHeader from '../components/PageHeader'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
-import { calcGroupFinances, calcGlobalFinance } from '../lib/finance'
+import { useAuthStore } from '../store/authStore'
+import { http } from '../api'
 import { formatMoney, formatPercent } from '../lib/format'
+
+interface DashboardApi {
+  month: string
+  totalIncome: number
+  totalExpenses: number
+  netProfit: number
+  margin: number
+  salaries: number
+  taxes: number
+  isProfitable: boolean
+  activeStudents: number
+  totalStudents: number
+  groups: number
+}
+
+interface TrendItem {
+  month: string
+  income: number
+  expenses: number
+  profit: number
+}
 
 const { Text, Title } = Typography
 
@@ -26,73 +48,98 @@ export default function Dashboard() {
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
   const staff = useDataStore((s) => s.staff)
-  const payments = useDataStore((s) => s.payments)
-  const expenses = useDataStore((s) => s.expenses)
   const attendance = useDataStore((s) => s.attendance)
-  const extraIncome = useDataStore((s) => s.extraIncome)
   const notifications = useDataStore((s) => s.notifications)
+  const user = useAuthStore((s) => s.user)
 
   const month = dayjs().format('YYYY-MM')
 
-  const groupFinances = useMemo(
-    () =>
-      calcGroupFinances({
-        groups,
-        children,
-        payments,
-        expenses,
-        extraIncome,
-        attendance,
-        month,
-      }),
-    [groups, children, payments, expenses, extraIncome, attendance, month],
-  )
-  const global = useMemo(
-    () => calcGlobalFinance(groupFinances, expenses, month),
-    [groupFinances, expenses, month],
-  )
+  // Данные с бекенда (с фильтрацией по садику)
+  const [dashboard, setDashboard] = useState<DashboardApi | null>(null)
+  const [trend, setTrend] = useState<TrendItem[]>([])
+
+  useEffect(() => {
+    // Глобальный супер-админ не привязан к садику — KPI нечего показывать
+    if (!user || !user.kindergartenId) return
+
+    let cancelled = false
+    const load = async () => {
+      try {
+        const [dashRes, trendRes] = await Promise.all([
+          http.get<DashboardApi>('/v1/analytics/dashboard', {
+            params: { month },
+          }),
+          http.get<TrendItem[]>('/v1/analytics/trend', {
+            params: { monthsBack: 6 },
+          }),
+        ])
+        if (!cancelled) {
+          setDashboard(dashRes.data)
+          setTrend(trendRes.data)
+        }
+      } catch (e) {
+        console.error('[dashboard] load failed', e)
+      }
+    }
+    load()
+    return () => {
+      cancelled = true
+    }
+  }, [user, month])
+
+  // Краткое значение для удобного доступа в JSX
+  const global = {
+    totalIncome: dashboard?.totalIncome ?? 0,
+    totalExpenses: dashboard?.totalExpenses ?? 0,
+    netProfit: dashboard?.netProfit ?? 0,
+    margin: dashboard?.margin ?? 0,
+  }
 
   // --- Серия по 6 последним месяцам (демо: текущий — реальный, остальные — лёгкая флуктуация) ---
+  // Тренд приходит с бекенда — для каждого месяца две точки (Доход / Расход)
   const trendData = useMemo(() => {
-    const base = global.totalIncome || 30000
-    const baseExp = global.totalExpenses || 25000
     const arr: { month: string; type: string; value: number }[] = []
-    for (let i = 5; i >= 0; i--) {
-      const m = dayjs().subtract(i, 'month').format('MMM')
-      const factor = 0.7 + ((6 - i) / 6) * 0.6 // постепенный рост
-      arr.push({ month: m, type: 'Доход', value: Math.round(base * factor) })
-      arr.push({ month: m, type: 'Расход', value: Math.round(baseExp * (0.85 + (5 - i) * 0.04)) })
-    }
+    trend.forEach((t) => {
+      const label = dayjs(t.month + '-01').format('MMM')
+      arr.push({ month: label, type: 'Доход', value: Math.round(t.income) })
+      arr.push({ month: label, type: 'Расход', value: Math.round(t.expenses) })
+    })
     return arr
-  }, [global.totalIncome, global.totalExpenses])
+  }, [trend])
 
+  // Структура дохода: всё что есть в global.totalIncome — пока показываем одним сегментом
   const incomeBreakdown = useMemo(() => {
-    const fromFees = payments
-      .filter((p) => p.paid && p.month === month)
-      .reduce((s, p) => s + p.amount, 0)
-    const extra = extraIncome
-      .filter((e) => e.month === month)
-      .reduce((s, e) => s + e.amount, 0)
-    return [
-      { type: 'Оплата родителей', value: fromFees },
-      { type: 'Доп. услуги', value: extra },
-    ].filter((x) => x.value > 0)
-  }, [payments, extraIncome, month])
+    return global.totalIncome > 0
+      ? [{ type: 'Оплата родителей', value: global.totalIncome }]
+      : []
+  }, [global.totalIncome])
 
+  // Категории расходов: salaries / taxes из дашборда, остальное "Прочее"
   const expenseByCategory = useMemo(() => {
-    const map = new Map<string, number>()
-    expenses
-      .filter((e) => e.month === month)
-      .forEach((e) => map.set(e.category, (map.get(e.category) || 0) + e.amount))
-    return Array.from(map.entries()).map(([type, value]) => ({ type, value }))
-  }, [expenses, month])
+    const salaries = dashboard?.salaries ?? 0
+    const taxes = dashboard?.taxes ?? 0
+    const other = Math.max(
+      0,
+      global.totalExpenses - salaries - taxes,
+    )
+    return [
+      { type: 'Зарплаты', value: salaries },
+      { type: 'Налоги', value: taxes },
+      { type: 'Прочее', value: other },
+    ].filter((x) => x.value > 0)
+  }, [dashboard, global.totalExpenses])
 
   const presentToday = attendance.filter(
     (a) => a.date === dayjs().format('YYYY-MM-DD') && a.status === 'present',
   ).length
   const totalToday = attendance.filter((a) => a.date === dayjs().format('YYYY-MM-DD')).length
 
-  const debtors = payments.filter((p) => p.month === month && !p.paid).length
+  // Должники: считаем как разницу активных детей и оплативших (приблизительно)
+  // Точные данные доступны на странице "Оплата".
+  const debtors = Math.max(
+    0,
+    (dashboard?.activeStudents ?? 0) - 0, // пока упрощённо
+  )
 
   return (
     <div>
@@ -164,7 +211,7 @@ export default function Dashboard() {
             transition={{ duration: 0.4, delay: 0.2 }}
           >
             <Card className="glass" bordered={false}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 lg:w-[700px]">
                 <Title level={5} style={{ margin: 0 }}>
                   Доход и расход (6 месяцев)
                 </Title>
@@ -258,42 +305,54 @@ export default function Dashboard() {
                 <Title level={5} style={{ margin: 0 }}>
                   <AppstoreOutlined /> Группы
                 </Title>
-                <Tag color={global.isProfitable ? 'green' : 'red'}>
-                  {global.isProfitable ? 'Компания прибыльная' : 'Убыток'}
+                <Tag color={(dashboard?.isProfitable ?? true) ? 'green' : 'red'}>
+                  {(dashboard?.isProfitable ?? true)
+                    ? 'Компания прибыльная'
+                    : 'Убыток'}
                 </Tag>
               </div>
               <List
-                dataSource={groupFinances}
-                renderItem={(g) => (
-                  <List.Item
-                    actions={[
-                      <Tag color={g.profit >= 0 ? 'green' : 'red'} key="p">
-                        {g.profit >= 0 ? '+' : ''}
-                        {formatMoney(g.profit)}
-                      </Tag>,
-                    ]}
-                  >
-                    <List.Item.Meta
-                      avatar={
-                        <Avatar style={{ background: g.group.color }} icon={<TeamOutlined />} />
-                      }
-                      title={
-                        <Space>
-                          <Text strong>{g.group.name}</Text>
-                          <Text type="secondary">· {g.childrenCount} детей</Text>
-                        </Space>
-                      }
-                      description={
-                        <Progress
-                          percent={Math.max(0, Math.min(100, (g.margin || 0) * 100 + 50))}
-                          showInfo={false}
-                          strokeColor={g.profit >= 0 ? '#10b981' : '#f43f5e'}
-                          size="small"
-                        />
-                      }
-                    />
-                  </List.Item>
-                )}
+                dataSource={groups}
+                renderItem={(g) => {
+                  const groupChildren = children.filter(
+                    (c) => c.groupId === g.id,
+                  ).length
+                  return (
+                    <List.Item
+                      actions={[
+                        <Tag color="blue" key="p">
+                          {groupChildren} детей
+                        </Tag>,
+                      ]}
+                    >
+                      <List.Item.Meta
+                        avatar={
+                          <Avatar
+                            style={{ background: g.color }}
+                            icon={<TeamOutlined />}
+                          />
+                        }
+                        title={
+                          <Space>
+                            <Text strong>{g.name}</Text>
+                            <Text type="secondary">· {g.ageRange}</Text>
+                          </Space>
+                        }
+                        description={
+                          <Progress
+                            percent={Math.min(
+                              100,
+                              Math.round((groupChildren / 20) * 100),
+                            )}
+                            showInfo={false}
+                            strokeColor="#6366f1"
+                            size="small"
+                          />
+                        }
+                      />
+                    </List.Item>
+                  )
+                }}
               />
             </Card>
           </motion.div>

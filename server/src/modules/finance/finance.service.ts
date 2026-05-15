@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
+import type { AuthUser } from '../../common/types/jwt-payload'
 
 /**
  * Финансовая логика. Все ключевые отчёты идут через Redis-кэш (60 сек),
@@ -23,33 +24,60 @@ export class FinanceService {
    * Финансовая сводка по одной группе за месяц.
    * Все суммы возвращаем как number (Decimal → Number) — клиенту так удобнее.
    */
-  async groupSummary(groupId: string, month: string) {
-    const cacheKey = `finance:group:${groupId}:${month}`
+  async groupSummary(user: AuthUser, groupId: string, month: string) {
+    const tenantKey = user.kindergartenId || 'global'
+    const cacheKey = `finance:group:${tenantKey}:${groupId}:${month}`
+    const tenantStudentFilter = user.kindergartenId
+      ? { kindergartenId: user.kindergartenId }
+      : {}
     return this.redis.wrap(cacheKey, 60, async () => {
-      // 1 round-trip: достаём всё нужное параллельно
       const [group, totalStudents, students, paymentsAgg, extraAgg, directExpAgg, sharedExpAgg] =
         await Promise.all([
           this.prisma.group.findUniqueOrThrow({ where: { id: groupId } }),
-          this.prisma.student.count({ where: { status: 'ACTIVE' } }),
+          this.prisma.student.count({
+            where: { status: 'ACTIVE', ...tenantStudentFilter },
+          }),
           this.prisma.student.findMany({
-            where: { groupId, status: 'ACTIVE' },
+            where: { groupId, status: 'ACTIVE', ...tenantStudentFilter },
             select: { id: true },
           }),
           this.prisma.payment.aggregate({
-            where: { month, paid: true, student: { groupId } },
+            where: {
+              month,
+              paid: true,
+              student: { groupId, ...tenantStudentFilter },
+            },
             _sum: { amount: true },
             _count: { _all: true },
           }),
           this.prisma.extraIncome.aggregate({
-            where: { month, groupId },
+            where: {
+              month,
+              groupId,
+              ...(user.kindergartenId
+                ? { kindergartenId: user.kindergartenId }
+                : {}),
+            },
             _sum: { amount: true },
           }),
           this.prisma.expense.aggregate({
-            where: { month, groupId },
+            where: {
+              month,
+              groupId,
+              ...(user.kindergartenId
+                ? { kindergartenId: user.kindergartenId }
+                : {}),
+            },
             _sum: { amount: true },
           }),
           this.prisma.expense.aggregate({
-            where: { month, groupId: null },
+            where: {
+              month,
+              groupId: null,
+              ...(user.kindergartenId
+                ? { kindergartenId: user.kindergartenId }
+                : {}),
+            },
             _sum: { amount: true },
           }),
         ])
@@ -90,21 +118,46 @@ export class FinanceService {
   /**
    * Глобальная сводка по всем группам за месяц.
    */
-  async globalSummary(month: string) {
-    const cacheKey = `finance:global:${month}`
+  async globalSummary(user: AuthUser, month: string) {
+    const tenantKey = user.kindergartenId || 'global'
+    const cacheKey = `finance:global:${tenantKey}:${month}`
+    const expenseFilter = user.kindergartenId
+      ? { kindergartenId: user.kindergartenId }
+      : {}
+    const groupFilter = user.kindergartenId
+      ? { kindergartenId: user.kindergartenId }
+      : {}
     return this.redis.wrap(cacheKey, 60, async () => {
       const [paymentsAgg, extraAgg, expensesAgg, fixedAgg, salariesAgg, taxesAgg] =
         await Promise.all([
-          this.prisma.payment.aggregate({ where: { month, paid: true }, _sum: { amount: true } }),
-          this.prisma.extraIncome.aggregate({ where: { month }, _sum: { amount: true } }),
-          this.prisma.expense.aggregate({ where: { month }, _sum: { amount: true } }),
-          this.prisma.group.aggregate({ _sum: { fixedMonthlyExpense: true } }),
-          this.prisma.expense.aggregate({
-            where: { month, category: 'SALARIES' },
+          this.prisma.payment.aggregate({
+            where: {
+              month,
+              paid: true,
+              student: user.kindergartenId
+                ? { kindergartenId: user.kindergartenId }
+                : undefined,
+            },
+            _sum: { amount: true },
+          }),
+          this.prisma.extraIncome.aggregate({
+            where: { month, ...expenseFilter },
             _sum: { amount: true },
           }),
           this.prisma.expense.aggregate({
-            where: { month, category: 'TAXES' },
+            where: { month, ...expenseFilter },
+            _sum: { amount: true },
+          }),
+          this.prisma.group.aggregate({
+            where: groupFilter,
+            _sum: { fixedMonthlyExpense: true },
+          }),
+          this.prisma.expense.aggregate({
+            where: { month, category: 'SALARIES', ...expenseFilter },
+            _sum: { amount: true },
+          }),
+          this.prisma.expense.aggregate({
+            where: { month, category: 'TAXES', ...expenseFilter },
             _sum: { amount: true },
           }),
         ])

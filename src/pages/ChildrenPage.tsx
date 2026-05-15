@@ -7,6 +7,7 @@ import {
   DatePicker,
   Drawer,
   Form,
+  Grid,
   Input,
   Row,
   Select,
@@ -38,18 +39,21 @@ import PageHeader from '../components/PageHeader'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { calcAge, formatDate, formatMoney } from '../lib/format'
-import { uid } from '../lib/uid'
+import { refreshTenantData } from '../hooks/useTenantSync'
+import { http } from '../api'
 import type { Child, Gender } from '../types'
 
 const { Text } = Typography
+const { useBreakpoint } = Grid
 
 export default function ChildrenPage() {
   const { message } = AntdApp.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
-  const upsertChild = useDataStore((s) => s.upsertChild)
-  const deleteChild = useDataStore((s) => s.deleteChild)
   const user = useAuthStore((s) => s.user)
+  const [submitting, setSubmitting] = useState(false)
 
   const [search, setSearch] = useState('')
   const [groupFilter, setGroupFilter] = useState<string | undefined>(
@@ -102,9 +106,29 @@ export default function ChildrenPage() {
     setDrawerOpen(true)
   }
 
+  const removeChild = async (childId: string, canModify: boolean) => {
+    if (!canModify) {
+      message.error('Нет прав на удаление')
+      return
+    }
+    try {
+      await http.delete(`/v1/students/${childId}`)
+      message.success('Удалено')
+      refreshTenantData()
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось удалить ребёнка'
+      message.error(msg)
+    }
+  }
+
   const submit = async () => {
     try {
       const values = await form.validateFields()
+      setSubmitting(true)
+
       const photoUrl =
         photoList[0]?.url ||
         (photoList[0]?.originFileObj
@@ -119,33 +143,49 @@ export default function ChildrenPage() {
         return
       }
 
-      const data: Child = {
-        id: editing?.id ?? uid(),
+      // Backend ожидает gender в uppercase (MALE/FEMALE)
+      const genderApi = values.gender === 'female' ? 'FEMALE' : 'MALE'
+
+      const body: Record<string, unknown> = {
         firstName: values.firstName,
         lastName: values.lastName,
-        middleName: values.middleName,
+        middleName: values.middleName || undefined,
         birthDate: dayjs(values.birthDate).format('YYYY-MM-DD'),
-        gender: values.gender as Gender,
-        groupId: enforcedGroupId as string,
-        photoUrl,
-        medicalNotes: values.medicalNotes,
-        notes: values.notes,
-        motherName: values.motherName,
-        motherPhone: values.motherPhone,
-        fatherName: values.fatherName,
-        fatherPhone: values.fatherPhone,
-        address: values.address,
-        extraContact: values.extraContact,
-        telegram: values.telegram,
-        whatsapp: values.whatsapp,
-        monthlyFee: values.monthlyFee,
-        createdAt: editing?.createdAt ?? new Date().toISOString(),
+        gender: genderApi,
+        groupId: enforcedGroupId,
+        photoUrl: photoUrl,
+        medicalNotes: values.medicalNotes || undefined,
+        notes: values.notes || undefined,
+        motherName: values.motherName || undefined,
+        motherPhone: values.motherPhone || undefined,
+        fatherName: values.fatherName || undefined,
+        fatherPhone: values.fatherPhone || undefined,
+        address: values.address || undefined,
+        extraContact: values.extraContact || undefined,
+        telegram: values.telegram || undefined,
+        whatsapp: values.whatsapp || undefined,
+        monthlyFee: values.monthlyFee ? Number(values.monthlyFee) : undefined,
       }
-      upsertChild(data)
+
+      if (editing) {
+        await http.patch(`/v1/students/${editing.id}`, body)
+        message.success('Ребёнок обновлён')
+      } else {
+        await http.post('/v1/students', body)
+        message.success('Ребёнок добавлен')
+      }
+
       setDrawerOpen(false)
-      message.success(editing ? 'Ребёнок обновлён' : 'Ребёнок добавлен')
-    } catch {
-      /* validation */
+      refreshTenantData()
+    } catch (err: any) {
+      if (err?.errorFields) return
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        'Не удалось сохранить ребёнка'
+      message.error(msg)
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -261,14 +301,7 @@ export default function ChildrenPage() {
               okText="Удалить"
               cancelText="Отмена"
               disabled={!canModify}
-              onConfirm={() => {
-                if (!canModify) {
-                  message.error('Нет прав на удаление')
-                  return
-                }
-                deleteChild(c.id)
-                message.success('Удалено')
-              }}
+              onConfirm={() => removeChild(c.id, canModify)}
             >
               <Button
                 size="small"
@@ -338,6 +371,167 @@ export default function ChildrenPage() {
             </Col>
           </Row>
 
+          {isMobile ? (
+            <div className="flex flex-col gap-3">
+              {visibleChildren.length === 0 && (
+                <div className="text-center py-6">
+                  <Text type="secondary">Нет детей</Text>
+                </div>
+              )}
+              {visibleChildren.map((c) => {
+                const g = groups.find((x) => x.id === c.groupId)
+                const canModify =
+                  user?.role !== 'teacher' || c.groupId === user.groupId
+                const fee = c.monthlyFee ?? g?.monthlyFee ?? 0
+                return (
+                  <Card
+                    key={c.id}
+                    size="small"
+                    style={{
+                      borderRadius: 12,
+                      borderLeft: `4px solid ${g?.color || '#6366f1'}`,
+                    }}
+                    styles={{ body: { padding: 12 } }}
+                  >
+                    <div className="flex items-center gap-3 mb-2">
+                      {c.photoUrl ? (
+                        <Avatar src={c.photoUrl} size={44} />
+                      ) : (
+                        <Avatar
+                          size={44}
+                          icon={
+                            c.gender === 'female' ? (
+                              <WomanOutlined />
+                            ) : (
+                              <ManOutlined />
+                            )
+                          }
+                          style={{
+                            background:
+                              c.gender === 'female'
+                                ? 'linear-gradient(135deg,#ec4899,#f97316)'
+                                : 'linear-gradient(135deg,#6366f1,#06b6d4)',
+                          }}
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            fontSize: 15,
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {c.lastName} {c.firstName}
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          {calcAge(c.birthDate)} л. · {formatDate(c.birthDate)}
+                        </Text>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1 mb-2">
+                      {g && (
+                        <Tag
+                          style={{
+                            background: g.color + '22',
+                            color: g.color,
+                            border: `1px solid ${g.color}55`,
+                            margin: 0,
+                          }}
+                        >
+                          {g.name}
+                        </Tag>
+                      )}
+                      <Tag
+                        color={c.gender === 'female' ? 'magenta' : 'blue'}
+                        style={{ margin: 0 }}
+                      >
+                        {c.gender === 'female' ? 'Девочка' : 'Мальчик'}
+                      </Tag>
+                    </div>
+
+                    {(c.motherName || c.fatherName) && (
+                      <div
+                        style={{
+                          fontSize: 13,
+                          background: 'rgba(0,0,0,0.02)',
+                          padding: 8,
+                          borderRadius: 8,
+                          marginBottom: 8,
+                        }}
+                      >
+                        {c.motherName && (
+                          <div>
+                            👩 {c.motherName}
+                            {c.motherPhone && (
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: 12, marginLeft: 6 }}
+                              >
+                                <PhoneOutlined /> {c.motherPhone}
+                              </Text>
+                            )}
+                          </div>
+                        )}
+                        {c.fatherName && (
+                          <div>
+                            👨 {c.fatherName}
+                            {c.fatherPhone && (
+                              <Text
+                                type="secondary"
+                                style={{ fontSize: 12, marginLeft: 6 }}
+                              >
+                                <PhoneOutlined /> {c.fatherPhone}
+                              </Text>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Text type="secondary" style={{ fontSize: 11 }}>
+                          Плата
+                        </Text>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>
+                          {formatMoney(fee)}{' '}
+                          <Text type="secondary" style={{ fontSize: 11 }}>
+                            сомони
+                          </Text>
+                        </div>
+                      </div>
+                      <Space size={4}>
+                        <Button
+                          size="middle"
+                          icon={<EditOutlined />}
+                          disabled={!canModify}
+                          onClick={() => openEdit(c)}
+                        />
+                        <Popconfirm
+                          title="Удалить ребёнка?"
+                          okText="Удалить"
+                          cancelText="Отмена"
+                          disabled={!canModify}
+                          onConfirm={() => removeChild(c.id, canModify)}
+                        >
+                          <Button
+                            size="middle"
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={!canModify}
+                          />
+                        </Popconfirm>
+                      </Space>
+                    </div>
+                  </Card>
+                )
+              })}
+            </div>
+          ) : (
           <Table
             rowKey="id"
             dataSource={visibleChildren}
@@ -380,19 +574,20 @@ export default function ChildrenPage() {
               ),
             }}
           />
+          )}
         </Card>
       </motion.div>
 
       <Drawer
         title={editing ? 'Редактировать ребёнка' : 'Новый ребёнок'}
         open={drawerOpen}
-        width={520}
+        width={isMobile ? '100%' : 520}
         onClose={() => setDrawerOpen(false)}
         destroyOnClose
         extra={
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Отмена</Button>
-            <Button type="primary" onClick={submit}>
+            <Button type="primary" loading={submitting} onClick={submit}>
               Сохранить
             </Button>
           </Space>
@@ -500,7 +695,7 @@ export default function ChildrenPage() {
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="telegram" label="Telegram">
+              <Form.Item name="telegram" label="Telegram (@username)">
                 <Input placeholder="@username" />
               </Form.Item>
             </Col>

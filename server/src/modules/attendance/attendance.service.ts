@@ -13,17 +13,31 @@ export class AttendanceService {
 
   /**
    * Журнал посещаемости по дню/группе.
-   * TEACHER ограничен своей группой.
+   * TEACHER ограничен своей группой. ADMIN — садиком.
    */
   async listByDay(user: AuthUser, params: { date: string; groupId?: string }) {
     const groupId = user.role === 'TEACHER' ? user.groupId! : params.groupId
     if (!groupId && user.role === 'TEACHER') return []
 
     const day = new Date(params.date)
+
     return this.prisma.attendance.findMany({
-      where: { date: day, ...(groupId ? { groupId } : {}) },
+      where: {
+        date: day,
+        ...(groupId ? { groupId } : {}),
+        ...(user.kindergartenId
+          ? { student: { kindergartenId: user.kindergartenId } }
+          : {}),
+      },
       include: {
-        student: { select: { id: true, firstName: true, lastName: true, photoUrl: true } },
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            photoUrl: true,
+          },
+        },
       },
       orderBy: [{ student: { lastName: 'asc' } }],
     })
@@ -35,10 +49,16 @@ export class AttendanceService {
   async mark(user: AuthUser, dto: MarkAttendanceDto) {
     const student = await this.prisma.student.findUnique({
       where: { id: dto.studentId },
-      select: { id: true, groupId: true },
+      select: { id: true, groupId: true, kindergartenId: true },
     })
     if (!student) throw new NotFoundException('Ученик не найден')
 
+    if (
+      user.kindergartenId &&
+      student.kindergartenId !== user.kindergartenId
+    ) {
+      throw new ForbiddenException('Ученик из другого садика')
+    }
     if (user.role === 'TEACHER' && student.groupId !== user.groupId) {
       throw new ForbiddenException('Ученик не из вашей группы')
     }

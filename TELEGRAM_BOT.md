@@ -66,11 +66,30 @@ TELEGRAM_CHAT_ID=9999999  # (опционально, для отладки)
 
 Боту НЕ нужны входящие сообщения от Telegram. Он только **отправляет** уведомления.
 
+### Архитектура интеграции
+
+```
+1. Родитель добавляет Chat ID через API
+   POST /v1/telegram-link/add
+   { "studentId": "...", "chatId": 123456789 }
+
+2. Администратор создаёт/обновляет платёж
+   POST /v1/payments/create-or-update
+   { "studentId": "...", "month": "2026-05", "amount": 1200, "paid": true }
+
+3. PaymentsService вызывает TelegramService
+   → Получает все Chat IDs для ребёнка из TelegramLink таблицы
+   → Отправляет уведомление каждому родителю
+
+4. TelegramService добавляет задачу в BullMQ очередь
+   → TelegramProcessor обрабатывает задачу
+   → Отправляет уведомление через Telegram Bot API
+```
+
 ### Когда отправляются уведомления?
 
-1. **При создании платежа** - показывается статус (оплачено/ожидание)
-2. **При обновлении статуса платежа** - подтверждение оплаты
-3. **По расписанию** - автоматические напоминания (настраивается отдельно)
+1. **При отметке платежа как оплаченного** - подтверждение оплаты отправляется всем привязанным родителям
+2. **По расписанию** - автоматические напоминания об оплате (настраивается отдельно)
 
 ## 🛠️ Техническая информация
 
@@ -86,6 +105,60 @@ TELEGRAM_CHAT_ID=9999999  # (опционально, для отладки)
 Администратор отмечает платёж → Система вызывает TelegramService.notifyPaymentStatus() 
 → Сообщение добавляется в BullMQ очередь → Воркер отправляет через Telegram Bot API
 → Родитель получает уведомление
+```
+
+## 🔗 API для связывания Telegram Chat ID
+
+### Добавить Chat ID для ребёнка
+```bash
+curl -X POST http://localhost:4000/api/v1/telegram-link/add \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "studentId": "child_id_here",
+    "chatId": 123456789
+  }'
+```
+
+### Получить все Chat IDs для ребёнка
+```bash
+curl http://localhost:4000/api/v1/telegram-link/{studentId} \
+  -H "Authorization: Bearer {token}"
+```
+
+### Удалить Chat ID
+```bash
+curl -X DELETE http://localhost:4000/api/v1/telegram-link/{studentId}/{chatId} \
+  -H "Authorization: Bearer {token}"
+```
+
+## 🔗 API для управления платежами
+
+### Создать или обновить платёж (с отправкой уведомления)
+```bash
+curl -X POST http://localhost:4000/api/v1/payments/create-or-update \
+  -H "Authorization: Bearer {admin_token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "studentId": "child_id_here",
+    "month": "2026-05",
+    "amount": 1200,
+    "paid": true
+  }'
+```
+
+**Важно**: Когда `paid: true`, автоматически отправляется Telegram уведомление всем родителям, привязанным к этому ребёнку.
+
+### Получить платёж по ID
+```bash
+curl http://localhost:4000/api/v1/payments/{paymentId} \
+  -H "Authorization: Bearer {token}"
+```
+
+### Получить все платежи ребёнка
+```bash
+curl http://localhost:4000/api/v1/payments/student/{studentId} \
+  -H "Authorization: Bearer {token}"
 ```
 
 ## 📱 Как родитель получает свой Chat ID?

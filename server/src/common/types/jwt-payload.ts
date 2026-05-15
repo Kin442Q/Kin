@@ -5,6 +5,8 @@ export interface JwtPayload {
   sub: string
   email: string
   role: Role
+  /** Multi-tenant: id садика пользователя (null = глобальный супер-админ) */
+  kindergartenId?: string | null
   /** Для TEACHER */
   groupId?: string | null
   /** Для PARENT */

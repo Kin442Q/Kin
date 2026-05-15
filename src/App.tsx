@@ -1,28 +1,29 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
 
-import AppLayout from './components/layout/AppLayout'
-import LoginPage from './pages/LoginPage'
-import RequireAuth from './components/auth/RequireAuth'
-import RequireRole from './components/auth/RequireRole'
+import AppLayout from "./components/layout/AppLayout";
+import LoginPage from "./pages/LoginPage";
+import RequireAuth from "./components/auth/RequireAuth";
+import RequireRole from "./components/auth/RequireRole";
 
-import Dashboard from './pages/Dashboard'
-import ChildrenPage from './pages/ChildrenPage'
-import GroupsPage from './pages/GroupsPage'
-import GroupDetailPage from './pages/GroupDetailPage'
-import AttendancePage from './pages/AttendancePage'
-import PaymentsPage from './pages/PaymentsPage'
-import ExpensesPage from './pages/ExpensesPage'
-import AnalyticsPage from './pages/AnalyticsPage'
-import StaffPage from './pages/StaffPage'
-import TeachersPage from './pages/TeachersPage'
-import SchedulePage from './pages/SchedulePage'
-import MenuPage from './pages/MenuPage'
-import SettingsPage from './pages/SettingsPage'
-import NotFoundPage from './pages/NotFoundPage'
+import Dashboard from "./pages/Dashboard";
+import ChildrenPage from "./pages/ChildrenPage";
+import GroupsPage from "./pages/GroupsPage";
+import GroupDetailPage from "./pages/GroupDetailPage";
+import AttendancePage from "./pages/AttendancePage";
+import PaymentsPage from "./pages/PaymentsPage";
+import ExpensesPage from "./pages/ExpensesPage";
+import AnalyticsPage from "./pages/AnalyticsPage";
+import StaffPage from "./pages/StaffPage";
+import TeachersPage from "./pages/TeachersPage";
+import KindergartensPage from "./pages/KindergartensPage";
+import SchedulePage from "./pages/SchedulePage";
+import MenuPage from "./pages/MenuPage";
+import SettingsPage from "./pages/SettingsPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
-  const location = useLocation()
+  const location = useLocation();
 
   return (
     <AnimatePresence mode="wait">
@@ -44,7 +45,7 @@ export default function App() {
             <Route
               path="dashboard"
               element={
-                <RequireRole roles={['super_admin', 'admin', 'teacher']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
                   <Dashboard />
                 </RequireRole>
               }
@@ -52,7 +53,7 @@ export default function App() {
             <Route
               path="groups"
               element={
-                <RequireRole roles={['super_admin', 'admin']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
                   <GroupsPage />
                 </RequireRole>
               }
@@ -60,7 +61,7 @@ export default function App() {
             <Route
               path="groups/:id"
               element={
-                <RequireRole roles={['super_admin', 'admin', 'teacher']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
                   <GroupDetailPage />
                 </RequireRole>
               }
@@ -68,7 +69,7 @@ export default function App() {
             <Route
               path="children"
               element={
-                <RequireRole roles={['super_admin', 'admin', 'teacher']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
                   <ChildrenPage />
                 </RequireRole>
               }
@@ -76,7 +77,7 @@ export default function App() {
             <Route
               path="attendance"
               element={
-                <RequireRole roles={['super_admin', 'admin', 'teacher']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
                   <AttendancePage />
                 </RequireRole>
               }
@@ -84,7 +85,7 @@ export default function App() {
             <Route
               path="payments"
               element={
-                <RequireRole roles={['super_admin', 'admin', 'teacher']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
                   <PaymentsPage />
                 </RequireRole>
               }
@@ -92,7 +93,7 @@ export default function App() {
             <Route
               path="expenses"
               element={
-                <RequireRole roles={['super_admin', 'admin']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
                   <ExpensesPage />
                 </RequireRole>
               }
@@ -100,7 +101,7 @@ export default function App() {
             <Route
               path="analytics"
               element={
-                <RequireRole roles={['super_admin', 'admin']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
                   <AnalyticsPage />
                 </RequireRole>
               }
@@ -108,7 +109,7 @@ export default function App() {
             <Route
               path="staff"
               element={
-                <RequireRole roles={['super_admin', 'admin']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
                   <StaffPage />
                 </RequireRole>
               }
@@ -116,15 +117,23 @@ export default function App() {
             <Route
               path="teachers"
               element={
-                <RequireRole roles={['super_admin', 'admin']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
                   <TeachersPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="kindergartens"
+              element={
+                <RequireRole roles={["SUPER_ADMIN"]}>
+                  <KindergartensPage />
                 </RequireRole>
               }
             />
             <Route
               path="schedule"
               element={
-                <RequireRole roles={['super_admin', 'admin', 'teacher']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
                   <SchedulePage />
                 </RequireRole>
               }
@@ -132,7 +141,7 @@ export default function App() {
             <Route
               path="menu"
               element={
-                <RequireRole roles={['super_admin', 'admin', 'teacher']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
                   <MenuPage />
                 </RequireRole>
               }
@@ -140,7 +149,7 @@ export default function App() {
             <Route
               path="settings"
               element={
-                <RequireRole roles={['super_admin', 'admin']}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
                   <SettingsPage />
                 </RequireRole>
               }
@@ -151,5 +160,5 @@ export default function App() {
         </Route>
       </Routes>
     </AnimatePresence>
-  )
+  );
 }

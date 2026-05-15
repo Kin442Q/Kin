@@ -34,6 +34,10 @@ interface DataState {
   notifications: AppNotification[]
   accounts: Account[]
 
+  // Bulk hydration (from backend API)
+  setGroups: (groups: Group[]) => void
+  setChildren: (children: Child[]) => void
+
   // Mutations
   upsertGroup: (g: Group) => void
   deleteGroup: (id: string) => void
@@ -102,6 +106,9 @@ export const useDataStore = create<DataState>()(
 
       upsertAccount: (a) => set((s) => ({ accounts: upsertById(s.accounts, a) })),
       deleteAccount: (id) => set((s) => ({ accounts: removeById(s.accounts, id) })),
+
+      setGroups: (groups) => set(() => ({ groups })),
+      setChildren: (children) => set(() => ({ children })),
 
       upsertGroup: (g) => set((s) => ({ groups: upsertById(s.groups, g) })),
       deleteGroup: (id) =>

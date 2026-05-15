@@ -10,10 +10,11 @@ export class CreateGroupDto {
   @IsString()
   ageRange!: string
 
-  @ApiProperty({ default: 20 })
+  @ApiProperty({ default: 20, required: false })
+  @IsOptional()
   @IsInt()
   @Min(1)
-  capacity!: number
+  capacity?: number
 
   @ApiProperty()
   @IsNumber()

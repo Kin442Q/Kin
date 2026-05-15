@@ -11,6 +11,7 @@ import {
   CoffeeOutlined,
   SettingOutlined,
   UserOutlined,
+  BankOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
@@ -24,80 +25,89 @@ interface NavEntry {
   label: string;
   icon: React.ReactNode;
   roles: Role[];
+  /** Если true — показывается только глобальному супер-админу (kindergartenId === null) */
+  globalOnly?: boolean;
 }
 
 const NAV: NavEntry[] = [
   {
+    key: "/admin/kindergartens",
+    label: "Садики",
+    icon: <BankOutlined />,
+    roles: ["SUPER_ADMIN"],
+    globalOnly: true,
+  },
+  {
     key: "/admin/dashboard",
     label: "Дашборд",
     icon: <DashboardOutlined />,
-    roles: ["super_admin", "admin", "teacher"],
+    roles: ["SUPER_ADMIN", "admin"],
   },
   {
     key: "/admin/groups",
     label: "Группы",
     icon: <AppstoreOutlined />,
-    roles: ["super_admin", "admin"],
+    roles: ["SUPER_ADMIN", "admin"],
   },
   {
     key: "/admin/children",
     label: "Дети",
     icon: <UserOutlined />,
-    roles: ["super_admin", "admin", "teacher"],
+    roles: ["SUPER_ADMIN", "admin", "TEACHER"],
   },
   {
     key: "/admin/attendance",
     label: "Посещаемость",
     icon: <CheckCircleOutlined />,
-    roles: ["super_admin", "admin", "teacher"],
+    roles: ["SUPER_ADMIN", "admin", "TEACHER"],
   },
   {
     key: "/admin/payments",
     label: "Оплата",
     icon: <WalletOutlined />,
-    roles: ["super_admin", "admin", "teacher"],
+    roles: ["SUPER_ADMIN", "admin", "TEACHER"],
   },
   {
     key: "/admin/expenses",
     label: "Расходы",
     icon: <PieChartOutlined />,
-    roles: ["super_admin", "admin"],
+    roles: ["SUPER_ADMIN", "admin"],
   },
   {
     key: "/admin/analytics",
     label: "Аналитика",
     icon: <RiseOutlined />,
-    roles: ["super_admin", "admin"],
+    roles: ["SUPER_ADMIN", "admin"],
   },
   {
     key: "/admin/staff",
     label: "Сотрудники",
     icon: <TeamOutlined />,
-    roles: ["super_admin", "admin"],
+    roles: ["SUPER_ADMIN", "admin"],
   },
   {
-    key: "/admin/teachers",
+    key: "/admin/TEACHERs",
     label: "Учителя",
     icon: <TeamOutlined />,
-    roles: ["super_admin", "admin"],
+    roles: ["SUPER_ADMIN", "admin"],
   },
   {
     key: "/admin/schedule",
     label: "Расписание",
     icon: <CalendarOutlined />,
-    roles: ["super_admin", "admin", "teacher"],
+    roles: ["SUPER_ADMIN", "admin", "TEACHER"],
   },
   {
     key: "/admin/menu",
     label: "Меню",
     icon: <CoffeeOutlined />,
-    roles: ["super_admin", "admin", "teacher"],
+    roles: ["SUPER_ADMIN", "admin", "TEACHER"],
   },
   {
     key: "/admin/settings",
     label: "Настройки",
     icon: <SettingOutlined />,
-    roles: ["super_admin", "admin"],
+    roles: ["SUPER_ADMIN", "admin"],
   },
 ];
 
@@ -110,13 +120,19 @@ export default function AppSidebar({ collapsed }: Props) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
 
-  const items = NAV.filter((n) => user && n.roles.includes(user.role)).map(
-    (n) => ({
-      key: n.key,
-      label: n.label,
-      icon: n.icon,
-    }),
-  );
+  const isGlobalOwner = !!user && !user.kindergartenId;
+
+  const items = NAV.filter((n) => {
+    if (!user) return false;
+    if (!n.roles.includes(user.role)) return false;
+    // globalOnly пункты видны только владельцу платформы (kindergartenId = null)
+    if (n.globalOnly && !isGlobalOwner) return false;
+    return true;
+  }).map((n) => ({
+    key: n.key,
+    label: n.label,
+    icon: n.icon,
+  }));
 
   // Подсветка активного пункта по началу пути
   const activeKey =
@@ -152,18 +168,19 @@ export default function AppSidebar({ collapsed }: Props) {
       </div>
 
       <Menu
-        mode="vertical"
+        mode="inline"
         selectedKeys={[activeKey]}
         items={items}
         onClick={({ key }) => navigate(key as string)}
+        className="nav-menu"
         style={{
           background: "transparent",
           border: "none",
           flex: 1,
           overflowY: "auto",
+          overflowX: "hidden",
         }}
-        inlineCollapsed={collapsed}
-        
+        // inlineCollapsed={collapsed}
       />
 
       {!collapsed && (

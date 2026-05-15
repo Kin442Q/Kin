@@ -86,9 +86,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             onClick={onToggle}
             icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           />
-          <Tooltip title="Поиск (Ctrl+K)">
-            <Button type="text" icon={<SearchOutlined />} className="hidden sm:inline-flex" />
-          </Tooltip>
+        
         </div>
 
         <div className="flex items-center gap-1">

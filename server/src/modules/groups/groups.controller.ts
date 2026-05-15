@@ -27,26 +27,30 @@ export class GroupsController {
   @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')
   @UseGuards(GroupScopeGuard)
   @GroupScope('id')
-  findOne(@Param('id') id: string) {
-    return this.service.findOne(id)
+  findOne(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.findOne(user, id)
   }
 
   @Post()
   @Roles('SUPER_ADMIN', 'ADMIN')
-  create(@Body() dto: CreateGroupDto) {
-    return this.service.create(dto)
+  create(@CurrentUser() user: AuthUser, @Body() dto: CreateGroupDto) {
+    return this.service.create(user, dto)
   }
 
   @Patch(':id')
   @Roles('SUPER_ADMIN', 'ADMIN')
-  update(@Param('id') id: string, @Body() dto: UpdateGroupDto) {
-    return this.service.update(id, dto)
+  update(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateGroupDto,
+  ) {
+    return this.service.update(user, id, dto)
   }
 
   @Delete(':id')
   @Roles('SUPER_ADMIN', 'ADMIN')
   @HttpCode(204)
-  remove(@Param('id') id: string) {
-    return this.service.remove(id)
+  remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.remove(user, id)
   }
 }
