@@ -4,6 +4,7 @@
 # Stage 1: install all deps (incl. dev) + prisma generate
 FROM node:20-alpine AS deps
 WORKDIR /app
+RUN apk add --no-cache openssl
 COPY package*.json ./
 COPY prisma ./prisma
 RUN npm ci --include=dev && npx prisma generate
@@ -24,17 +25,21 @@ ENV NODE_ENV=production
 ENV TZ=Asia/Dushanbe
 WORKDIR /app
 
+# OpenSSL нужен Prisma для запуска
+RUN apk add --no-cache openssl
+
 # Только prod-deps
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
-# Prisma client + миграции
+# Prisma client + CLI + миграции
 COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/dist ./dist
 
-USER node
+# Запуск от root, чтобы prisma migrate мог писать в node_modules при необходимости
 EXPOSE 4000
 
 # При первом старте применяем миграции, затем стартуем API.
