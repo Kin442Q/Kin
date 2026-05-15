@@ -11,6 +11,7 @@ RUN npm ci --include=dev && npx prisma generate
 # Stage 2: build
 FROM node:20-alpine AS build
 WORKDIR /app
+COPY package*.json ./
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/prisma ./prisma
 COPY tsconfig*.json nest-cli.json ./
