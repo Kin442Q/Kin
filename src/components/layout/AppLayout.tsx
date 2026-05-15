@@ -31,7 +31,7 @@ export default function AppLayout() {
       {!isMobile && (
         <Sider
           breakpoint="md"
-          collapsedWidth={80}
+          collapsedWidth={88}
           collapsed={collapsed}
           onCollapse={setCollapsed}
           width={252}
@@ -42,6 +42,7 @@ export default function AppLayout() {
             height: '100vh',
             background: 'transparent',
             padding: 12,
+            transition: 'all 0.25s ease',
           }}
         >
           <AppSidebar collapsed={collapsed} />
