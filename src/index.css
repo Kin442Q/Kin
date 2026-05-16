@@ -355,26 +355,42 @@ html[data-theme='dark'] {
   stroke-width: 2;
 }
 
-/* Collapsed sidebar — Menu занимает ширину родителя, плашки центрированы */
+/* ============================================================
+   Collapsed sidebar
+   AntD навешивает .ant-menu-inline-collapsed с min-width: 80px и
+   фиксированной width на ant-menu-item. Полностью перебиваем.
+   ============================================================ */
 .nav-menu.ant-menu-inline-collapsed {
   width: 100% !important;
   min-width: 0 !important;
+  max-width: 100% !important;
 }
 .nav-menu.ant-menu-inline-collapsed .ant-menu-item {
   width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
   margin-inline: 0 !important;
+  margin-bottom: 6px !important;
   padding: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  height: 48px !important;
+  line-height: 48px !important;
 }
 .nav-menu.ant-menu-inline-collapsed .ant-menu-item .ant-menu-item-icon {
   margin: 0 !important;
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 .nav-menu.ant-menu-inline-collapsed .sp-nav-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
 }
 .nav-menu.ant-menu-inline-collapsed .sp-nav-icon svg {
   width: 22px !important;
@@ -384,10 +400,16 @@ html[data-theme='dark'] {
   display: none !important;
   opacity: 0 !important;
   width: 0 !important;
+  height: 0 !important;
 }
-/* Меню в collapsed-режиме AntD по умолчанию имеет inline-block с фиксом 80px — сбрасываем */
+/* Sider при collapsed — родитель должен иметь width 100% */
 .ant-layout-sider-collapsed .nav-menu {
   width: 100% !important;
+}
+/* Когда AntD добавляет дополнительный overflow:hidden — сбрасываем */
+.nav-menu.ant-menu-inline-collapsed .ant-menu-submenu-title,
+.nav-menu.ant-menu-inline-collapsed .ant-menu-item-only-child {
+  padding: 0 !important;
 }
 
 /* ============================================================
