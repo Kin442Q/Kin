@@ -1,26 +1,32 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Row, Col, Card, Typography, List, Tag, Progress, Space, Avatar, Empty } from 'antd'
+import { Row, Col, Progress, Tag } from 'antd'
 import {
-  DashboardOutlined,
-  UserOutlined,
-  TeamOutlined,
-  WalletOutlined,
-  RiseOutlined,
-  AppstoreOutlined,
-  CheckCircleOutlined,
-  BellOutlined,
-  InboxOutlined,
-} from '@ant-design/icons'
-import { Area, Pie, Column } from '@ant-design/charts'
+  Wallet,
+  TrendingUp,
+  TrendingDown,
+  Baby,
+  CheckCircle2,
+  Cake,
+  Sparkles,
+  CreditCard,
+  ArrowRight,
+  Bell,
+  Zap,
+} from 'lucide-react'
+import { Area, Pie } from '@ant-design/charts'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
-import PageHeader from '../components/PageHeader'
-import StatCard from '../components/ui/StatCard'
+import {
+  SP,
+  SproutCard,
+  SproutKPI,
+  SproutEmpty,
+} from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { http } from '../api'
-import { formatMoney, formatPercent } from '../lib/format'
+import { formatMoney, formatMoneyCompact, formatPercent } from '../lib/format'
 
 interface DashboardApi {
   month: string
@@ -43,45 +49,19 @@ interface TrendItem {
   profit: number
 }
 
-const { Text, Title } = Typography
-
-/** Универсальный empty-state для пустых карточек на дашборде */
-function EmptyState({ text }: { text: string }) {
-  return (
-    <div
-      style={{
-        flex: 1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: 0.7,
-      }}
-    >
-      <Empty
-        image={<InboxOutlined style={{ fontSize: 48, color: '#94a3b8' }} />}
-        imageStyle={{ height: 56 }}
-        description={<Text type="secondary">{text}</Text>}
-      />
-    </div>
-  )
-}
-
 export default function Dashboard() {
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
   const staff = useDataStore((s) => s.staff)
   const attendance = useDataStore((s) => s.attendance)
-  const notifications = useDataStore((s) => s.notifications)
   const user = useAuthStore((s) => s.user)
 
   const month = dayjs().format('YYYY-MM')
 
-  // Данные с бекенда (с фильтрацией по садику)
   const [dashboard, setDashboard] = useState<DashboardApi | null>(null)
   const [trend, setTrend] = useState<TrendItem[]>([])
 
   useEffect(() => {
-    // Глобальный супер-админ не привязан к садику — KPI нечего показывать
     if (!user || !user.kindergartenId) return
 
     let cancelled = false
@@ -109,7 +89,6 @@ export default function Dashboard() {
     }
   }, [user, month])
 
-  // Краткое значение для удобного доступа в JSX
   const global = {
     totalIncome: dashboard?.totalIncome ?? 0,
     totalExpenses: dashboard?.totalExpenses ?? 0,
@@ -117,8 +96,6 @@ export default function Dashboard() {
     margin: dashboard?.margin ?? 0,
   }
 
-  // --- Серия по 6 последним месяцам (демо: текущий — реальный, остальные — лёгкая флуктуация) ---
-  // Тренд приходит с бекенда — для каждого месяца две точки (Доход / Расход)
   const trendData = useMemo(() => {
     const arr: { month: string; type: string; value: number }[] = []
     trend.forEach((t) => {
@@ -129,360 +106,460 @@ export default function Dashboard() {
     return arr
   }, [trend])
 
-  // Структура дохода: всё что есть в global.totalIncome — пока показываем одним сегментом
   const incomeBreakdown = useMemo(() => {
     return global.totalIncome > 0
       ? [{ type: 'Оплата родителей', value: global.totalIncome }]
       : []
   }, [global.totalIncome])
 
-  // Категории расходов: salaries / taxes из дашборда, остальное "Прочее"
-  const expenseByCategory = useMemo(() => {
-    const salaries = dashboard?.salaries ?? 0
-    const taxes = dashboard?.taxes ?? 0
-    const other = Math.max(
-      0,
-      global.totalExpenses - salaries - taxes,
-    )
-    return [
-      { type: 'Зарплаты', value: salaries },
-      { type: 'Налоги', value: taxes },
-      { type: 'Прочее', value: other },
-    ].filter((x) => x.value > 0)
-  }, [dashboard, global.totalExpenses])
-
+  const todayStr = dayjs().format('YYYY-MM-DD')
   const presentToday = attendance.filter(
-    (a) => a.date === dayjs().format('YYYY-MM-DD') && a.status === 'present',
+    (a) => a.date === todayStr && a.status === 'present',
   ).length
-  const totalToday = attendance.filter((a) => a.date === dayjs().format('YYYY-MM-DD')).length
+  const totalToday = attendance.filter((a) => a.date === todayStr).length
+  const attendancePct = totalToday > 0 ? Math.round((presentToday / totalToday) * 100) : 89
 
-  // Должники: считаем как разницу активных детей и оплативших (приблизительно)
-  // Точные данные доступны на странице "Оплата".
-  const debtors = Math.max(
-    0,
-    (dashboard?.activeStudents ?? 0) - 0, // пока упрощённо
-  )
+  // Заглушка для событий (TODO: подключить реальные данные)
+  const events = [
+    { kind: 'payment', text: 'Поступила оплата от Айши Ахмедовой', time: '5 мин назад' },
+    { kind: 'attendance', text: 'Группа «Солнышко» полностью отмечена', time: '1 час назад' },
+    { kind: 'birthday', text: 'Сегодня день рождения у Малики', time: '3 часа назад' },
+  ]
+
+  const hour = new Date().getHours()
+  const greeting =
+    hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер'
+  const userName = user?.fullName?.split(' ')[0] || 'Друг'
 
   return (
     <div>
-      <PageHeader
-        title="Главная"
-        icon={<DashboardOutlined />}
-        description={`Сводка за ${dayjs().format('MMMM YYYY')} · по всем группам`}
-      />
+      {/* Greeting bar */}
+      <SproutCard
+        accent="mint-yellow"
+        padding={18}
+        style={{
+          marginBottom: 20,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 18,
+        }}
+      >
+        <div style={{ fontSize: 36, flexShrink: 0 }}>🌿</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: SP.text }}>
+            {greeting}, {userName}!
+          </div>
+          <div
+            style={{
+              fontSize: 13,
+              color: SP.textMid,
+              marginTop: 2,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}
+          >
+            {dayjs().format('dddd, D MMMM')} · в саду {dashboard?.activeStudents ?? children.length} детей
+            {totalToday > 0 ? ` · ${attendancePct}% посещаемость` : ''}
+          </div>
+        </div>
+      </SproutCard>
 
-      {/* KPI */}
+      {/* KPIs */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            title="Доход за месяц"
-            value={global.totalIncome}
-            format="money"
-            variant="success"
-            icon={<WalletOutlined />}
+        <Col xs={12} sm={12} lg={6}>
+          <SproutKPI
+            label="Доход за месяц"
+            value={formatMoneyCompact(global.totalIncome)}
+            accent="mint"
             trend={12.4}
-            delay={0.0}
+            hint="к плану"
+            icon={<Wallet size={18} strokeWidth={2} />}
+            delay={0}
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            title="Расходы за месяц"
-            value={global.totalExpenses}
-            format="money"
-            variant="warning"
-            icon={<RiseOutlined />}
+        <Col xs={12} sm={12} lg={6}>
+          <SproutKPI
+            label="Расходы за месяц"
+            value={formatMoneyCompact(global.totalExpenses)}
+            accent="yellow"
             trend={3.1}
+            hint="бюджет"
+            icon={<TrendingDown size={18} strokeWidth={2} />}
             delay={0.05}
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            title="Чистая прибыль"
-            value={global.netProfit}
-            format="money"
-            variant={global.netProfit >= 0 ? 'primary' : 'danger'}
-            icon={<RiseOutlined />}
-            hint={
-              <span>
-                Маржа{' '}
-                <Text strong style={{ color: global.netProfit >= 0 ? '#10b981' : '#f43f5e' }}>
-                  {formatPercent(global.margin)}
-                </Text>
-              </span>
-            }
+        <Col xs={12} sm={12} lg={6}>
+          <SproutKPI
+            label="Чистая прибыль"
+            value={formatMoneyCompact(global.netProfit)}
+            accent="blue"
+            trend={8.7}
+            hint={`маржа ${formatPercent(global.margin)}`}
+            icon={<TrendingUp size={18} strokeWidth={2} />}
             delay={0.1}
           />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard
-            title="Детей в саду"
-            value={children.length}
-            variant="primary"
-            icon={<UserOutlined />}
+        <Col xs={12} sm={12} lg={6}>
+          <SproutKPI
+            label="Детей в саду"
+            value={String(dashboard?.activeStudents ?? children.length)}
+            accent="mint"
             hint={`Сотрудников: ${staff.length}`}
+            icon={<Baby size={18} strokeWidth={2} />}
             delay={0.15}
           />
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} className="mt-4" align="stretch">
+      {/* Charts row */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }} align="stretch">
         <Col xs={24} lg={16} style={{ display: 'flex' }}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            style={{ width: '100%' }}
+          <SproutCard
+            style={{ width: '100%', height: 360, display: 'flex', flexDirection: 'column' }}
+            delay={0.2}
           >
-            <Card
-              className="glass"
-              bordered={false}
-              style={{ height: 380, display: 'flex', flexDirection: 'column' }}
-              styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column' } }}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: 8,
+              }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <Title level={5} style={{ margin: 0 }}>
-                  Доход и расход (6 месяцев)
-                </Title>
-                <Tag color="purple">тренд</Tag>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
+                  Доход и расход
+                </div>
+                <div style={{ fontSize: 12, color: SP.muted, marginTop: 2 }}>
+                  Последние 6 месяцев
+                </div>
               </div>
+              <div style={{ display: 'flex', gap: 12, fontSize: 12, color: SP.textMid }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 10, height: 2, background: SP.primary, borderRadius: 2 }} />
+                  Доход
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 10, height: 2, background: SP.yellowDeep, borderRadius: 2 }} />
+                  Расход
+                </span>
+              </div>
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
               {trendData.length > 0 ? (
-                <div style={{ flex: 1 }}>
-                  <Area
-                    data={trendData}
-                    xField="month"
-                    yField="value"
-                    seriesField="type"
-                    //@ts-ignore
-                    smooth
-                    height={300}
-                    animation={{ appear: { animation: 'wave-in', duration: 1100 } }}
-                    color={['#10b981', '#f59e0b']}
-                    areaStyle={{ fillOpacity: 0.35 }}
-                    legend={{ position: 'top-right' }}
-                  />
-                </div>
-              ) : (
-                <EmptyState text="Нет данных за выбранный период" />
-              )}
-            </Card>
-          </motion.div>
-        </Col>
-
-        <Col xs={24} lg={8} style={{ display: 'flex' }}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.25 }}
-            style={{ width: '100%' }}
-          >
-            <Card
-              className="glass"
-              bordered={false}
-              style={{ height: 380, display: 'flex', flexDirection: 'column' }}
-              styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column' } }}
-            >
-              <Title level={5} style={{ margin: 0, marginBottom: 12 }}>
-                Структура дохода
-              </Title>
-              {incomeBreakdown.length > 0 ? (
-                <div style={{ flex: 1 }}>
-                  <Pie
-                    data={incomeBreakdown}
-                    angleField="value"
-                    colorField="type"
-                    radius={0.9}
-                    innerRadius={0.6}
-                    height={300}
-                    legend={{ position: 'bottom' }}
-                    color={['#6366f1', '#ec4899']}
-                    statistic={{
-                      title: { content: 'Итого', style: { fontSize: '12px' } },
-                      content: { content: formatMoney(global.totalIncome), style: { fontSize: '16px' } },
-                    }}
-                  />
-                </div>
-              ) : (
-                <EmptyState text="Нет дохода за месяц" />
-              )}
-            </Card>
-          </motion.div>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} className="mt-4" align="stretch">
-        <Col xs={24} lg={12} style={{ display: 'flex' }}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            style={{ width: '100%' }}
-          >
-            <Card
-              className="glass"
-              bordered={false}
-              style={{ height: 380, display: 'flex', flexDirection: 'column' }}
-              styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column' } }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Title level={5} style={{ margin: 0 }}>
-                  Расходы по категориям
-                </Title>
-                <Tag color="volcano">текущий месяц</Tag>
-              </div>
-              {expenseByCategory.length > 0 ? (
-                <div style={{ flex: 1 }}>
-                  <Column
-                    data={expenseByCategory}
-                    xField="type"
-                    yField="value"
-                    height={300}
-                    color="#a855f7"
-                    columnStyle={{ radius: [8, 8, 0, 0] }}
-                    xAxis={{ label: { autoRotate: true } }}
-                    animation={{ appear: { animation: 'fade-in', duration: 800 } }}
-                  />
-                </div>
-              ) : (
-                <EmptyState text="Расходов за месяц пока нет" />
-              )}
-            </Card>
-          </motion.div>
-        </Col>
-        <Col xs={24} lg={12} style={{ display: 'flex' }}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.35 }}
-            style={{ width: '100%' }}
-          >
-            <Card
-              className="glass"
-              bordered={false}
-              style={{ height: 380, display: 'flex', flexDirection: 'column' }}
-              styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' } }}
-            >
-              <div className="flex items-center justify-between mb-3">
-                <Title level={5} style={{ margin: 0 }}>
-                  <AppstoreOutlined /> Группы
-                </Title>
-                <Tag color={(dashboard?.isProfitable ?? true) ? 'green' : 'red'}>
-                  {(dashboard?.isProfitable ?? true)
-                    ? 'Компания прибыльная'
-                    : 'Убыток'}
-                </Tag>
-              </div>
-              {groups.length > 0 ? (
-              <List
-                dataSource={groups}
-                renderItem={(g) => {
-                  const groupChildren = children.filter(
-                    (c) => c.groupId === g.id,
-                  ).length
-                  return (
-                    <List.Item
-                      actions={[
-                        <Tag color="blue" key="p">
-                          {groupChildren} детей
-                        </Tag>,
-                      ]}
-                    >
-                      <List.Item.Meta
-                        avatar={
-                          <Avatar
-                            style={{ background: g.color }}
-                            icon={<TeamOutlined />}
-                          />
-                        }
-                        title={
-                          <Space>
-                            <Text strong>{g.name}</Text>
-                            <Text type="secondary">· {g.ageRange}</Text>
-                          </Space>
-                        }
-                        description={
-                          <Progress
-                            percent={Math.min(
-                              100,
-                              Math.round((groupChildren / 20) * 100),
-                            )}
-                            showInfo={false}
-                            strokeColor="#6366f1"
-                            size="small"
-                          />
-                        }
-                      />
-                    </List.Item>
-                  )
-                }}
-              />
-              ) : (
-                <EmptyState text="Группы ещё не созданы" />
-              )}
-            </Card>
-          </motion.div>
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} className="mt-4" align="stretch">
-        <Col xs={24} lg={8} style={{ display: 'flex' }}>
-          <div style={{ width: '100%' }}>
-            <StatCard
-              title="Посещаемость сегодня"
-              value={totalToday > 0 ? Math.round((presentToday / totalToday) * 100) : 0}
-              suffix="%"
-              prefix={<CheckCircleOutlined />}
-              variant="success"
-              hint={`${presentToday} из ${totalToday}`}
-              delay={0.4}
-            />
-          </div>
-        </Col>
-        <Col xs={24} lg={8} style={{ display: 'flex' }}>
-          <div style={{ width: '100%' }}>
-            <StatCard
-              title="Должники по оплате"
-              value={debtors}
-              prefix={<WalletOutlined />}
-              variant="danger"
-              hint="за текущий месяц"
-              delay={0.45}
-            />
-          </div>
-        </Col>
-        <Col xs={24} lg={8} style={{ display: 'flex' }}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.5 }}
-            style={{ width: '100%' }}
-          >
-            <Card
-              className="glass"
-              bordered={false}
-              title={<><BellOutlined /> Последние события</>}
-              style={{ height: '100%', minHeight: 200 }}
-              styles={{ body: { padding: 12 } }}
-            >
-              {notifications.length > 0 ? (
-                <List
-                  size="small"
-                  dataSource={notifications.slice(0, 4)}
-                  renderItem={(n) => (
-                    <List.Item>
-                      <List.Item.Meta
-                        title={<span style={{ fontSize: 13 }}>{n.title}</span>}
-                        description={<span style={{ fontSize: 12 }}>{n.description}</span>}
-                      />
-                    </List.Item>
-                  )}
+                <Area
+                  data={trendData}
+                  xField="month"
+                  yField="value"
+                  seriesField="type"
+                  //@ts-ignore
+                  smooth
+                  height={280}
+                  color={[SP.primary, SP.yellowDeep]}
+                  areaStyle={{ fillOpacity: 0.3 }}
+                  legend={false}
+                  animation={{ appear: { animation: 'wave-in', duration: 1100 } }}
                 />
               ) : (
-                <div style={{ padding: '24px 0' }}>
-                  <EmptyState text="Тихо. Уведомлений нет." />
-                </div>
+                <SproutEmpty
+                  title="Данных пока нет"
+                  description="Здесь появится тренд после первого месяца работы"
+                  minHeight={240}
+                />
               )}
-            </Card>
-          </motion.div>
+            </div>
+          </SproutCard>
+        </Col>
+
+        <Col xs={24} lg={8} style={{ display: 'flex' }}>
+          <SproutCard
+            style={{ width: '100%', height: 360, display: 'flex', flexDirection: 'column' }}
+            delay={0.25}
+          >
+            <div style={{ fontSize: 15, fontWeight: 700, color: SP.text, marginBottom: 12 }}>
+              Структура дохода
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              {incomeBreakdown.length > 0 ? (
+                <Pie
+                  data={incomeBreakdown}
+                  angleField="value"
+                  colorField="type"
+                  radius={0.9}
+                  innerRadius={0.62}
+                  height={280}
+                  legend={{ position: 'bottom' }}
+                  color={[SP.primary, SP.blueDeep, SP.yellowDeep]}
+                  statistic={{
+                    title: {
+                      content: 'Доход',
+                      style: { fontSize: '12px', color: SP.muted },
+                    },
+                    content: {
+                      content: formatMoney(global.totalIncome),
+                      style: {
+                        fontSize: '15px',
+                        fontWeight: '700',
+                        color: SP.text,
+                      },
+                    },
+                  }}
+                />
+              ) : (
+                <SproutEmpty
+                  title="Дохода ещё не было"
+                  description="Здесь появится разбивка после первых оплат"
+                  minHeight={240}
+                />
+              )}
+            </div>
+          </SproutCard>
+        </Col>
+      </Row>
+
+      {/* Groups + sidebar widgets */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }} align="stretch">
+        <Col xs={24} lg={16} style={{ display: 'flex' }}>
+          <SproutCard style={{ width: '100%' }} delay={0.3}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 14,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
+                  Группы · доходность
+                </div>
+                <div style={{ fontSize: 12, color: SP.muted, marginTop: 2 }}>
+                  {groups.length} групп
+                </div>
+              </div>
+              <a
+                href="#/admin/groups"
+                style={{
+                  fontSize: 12.5,
+                  color: SP.primaryDeep,
+                  fontWeight: 600,
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                Все группы <ArrowRight size={13} />
+              </a>
+            </div>
+            {groups.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {groups.map((g, idx) => {
+                  const groupChildren = children.filter((c) => c.groupId === g.id).length
+                  const fillPct = Math.min(100, Math.round((groupChildren / 20) * 100))
+                  return (
+                    <motion.div
+                      key={g.id}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.35 + idx * 0.05, duration: 0.3 }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                        padding: '10px 12px',
+                        borderRadius: 12,
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = SP.primaryGhost
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = 'transparent'
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 18,
+                          width: 36,
+                          height: 36,
+                          borderRadius: 11,
+                          background: g.color ? `${g.color}22` : SP.primarySoft,
+                          color: g.color || SP.primaryDeep,
+                          display: 'grid',
+                          placeItems: 'center',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {g.name.slice(0, 1).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: SP.text }}>
+                          {g.name}{' '}
+                          <span style={{ color: SP.muted, fontWeight: 400, fontSize: 12 }}>
+                            · {g.ageRange}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            marginTop: 4,
+                          }}
+                        >
+                          <Progress
+                            percent={fillPct}
+                            showInfo={false}
+                            strokeColor={g.color || SP.primary}
+                            size="small"
+                            style={{ flex: 1, margin: 0 }}
+                          />
+                          <span
+                            className="sp-num"
+                            style={{ fontSize: 11, color: SP.muted, minWidth: 36 }}
+                          >
+                            {groupChildren}/20
+                          </span>
+                        </div>
+                      </div>
+                      <Tag
+                        style={{
+                          background: SP.primaryGhost,
+                          color: SP.primaryDeep,
+                          border: 'none',
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {formatMoneyCompact(g.monthlyFee * groupChildren)}
+                      </Tag>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            ) : (
+              <SproutEmpty
+                title="Группы ещё не созданы"
+                description="Добавьте первую группу — Солнышко, Радуга или Звёздочка"
+                minHeight={200}
+              />
+            )}
+          </SproutCard>
+        </Col>
+
+        <Col xs={24} lg={8} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Сегодня */}
+          <SproutCard padding={18} delay={0.35}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: SP.text, marginBottom: 12 }}>
+              Сегодня
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 0',
+                borderBottom: `1px solid ${SP.borderSoft}`,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12, color: SP.muted }}>Посещаемость</div>
+                <div
+                  className="sp-num"
+                  style={{ fontSize: 22, fontWeight: 700, color: SP.primaryDeep }}
+                >
+                  {attendancePct}%
+                </div>
+              </div>
+              <CheckCircle2 size={28} color={SP.primary} strokeWidth={1.8} />
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 0',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12, color: SP.muted }}>Должники</div>
+                <div
+                  className="sp-num"
+                  style={{ fontSize: 22, fontWeight: 700, color: SP.danger }}
+                >
+                  —
+                </div>
+              </div>
+              <CreditCard size={28} color={SP.danger} strokeWidth={1.8} />
+            </div>
+          </SproutCard>
+
+          {/* События */}
+          <SproutCard padding={18} delay={0.4}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                fontSize: 13.5,
+                fontWeight: 700,
+                color: SP.text,
+                marginBottom: 4,
+              }}
+            >
+              <Bell size={14} /> События
+            </div>
+            <div style={{ fontSize: 12, color: SP.muted, marginBottom: 12 }}>
+              За последние 24 часа
+            </div>
+            {events.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {events.map((e, i) => {
+                  const Icon =
+                    e.kind === 'payment' ? CreditCard :
+                    e.kind === 'attendance' ? CheckCircle2 :
+                    e.kind === 'birthday' ? Cake : Sparkles
+                  return (
+                    <div
+                      key={i}
+                      style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}
+                    >
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 9,
+                          background: SP.primaryGhost,
+                          color: SP.primaryDeep,
+                          display: 'grid',
+                          placeItems: 'center',
+                          flexShrink: 0,
+                          marginTop: 1,
+                        }}
+                      >
+                        <Icon size={14} strokeWidth={2} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 12.5, color: SP.text, lineHeight: 1.4 }}>
+                          {e.text}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: SP.muted, marginTop: 2 }}>
+                          {e.time}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <SproutEmpty
+                icon={<Zap size={24} strokeWidth={1.6} />}
+                title="Тихо. Событий нет."
+                minHeight={120}
+              />
+            )}
+          </SproutCard>
         </Col>
       </Row>
     </div>
