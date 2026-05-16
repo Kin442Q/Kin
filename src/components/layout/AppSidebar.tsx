@@ -163,7 +163,7 @@ export default function AppSidebar({ collapsed }: Props) {
     ) : (
       n.label
     ),
-    icon: <span className={n.accentClass}>{n.icon}</span>,
+    icon: <span className={`sp-nav-icon ${n.accentClass}`}>{n.icon}</span>,
   }))
 
   const activeKey =

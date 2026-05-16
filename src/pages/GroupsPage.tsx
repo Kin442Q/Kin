@@ -3,6 +3,7 @@ import {
   Button,
   Col,
   Form,
+  Grid,
   Input,
   InputNumber,
   Modal,
@@ -56,9 +57,13 @@ const GROUP_COLORS = [
   '#2F8862', // mint deep
 ]
 
+const { useBreakpoint } = Grid
+
 export default function GroupsPage() {
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
 
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
@@ -495,7 +500,148 @@ export default function GroupsPage() {
             {dayjs(month + '-01').format('MMMM YYYY')}
           </Tag>
         </div>
-        {finances.length > 0 ? (
+        {finances.length === 0 ? (
+          <SproutEmpty
+            icon={<LayoutGrid size={28} strokeWidth={1.8} />}
+            title="Групп пока нет"
+            description="Создайте первую группу — Солнышко, Радуга или Звёздочка"
+            minHeight={220}
+          />
+        ) : isMobile ? (
+          // === Мобильные карточки ===
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {finances.map((row) => {
+              const g = row.group
+              const margin = Math.max(0, Math.min(100, row.margin * 100))
+              return (
+                <div key={g.id} className="sp-mcard">
+                  <div className="sp-mcard-header">
+                    <Avatar
+                      size={44}
+                      style={{
+                        background: g.color,
+                        color: 'white',
+                        fontWeight: 700,
+                        fontSize: 16,
+                      }}
+                    >
+                      {g.name.slice(0, 1).toUpperCase()}
+                    </Avatar>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="sp-mcard-title">{g.name}</div>
+                      <div className="sp-mcard-sub">{g.ageRange}</div>
+                    </div>
+                    <Tag
+                      style={{
+                        background: row.profit >= 0 ? SP.primaryGhost : '#FCEAE5',
+                        color: row.profit >= 0 ? SP.primaryDeep : SP.danger,
+                        border: 'none',
+                        fontWeight: 700,
+                        margin: 0,
+                      }}
+                    >
+                      {row.profit >= 0 ? '+' : ''}
+                      {formatMoneyCompact(row.profit)}
+                    </Tag>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr 1fr',
+                      gap: 8,
+                      padding: '6px 0',
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 11, color: SP.muted }}>Детей</div>
+                      <div
+                        className="sp-num"
+                        style={{ fontWeight: 700, fontSize: 15, color: SP.text }}
+                      >
+                        {row.childrenCount}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: SP.muted }}>Оплатили</div>
+                      <div
+                        className="sp-num"
+                        style={{
+                          fontWeight: 700,
+                          fontSize: 15,
+                          color: SP.primaryDeep,
+                        }}
+                      >
+                        {row.paidCount}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: SP.muted }}>Должники</div>
+                      <div
+                        className="sp-num"
+                        style={{
+                          fontWeight: 700,
+                          fontSize: 15,
+                          color: row.debtorsCount > 0 ? SP.danger : SP.muted,
+                        }}
+                      >
+                        {row.debtorsCount}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="sp-mcard-row">
+                    <span className="label">Доход</span>
+                    <span className="value sp-num">{formatMoneyCompact(row.income)}</span>
+                  </div>
+                  <div className="sp-mcard-row">
+                    <span className="label">Расход</span>
+                    <span className="value sp-num" style={{ color: SP.muted }}>
+                      {formatMoneyCompact(row.expenses)}
+                    </span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: SP.muted, marginBottom: 4 }}>
+                      Маржа · {formatPercent(row.margin)}
+                    </div>
+                    <Progress
+                      percent={margin}
+                      size="small"
+                      strokeColor={row.profit >= 0 ? SP.primary : SP.danger}
+                      showInfo={false}
+                    />
+                  </div>
+
+                  <div className="sp-mcard-actions">
+                    <Button
+                      size="small"
+                      icon={<EyeOutlined />}
+                      onClick={() => navigate(`/admin/groups/${g.id}`)}
+                    >
+                      Открыть
+                    </Button>
+                    <Button
+                      size="small"
+                      icon={<EditOutlined />}
+                      onClick={() => openEdit(g)}
+                    >
+                      Изменить
+                    </Button>
+                    <Popconfirm
+                      title="Удалить группу?"
+                      okText="Удалить"
+                      cancelText="Отмена"
+                      okButtonProps={{ danger: true }}
+                      onConfirm={() => remove(g)}
+                    >
+                      <Button size="small" danger icon={<DeleteOutlined />} />
+                    </Popconfirm>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        ) : (
           <Table
             rowKey={(r) => r.group.id}
             dataSource={finances}
@@ -504,13 +650,6 @@ export default function GroupsPage() {
             scroll={{ x: 1100 }}
             size="middle"
             sticky
-          />
-        ) : (
-          <SproutEmpty
-            icon={<LayoutGrid size={28} strokeWidth={1.8} />}
-            title="Групп пока нет"
-            description="Создайте первую группу — Солнышко, Радуга или Звёздочка"
-            minHeight={220}
           />
         )}
       </SproutCard>

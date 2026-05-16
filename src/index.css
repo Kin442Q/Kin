@@ -302,20 +302,27 @@ html[data-theme='dark'] {
   display: none !important;
 }
 
-/* Иконки в цветных плашках */
+/* Иконки в цветных плашках.
+   .ant-menu-item-icon — слот AntD; мы УБИРАЕМ у него размер/фон,
+   потому что вся плашка живёт на нашей внутренней .sp-nav-icon */
 .nav-menu .ant-menu-item .ant-menu-item-icon {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+  margin-right: 10px !important;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+/* Внутренняя плашка с фоном — здесь живёт цвет и размер */
+.sp-nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 32px;
   height: 32px;
   border-radius: 9px;
-  margin-right: 11px !important;
-  flex-shrink: 0;
   transition: all 0.2s ease;
 }
 
-/* Цветовые плашки иконок (применяются через классы) */
+/* Цветовые плашки иконок (применяются на .sp-nav-icon) */
 .sp-icon-mint   { background: var(--sp-primary-ghost); color: var(--sp-primary-deep); }
 .sp-icon-blue   { background: var(--sp-blue-soft);     color: var(--sp-blue-deep); }
 .sp-icon-yellow { background: var(--sp-yellow-soft);   color: var(--sp-yellow-deep); }
@@ -325,14 +332,14 @@ html[data-theme='dark'] {
 .sp-icon-cyan   { background: #E0F1F2;                 color: #3FA8B3; }
 .sp-icon-gray   { background: var(--sp-border-soft);   color: var(--sp-text-mid); }
 
-/* Активный пункт: цвет иконки становится primary-deep, фон плашки чуть ярче */
-.nav-menu .ant-menu-item-selected .ant-menu-item-icon {
+/* Активный пункт: фон плашки = primary, иконка белая */
+.nav-menu .ant-menu-item-selected .sp-nav-icon {
   background: var(--sp-primary) !important;
   color: white !important;
   box-shadow: 0 4px 10px -2px rgba(79, 178, 134, 0.45);
 }
 
-.nav-menu .ant-menu-item:hover .ant-menu-item-icon {
+.nav-menu .ant-menu-item:hover .sp-nav-icon {
   transform: scale(1.05);
 }
 
@@ -348,12 +355,13 @@ html[data-theme='dark'] {
   stroke-width: 2;
 }
 
-/* Collapsed sidebar — центрируем иконки */
+/* Collapsed sidebar — Menu занимает ширину родителя, плашки центрированы */
 .nav-menu.ant-menu-inline-collapsed {
-  width: 64px !important;
+  width: 100% !important;
+  min-width: 0 !important;
 }
 .nav-menu.ant-menu-inline-collapsed .ant-menu-item {
-  width: 64px !important;
+  width: 100% !important;
   margin-inline: 0 !important;
   padding: 0 !important;
   display: flex !important;
@@ -362,16 +370,24 @@ html[data-theme='dark'] {
 }
 .nav-menu.ant-menu-inline-collapsed .ant-menu-item .ant-menu-item-icon {
   margin: 0 !important;
-  width: 40px;
-  height: 40px;
+}
+.nav-menu.ant-menu-inline-collapsed .sp-nav-icon {
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
 }
-.nav-menu.ant-menu-inline-collapsed .ant-menu-item .ant-menu-item-icon svg {
+.nav-menu.ant-menu-inline-collapsed .sp-nav-icon svg {
   width: 22px !important;
   height: 22px !important;
 }
 .nav-menu.ant-menu-inline-collapsed .ant-menu-title-content {
   display: none !important;
+  opacity: 0 !important;
+  width: 0 !important;
+}
+/* Меню в collapsed-режиме AntD по умолчанию имеет inline-block с фиксом 80px — сбрасываем */
+.ant-layout-sider-collapsed .nav-menu {
+  width: 100% !important;
 }
 
 /* ============================================================
@@ -489,5 +505,85 @@ html[data-theme='dark'] {
 @media (hover: none) and (pointer: coarse) {
   .ant-btn:not(.ant-btn-link):not(.ant-btn-text) {
     min-height: 44px;
+  }
+}
+
+/* ============================================================
+   Sprout-mobile-card — общий стиль для мобильной карточковой версии таблицы.
+   Используется вместо AntD Table на <md экранах.
+   ============================================================ */
+.sp-mcard {
+  background: var(--sp-surface);
+  border: 1px solid var(--sp-border-soft);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--sp-shadow-sm);
+  transition: all 0.2s;
+}
+.sp-mcard:hover {
+  box-shadow: var(--sp-shadow-md);
+}
+.sp-mcard-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sp-mcard-title {
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--sp-text);
+  line-height: 1.3;
+}
+.sp-mcard-sub {
+  font-size: 12px;
+  color: var(--sp-muted);
+}
+.sp-mcard-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.sp-mcard-row > .label {
+  color: var(--sp-muted);
+  font-size: 12px;
+}
+.sp-mcard-row > .value {
+  font-weight: 600;
+  color: var(--sp-text);
+  text-align: right;
+}
+.sp-mcard-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px dashed var(--sp-border-soft);
+  justify-content: flex-end;
+}
+
+/* Когда мы оставляем AntD Table на мобильном — упрощаем её */
+@media (max-width: 768px) {
+  .ant-table-content {
+    overflow-x: auto !important;
+  }
+  /* Первая колонка sticky слева */
+  .ant-table-cell-fix-left {
+    background: var(--sp-surface) !important;
+  }
+  /* Pagination более компактный */
+  .ant-pagination {
+    text-align: center;
+  }
+  .ant-pagination-item,
+  .ant-pagination-prev,
+  .ant-pagination-next {
+    min-width: 32px !important;
+    height: 32px !important;
+    line-height: 30px !important;
   }
 }
