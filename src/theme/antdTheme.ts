@@ -1,8 +1,8 @@
 import { theme as antdTheme, ThemeConfig } from 'antd'
 
 /**
- * Премиум-тема Ant Design в стиле Linear/Vercel.
- * Поддерживает светлый и тёмный режимы.
+ * Sprout-тема Ant Design.
+ * Мятная палитра, мягкие радиусы, Plus Jakarta Sans.
  */
 export function buildAntdTheme(mode: 'light' | 'dark'): ThemeConfig {
   const isDark = mode === 'dark'
@@ -12,28 +12,36 @@ export function buildAntdTheme(mode: 'light' | 'dark'): ThemeConfig {
     cssVar: true,
     hashed: true,
     token: {
-      colorPrimary: '#6366f1', // indigo-500
-      colorInfo: '#6366f1',
-      colorSuccess: '#10b981',
-      colorWarning: '#f59e0b',
-      colorError: '#ef4444',
-      colorLink: '#6366f1',
-      borderRadius: 10,
-      borderRadiusLG: 14,
-      borderRadiusSM: 8,
+      // Sprout primary = мята
+      colorPrimary: '#4FB286',
+      colorInfo: '#5BA9D1',
+      colorSuccess: '#4FB286',
+      colorWarning: '#E5B43A',
+      colorError: '#D86464',
+      colorLink: '#2F8862',
+
+      borderRadius: 12,
+      borderRadiusLG: 16,
+      borderRadiusSM: 10,
+
       fontFamily:
-        "Inter, 'Segoe UI', Tahoma, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+        "'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+
       colorBgLayout: 'transparent',
-      colorBgContainer: isDark ? 'rgba(17, 24, 39, 0.7)' : 'rgba(255, 255, 255, 0.75)',
-      colorBgElevated: isDark ? 'rgba(17, 24, 39, 0.92)' : 'rgba(255, 255, 255, 0.95)',
-      colorBorder: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)',
-      colorBorderSecondary: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)',
-      boxShadow: isDark
-        ? '0 8px 30px rgba(0,0,0,0.35)'
-        : '0 8px 30px rgba(15,23,42,0.06)',
-      boxShadowSecondary: isDark
-        ? '0 4px 20px rgba(0,0,0,0.3)'
-        : '0 4px 20px rgba(15,23,42,0.05)',
+      colorBgContainer: isDark ? 'rgba(31,45,39,0.85)' : '#FFFFFF',
+      colorBgElevated: isDark ? 'rgba(31,45,39,0.95)' : '#FFFFFF',
+
+      colorText: isDark ? '#F4F1EA' : '#1F2D27',
+      colorTextSecondary: isDark ? 'rgba(244,241,234,0.7)' : '#4A5752',
+      colorTextTertiary: isDark ? 'rgba(244,241,234,0.5)' : '#8A968F',
+
+      colorBorder: isDark ? 'rgba(244,241,234,0.1)' : '#E8E4DA',
+      colorBorderSecondary: isDark ? 'rgba(244,241,234,0.06)' : '#F0EDE4',
+
+      boxShadow: '0 4px 16px -4px rgba(31,45,39,0.06)',
+      boxShadowSecondary: '0 1px 2px rgba(31,45,39,0.04)',
+
+      controlHeight: 40,
     },
     components: {
       Layout: {
@@ -44,51 +52,68 @@ export function buildAntdTheme(mode: 'light' | 'dark'): ThemeConfig {
       },
       Menu: {
         itemBg: 'transparent',
-        itemSelectedBg: isDark ? 'rgba(99,102,241,0.18)' : 'rgba(99,102,241,0.12)',
-        itemSelectedColor: '#6366f1',
-        itemHoverBg: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(15,23,42,0.04)',
-        itemBorderRadius: 10,
+        itemSelectedBg: 'rgba(79,178,134,0.10)',
+        itemSelectedColor: '#2F8862',
+        itemHoverBg: 'rgba(79,178,134,0.06)',
+        itemBorderRadius: 12,
         subMenuItemBg: 'transparent',
+        itemHeight: 44,
       },
       Card: {
-        borderRadiusLG: 16,
-        paddingLG: 20,
+        borderRadiusLG: 18,
+        paddingLG: 22,
       },
       Table: {
-        borderRadiusLG: 12,
-        headerBg: isDark ? 'rgba(17,24,39,0.85)' : 'rgba(248,250,252,0.95)',
+        borderRadiusLG: 14,
+        headerBg: '#F4F1EA',
         headerSplitColor: 'transparent',
-        rowHoverBg: isDark ? 'rgba(99,102,241,0.06)' : 'rgba(99,102,241,0.04)',
+        rowHoverBg: 'rgba(79,178,134,0.04)',
       },
       Button: {
-        borderRadius: 10,
-        controlHeight: 38,
-        fontWeight: 500,
+        borderRadius: 12,
+        controlHeight: 40,
+        fontWeight: 600,
+        primaryShadow: '0 4px 12px -2px rgba(79,178,134,0.35)',
+        defaultShadow: '0 1px 2px rgba(31,45,39,0.04)',
       },
       Input: {
-        borderRadius: 10,
-        controlHeight: 38,
+        borderRadius: 12,
+        controlHeight: 40,
+        activeBorderColor: '#4FB286',
+        hoverBorderColor: '#4FB286',
       },
       Select: {
-        borderRadius: 10,
-        controlHeight: 38,
+        borderRadius: 12,
+        controlHeight: 40,
       },
       DatePicker: {
-        borderRadius: 10,
-        controlHeight: 38,
+        borderRadius: 12,
+        controlHeight: 40,
       },
       Modal: {
-        borderRadiusLG: 16,
+        borderRadiusLG: 20,
       },
       Drawer: {
-        colorBgElevated: isDark ? 'rgba(11,16,32,0.96)' : 'rgba(255,255,255,0.98)',
+        colorBgElevated: isDark ? 'rgba(31,45,39,0.98)' : '#FFFFFF',
       },
       Statistic: {
-        titleFontSize: 13,
+        titleFontSize: 12,
         contentFontSize: 26,
       },
       Tag: {
-        borderRadiusSM: 8,
+        borderRadiusSM: 999, // pill-shape
+      },
+      Progress: {
+        defaultColor: '#4FB286',
+      },
+      Switch: {
+        colorPrimary: '#4FB286',
+      },
+      Checkbox: {
+        colorPrimary: '#4FB286',
+      },
+      Radio: {
+        colorPrimary: '#4FB286',
       },
     },
   }

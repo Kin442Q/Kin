@@ -3,214 +3,306 @@
 @tailwind utilities;
 
 /* ============================================================
-   Глобальные CSS-переменные. Меняются через [data-theme] в html
+   SPROUT DESIGN SYSTEM
+   Мята + крем + жёлтый, Plus Jakarta Sans, мягкие радиусы
    ============================================================ */
 :root {
-  --bg-grad: radial-gradient(1200px 600px at 10% -10%, #e0e7ff 0%, transparent 60%),
-             radial-gradient(900px 500px at 110% 10%, #ddd6fe 0%, transparent 60%),
-             linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  --glass-bg: rgba(255, 255, 255, 0.65);
-  --glass-border: rgba(15, 23, 42, 0.06);
-  --glass-shadow: 0 8px 30px rgba(15, 23, 42, 0.06);
-  --text-primary: #0f172a;
-  --text-muted: #64748b;
-  --sidebar-bg: rgba(255, 255, 255, 0.7);
-  --sidebar-border: rgba(15, 23, 42, 0.06);
-  --scrollbar-track: #f1f5f9;
-  --scrollbar-thumb: #cbd5e1;
+  /* Palette */
+  --sp-bg: #FBF9F4;
+  --sp-surface: #FFFFFF;
+  --sp-surface-alt: #F4F1EA;
+
+  --sp-primary: #4FB286;
+  --sp-primary-deep: #2F8862;
+  --sp-primary-soft: #D8EFE3;
+  --sp-primary-ghost: #EEF7F2;
+
+  --sp-blue: #A8D8F0;
+  --sp-blue-deep: #5BA9D1;
+  --sp-blue-soft: #E0EEF7;
+
+  --sp-yellow: #FFE08A;
+  --sp-yellow-deep: #E5B43A;
+  --sp-yellow-soft: #FDF4D6;
+
+  --sp-rose: #F4B5B5;
+  --sp-lilac: #C7B8E8;
+  --sp-lilac-deep: #9B7BD4;
+  --sp-lilac-soft: #EFE9F8;
+
+  --sp-text: #1F2D27;
+  --sp-text-mid: #4A5752;
+  --sp-muted: #8A968F;
+
+  --sp-border: #E8E4DA;
+  --sp-border-soft: #F0EDE4;
+  --sp-danger: #D86464;
+
+  /* Shadows */
+  --sp-shadow-sm: 0 1px 2px rgba(31, 45, 39, 0.04);
+  --sp-shadow-md: 0 4px 16px -4px rgba(31, 45, 39, 0.06);
+  --sp-shadow-lg: 0 16px 48px -16px rgba(79, 178, 134, 0.18),
+    0 4px 12px -2px rgba(31, 45, 39, 0.04);
+  --sp-shadow-glow: 0 0 0 4px rgba(79, 178, 134, 0.12);
+
+  /* Backwards-compat для старых стилей */
+  --text-primary: var(--sp-text);
+  --text-muted: var(--sp-muted);
+  --glass-bg: var(--sp-surface);
+  --glass-border: var(--sp-border-soft);
+  --glass-shadow: var(--sp-shadow-md);
+  --sidebar-bg: var(--sp-surface);
+  --sidebar-border: var(--sp-border-soft);
+  --scrollbar-track: var(--sp-surface-alt);
+  --scrollbar-thumb: #d6d2c5;
 }
 
 html[data-theme='dark'] {
-  --bg-grad: radial-gradient(1200px 600px at 10% -10%, #1e1b4b 0%, transparent 60%),
-             radial-gradient(900px 500px at 110% 10%, #312e81 0%, transparent 60%),
-             linear-gradient(180deg, #0b1020 0%, #0a0f1c 100%);
-  --glass-bg: rgba(17, 24, 39, 0.6);
-  --glass-border: rgba(255, 255, 255, 0.06);
+  --sp-bg: #1A2520;
+  --sp-surface: #1F2D27;
+  --sp-surface-alt: #243530;
+  --sp-text: #F4F1EA;
+  --sp-text-mid: rgba(244, 241, 234, 0.75);
+  --sp-muted: rgba(244, 241, 234, 0.5);
+  --sp-border: rgba(244, 241, 234, 0.1);
+  --sp-border-soft: rgba(244, 241, 234, 0.06);
+
+  --text-primary: var(--sp-text);
+  --text-muted: var(--sp-muted);
+  --glass-bg: var(--sp-surface);
+  --glass-border: var(--sp-border-soft);
   --glass-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
-  --text-primary: #f8fafc;
-  --text-muted: #94a3b8;
-  --sidebar-bg: rgba(17, 24, 39, 0.65);
-  --sidebar-border: rgba(255, 255, 255, 0.06);
-  --scrollbar-track: #0f172a;
-  --scrollbar-thumb: #334155;
+  --sidebar-bg: var(--sp-surface);
+  --sidebar-border: var(--sp-border-soft);
+  --scrollbar-track: var(--sp-surface);
+  --scrollbar-thumb: #334440;
 }
 
 @layer base {
   html {
-    font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system,
+      BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
   body {
     @apply antialiased;
-    background: var(--bg-grad);
-    background-attachment: fixed;
-    color: var(--text-primary);
+    background: var(--sp-bg);
+    color: var(--sp-text);
     min-height: 100vh;
+    font-feature-settings: 'cv11', 'ss01';
   }
-  .text-muted { color: var(--text-muted); }
+  .text-muted {
+    color: var(--sp-muted);
+  }
+  .sp-num {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
 }
 
 @layer components {
-  /* Glassmorphism-карточка */
-  .glass {
-    background: var(--glass-bg);
-    backdrop-filter: blur(16px) saturate(180%);
-    -webkit-backdrop-filter: blur(16px) saturate(180%);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    border-radius: 16px;
+  /* Базовая Sprout-карточка (заменяет старый .glass) */
+  .glass,
+  .sp-card {
+    background: var(--sp-surface);
+    border: 1px solid var(--sp-border-soft);
+    box-shadow: var(--sp-shadow-md);
+    border-radius: 18px;
   }
   .glass-hover {
     transition: transform 0.25s ease, box-shadow 0.25s ease;
   }
   .glass-hover:hover {
     transform: translateY(-2px);
-    box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+    box-shadow: var(--sp-shadow-lg);
   }
+
+  /* KPI-карточки: тонкие пастельные градиенты для разделения вариантов */
   .kpi-gradient {
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(168, 85, 247, 0.06));
+    background: linear-gradient(135deg, var(--sp-primary-ghost), var(--sp-surface));
   }
   .kpi-gradient-emerald {
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(14, 165, 233, 0.06));
+    background: linear-gradient(135deg, var(--sp-primary-soft), var(--sp-surface));
   }
   .kpi-gradient-amber {
-    background: linear-gradient(135deg, rgba(245, 158, 11, 0.10), rgba(239, 68, 68, 0.06));
+    background: linear-gradient(135deg, var(--sp-yellow-soft), var(--sp-surface));
   }
   .kpi-gradient-rose {
-    background: linear-gradient(135deg, rgba(244, 63, 94, 0.10), rgba(168, 85, 247, 0.06));
+    background: linear-gradient(135deg, #FCEAE5, var(--sp-surface));
+  }
+
+  /* Sprout button utility */
+  .sp-btn-primary {
+    background: var(--sp-primary);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .sp-btn-primary:hover {
+    background: var(--sp-primary-deep);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -4px rgba(79, 178, 134, 0.4);
+  }
+
+  /* Sprout chip (pill) */
+  .sp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
   }
 }
 
-/* Скроллбары */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--scrollbar-track); }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sp-muted);
+}
 
-/* Антд-tweaks под glass */
-.ant-layout, .ant-layout-content, .ant-layout-header, .ant-layout-sider {
+/* AntD layout overrides */
+.ant-layout,
+.ant-layout-content,
+.ant-layout-header,
+.ant-layout-sider {
   background: transparent !important;
 }
 .ant-table-wrapper .ant-table {
   background: transparent;
 }
 
-/* Градиентный логотип */
+/* Логотип */
 .logo-gradient {
-  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
+  background: linear-gradient(135deg, var(--sp-primary), var(--sp-primary-deep));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-.custom-sidebar-menu.ant-menu-inline-collapsed .ant-menu-item {
-  width: 52px;
-  height: 52px;
-  margin-inline: auto;
-  padding-inline: 0 !important;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 16px;
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* Beautiful Navigation Menu with Icon Colors */
+/* ============================================================
+   Sprout анимации
+   ============================================================ */
+@keyframes sp-float {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(0, -12px);
+  }
+}
+@keyframes sp-rise {
+  from {
+    transform: translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@keyframes sp-grow-bar {
+  from {
+    width: 0;
+  }
+}
+@keyframes sp-balloon-rise {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-340px);
+    opacity: 0;
+  }
+}
+@keyframes sp-balloon-sway {
+  0%,
+  100% {
+    margin-left: 0;
+  }
+  50% {
+    margin-left: 14px;
+  }
+}
+
+.sp-rise {
+  animation: sp-rise 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.sp-bubble {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* ============================================================
+   Sidebar (Sprout)
+   Цветные плашки иконок, мягкие hover, селект-индикатор
+   ============================================================ */
 .nav-menu {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
+  scrollbar-color: #d6d2c5 transparent;
 }
 
 .nav-menu .ant-menu-item {
-  margin-bottom: 6px !important;
+  margin-bottom: 4px !important;
   border-radius: 12px !important;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  transition: all 0.2s ease !important;
   position: relative;
   height: 44px !important;
   line-height: 44px !important;
+  padding: 0 10px !important;
   display: flex !important;
   align-items: center !important;
 }
 
 .nav-menu .ant-menu-item:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.10), rgba(168, 85, 247, 0.06)) !important;
+  background: var(--sp-primary-ghost) !important;
 }
 
 .nav-menu .ant-menu-item-selected {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.18), rgba(168, 85, 247, 0.12)) !important;
-  font-weight: 600;
+  background: var(--sp-primary-soft) !important;
+  color: var(--sp-primary-deep) !important;
+  font-weight: 700 !important;
 }
 
 .nav-menu .ant-menu-item-selected::before {
-  content: "" !important;
-  position: absolute !important;
-  left: 0 !important;
-  top: 8px !important;
-  bottom: 8px !important;
-  width: 3px !important;
-  background: linear-gradient(180deg, #6366f1, #a855f7) !important;
-  border-radius: 4px !important;
+  display: none !important;
 }
 
-/* Icon color classes */
-.icon-indigo {
-  display: inline-flex;
-  align-items: center;
-  color: #6366f1;
-}
-
-.icon-violet {
-  display: inline-flex;
-  align-items: center;
-  color: #8b5cf6;
-}
-
-.icon-pink {
-  display: inline-flex;
-  align-items: center;
-  color: #ec4899;
-}
-
-.icon-cyan {
-  display: inline-flex;
-  align-items: center;
-  color: #06b6d4;
-}
-
-.icon-emerald {
-  display: inline-flex;
-  align-items: center;
-  color: #10b981;
-}
-
-.icon-amber {
-  display: inline-flex;
-  align-items: center;
-  color: #f59e0b;
-}
-
-.icon-red {
-  display: inline-flex;
-  align-items: center;
-  color: #ef4444;
-}
-
-.icon-blue {
-  display: inline-flex;
-  align-items: center;
-  color: #3b82f6;
-}
-
-.icon-purple {
-  display: inline-flex;
-  align-items: center;
-  color: #a855f7;
-}
-
-/* Lucide icon styling: оборачиваем в "капсулу" с акцентным фоном */
+/* Иконки в цветных плашках */
 .nav-menu .ant-menu-item .ant-menu-item-icon {
   display: inline-flex !important;
   align-items: center !important;
@@ -218,45 +310,48 @@ html[data-theme='dark'] {
   width: 32px;
   height: 32px;
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.55);
-  margin-right: 10px !important;
+  margin-right: 11px !important;
   flex-shrink: 0;
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
 }
 
-[data-theme="dark"] .nav-menu .ant-menu-item .ant-menu-item-icon {
-  background: rgba(255, 255, 255, 0.06);
+/* Цветовые плашки иконок (применяются через классы) */
+.sp-icon-mint   { background: var(--sp-primary-ghost); color: var(--sp-primary-deep); }
+.sp-icon-blue   { background: var(--sp-blue-soft);     color: var(--sp-blue-deep); }
+.sp-icon-yellow { background: var(--sp-yellow-soft);   color: var(--sp-yellow-deep); }
+.sp-icon-lilac  { background: var(--sp-lilac-soft);    color: var(--sp-lilac-deep); }
+.sp-icon-rose   { background: #FCEAE5;                 color: #E48979; }
+.sp-icon-pink   { background: #F8E8EF;                 color: #D88EAE; }
+.sp-icon-cyan   { background: #E0F1F2;                 color: #3FA8B3; }
+.sp-icon-gray   { background: var(--sp-border-soft);   color: var(--sp-text-mid); }
+
+/* Активный пункт: цвет иконки становится primary-deep, фон плашки чуть ярче */
+.nav-menu .ant-menu-item-selected .ant-menu-item-icon {
+  background: var(--sp-primary) !important;
+  color: white !important;
+  box-shadow: 0 4px 10px -2px rgba(79, 178, 134, 0.45);
 }
 
 .nav-menu .ant-menu-item:hover .ant-menu-item-icon {
-  background: rgba(255, 255, 255, 0.85);
   transform: scale(1.05);
 }
 
-[data-theme="dark"] .nav-menu .ant-menu-item:hover .ant-menu-item-icon {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.nav-menu .ant-menu-item-selected .ant-menu-item-icon {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.18);
-}
-
-[data-theme="dark"] .nav-menu .ant-menu-item-selected .ant-menu-item-icon {
-  background: rgba(255, 255, 255, 0.16);
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.35);
+/* Backwards-compat: старые иконные классы (используются в нашем sidebar) */
+.icon-indigo, .icon-violet, .icon-pink, .icon-cyan, .icon-emerald,
+.icon-amber, .icon-red, .icon-blue, .icon-purple {
+  display: inline-flex;
+  align-items: center;
 }
 
 .nav-menu svg {
-  transition: transform 0.25s ease;
+  transition: transform 0.2s ease;
   stroke-width: 2;
 }
 
-/* Collapsed sidebar: правильно центрируем иконки и убираем margin */
+/* Collapsed sidebar — центрируем иконки */
 .nav-menu.ant-menu-inline-collapsed {
   width: 64px !important;
 }
-
 .nav-menu.ant-menu-inline-collapsed .ant-menu-item {
   width: 64px !important;
   margin-inline: 0 !important;
@@ -265,19 +360,16 @@ html[data-theme='dark'] {
   align-items: center !important;
   justify-content: center !important;
 }
-
 .nav-menu.ant-menu-inline-collapsed .ant-menu-item .ant-menu-item-icon {
   margin: 0 !important;
   width: 40px;
   height: 40px;
   border-radius: 12px;
 }
-
 .nav-menu.ant-menu-inline-collapsed .ant-menu-item .ant-menu-item-icon svg {
   width: 22px !important;
   height: 22px !important;
 }
-
 .nav-menu.ant-menu-inline-collapsed .ant-menu-title-content {
   display: none !important;
 }
@@ -287,29 +379,20 @@ html[data-theme='dark'] {
    ============================================================ */
 
 @media (max-width: 768px) {
-  /* Tables: smaller cells and horizontal scroll on small screens */
   .ant-table-cell {
     padding: 8px 6px !important;
     font-size: 13px;
   }
 
-  /* Page heading */
   .ant-typography h3,
   h3.ant-typography {
     font-size: 18px !important;
   }
 
-  /* Cards: tighter padding on mobile */
   .ant-card-body {
-    padding: 12px !important;
+    padding: 14px !important;
   }
 
-  /* Stat cards: smaller text */
-  .stat-card .stat-value {
-    font-size: 18px;
-  }
-
-  /* Modal: limit width to viewport */
   .ant-modal {
     max-width: calc(100vw - 16px) !important;
     margin: 8px auto !important;
@@ -318,42 +401,35 @@ html[data-theme='dark'] {
     padding: 16px !important;
   }
 
-  /* Drawer body padding tighter on mobile */
   .ant-drawer-body {
     padding: 14px !important;
   }
 
-  /* Buttons less roomy on mobile */
   .ant-btn {
-    padding-inline: 12px;
+    padding-inline: 14px;
   }
 
-  /* DatePicker fills width on mobile */
   .ant-picker {
     width: 100% !important;
   }
 
-  /* Form: less vertical space */
   .ant-form-item {
     margin-bottom: 12px !important;
   }
 
-  /* Tabs: tighter */
   .ant-tabs-tab {
     padding: 8px 10px !important;
   }
 
-  /* Page header: full width actions */
   .page-actions-wrap {
     flex-wrap: wrap;
     gap: 8px;
   }
 }
 
-/* Touch-friendly button sizes */
 @media (max-width: 480px) {
   .ant-btn-sm {
-    min-height: 32px;
-    padding-inline: 10px;
+    min-height: 36px;
+    padding-inline: 12px;
   }
 }
