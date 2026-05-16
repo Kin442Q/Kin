@@ -32,7 +32,8 @@ import {
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
-import PageHeader from '../components/PageHeader'
+import { Users } from 'lucide-react'
+import { SproutPageHeader } from '../components/sprout'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { formatDate, formatMoney } from '../lib/format'
@@ -215,9 +216,10 @@ export default function StaffPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Сотрудники"
-        icon={<TeamOutlined />}
+        icon={<Users size={22} strokeWidth={2} />}
+        iconAccent="mint"
         description="Управление персоналом и зарплатами"
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>

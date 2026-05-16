@@ -25,7 +25,8 @@ import {
 import { motion } from 'framer-motion'
 import dayjs, { type Dayjs } from 'dayjs'
 
-import PageHeader from '../components/PageHeader'
+import { Megaphone } from 'lucide-react'
+import { SproutPageHeader } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { meetingsService } from '../api'
@@ -149,9 +150,10 @@ export default function MeetingsPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Родительские собрания"
-        icon={<TeamOutlined />}
+        icon={<Megaphone size={22} strokeWidth={2} />}
+        iconAccent="yellow"
         description="Создавайте собрания для группы — родители автоматически получат уведомление в Telegram"
         actions={
           <Space wrap>

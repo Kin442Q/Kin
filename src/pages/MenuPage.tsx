@@ -22,7 +22,8 @@ import {
 import { motion } from 'framer-motion'
 import dayjs, { Dayjs } from 'dayjs'
 
-import PageHeader from '../components/PageHeader'
+import { UtensilsCrossed } from 'lucide-react'
+import { SproutPageHeader } from '../components/sprout'
 import { http } from '../api'
 
 type MealApi = 'BREAKFAST' | 'LUNCH' | 'SNACK' | 'DINNER'
@@ -161,9 +162,10 @@ export default function MenuPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Меню питания"
-        icon={<CoffeeOutlined />}
+        icon={<UtensilsCrossed size={22} strokeWidth={2} />}
+        iconAccent="mint"
         description={`Меню на ${date.format('DD.MM.YYYY')}`}
         actions={
           <Space>

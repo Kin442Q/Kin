@@ -22,7 +22,8 @@ import {
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
-import PageHeader from '../components/PageHeader'
+import { Calendar } from 'lucide-react'
+import { SproutPageHeader } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { http } from '../api'
 import { ScheduleItem } from '../types'
@@ -126,9 +127,10 @@ export default function SchedulePage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Расписание"
-        icon={<CalendarOutlined />}
+        icon={<Calendar size={22} strokeWidth={2} />}
+        iconAccent="blue"
         description="Расписание занятий по группам"
         actions={
           <Space>

@@ -21,7 +21,6 @@ import {
   Popconfirm,
 } from "antd";
 import {
-  WalletOutlined,
   PlusOutlined,
   CheckOutlined,
   DeleteOutlined,
@@ -33,7 +32,8 @@ import {
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
 
-import PageHeader from "../components/PageHeader";
+import { Wallet } from "lucide-react";
+import { SproutPageHeader } from "../components/sprout";
 import { useDataStore } from "../store/dataStore";
 import { useAuthStore } from "../store/authStore";
 import StatCard from "../components/ui/StatCard";
@@ -380,9 +380,10 @@ export default function PaymentsPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Оплата"
-        icon={<WalletOutlined />}
+        icon={<Wallet size={22} strokeWidth={2} />}
+        iconAccent="rose"
         description={`Платежи за ${dayjs(month + "-01").format("MMMM YYYY")}`}
         actions={
           <Space>

@@ -36,7 +36,8 @@ import {
 import { motion } from 'framer-motion'
 
 import { useEffect } from 'react'
-import PageHeader from '../components/PageHeader'
+import { GraduationCap } from 'lucide-react'
+import { SproutPageHeader } from '../components/sprout'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { http } from '../api'
@@ -220,9 +221,10 @@ export default function TeachersPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Учителя"
-        icon={<TeamOutlined />}
+        icon={<GraduationCap size={22} strokeWidth={2} />}
+        iconAccent="lilac"
         description="Регистрация воспитателей и привязка к группам. Доступ — только для администратора."
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>

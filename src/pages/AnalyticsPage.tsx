@@ -25,7 +25,8 @@ import { Area, Column, Pie, Line } from "@ant-design/charts";
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
 
-import PageHeader from "../components/PageHeader";
+import { TrendingUp } from "lucide-react";
+import { SproutPageHeader } from "../components/sprout";
 import StatCard from "../components/ui/StatCard";
 import { useDataStore } from "../store/dataStore";
 import { calcGlobalFinance, calcGroupFinances } from "../lib/finance";
@@ -149,9 +150,10 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Аналитика"
-        icon={<RiseOutlined />}
+        icon={<TrendingUp size={22} strokeWidth={2} />}
+        iconAccent="cyan"
         description="Глобальная финансовая картина по всему саду"
         actions={
           <DatePicker

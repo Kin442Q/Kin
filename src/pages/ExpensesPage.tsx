@@ -18,12 +18,13 @@ import {
   App as AntdApp,
   Tooltip,
 } from 'antd'
-import { PieChartOutlined, PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
+import { PieChart } from 'lucide-react'
 import { Column, Pie } from '@ant-design/charts'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
-import PageHeader from '../components/PageHeader'
+import { SproutPageHeader } from '../components/sprout'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { formatMoney } from '../lib/format'
@@ -253,9 +254,10 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Расходы и доп. доходы"
-        icon={<PieChartOutlined />}
+        icon={<PieChart size={22} strokeWidth={2} />}
+        iconAccent="pink"
         description={`Учёт за ${dayjs(month + '-01').format('MMMM YYYY')}`}
         actions={
           <Space>

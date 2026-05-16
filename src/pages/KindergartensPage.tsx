@@ -37,7 +37,8 @@ import {
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 
-import PageHeader from '../components/PageHeader'
+import { School } from 'lucide-react'
+import { SproutPageHeader } from '../components/sprout'
 import { http } from '../api'
 
 const { Text } = Typography
@@ -186,9 +187,10 @@ export default function KindergartensPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Садики"
-        icon={<BankOutlined />}
+        icon={<School size={22} strokeWidth={2} />}
+        iconAccent="blue"
         description="Управление всеми садиками платформы. Каждый садик изолирован."
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>

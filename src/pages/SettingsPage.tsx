@@ -1,8 +1,9 @@
 import { Button, Card, Col, Divider, Popconfirm, Row, Space, Tag, Typography, Segmented, App as AntdApp } from 'antd'
-import { SettingOutlined, BulbOutlined, ReloadOutlined, FileDoneOutlined } from '@ant-design/icons'
+import { BulbOutlined, ReloadOutlined, FileDoneOutlined } from '@ant-design/icons'
+import { Settings as SettingsIcon } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-import PageHeader from '../components/PageHeader'
+import { SproutPageHeader } from '../components/sprout'
 import { useThemeStore } from '../store/themeStore'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
@@ -19,9 +20,10 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Настройки"
-        icon={<SettingOutlined />}
+        icon={<SettingsIcon size={22} strokeWidth={2} />}
+        iconAccent="cyan"
         description="Параметры приложения и управление данными"
       />
 
