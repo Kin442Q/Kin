@@ -30,11 +30,11 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      {!isMobile && (
+      {!isMobile && !collapsed && (
         <Sider
           breakpoint="md"
-          collapsedWidth={88}
-          collapsed={collapsed}
+          collapsedWidth={0}
+          collapsed={false}
           onCollapse={setCollapsed}
           width={252}
           trigger={null}
@@ -47,7 +47,7 @@ export default function AppLayout() {
             transition: 'all 0.25s ease',
           }}
         >
-          <AppSidebar collapsed={collapsed} />
+          <AppSidebar collapsed={false} />
         </Sider>
       )}
 
