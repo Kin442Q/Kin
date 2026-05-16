@@ -25,8 +25,8 @@ import { Area, Column, Pie, Line } from "@ant-design/charts";
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
 
-import { TrendingUp } from "lucide-react";
-import { SproutPageHeader } from "../components/sprout";
+import { TrendingUp, LineChart as LineChartIcon, BarChart3, PieChart as PieChartIcon } from "lucide-react";
+import { SproutPageHeader, SproutEmpty } from "../components/sprout";
 import StatCard from "../components/ui/StatCard";
 import { useDataStore } from "../store/dataStore";
 import { calcGlobalFinance, calcGroupFinances } from "../lib/finance";
@@ -133,6 +133,11 @@ export default function AnalyticsPage() {
         value: -p.expenses,
       })),
     );
+
+  // Есть ли реальные данные для графиков (yearTrend всегда 12 точек, но могут быть нули)
+  const hasTrendData = yearTrend.some((p) => p.income > 0 || p.expenses > 0)
+  const hasProfitData = yearTrend.some((p) => p.profit !== 0)
+  const hasCashFlowData = yearTrend.slice(-6).some((p) => p.income > 0 || p.expenses > 0)
 
   // Доля категорий в расходах
   const expenseShare = (() => {
@@ -259,21 +264,30 @@ export default function AnalyticsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <Card className="glass lg:w-[700px]" bordered={false}>
+            <Card className="glass" bordered={false}>
               <Title level={5}>Динамика дохода и расхода (12 месяцев)</Title>
-              <Area
-                data={trendSeries}
-                xField="month"
-                yField="value"
-                seriesField="type"
-                //@ts-ignore
-                smooth
-                height={300}
-                color={["#10b981", "#f59e0b"]}
-                areaStyle={{ fillOpacity: 0.35 }}
-                legend={{ position: "top-right" }}
-                animation={{ appear: { animation: "wave-in", duration: 1100 } }}
-              />
+              {hasTrendData ? (
+                <Area
+                  data={trendSeries}
+                  xField="month"
+                  yField="value"
+                  seriesField="type"
+                  //@ts-ignore
+                  smooth
+                  height={300}
+                  color={["#4FB286", "#E5B43A"]}
+                  areaStyle={{ fillOpacity: 0.3 }}
+                  legend={{ position: "top-right" }}
+                  animation={{ appear: { animation: "wave-in", duration: 1100 } }}
+                />
+              ) : (
+                <SproutEmpty
+                  icon={<LineChartIcon size={28} strokeWidth={1.8} />}
+                  title="Данных пока нет"
+                  description="Тренд появится после первого месяца с оплатами и расходами"
+                  minHeight={300}
+                />
+              )}
             </Card>
           </motion.div>
         </Col>
@@ -285,16 +299,25 @@ export default function AnalyticsPage() {
           >
             <Card className="glass" bordered={false}>
               <Title level={5}>Profit / Loss</Title>
-              <Line
-                data={profitTrend}
-                xField="month"
-                yField="value"
-                smooth
-                height={300}
-                color={profitGrowing ? "#10b981" : "#f43f5e"}
-                point={{ size: 4 }}
-                animation={{ appear: { animation: "path-in", duration: 1100 } }}
-              />
+              {hasProfitData ? (
+                <Line
+                  data={profitTrend}
+                  xField="month"
+                  yField="value"
+                  smooth
+                  height={300}
+                  color={profitGrowing ? "#4FB286" : "#D86464"}
+                  point={{ size: 4 }}
+                  animation={{ appear: { animation: "path-in", duration: 1100 } }}
+                />
+              ) : (
+                <SproutEmpty
+                  icon={<TrendingUp size={28} strokeWidth={1.8} />}
+                  title="Прибыли пока нет"
+                  description="График появится после первых операций"
+                  minHeight={300}
+                />
+              )}
             </Card>
           </motion.div>
         </Col>
@@ -309,17 +332,26 @@ export default function AnalyticsPage() {
           >
             <Card className="glass" bordered={false}>
               <Title level={5}>Cash flow (6 мес.)</Title>
-              <Column
-                data={cashFlow}
-                xField="month"
-                yField="value"
-                seriesField="type"
-                isGroup
-                height={280}
-                color={["#10b981", "#f43f5e"]}
-                columnStyle={{ radius: [8, 8, 0, 0] }}
-                legend={{ position: "top-right" }}
-              />
+              {hasCashFlowData ? (
+                <Column
+                  data={cashFlow}
+                  xField="month"
+                  yField="value"
+                  seriesField="type"
+                  isGroup
+                  height={280}
+                  color={["#4FB286", "#D86464"]}
+                  columnStyle={{ radius: [8, 8, 0, 0] }}
+                  legend={{ position: "top-right" }}
+                />
+              ) : (
+                <SproutEmpty
+                  icon={<BarChart3 size={28} strokeWidth={1.8} />}
+                  title="Cash flow пустой"
+                  description="Появится после первых притоков/оттоков"
+                  minHeight={280}
+                />
+              )}
             </Card>
           </motion.div>
         </Col>
@@ -340,9 +372,15 @@ export default function AnalyticsPage() {
                   innerRadius={0.55}
                   height={280}
                   legend={{ position: "bottom" }}
+                  color={["#4FB286", "#5BA9D1", "#E5B43A", "#9B7BD4", "#D88EAE", "#3FA8B3"]}
                 />
               ) : (
-                <Text type="secondary">Нет расходов в выбранный месяц</Text>
+                <SproutEmpty
+                  icon={<PieChartIcon size={28} strokeWidth={1.8} />}
+                  title="Расходов в этом месяце нет"
+                  description="Добавьте первый расход на странице «Расходы»"
+                  minHeight={280}
+                />
               )}
             </Card>
           </motion.div>

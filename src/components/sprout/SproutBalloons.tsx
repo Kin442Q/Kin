@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 
 /**
- * Декоративная анимация — цветные шарики поднимаются вверх в фоне sidebar.
- * Каждый шарик имеет свою задержку, длительность и амплитуду покачивания,
- * чтобы они не двигались в унисон. Используется absolute-позиционирование.
+ * Декоративная анимация — цветные шарики поднимаются вверх через весь sidebar.
+ * Контейнер абсолютно позиционирован на 100% высоты родителя; шарики
+ * стартуют снизу и полностью улетают за верхнюю границу.
  */
 export default function SproutBalloons() {
   const balloons = useMemo(() => {
@@ -16,13 +16,15 @@ export default function SproutBalloons() {
       { c: '#A8D8F0', s: '#5BA9D1' },
       { c: '#FFE08A', s: '#E5B43A' },
       { c: '#D8EFE3', s: '#4FB286' },
+      { c: '#F4B5B5', s: '#D86464' },
+      { c: '#C7B8E8', s: '#9B7BD4' },
     ]
     return palette.map((p, i) => ({
       ...p,
       size: 14 + (i % 4) * 4, // 14, 18, 22, 26 px
       x: 8 + ((i * 53) % 90), // pseudo-random horizontal start (%)
-      delay: (i * 1.3) % 9,
-      duration: 9 + (i % 4) * 2.5, // 9–16.5s
+      delay: (i * 1.5) % 14,
+      duration: 14 + (i % 4) * 3, // 14–23s — медленнее, успевают долететь
     }))
   }, [])
 
@@ -32,13 +34,16 @@ export default function SproutBalloons() {
         position: 'absolute',
         left: 0,
         right: 0,
+        top: 0,
         bottom: 0,
-        height: 260,
         pointerEvents: 'none',
         zIndex: 0,
         overflow: 'hidden',
-        maskImage: 'linear-gradient(to top, black 60%, transparent 100%)',
-        WebkitMaskImage: 'linear-gradient(to top, black 60%, transparent 100%)',
+        // Лёгкая маска по краям — шарики плавно появляются снизу и тают вверху
+        maskImage:
+          'linear-gradient(to top, transparent 0%, black 8%, black 92%, transparent 100%)',
+        WebkitMaskImage:
+          'linear-gradient(to top, transparent 0%, black 8%, black 92%, transparent 100%)',
       }}
     >
       {balloons.map((b, i) => (
@@ -47,8 +52,8 @@ export default function SproutBalloons() {
           style={{
             position: 'absolute',
             left: `${b.x}%`,
-            bottom: -40,
-            animation: `sp-balloon-rise ${b.duration}s linear ${b.delay}s infinite, sp-balloon-sway ${b.duration / 3}s ease-in-out ${b.delay}s infinite`,
+            bottom: -50,
+            animation: `sp-balloon-rise-full ${b.duration}s linear ${b.delay}s infinite, sp-balloon-sway ${b.duration / 3}s ease-in-out ${b.delay}s infinite`,
           }}
         >
           <svg width={b.size} height={b.size * 1.4} viewBox="0 0 30 42" fill="none">

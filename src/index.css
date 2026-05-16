@@ -248,6 +248,24 @@ html[data-theme='dark'] {
     opacity: 0;
   }
 }
+
+/* Новая версия — поднимается через всю высоту sidebar (до самого верха) */
+@keyframes sp-balloon-rise-full {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  6% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-110vh);
+    opacity: 0;
+  }
+}
 @keyframes sp-balloon-sway {
   0%,
   100% {

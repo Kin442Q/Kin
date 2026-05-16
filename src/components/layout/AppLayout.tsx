@@ -43,7 +43,7 @@ export default function AppLayout() {
             top: 0,
             height: '100vh',
             background: 'transparent',
-            padding: 14,
+            padding: 12 ,
             transition: 'all 0.25s ease',
           }}
         >
