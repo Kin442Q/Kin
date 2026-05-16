@@ -5,12 +5,15 @@ import { motion } from 'framer-motion'
 import AppSidebar from './AppSidebar'
 import AppHeader from './AppHeader'
 import { useTenantSync } from '../../hooks/useTenantSync'
+import { SP } from '../sprout'
 
 const { Content, Sider } = Layout
 const { useBreakpoint } = Grid
 
 /**
- * Основной каркас приложения. На мобильных сайдбар открывается как Drawer.
+ * Основной каркас приложения.
+ * - Desktop: фиксированный sider слева, контент справа
+ * - Mobile (<md): sidebar открывается как Drawer слева по клику на бургер
  */
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false)
@@ -18,7 +21,6 @@ export default function AppLayout() {
   const screens = useBreakpoint()
   const isMobile = !screens.md
 
-  // Загружаем данные текущего садика из бекенда
   useTenantSync()
 
   const onToggle = () => {
@@ -57,7 +59,8 @@ export default function AppLayout() {
           closable={false}
           width={260}
           styles={{
-            body: { padding: 12 },
+            body: { padding: 12, background: SP.bg },
+            content: { background: SP.bg },
           }}
         >
           <div onClick={() => setMobileOpen(false)}>
@@ -71,7 +74,7 @@ export default function AppLayout() {
           collapsed={isMobile ? false : collapsed}
           onToggle={onToggle}
         />
-        <Content style={{ padding: isMobile ? 12 : 24 }}>
+        <Content style={{ padding: isMobile ? 12 : 20 }}>
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
