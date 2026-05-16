@@ -197,6 +197,101 @@ export const analyticsService = {
       .then((r) => r.data),
 }
 
+// Time-tracking (приход/уход учителей + зарплата)
+export interface TimeEntryDto {
+  id: string
+  userId: string
+  date: string
+  checkIn: string
+  checkOut: string | null
+  minutesWorked: number | null
+  verifyMethod: 'MANUAL' | 'FACE' | 'PIN' | 'QR'
+  note: string | null
+  editedByAdminId: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TimeMonthSummary {
+  month: string
+  entries: TimeEntryDto[]
+  totalMinutes: number
+  totalHours: number
+  workNorm: number
+  salaryMode: 'HOURLY' | 'FIXED'
+  hourlyRate: number
+  fixedSalary: number
+  estimatedSalary: number
+  completionRate: number
+}
+
+export const timeService = {
+  checkIn: (verifyMethod: 'MANUAL' | 'FACE' = 'MANUAL', note?: string) =>
+    http
+      .post<TimeEntryDto>('/v1/time/check-in', { verifyMethod, note })
+      .then((r) => r.data),
+  checkOut: (note?: string) =>
+    http.post<TimeEntryDto>('/v1/time/check-out', { note }).then((r) => r.data),
+  status: () =>
+    http
+      .get<{ isWorking: boolean; activeEntry: TimeEntryDto | null }>(
+        '/v1/time/status',
+      )
+      .then((r) => r.data),
+  myMonth: (month: string) =>
+    http
+      .get<TimeMonthSummary>('/v1/time/me', { params: { month } })
+      .then((r) => r.data),
+
+  // Face ID
+  setFace: (descriptor: number[]) =>
+    http.post('/v1/time/face', { descriptor }).then((r) => r.data),
+  getFace: () =>
+    http
+      .get<{ hasFace: boolean; descriptor: number[] | null }>('/v1/time/face')
+      .then((r) => r.data),
+
+  // Admin
+  allTeachers: (month: string) =>
+    http
+      .get<
+        Array<{
+          teacher: {
+            id: string
+            fullName: string
+            avatarUrl: string | null
+            groupId: string | null
+            salaryMode: 'HOURLY' | 'FIXED'
+            hourlyRate: number | null
+            monthlySalaryFixed: number | null
+            workNorm: number
+          }
+          totalMinutes: number
+          totalHours: number
+          estimatedSalary: number
+          entries: TimeEntryDto[]
+        }>
+      >('/v1/time/teachers', { params: { month } })
+      .then((r) => r.data),
+  updateEntry: (
+    id: string,
+    data: Partial<{ checkIn: string; checkOut: string | null; note: string }>,
+  ) => http.patch<TimeEntryDto>(`/v1/time/${id}`, data).then((r) => r.data),
+  removeEntry: (id: string) => http.delete(`/v1/time/${id}`),
+  setTeacherSalary: (
+    teacherId: string,
+    data: {
+      salaryMode?: 'HOURLY' | 'FIXED'
+      hourlyRate?: number
+      monthlySalaryFixed?: number
+      workNorm?: number
+    },
+  ) =>
+    http
+      .patch(`/v1/time/teacher/${teacherId}/salary`, data)
+      .then((r) => r.data),
+}
+
 // Meetings (родительские собрания)
 export const meetingsService = {
   list: (groupId?: string) =>

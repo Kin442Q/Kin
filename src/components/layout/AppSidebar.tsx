@@ -14,6 +14,7 @@ import {
   Megaphone,
   UtensilsCrossed,
   Settings,
+  Clock,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -37,6 +38,15 @@ interface NavEntry {
 const ICON_SIZE = 18
 
 const NAV: NavEntry[] = [
+  // ─── Для учителя — личный кабинет ────────────────────────────────
+  {
+    key: '/teacher/dashboard',
+    label: 'Мой кабинет',
+    icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['TEACHER'],
+  },
+  // ─── Для админа ──────────────────────────────────────────────────
   {
     key: '/admin/kindergartens',
     label: 'Садики',
@@ -168,6 +178,7 @@ export default function AppSidebar({ collapsed }: Props) {
 
   const activeKey =
     items.find((i) => location.pathname.startsWith(i.key))?.key ??
+    items[0]?.key ??
     '/admin/dashboard'
 
   return (

@@ -5,6 +5,7 @@ import AppLayout from "./components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireRole from "./components/auth/RequireRole";
+import { useAuthStore } from "./store/authStore";
 
 import Dashboard from "./pages/Dashboard";
 import ChildrenPage from "./pages/ChildrenPage";
@@ -19,12 +20,18 @@ import TeachersPage from "./pages/TeachersPage";
 import KindergartensPage from "./pages/KindergartensPage";
 import SchedulePage from "./pages/SchedulePage";
 import MeetingsPage from "./pages/MeetingsPage";
+import TeacherDashboard from "./pages/TeacherDashboard";
 import MenuPage from "./pages/MenuPage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
   const location = useLocation();
+  const user = useAuthStore((s) => s.user);
+  const isTeacher = user?.role === "TEACHER" || user?.role === "teacher";
+
+  // Учитель — на свой кабинет, остальные — на admin/dashboard
+  const homePath = isTeacher ? "/teacher/dashboard" : "/admin/dashboard";
 
   return (
     <AnimatePresence mode="wait">
@@ -39,7 +46,19 @@ export default function App() {
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
+          <Route index element={<Navigate to={homePath} replace />} />
+
+          <Route path="teacher">
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route
+              path="dashboard"
+              element={
+                <RequireRole roles={["TEACHER", "SUPER_ADMIN", "admin"]}>
+                  <TeacherDashboard />
+                </RequireRole>
+              }
+            />
+          </Route>
 
           <Route path="admin">
             <Route index element={<Navigate to="dashboard" replace />} />
