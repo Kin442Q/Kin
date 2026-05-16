@@ -214,16 +214,70 @@ model User {
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
 
+  // ─── Time tracking (для TEACHER) ───────────────────────────────────
+  /// Режим расчёта зарплаты: HOURLY (по часам) или FIXED (фиксированный оклад)
+  salaryMode        SalaryMode @default(HOURLY)
+  /// Ставка за час работы (для HOURLY)
+  hourlyRate        Decimal?   @db.Decimal(10, 2)
+  /// Фиксированный месячный оклад (для FIXED)
+  monthlySalaryFixed Decimal?  @db.Decimal(12, 2)
+  /// Норма часов в месяц (по умолчанию 176 = 8ч × 22 дня)
+  workNorm          Int        @default(176)
+  /// Биометрический дескриптор лица (Float32Array 128 значений) для Face ID
+  faceDescriptor    Json?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   refreshTokens RefreshToken[]
   auditLogs     AuditLog[]      @relation("AuditActor")
   notifications Notification[]
+  timeEntries   TimeEntry[]
 
   @@index([role])
   @@index([groupId])
   @@index([kindergartenId])
+}
+
+enum SalaryMode {
+  HOURLY
+  FIXED
+}
+
+enum TimeVerifyMethod {
+  MANUAL
+  FACE
+  PIN
+  QR
+}
+
+/// Запись прихода/ухода учителя на работу.
+/// При checkOut вычисляется minutesWorked и закрепляется до правки.
+model TimeEntry {
+  id              String           @id @default(cuid())
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Дата (для индексации и группировки по дням)
+  date            DateTime         @db.Date
+  /// Когда зашёл на работу
+  checkIn         DateTime
+  /// Когда вышел (NULL пока работает)
+  checkOut        DateTime?
+  /// Сколько отработал минут (заполняется при checkOut)
+  minutesWorked   Int?
+  /// Как подтверждена отметка
+  verifyMethod    TimeVerifyMethod @default(MANUAL)
+  /// Опциональный комментарий («больничный», «перерыв удлинён»)
+  note            String?
+  /// Если запись правил админ, фиксируем
+  editedByAdminId String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId, date])
+  @@index([date])
 }
 
 /// Refresh-токены хранятся в БД, чтобы их можно было отзывать.

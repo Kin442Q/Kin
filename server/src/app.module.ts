@@ -30,6 +30,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { HealthModule } from './modules/health/health.module'
 import { TelegramModule } from './modules/telegram/telegram.module'
 import { MeetingsModule } from './modules/meetings/meetings.module'
+import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
@@ -84,6 +85,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     HealthModule,
     TelegramModule,
     MeetingsModule,
+    TimeTrackingModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.
