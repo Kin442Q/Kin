@@ -23,7 +23,8 @@ import {
 import { motion } from 'framer-motion'
 import dayjs, { Dayjs } from 'dayjs'
 
-import PageHeader from '../components/PageHeader'
+import { ClipboardCheck } from 'lucide-react'
+import { SproutPageHeader } from '../components/sprout'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
@@ -197,9 +198,10 @@ export default function AttendancePage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Посещаемость"
-        icon={<CheckCircleOutlined />}
+        icon={<ClipboardCheck size={22} strokeWidth={2} />}
+        iconAccent="lilac"
         description={`Отметка посещаемости на ${date.format('DD.MM.YYYY')}`}
         actions={
           <Space>

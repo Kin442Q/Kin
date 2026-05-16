@@ -22,7 +22,6 @@ import {
 } from 'antd'
 import type { UploadFile } from 'antd'
 import {
-  UserOutlined,
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
@@ -32,10 +31,11 @@ import {
   WomanOutlined,
   ManOutlined,
 } from '@ant-design/icons'
+import { Baby } from 'lucide-react'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
-import PageHeader from '../components/PageHeader'
+import { SP, SproutPageHeader, SproutEmpty } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { calcAge, formatDate, formatMoney } from '../lib/format'
@@ -319,13 +319,27 @@ export default function ChildrenPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Дети"
-        icon={<UserOutlined />}
+        icon={<Baby size={22} strokeWidth={2} />}
+        iconAccent="blue"
         description={
           user?.role === 'teacher'
             ? 'Дети вашей группы. Вы можете добавлять и удалять только своих воспитанников.'
             : 'Список всех воспитанников детского сада'
+        }
+        chip={
+          <Tag
+            style={{
+              background: SP.primaryGhost,
+              color: SP.primaryDeep,
+              border: 'none',
+              fontWeight: 600,
+              fontSize: 11,
+            }}
+          >
+            {visibleChildren.length} {visibleChildren.length === 1 ? 'ребёнок' : 'детей'}
+          </Tag>
         }
         actions={
           <Button
@@ -374,9 +388,12 @@ export default function ChildrenPage() {
           {isMobile ? (
             <div className="flex flex-col gap-3">
               {visibleChildren.length === 0 && (
-                <div className="text-center py-6">
-                  <Text type="secondary">Нет детей</Text>
-                </div>
+                <SproutEmpty
+                  icon={<Baby size={28} strokeWidth={1.8} />}
+                  title="Детей пока нет"
+                  description="Добавьте первого воспитанника кнопкой выше"
+                  minHeight={160}
+                />
               )}
               {visibleChildren.map((c) => {
                 const g = groups.find((x) => x.id === c.groupId)

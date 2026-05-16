@@ -31,7 +31,8 @@ import { motion } from "framer-motion";
 import dayjs from "dayjs";
 
 import { useDataStore } from "../store/dataStore";
-import PageHeader from "../components/PageHeader";
+import { LayoutGrid } from "lucide-react";
+import { SP, SproutPageHeader } from "../components/sprout";
 import StatCard from "../components/ui/StatCard";
 import { calcGroupFinances } from "../lib/finance";
 import { calcAge, formatMoney, formatPercent } from "../lib/format";
@@ -161,20 +162,29 @@ export default function GroupDetailPage() {
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title={
           <Space>
             <Avatar
-              style={{ background: group.color }}
-              icon={<TeamOutlined />}
-            />
+              style={{ background: group.color, fontWeight: 700 }}
+            >
+              {group.name.slice(0, 1).toUpperCase()}
+            </Avatar>
             {group.name}
-            <Tag color={f.profit >= 0 ? "green" : "red"}>
+            <Tag
+              style={{
+                background: f.profit >= 0 ? SP.primaryGhost : '#FCEAE5',
+                color: f.profit >= 0 ? SP.primaryDeep : SP.danger,
+                border: 'none',
+                fontWeight: 600,
+              }}
+            >
               {f.profit >= 0 ? "Выгодная" : "Убыточная"}
             </Tag>
           </Space>
         }
-        icon={<AppstoreOutlined />}
+        icon={<LayoutGrid size={22} strokeWidth={2} />}
+        iconAccent="yellow"
         description={`Возраст: ${group.ageRange}${teacher ? ` · Воспитатель: ${teacher.lastName} ${teacher.firstName}` : ""}`}
         actions={
           <Space>

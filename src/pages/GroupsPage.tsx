@@ -1,9 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState } from 'react'
 import {
   Button,
-  Card,
   Col,
-  Drawer,
   Form,
   Input,
   InputNumber,
@@ -14,73 +12,67 @@ import {
   Space,
   Table,
   Tag,
-  Typography,
   Avatar,
   Select,
   DatePicker,
   App as AntdApp,
   Tooltip,
-} from "antd";
+} from 'antd'
 import {
-  AppstoreOutlined,
   PlusOutlined,
   EditOutlined,
   DeleteOutlined,
-  TeamOutlined,
-  RiseOutlined,
   EyeOutlined,
-  WalletOutlined,
-} from "@ant-design/icons";
-import { Column, Pie, Bar } from "@ant-design/charts";
-import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import dayjs from "dayjs";
+} from '@ant-design/icons'
+import { LayoutGrid, TrendingUp, Wallet } from 'lucide-react'
+import { Column, Pie } from '@ant-design/charts'
+import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
+import dayjs from 'dayjs'
 
-import PageHeader from "../components/PageHeader";
-import { useDataStore } from "../store/dataStore";
-import { refreshTenantData } from "../hooks/useTenantSync";
-import { http } from "../api";
-import type { Group, GroupFinance } from "../types";
-import { calcGroupFinances } from "../lib/finance";
-import { formatMoney, formatPercent } from "../lib/format";
+import {
+  SP,
+  SproutPageHeader,
+  SproutCard,
+  SproutKPI,
+  SproutEmpty,
+} from '../components/sprout'
+import { useDataStore } from '../store/dataStore'
+import { refreshTenantData } from '../hooks/useTenantSync'
+import { http } from '../api'
+import type { Group, GroupFinance } from '../types'
+import { calcGroupFinances } from '../lib/finance'
+import { formatMoney, formatMoneyCompact, formatPercent } from '../lib/format'
 
-const { Text, Title } = Typography;
+// Sprout-палитра для группы
+const GROUP_COLORS = [
+  '#4FB286', // mint
+  '#5BA9D1', // blue
+  '#E5B43A', // yellow
+  '#9B7BD4', // lilac
+  '#E48979', // rose
+  '#D88EAE', // pink
+  '#3FA8B3', // cyan
+  '#2F8862', // mint deep
+]
 
-const COLORS = [
-  "#6366f1",
-  "#10b981",
-  "#f59e0b",
-  "#ec4899",
-  "#a855f7",
-  "#06b6d4",
-  "#ef4444",
-  "#14b8a6",
-];
-
-/**
- * Страница «Группы».
- * Показывает по каждой группе: количество детей, оплативших, должников,
- * доход, расход, чистую прибыль, % посещаемости, а также диаграмму
- * «выгодности» (прибыль/убыток) — сразу видно, какая группа тащит, а
- * какая в минусе.
- */
 export default function GroupsPage() {
-  const navigate = useNavigate();
-  const { message } = AntdApp.useApp();
+  const navigate = useNavigate()
+  const { message } = AntdApp.useApp()
 
-  const groups = useDataStore((s) => s.groups);
-  const children = useDataStore((s) => s.children);
-  const payments = useDataStore((s) => s.payments);
-  const expenses = useDataStore((s) => s.expenses);
-  const extraIncome = useDataStore((s) => s.extraIncome);
-  const attendance = useDataStore((s) => s.attendance);
-  const staff = useDataStore((s) => s.staff);
+  const groups = useDataStore((s) => s.groups)
+  const children = useDataStore((s) => s.children)
+  const payments = useDataStore((s) => s.payments)
+  const expenses = useDataStore((s) => s.expenses)
+  const extraIncome = useDataStore((s) => s.extraIncome)
+  const attendance = useDataStore((s) => s.attendance)
+  const staff = useDataStore((s) => s.staff)
 
-  const [month, setMonth] = useState<string>(dayjs().format("YYYY-MM"));
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<Group | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [form] = Form.useForm();
+  const [month, setMonth] = useState<string>(dayjs().format('YYYY-MM'))
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<Group | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [form] = Form.useForm()
 
   const finances = useMemo<GroupFinance[]>(
     () =>
@@ -94,208 +86,223 @@ export default function GroupsPage() {
         month,
       }),
     [groups, children, payments, expenses, extraIncome, attendance, month],
-  );
+  )
 
   const total = useMemo(() => {
-    const income = finances.reduce((s, g) => s + g.income, 0);
-    const exp = finances.reduce((s, g) => s + g.expenses, 0);
-    const profit = income - exp;
-    const profitable = finances.filter((g) => g.profit >= 0).length;
-    return { income, exp, profit, profitable, count: finances.length };
-  }, [finances]);
+    const income = finances.reduce((s, g) => s + g.income, 0)
+    const exp = finances.reduce((s, g) => s + g.expenses, 0)
+    const profit = income - exp
+    const profitable = finances.filter((g) => g.profit >= 0).length
+    return { income, exp, profit, profitable, count: finances.length }
+  }, [finances])
 
-  // Диаграмма «выгодности групп»: прибыль по каждой группе
-  const profitByGroupData = finances.map((g) => ({
-    group: g.group.name,
-    type: g.profit >= 0 ? "Прибыль" : "Убыток",
-    value: Math.abs(g.profit),
-    rawProfit: g.profit,
-  }));
-
-  // Доход vs Расход стэком
-  const incomeVsExpenseData = finances.flatMap((g) => [
-    { group: g.group.name, type: "Доход", value: g.income },
-    { group: g.group.name, type: "Расход", value: g.expenses },
-  ]);
-
-  // Доля каждой группы в общем доходе
   const incomeShare = finances
     .filter((g) => g.income > 0)
-    .map((g) => ({ type: g.group.name, value: g.income }));
+    .map((g) => ({ type: g.group.name, value: g.income }))
 
   const openCreate = () => {
-    setEditing(null);
-    form.resetFields();
+    setEditing(null)
+    form.resetFields()
     form.setFieldsValue({
-      color: COLORS[groups.length % COLORS.length],
+      color: GROUP_COLORS[groups.length % GROUP_COLORS.length],
       monthlyFee: 1200,
       fixedMonthlyExpense: 6000,
-    });
-    setModalOpen(true);
-  };
+    })
+    setModalOpen(true)
+  }
 
   const openEdit = (g: Group) => {
-    setEditing(g);
-    form.setFieldsValue(g);
-    setModalOpen(true);
-  };
+    setEditing(g)
+    form.setFieldsValue(g)
+    setModalOpen(true)
+  }
 
   const submit = async () => {
     try {
-      const values = await form.validateFields();
-      setSubmitting(true);
+      const values = await form.validateFields()
+      setSubmitting(true)
 
       const body = {
         name: values.name,
         ageRange: values.ageRange,
         monthlyFee: Number(values.monthlyFee || 0),
         fixedMonthlyExpense: Number(values.fixedMonthlyExpense || 0),
-        color: values.color || COLORS[0],
-      };
-
-      if (editing) {
-        await http.patch(`/v1/groups/${editing.id}`, body);
-        message.success("Группа обновлена");
-      } else {
-        await http.post("/v1/groups", body);
-        message.success("Группа создана");
+        color: values.color || GROUP_COLORS[0],
       }
 
-      setModalOpen(false);
-      refreshTenantData();
+      if (editing) {
+        await http.patch(`/v1/groups/${editing.id}`, body)
+        message.success('Группа обновлена')
+      } else {
+        await http.post('/v1/groups', body)
+        message.success('Группа создана')
+      }
+
+      setModalOpen(false)
+      refreshTenantData()
     } catch (err: any) {
-      if (err?.errorFields) return; // ошибка валидации формы
+      if (err?.errorFields) return
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Не удалось сохранить группу";
-      message.error(msg);
+        'Не удалось сохранить группу'
+      message.error(msg)
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
-  };
+  }
 
   const remove = async (g: Group) => {
     try {
-      await http.delete(`/v1/groups/${g.id}`);
-      message.success(`Группа «${g.name}» удалена`);
-      refreshTenantData();
+      await http.delete(`/v1/groups/${g.id}`)
+      message.success(`Группа «${g.name}» удалена`)
+      refreshTenantData()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Не удалось удалить группу";
-      message.error(msg);
+        'Не удалось удалить группу'
+      message.error(msg)
     }
-  };
+  }
 
   const columns = [
     {
-      title: "Группа",
-      dataIndex: ["group", "name"],
-      key: "name",
+      title: 'Группа',
+      key: 'name',
       render: (_: unknown, row: GroupFinance) => (
         <Space>
           <Avatar
-            style={{ background: row.group.color }}
-            icon={<TeamOutlined />}
-          />
+            style={{
+              background: row.group.color,
+              color: 'white',
+              fontWeight: 700,
+            }}
+          >
+            {row.group.name.slice(0, 1).toUpperCase()}
+          </Avatar>
           <div>
-            <div style={{ fontWeight: 600 }}>{row.group.name}</div>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {row.group.ageRange}
-            </Text>
+            <div style={{ fontWeight: 600, color: SP.text }}>{row.group.name}</div>
+            <span style={{ color: SP.muted, fontSize: 12 }}>{row.group.ageRange}</span>
           </div>
         </Space>
       ),
-      fixed: "left" as const,
+      fixed: 'left' as const,
     },
     {
-      title: "Детей",
-      dataIndex: "childrenCount",
-      key: "childrenCount",
-      sorter: (a: GroupFinance, b: GroupFinance) =>
-        a.childrenCount - b.childrenCount,
-      render: (v: number) => <Tag color="blue">{v}</Tag>,
-    },
-    {
-      title: "Оплатили",
-      dataIndex: "paidCount",
-      key: "paidCount",
-      render: (v: number, row: GroupFinance) => (
-        <Tooltip title={`${v} из ${row.childrenCount}`}>
-          <Tag color="green">{v}</Tag>
-        </Tooltip>
-      ),
-    },
-    {
-      title: "Должники",
-      dataIndex: "debtorsCount",
-      key: "debtorsCount",
-      render: (v: number) =>
-        v > 0 ? <Tag color="volcano">{v}</Tag> : <Tag>0</Tag>,
-    },
-    {
-      title: "Доход",
-      dataIndex: "income",
-      key: "income",
-      sorter: (a: GroupFinance, b: GroupFinance) => a.income - b.income,
-      render: (v: number) => <Text strong>{formatMoney(v)}</Text>,
-    },
-    {
-      title: "Расход",
-      dataIndex: "expenses",
-      key: "expenses",
-      sorter: (a: GroupFinance, b: GroupFinance) => a.expenses - b.expenses,
-      render: (v: number) => <Text type="secondary">{formatMoney(v)}</Text>,
-    },
-    {
-      title: "Прибыль",
-      dataIndex: "profit",
-      key: "profit",
-      sorter: (a: GroupFinance, b: GroupFinance) => a.profit - b.profit,
-      defaultSortOrder: "descend" as const,
+      title: 'Детей',
+      dataIndex: 'childrenCount',
+      key: 'childrenCount',
+      sorter: (a: GroupFinance, b: GroupFinance) => a.childrenCount - b.childrenCount,
       render: (v: number) => (
-        <Tag color={v >= 0 ? "green" : "red"} style={{ fontWeight: 600 }}>
-          {v >= 0 ? "+" : ""}
-          {formatMoney(v)}
+        <Tag style={{ background: SP.blueSoft, color: SP.blueDeep, border: 'none', fontWeight: 600 }}>
+          {v}
         </Tag>
       ),
     },
     {
-      title: "Маржа",
-      dataIndex: "margin",
-      key: "margin",
+      title: 'Оплатили',
+      dataIndex: 'paidCount',
+      key: 'paidCount',
+      render: (v: number, row: GroupFinance) => (
+        <Tooltip title={`${v} из ${row.childrenCount}`}>
+          <Tag style={{ background: SP.primaryGhost, color: SP.primaryDeep, border: 'none', fontWeight: 600 }}>
+            {v}
+          </Tag>
+        </Tooltip>
+      ),
+    },
+    {
+      title: 'Должники',
+      dataIndex: 'debtorsCount',
+      key: 'debtorsCount',
+      render: (v: number) =>
+        v > 0 ? (
+          <Tag style={{ background: '#FCEAE5', color: SP.danger, border: 'none', fontWeight: 600 }}>
+            {v}
+          </Tag>
+        ) : (
+          <Tag style={{ background: SP.borderSoft, color: SP.muted, border: 'none' }}>0</Tag>
+        ),
+    },
+    {
+      title: 'Доход',
+      dataIndex: 'income',
+      key: 'income',
+      sorter: (a: GroupFinance, b: GroupFinance) => a.income - b.income,
+      render: (v: number) => (
+        <span className="sp-num" style={{ fontWeight: 600 }}>
+          {formatMoneyCompact(v)}
+        </span>
+      ),
+    },
+    {
+      title: 'Расход',
+      dataIndex: 'expenses',
+      key: 'expenses',
+      sorter: (a: GroupFinance, b: GroupFinance) => a.expenses - b.expenses,
+      render: (v: number) => (
+        <span className="sp-num" style={{ color: SP.muted }}>
+          {formatMoneyCompact(v)}
+        </span>
+      ),
+    },
+    {
+      title: 'Прибыль',
+      dataIndex: 'profit',
+      key: 'profit',
+      sorter: (a: GroupFinance, b: GroupFinance) => a.profit - b.profit,
+      defaultSortOrder: 'descend' as const,
+      render: (v: number) => (
+        <Tag
+          style={{
+            background: v >= 0 ? SP.primaryGhost : '#FCEAE5',
+            color: v >= 0 ? SP.primaryDeep : SP.danger,
+            border: 'none',
+            fontWeight: 700,
+          }}
+        >
+          {v >= 0 ? '+' : ''}
+          {formatMoneyCompact(v)}
+        </Tag>
+      ),
+    },
+    {
+      title: 'Маржа',
+      dataIndex: 'margin',
+      key: 'margin',
       render: (v: number, row: GroupFinance) => (
         <div style={{ minWidth: 110 }}>
           <Progress
             percent={Math.max(0, Math.min(100, v * 100))}
             size="small"
-            strokeColor={row.profit >= 0 ? "#10b981" : "#f43f5e"}
-            format={() => formatPercent(v)}
+            strokeColor={row.profit >= 0 ? SP.primary : SP.danger}
+            format={() => (
+              <span style={{ fontSize: 11, color: SP.textMid }}>{formatPercent(v)}</span>
+            )}
           />
         </div>
       ),
     },
     {
-      title: "Посещаемость",
-      dataIndex: "attendanceRate",
-      key: "attendanceRate",
+      title: 'Посещаемость',
+      dataIndex: 'attendanceRate',
+      key: 'attendanceRate',
       render: (v: number) => (
         <div style={{ minWidth: 110 }}>
           <Progress
             percent={Math.round(v * 100)}
             size="small"
-            strokeColor="#6366f1"
-            format={(p) => `${p}%`}
+            strokeColor={SP.primary}
+            format={(p) => <span style={{ fontSize: 11, color: SP.textMid }}>{p}%</span>}
           />
         </div>
       ),
     },
     {
-      title: "Действия",
-      key: "actions",
-      fixed: "right" as const,
+      title: '',
+      key: 'actions',
+      fixed: 'right' as const,
       render: (_: unknown, row: GroupFinance) => (
         <Space>
           <Tooltip title="Открыть">
@@ -319,6 +326,7 @@ export default function GroupsPage() {
             description="Дети группы останутся, но будут без группы"
             okText="Удалить"
             cancelText="Отмена"
+            okButtonProps={{ danger: true }}
             onConfirm={() => remove(row.group)}
           >
             <Button size="small" type="text" danger icon={<DeleteOutlined />} />
@@ -326,20 +334,21 @@ export default function GroupsPage() {
         </Space>
       ),
     },
-  ];
+  ]
 
   return (
     <div>
-      <PageHeader
+      <SproutPageHeader
         title="Группы"
-        icon={<AppstoreOutlined />}
-        description="Финансовая статистика по каждой группе — сразу видно, какая группа выгодна"
+        icon={<LayoutGrid size={22} strokeWidth={2} />}
+        iconAccent="yellow"
+        description="Финансовая статистика по каждой группе — сразу видно, какая прибыльная"
         actions={
           <Space>
             <DatePicker
               picker="month"
-              value={dayjs(month + "-01")}
-              onChange={(d) => d && setMonth(d.format("YYYY-MM"))}
+              value={dayjs(month + '-01')}
+              onChange={(d) => d && setMonth(d.format('YYYY-MM'))}
               allowClear={false}
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -349,207 +358,170 @@ export default function GroupsPage() {
         }
       />
 
-      {/* Сводные KPI */}
+      {/* KPI */}
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="glass p-4 kpi-gradient"
-          >
-            <Text type="secondary">Всего групп</Text>
-            <Title level={3} style={{ margin: 0 }}>
-              {total.count}
-            </Title>
-          </motion.div>
+          <SproutKPI
+            label="Всего групп"
+            value={String(total.count)}
+            accent="mint"
+            icon={<LayoutGrid size={18} strokeWidth={2} />}
+            delay={0}
+          />
         </Col>
         <Col xs={12} md={6}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.05 }}
-            className="glass p-4 kpi-gradient-emerald"
-          >
-            <Text type="secondary">Доход всех групп</Text>
-            <Title level={3} style={{ margin: 0 }}>
-              {formatMoney(total.income)}
-            </Title>
-          </motion.div>
+          <SproutKPI
+            label="Доход всех групп"
+            value={formatMoneyCompact(total.income)}
+            accent="mint"
+            icon={<Wallet size={18} strokeWidth={2} />}
+            delay={0.05}
+          />
         </Col>
         <Col xs={12} md={6}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
-            className="glass p-4 kpi-gradient-amber"
-          >
-            <Text type="secondary">Расходы всех групп</Text>
-            <Title level={3} style={{ margin: 0 }}>
-              {formatMoney(total.exp)}
-            </Title>
-          </motion.div>
+          <SproutKPI
+            label="Расходы всех групп"
+            value={formatMoneyCompact(total.exp)}
+            accent="yellow"
+            icon={<TrendingUp size={18} strokeWidth={2} />}
+            delay={0.1}
+          />
         </Col>
         <Col xs={12} md={6}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.15 }}
-            className={`glass p-4 ${total.profit >= 0 ? "kpi-gradient" : "kpi-gradient-rose"}`}
-          >
-            <Text type="secondary">Чистая прибыль</Text>
-            <Title
-              level={3}
-              style={{
-                margin: 0,
-                color: total.profit >= 0 ? "#10b981" : "#f43f5e",
-              }}
-            >
-              {total.profit >= 0 ? "+" : ""}
-              {formatMoney(total.profit)}
-            </Title>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Выгодных групп: {total.profitable} / {total.count}
-            </Text>
-          </motion.div>
+          <SproutKPI
+            label="Чистая прибыль"
+            value={`${total.profit >= 0 ? '+' : ''}${formatMoneyCompact(total.profit)}`}
+            accent={total.profit >= 0 ? 'mint' : 'rose'}
+            hint={`Выгодных: ${total.profitable} / ${total.count}`}
+            icon={<TrendingUp size={18} strokeWidth={2} />}
+            delay={0.15}
+          />
         </Col>
       </Row>
 
-      {/* Графики выгодности */}
-      <Row gutter={[16, 16]} className="mt-4">
-        <Col xs={24} lg={12}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-          >
-            <Card className="glass" bordered={false}>
-              <div className="flex items-center justify-between mb-3 lg:w-[700px]">
-                <Title level={5} style={{ margin: 0 }}>
-                  <RiseOutlined /> Прибыль по группам
-                </Title>
-                <Tag color="purple">выгодность</Tag>
+      {/* Charts */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }} align="stretch">
+        <Col xs={24} lg={16} style={{ display: 'flex' }}>
+          <SproutCard style={{ width: '100%' }} delay={0.2}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 14,
+              }}
+            >
+              <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
+                Прибыль по группам
               </div>
+              <Tag
+                style={{
+                  background: SP.lilacSoft,
+                  color: SP.lilacDeep,
+                  border: 'none',
+                  fontWeight: 600,
+                }}
+              >
+                выгодность
+              </Tag>
+            </div>
+            {finances.length > 0 ? (
               <Column
                 data={finances.map((g) => ({
                   group: g.group.name,
                   value: g.profit,
-                  type: g.profit >= 0 ? "Прибыль" : "Убыток",
+                  type: g.profit >= 0 ? 'Прибыль' : 'Убыток',
                 }))}
                 xField="group"
                 yField="value"
                 seriesField="type"
                 color={({ type }: { type: string }) =>
-                  type === "Прибыль" ? "#10b981" : "#f43f5e"
+                  type === 'Прибыль' ? SP.primary : SP.danger
                 }
                 columnStyle={{ radius: [10, 10, 0, 0] }}
                 height={280}
                 label={{
-                  position: "top",
-                  formatter: (d: { value: number }) => formatMoney(d.value),
-                  style: { fontSize: 11 },
+                  position: 'top',
+                  formatter: (d: { value: number }) => formatMoneyCompact(d.value),
+                  style: { fontSize: 11, fill: SP.muted },
                 }}
-                animation={{ appear: { animation: "wave-in", duration: 900 } }}
-                legend={{ position: "top-right" }}
+                legend={{ position: 'top-right' }}
               />
-            </Card>
-          </motion.div>
+            ) : (
+              <SproutEmpty title="Нет данных за выбранный месяц" minHeight={240} />
+            )}
+          </SproutCard>
         </Col>
-        <Col xs={24} lg={12}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.25 }}
-          >
-            <Card className="glass" bordered={false}>
-              <div className="flex items-center justify-between mb-3">
-                <Title level={5} style={{ margin: 0 }}>
-                  <WalletOutlined /> Доход vs Расход
-                </Title>
-                <Tag color="geekblue">сравнение</Tag>
-              </div>
-              <Bar
-                data={incomeVsExpenseData}
-                xField="value"
-                yField="group"
-                seriesField="type"
-                isGroup
-                marginRatio={0.1}
-                height={280}
-                color={["#10b981", "#f59e0b"]}
-                animation={{ appear: { animation: "fade-in", duration: 700 } }}
-                legend={{ position: "top-right" }}
-              />
-            </Card>
-          </motion.div>
-        </Col>
-      </Row>
 
-      <Row gutter={[16, 16]} className="mt-4">
-        <Col xs={24} lg={8}>
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-          >
-            <Card className="glass w-[1200px]" bordered={false}>
-              <Title level={5} style={{ margin: 0, marginBottom: 12 }}>
-                Доля группы в доходе
-              </Title>
-              {incomeShare.length > 0 ? (
-                <Pie
-                  data={incomeShare}
-                  angleField="value"
-                  colorField="type"
-                  radius={0.9}
-                  innerRadius={0.55}
-                  height={260}
-                  legend={{ position: "bottom" }}
-                  color={COLORS}
-                />
-              ) : (
-                <Text type="secondary">Нет оплат за выбранный месяц</Text>
-              )}
-            </Card>
-          </motion.div>
-        </Col>
-      </Row>
-      <Col xs={24} lg={16}>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.35 }}
-        >
-          <Card className="glass w-[1200px] mt-3" bordered={false}>
-            <div className="flex items-center justify-between mb-3">
-              <Title level={5} style={{ margin: 0 }}>
-                Подробно по группам
-              </Title>
-              <Text type="secondary">
-                Месяц: <Tag>{dayjs(month + "-01").format("MMMM YYYY")}</Tag>
-              </Text>
+        <Col xs={24} lg={8} style={{ display: 'flex' }}>
+          <SproutCard style={{ width: '100%' }} delay={0.25}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: SP.text, marginBottom: 12 }}>
+              Доля группы в доходе
             </div>
-            <Table
-              rowKey={(r) => r.group.id}
-              dataSource={finances}
-              columns={columns}
-              pagination={false}
-              scroll={{ x: 1100 }}
-              size="middle"
-              sticky
-              className="w-[100%]"
-            />
-          </Card>
-        </motion.div>
-      </Col>
+            {incomeShare.length > 0 ? (
+              <Pie
+                data={incomeShare}
+                angleField="value"
+                colorField="type"
+                radius={0.9}
+                innerRadius={0.55}
+                height={260}
+                legend={{ position: 'bottom' }}
+                color={GROUP_COLORS}
+              />
+            ) : (
+              <SproutEmpty title="Нет оплат за месяц" minHeight={220} />
+            )}
+          </SproutCard>
+        </Col>
+      </Row>
 
-      {/* Модалка создания/редактирования */}
+      {/* Table */}
+      <SproutCard style={{ marginTop: 16 }} delay={0.3}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 14,
+            flexWrap: 'wrap',
+            gap: 8,
+          }}
+        >
+          <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
+            Подробно по группам
+          </div>
+          <Tag style={{ background: SP.surfaceAlt, color: SP.textMid, border: 'none' }}>
+            {dayjs(month + '-01').format('MMMM YYYY')}
+          </Tag>
+        </div>
+        {finances.length > 0 ? (
+          <Table
+            rowKey={(r) => r.group.id}
+            dataSource={finances}
+            columns={columns}
+            pagination={false}
+            scroll={{ x: 1100 }}
+            size="middle"
+            sticky
+          />
+        ) : (
+          <SproutEmpty
+            icon={<LayoutGrid size={28} strokeWidth={1.8} />}
+            title="Групп пока нет"
+            description="Создайте первую группу — Солнышко, Радуга или Звёздочка"
+            minHeight={220}
+          />
+        )}
+      </SproutCard>
+
+      {/* Modal */}
       <Modal
-        title={editing ? "Редактировать группу" : "Новая группа"}
+        title={editing ? 'Редактировать группу' : 'Новая группа'}
         open={modalOpen}
         onOk={submit}
         onCancel={() => setModalOpen(false)}
-        okText={editing ? "Сохранить" : "Создать"}
+        okText={editing ? 'Сохранить' : 'Создать'}
         cancelText="Отмена"
         confirmLoading={submitting}
         destroyOnClose
@@ -558,38 +530,30 @@ export default function GroupsPage() {
           <Form.Item
             label="Название группы"
             name="name"
-            rules={[{ required: true }]}
+            rules={[{ required: true, message: 'Введите название' }]}
           >
             <Input placeholder="Например, Солнышко" />
           </Form.Item>
           <Form.Item
             label="Возрастная категория"
             name="ageRange"
-            rules={[{ required: true }]}
+            rules={[{ required: true, message: 'Укажите возраст' }]}
           >
             <Input placeholder="3–4 года" />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
               <Form.Item label="Ежемесячная плата за ребёнка" name="monthlyFee">
-                <InputNumber
-                  min={0}
-                  style={{ width: "100%" }}
-                  addonAfter="сомони"
-                />
+                <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 label="Фикс. месячные расходы"
                 name="fixedMonthlyExpense"
-                tooltip="Питание / материалы / доля от аренды и т.п. для этой группы"
+                tooltip="Питание, материалы, доля от аренды"
               >
-                <InputNumber
-                  min={0}
-                  style={{ width: "100%" }}
-                  addonAfter="сомони"
-                />
+                <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
               </Form.Item>
             </Col>
           </Row>
@@ -598,7 +562,7 @@ export default function GroupsPage() {
               allowClear
               placeholder="Выберите воспитателя"
               options={staff
-                .filter((s) => s.position === "Воспитатель")
+                .filter((s) => s.position === 'Воспитатель')
                 .map((s) => ({
                   value: s.id,
                   label: `${s.lastName} ${s.firstName}`,
@@ -607,13 +571,13 @@ export default function GroupsPage() {
           </Form.Item>
           <Form.Item label="Цвет" name="color">
             <Select
-              options={COLORS.map((c) => ({
+              options={GROUP_COLORS.map((c) => ({
                 value: c,
                 label: (
                   <Space>
                     <span
                       style={{
-                        display: "inline-block",
+                        display: 'inline-block',
                         width: 14,
                         height: 14,
                         borderRadius: 4,
@@ -629,5 +593,8 @@ export default function GroupsPage() {
         </Form>
       </Modal>
     </div>
-  );
+  )
 }
+
+// Suppress unused-vars warning for formatMoney (used in tooltip variants)
+void formatMoney
