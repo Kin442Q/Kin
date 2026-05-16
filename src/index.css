@@ -379,20 +379,35 @@ html[data-theme='dark'] {
    ============================================================ */
 
 @media (max-width: 768px) {
+  /* Tables */
   .ant-table-cell {
     padding: 8px 6px !important;
     font-size: 13px;
   }
+  .ant-table-thead > tr > th {
+    font-size: 12px !important;
+    padding: 8px 6px !important;
+  }
 
+  /* Headings */
   .ant-typography h3,
   h3.ant-typography {
     font-size: 18px !important;
   }
+  .sp-page-header h1 {
+    font-size: 18px !important;
+  }
 
+  /* Cards */
   .ant-card-body {
     padding: 14px !important;
   }
+  .sp-card,
+  .glass {
+    border-radius: 14px !important;
+  }
 
+  /* Modals: fit viewport */
   .ant-modal {
     max-width: calc(100vw - 16px) !important;
     margin: 8px auto !important;
@@ -400,30 +415,61 @@ html[data-theme='dark'] {
   .ant-modal-content {
     padding: 16px !important;
   }
+  .ant-modal-header {
+    padding: 0 0 12px 0 !important;
+  }
 
+  /* Drawer */
   .ant-drawer-body {
     padding: 14px !important;
   }
 
+  /* Buttons */
   .ant-btn {
     padding-inline: 14px;
+    min-height: 40px;
+  }
+  .sp-btn-primary {
+    padding: 12px 18px !important;
   }
 
+  /* DatePicker fills width */
   .ant-picker {
     width: 100% !important;
   }
 
+  /* Form */
   .ant-form-item {
     margin-bottom: 12px !important;
   }
+  .ant-form-item-label > label {
+    height: auto !important;
+  }
 
+  /* Tabs */
   .ant-tabs-tab {
     padding: 8px 10px !important;
   }
 
+  /* Page header — кнопки в полную ширину на mobile */
   .page-actions-wrap {
-    flex-wrap: wrap;
-    gap: 8px;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    width: 100%;
+  }
+  .page-actions-wrap > * {
+    flex: 1 1 auto;
+  }
+
+  /* Sprout page header — стак на мобильном */
+  .sp-page-header > div:first-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+
+  /* KPI — на мобильном меньшие отступы */
+  .sp-num {
+    font-size: 22px !important;
   }
 }
 
@@ -431,5 +477,17 @@ html[data-theme='dark'] {
   .ant-btn-sm {
     min-height: 36px;
     padding-inline: 12px;
+  }
+
+  /* Login screen — пузыри помельче */
+  .login-grid h1 {
+    font-size: 32px !important;
+  }
+}
+
+/* Tap targets — minimum 44x44 на touch-устройствах */
+@media (hover: none) and (pointer: coarse) {
+  .ant-btn:not(.ant-btn-link):not(.ant-btn-text) {
+    min-height: 44px;
   }
 }
