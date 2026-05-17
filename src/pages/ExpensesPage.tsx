@@ -19,12 +19,12 @@ import {
   Tooltip,
 } from 'antd'
 import { PlusOutlined, DeleteOutlined, EditOutlined } from '@ant-design/icons'
-import { PieChart } from 'lucide-react'
+import { PieChart, BarChart3, Inbox } from 'lucide-react'
 import { Column, Pie } from '@ant-design/charts'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
-import { SproutPageHeader } from '../components/sprout'
+import { SproutPageHeader, SproutEmpty } from '../components/sprout'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { formatMoney } from '../lib/format'
@@ -312,9 +312,15 @@ export default function ExpensesPage() {
                   innerRadius={0.55}
                   height={280}
                   legend={{ position: 'bottom' }}
+                  color={['#4FB286', '#5BA9D1', '#E5B43A', '#9B7BD4', '#D88EAE', '#3FA8B3']}
                 />
               ) : (
-                <Text type="secondary">Нет расходов</Text>
+                <SproutEmpty
+                  icon={<PieChart size={28} strokeWidth={1.8} />}
+                  title="Данных пока нет"
+                  description="Диаграмма появится после первого добавленного расхода в этом месяце"
+                  minHeight={280}
+                />
               )}
             </Card>
           </motion.div>
@@ -329,15 +335,24 @@ export default function ExpensesPage() {
               <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
                 По категориям
               </Title>
-              <Column
-                data={byCategoryData}
-                xField="type"
-                yField="value"
-                color="#a855f7"
-                columnStyle={{ radius: [8, 8, 0, 0] }}
-                height={280}
-                xAxis={{ label: { autoRotate: true } }}
-              />
+              {byCategoryData.length > 0 ? (
+                <Column
+                  data={byCategoryData}
+                  xField="type"
+                  yField="value"
+                  color="#4FB286"
+                  columnStyle={{ radius: [8, 8, 0, 0] }}
+                  height={280}
+                  xAxis={{ label: { autoRotate: true } }}
+                />
+              ) : (
+                <SproutEmpty
+                  icon={<BarChart3 size={28} strokeWidth={1.8} />}
+                  title="Категорий пока нет"
+                  description="График по категориям появится после первого расхода"
+                  minHeight={280}
+                />
+              )}
             </Card>
           </motion.div>
         </Col>
@@ -349,7 +364,17 @@ export default function ExpensesPage() {
           rowKey="id"
           loading={loading}
           dataSource={monthExpenses}
-          pagination={{ pageSize: 10 }}
+          pagination={{ pageSize: 10, hideOnSinglePage: true }}
+          locale={{
+            emptyText: (
+              <SproutEmpty
+                icon={<Inbox size={28} strokeWidth={1.8} />}
+                title="Расходов пока нет"
+                description="Добавьте первый расход кнопкой «Добавить расход» сверху"
+                minHeight={180}
+              />
+            ),
+          }}
           columns={[
             {
               title: 'Категория',
