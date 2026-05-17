@@ -114,6 +114,10 @@ model Kindergarten {
   phone         String?
   isActive      Boolean  @default(true)
 
+  /// API-ключ для внешнего терминала контроля доступа.
+  /// Если задан — webhook /v1/time/webhook принимает события от устройства.
+  terminalApiKey String? @unique
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -225,6 +229,9 @@ model User {
   workNorm          Int        @default(176)
   /// Биометрический дескриптор лица (Float32Array 128 значений) для Face ID
   faceDescriptor    Json?
+  /// Код сотрудника на внешнем терминале контроля доступа (Hikvision/ZKTeco).
+  /// По нему webhook сопоставляет событие с пользователем.
+  terminalCode      String?    @unique
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -249,6 +256,7 @@ enum TimeVerifyMethod {
   FACE
   PIN
   QR
+  TERMINAL // событие от внешнего терминала контроля доступа
 }
 
 /// Запись прихода/ухода учителя на работу.
