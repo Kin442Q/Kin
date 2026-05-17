@@ -155,4 +155,14 @@ export class TimeTrackingController {
   ) {
     return this.service.setTeacherSalary(user, teacherId, dto as any)
   }
+
+  @Post('setup-demo-teachers')
+  @Roles('SUPER_ADMIN')
+  @ApiOperation({
+    summary:
+      'Обновить демо-учителей телефонами/кодами/ставками (идемпотентно, для тестирования)',
+  })
+  setupDemoTeachers(@CurrentUser() user: AuthUser) {
+    return this.service.setupDemoTeachers(user)
+  }
 }

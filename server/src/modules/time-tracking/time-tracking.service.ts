@@ -342,6 +342,54 @@ export class TimeTrackingService {
     })
     return { hasFace: !!u?.faceDescriptor, descriptor: u?.faceDescriptor }
   }
+
+  // ─── Демо-данные для тестирования (идемпотентно) ───────────────────
+
+  /**
+   * Обновить демо-учителей (teacher1@..teacher4@kindergarten.tj):
+   * добавить телефоны, terminalCode, hourlyRate, salaryMode=HOURLY.
+   * Нужно для тестирования логина по телефону и фичи терминала.
+   */
+  async setupDemoTeachers(user: AuthUser) {
+    if (user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Только SUPER_ADMIN')
+    }
+
+    const teachers = [
+      { email: 'teacher1@kindergarten.tj', phone: '+992901111111', code: 'T001', rate: 45 },
+      { email: 'teacher2@kindergarten.tj', phone: '+992902222222', code: 'T002', rate: 50 },
+      { email: 'teacher3@kindergarten.tj', phone: '+992903333333', code: 'T003', rate: 55 },
+      { email: 'teacher4@kindergarten.tj', phone: '+992904444444', code: 'T004', rate: 50 },
+    ]
+
+    const results: Array<{ email: string; updated: boolean; reason?: string }> = []
+
+    for (const t of teachers) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: t.email },
+      })
+      if (!existing) {
+        results.push({ email: t.email, updated: false, reason: 'not found' })
+        continue
+      }
+      await this.prisma.user.update({
+        where: { id: existing.id },
+        data: {
+          phone: t.phone,
+          terminalCode: t.code,
+          salaryMode: 'HOURLY',
+          hourlyRate: t.rate as any,
+          workNorm: 176,
+        },
+      })
+      results.push({ email: t.email, updated: true })
+    }
+
+    this.logger.log(
+      `[demo] setup teachers: ${results.filter((r) => r.updated).length}/${results.length}`,
+    )
+    return { success: true, results }
+  }
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────
