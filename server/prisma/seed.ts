@@ -83,24 +83,40 @@ async function main() {
     },
   })
 
-  const teachers: Array<[string, string, string]> = [
-    ['teacher1@kindergarten.tj', 'Зарина Аминова',   'g-sun'],
-    ['teacher2@kindergarten.tj', 'Мадина Каримова',  'g-star'],
-    ['teacher3@kindergarten.tj', 'Шахноза Турсунова','g-rain'],
-    ['teacher4@kindergarten.tj', 'Гулнора Назарова', 'g-flower'],
+  /** [email, телефон, ФИО, groupId, terminalCode, hourlyRate] */
+  const teachers: Array<[string, string, string, string, string, number]> = [
+    ['teacher1@kindergarten.tj', '+992901111111', 'Зарина Аминова',   'g-sun',    'T001', 45],
+    ['teacher2@kindergarten.tj', '+992902222222', 'Мадина Каримова',  'g-star',   'T002', 50],
+    ['teacher3@kindergarten.tj', '+992903333333', 'Шахноза Турсунова','g-rain',   'T003', 55],
+    ['teacher4@kindergarten.tj', '+992904444444', 'Гулнора Назарова', 'g-flower', 'T004', 50],
   ]
-  for (const [email, fullName, groupId] of teachers) {
+  for (const [email, phone, fullName, groupId, terminalCode, hourlyRate] of teachers) {
     await prisma.user.upsert({
       where: { email },
-      update: { groupId, role: 'TEACHER', isActive: true, kindergartenId: kindergarten.id },
+      update: {
+        phone,
+        groupId,
+        role: 'TEACHER',
+        isActive: true,
+        kindergartenId: kindergarten.id,
+        terminalCode,
+        salaryMode: 'HOURLY',
+        hourlyRate: hourlyRate as any,
+        workNorm: 176,
+      },
       create: {
         email,
+        phone,
         passwordHash: pwTeacher,
         fullName,
         role: 'TEACHER',
         groupId,
         isActive: true,
         kindergartenId: kindergarten.id,
+        terminalCode,
+        salaryMode: 'HOURLY',
+        hourlyRate: hourlyRate as any,
+        workNorm: 176,
       },
     })
   }
@@ -186,10 +202,10 @@ async function main() {
   console.log('   Пароль: Admin123456!')
   console.log('')
   console.log('👨‍🏫 УЧИТЕЛЯ (одинаковый пароль: Teacher123456!):')
-  console.log('   teacher1@kindergarten.tj → Солнышко')
-  console.log('   teacher2@kindergarten.tj → Звёздочка')
-  console.log('   teacher3@kindergarten.tj → Радуга')
-  console.log('   teacher4@kindergarten.tj → Цветочек')
+  console.log('   +992901111111 → Зарина (Солнышко)    · T001 · 45 сом/ч')
+  console.log('   +992902222222 → Мадина (Звёздочка)   · T002 · 50 сом/ч')
+  console.log('   +992903333333 → Шахноза (Радуга)     · T003 · 55 сом/ч')
+  console.log('   +992904444444 → Гулнора (Цветочек)   · T004 · 50 сом/ч')
 }
 
 main()
