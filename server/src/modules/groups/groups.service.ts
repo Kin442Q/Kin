@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common'
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common'
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
@@ -7,6 +12,8 @@ import type { AuthUser } from '../../common/types/jwt-payload'
 
 @Injectable()
 export class GroupsService {
+  private readonly logger = new Logger(GroupsService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -74,7 +81,31 @@ export class GroupsService {
     ) {
       throw new ForbiddenException('Группа из другого садика')
     }
-    const g = await this.prisma.group.update({ where: { id }, data: dto })
+
+    // Явно строим update-объект чтобы Decimal-поля (monthlyFee,
+    // fixedMonthlyExpense) корректно сохранились и не потерялись
+    // через PartialType-DTO.
+    const data: Prisma.GroupUpdateInput = {}
+    if (dto.name !== undefined) data.name = dto.name
+    if (dto.ageRange !== undefined) data.ageRange = dto.ageRange
+    if (dto.color !== undefined) data.color = dto.color
+    if (dto.capacity !== undefined) data.capacity = dto.capacity
+    if (dto.isActive !== undefined) data.isActive = dto.isActive
+    if (dto.monthlyFee !== undefined) {
+      data.monthlyFee = Number(dto.monthlyFee) as any
+    }
+    if (dto.fixedMonthlyExpense !== undefined) {
+      data.fixedMonthlyExpense = Number(dto.fixedMonthlyExpense) as any
+    }
+
+    this.logger.log(
+      `[groups] update ${id}: ${JSON.stringify({
+        monthlyFee: data.monthlyFee,
+        fixedMonthlyExpense: data.fixedMonthlyExpense,
+      })}`,
+    )
+
+    const g = await this.prisma.group.update({ where: { id }, data })
     await this.invalidateCache(id)
     return g
   }

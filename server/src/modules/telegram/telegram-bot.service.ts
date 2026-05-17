@@ -69,6 +69,24 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       )
       return
     }
+    // Защита от 409 Conflict: бот стартует только если явно разрешён.
+    // На локалке (NODE_ENV != production) по умолчанию выключен, чтобы
+    // не конфликтовать с инстансом на Railway. Включить локально:
+    //   TELEGRAM_BOT_ENABLED=true в server/.env
+    const explicitFlag = process.env.TELEGRAM_BOT_ENABLED
+    const isProd = process.env.NODE_ENV === 'production'
+    const shouldRun =
+      explicitFlag === 'true' || (explicitFlag !== 'false' && isProd)
+
+    if (!shouldRun) {
+      this.logger.warn(
+        '[bot] long polling выключен на этом инстансе ' +
+          '(NODE_ENV != production и TELEGRAM_BOT_ENABLED не задан). ' +
+          'Чтобы включить локально: TELEGRAM_BOT_ENABLED=true',
+      )
+      return
+    }
+
     this.polling = true
     this.startPolling().catch((e) => {
       this.logger.error(`[bot] polling crashed: ${e?.message || e}`)
@@ -88,10 +106,18 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
     )
   }
 
+  private conflictCount = 0
+  private conflictWarned = false
+
   private async startPolling() {
     while (this.polling) {
       try {
         const updates = await this.getUpdates()
+        // успешный getUpdates — сбрасываем счётчик конфликтов
+        if (this.conflictCount > 0) {
+          this.conflictCount = 0
+          this.conflictWarned = false
+        }
         for (const update of updates) {
           this.offset = Math.max(this.offset, update.update_id + 1)
           await this.handleUpdate(update).catch((e) =>
@@ -99,10 +125,31 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
           )
         }
       } catch (e: any) {
-        if (e?.name !== 'AbortError') {
-          this.logger.error(`[bot] getUpdates: ${e?.message || e}`)
-          await new Promise((r) => setTimeout(r, 3000))
+        if (e?.name === 'AbortError') continue
+
+        const msg = e?.message || String(e)
+
+        // 409 Conflict — другой инстанс бота с тем же токеном уже
+        // делает getUpdates. Логируем один раз и бэкаемся ОЧЕНЬ медленно,
+        // чтобы дать тому инстансу спокойно работать.
+        if (msg.includes('409')) {
+          this.conflictCount++
+          if (!this.conflictWarned) {
+            this.logger.warn(
+              `[bot] Telegram 409 Conflict — другой инстанс бота с тем же токеном уже опрашивает Telegram. ` +
+                `Локальный polling будет тихо ждать. Отключите бота на одном из инстансов, ` +
+                `чтобы избавиться от конфликта.`,
+            )
+            this.conflictWarned = true
+          }
+          // exponential backoff до 60 сек
+          const wait = Math.min(60_000, 5_000 * 2 ** Math.min(4, this.conflictCount))
+          await new Promise((r) => setTimeout(r, wait))
+          continue
         }
+
+        this.logger.error(`[bot] getUpdates: ${msg}`)
+        await new Promise((r) => setTimeout(r, 3000))
       }
     }
   }
