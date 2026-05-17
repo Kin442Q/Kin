@@ -32,7 +32,7 @@ function Root() {
     <ConfigProvider locale={ruRU} theme={buildAntdTheme(mode)}>
       <AntdApp>
         <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
+          <BrowserRouter basename={import.meta.env.BASE_URL}>
             <App />
           </BrowserRouter>
         </QueryClientProvider>

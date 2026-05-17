@@ -20,6 +20,24 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // SPA-fallback для GitHub Pages: восстанавливаем правильный путь из ?p=
+      // (404.html редиректит сюда при глубоких URL)
+      (function () {
+        var s = window.location.search
+        var m = s.match(/[?&]p=([^&]+)/)
+        if (m) {
+          var path = decodeURIComponent(m[1])
+          var qm = s.match(/[?&]q=([^&]+)/)
+          var query = qm ? '?' + decodeURIComponent(qm[1]) : ''
+          window.history.replaceState(
+            null,
+            '',
+            path + query + window.location.hash,
+          )
+        }
+      })()
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

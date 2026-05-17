@@ -3,7 +3,13 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
+// GitHub Pages хостит сайт по адресу https://kin442q.github.io/Kin/
+// поэтому при сборке для prod нужен base = '/Kin/'.
+// На dev и других хостингах оставляем '/'.
+const base = process.env.GITHUB_ACTIONS ? '/Kin/' : '/'
+
 export default defineConfig({
+  base,
   plugins: [react()],
   resolve: {
     alias: {

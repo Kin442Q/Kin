@@ -338,7 +338,12 @@ export default function Dashboard() {
                 </div>
               </div>
               <a
-                href="#/admin/groups"
+                href="/admin/groups"
+                onClick={(e) => {
+                  e.preventDefault()
+                  window.history.pushState(null, '', '/admin/groups')
+                  window.dispatchEvent(new PopStateEvent('popstate'))
+                }}
                 style={{
                   fontSize: 12.5,
                   color: SP.primaryDeep,
