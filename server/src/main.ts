@@ -52,6 +52,16 @@ async function bootstrap() {
         return callback(null, true)
       }
 
+      // Любой *.github.io (GitHub Pages)
+      if (/^https:\/\/[\w-]+\.github\.io$/.test(origin)) {
+        return callback(null, true)
+      }
+
+      // Любой *.pages.dev (Cloudflare Pages)
+      if (/^https:\/\/[\w-]+\.pages\.dev$/.test(origin)) {
+        return callback(null, true)
+      }
+
       callback(new Error(`CORS: origin ${origin} не разрешён`))
     },
     credentials: true,
