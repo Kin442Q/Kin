@@ -44,7 +44,7 @@ const NAV: NavEntry[] = [
     label: 'Мой кабинет',
     icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
-    roles: ['TEACHER'],
+    roles: ['TEACHER', 'teacher'],
   },
   // ─── Для админа ──────────────────────────────────────────────────
   {
