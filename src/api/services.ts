@@ -292,6 +292,37 @@ export const timeService = {
       .then((r) => r.data),
 }
 
+// Terminal settings (Hikvision/ZKTeco webhook)
+export interface TerminalSettings {
+  kindergartenId: string
+  kindergartenName: string
+  hasApiKey: boolean
+  apiKey: string | null
+  webhookUrl: string
+}
+
+export const terminalService = {
+  getSettings: () =>
+    http
+      .get<TerminalSettings>('/v1/time/terminal/settings')
+      .then((r) => r.data),
+  regenerate: () =>
+    http
+      .post<{ apiKey: string }>('/v1/time/terminal/settings/regenerate')
+      .then((r) => r.data),
+  disable: () =>
+    http
+      .post<{ success: boolean }>('/v1/time/terminal/settings/disable')
+      .then((r) => r.data),
+  setTeacherCode: (teacherId: string, terminalCode: string | null) =>
+    http
+      .post<{ id: string; fullName: string; terminalCode: string | null }>(
+        `/v1/time/terminal/settings/teacher/${teacherId}/code`,
+        { terminalCode },
+      )
+      .then((r) => r.data),
+}
+
 // Meetings (родительские собрания)
 export const meetingsService = {
   list: (groupId?: string) =>

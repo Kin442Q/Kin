@@ -119,6 +119,13 @@ const NAV: NavEntry[] = [
     roles: ['SUPER_ADMIN', 'admin'],
   },
   {
+    key: '/admin/timesheet',
+    label: 'Табель',
+    icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-cyan',
+    roles: ['SUPER_ADMIN', 'admin'],
+  },
+  {
     key: '/admin/schedule',
     label: 'Расписание',
     icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
