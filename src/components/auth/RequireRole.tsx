@@ -19,13 +19,15 @@ export default function RequireRole({ roles, children }: Props) {
 
   if (!user) return null
   if (!roles.includes(user.role)) {
+    const isTeacher = user.role === 'TEACHER' || user.role === 'teacher'
+    const home = isTeacher ? '/teacher/dashboard' : '/admin/dashboard'
     return (
       <Result
         status="403"
         title="Нет доступа"
         subTitle="У вашей роли нет прав на просмотр этой страницы."
         extra={
-          <Button type="primary" onClick={() => navigate('/admin/dashboard')}>
+          <Button type="primary" onClick={() => navigate(home)}>
             На главную
           </Button>
         }

@@ -52,7 +52,11 @@ export default function LoginPage() {
       )
 
       message.success(`Добро пожаловать, ${user.fullName}`)
-      navigate('/admin/dashboard', { replace: true })
+      // Куда редиректить: учитель → свой кабинет, остальные → дашборд
+      const isTeacher = user.role === 'TEACHER' || user.role === 'teacher'
+      navigate(isTeacher ? '/teacher/dashboard' : '/admin/dashboard', {
+        replace: true,
+      })
     } catch (error: any) {
       const errorMsg =
         error?.response?.data?.message ||
