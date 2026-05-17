@@ -5,6 +5,7 @@ import {
   Col,
   DatePicker,
   Form,
+  Grid,
   Input,
   InputNumber,
   Modal,
@@ -59,8 +60,12 @@ interface ExtraIncomeApi {
   createdAt: string
 }
 
+const { useBreakpoint } = Grid
+
 export default function ExpensesPage() {
   const { message } = AntdApp.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const groups = useDataStore((s) => s.groups)
 
   const [expensesApi, setExpensesApi] = useState<ExpenseApi[]>([])
@@ -360,6 +365,67 @@ export default function ExpensesPage() {
 
       <Card className="glass mt-4" bordered={false}>
         <Title level={5}>Список расходов</Title>
+        {isMobile ? (
+          // Мобильные карточки
+          monthExpenses.length === 0 ? (
+            <SproutEmpty
+              icon={<Inbox size={28} strokeWidth={1.8} />}
+              title="Расходов пока нет"
+              description="Добавьте первый расход кнопкой «Добавить расход» сверху"
+              minHeight={180}
+            />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {monthExpenses.map((e) => {
+                const g = e.groupId ? groups.find((x) => x.id === e.groupId) : null
+                return (
+                  <div key={e.id} className="sp-mcard">
+                    <div className="sp-mcard-header">
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="sp-mcard-title">{e.description || '—'}</div>
+                        <div className="sp-mcard-sub">
+                          <Tag color="purple" style={{ marginRight: 4 }}>
+                            {e.category}
+                          </Tag>
+                          {g ? (
+                            <Tag color="geekblue" style={{ margin: 0 }}>
+                              {g.name}
+                            </Tag>
+                          ) : (
+                            <Tag style={{ margin: 0 }}>Общий</Tag>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div className="sp-num" style={{ fontSize: 16, fontWeight: 700 }}>
+                          {formatMoney(e.amount)}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="sp-mcard-actions">
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => openEdit(e)}
+                      >
+                        Изменить
+                      </Button>
+                      <Popconfirm
+                        title="Удалить расход?"
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => removeExpense(e.id)}
+                      >
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        ) : (
         <Table
           rowKey="id"
           loading={loading}
@@ -418,6 +484,7 @@ export default function ExpensesPage() {
             },
           ]}
         />
+        )}
       </Card>
 
       {monthExtra.length > 0 && (

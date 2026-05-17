@@ -4,8 +4,10 @@ import {
   Card,
   Col,
   Form,
+  Grid,
   Input,
   Modal,
+  Popconfirm,
   Row,
   Select,
   Space,
@@ -15,7 +17,6 @@ import {
   App as AntdApp,
 } from 'antd'
 import {
-  CalendarOutlined,
   PlusOutlined,
   DeleteOutlined,
 } from '@ant-design/icons'
@@ -23,7 +24,7 @@ import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
 import { Calendar } from 'lucide-react'
-import { SproutPageHeader } from '../components/sprout'
+import { SP, SproutPageHeader, SproutEmpty } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { http } from '../api'
 import { ScheduleItem } from '../types'
@@ -39,8 +40,12 @@ const DAYS = [
   'Воскресенье',
 ]
 
+const { useBreakpoint } = Grid
+
 export default function SchedulePage() {
   const { message } = AntdApp.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const groups = useDataStore((s) => s.groups)
 
   const [items, setItems] = useState<ScheduleItem[]>([])
@@ -159,11 +164,102 @@ export default function SchedulePage() {
         transition={{ duration: 0.3 }}
       >
         <Card className="glass" bordered={false}>
+          {isMobile ? (
+            sorted.length === 0 ? (
+              <SproutEmpty
+                icon={<Calendar size={28} strokeWidth={1.8} />}
+                title="Расписание пустое"
+                description="Добавьте первое занятие кнопкой «Добавить»"
+                minHeight={180}
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {sorted.map((r) => {
+                  const g = groups.find((gr) => gr.id === r.groupId)
+                  return (
+                    <div key={r.id} className="sp-mcard">
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 10,
+                          marginBottom: 6,
+                        }}
+                      >
+                        <Tag
+                          style={{
+                            background: SP.lilacSoft,
+                            color: SP.lilacDeep,
+                            border: 'none',
+                            margin: 0,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {DAYS[r.dayOfWeek]}
+                        </Tag>
+                        <Tag
+                          style={{
+                            background: SP.blueSoft,
+                            color: SP.blueDeep,
+                            border: 'none',
+                            margin: 0,
+                          }}
+                        >
+                          {r.startTime} – {r.endTime}
+                        </Tag>
+                        <div style={{ marginLeft: 'auto' }}>
+                          <Popconfirm
+                            title="Удалить занятие?"
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => remove(r.id)}
+                          >
+                            <Button
+                              danger
+                              size="small"
+                              type="text"
+                              icon={<DeleteOutlined />}
+                            />
+                          </Popconfirm>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 600,
+                          color: SP.text,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {r.activity}
+                      </div>
+                      {g && (
+                        <div style={{ fontSize: 12, color: SP.muted }}>
+                          Группа: <strong>{g.name}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          ) : (
           <Table
             rowKey="id"
             loading={loading}
             dataSource={sorted}
             pagination={false}
+            locale={{
+              emptyText: (
+                <SproutEmpty
+                  icon={<Calendar size={28} strokeWidth={1.8} />}
+                  title="Расписание пустое"
+                  description="Добавьте первое занятие"
+                  minHeight={180}
+                />
+              ),
+            }}
             columns={[
               {
                 title: 'День',
@@ -192,17 +288,25 @@ export default function SchedulePage() {
                 title: '',
                 key: 'a',
                 render: (_, r) => (
-                  <Button
-                    danger
-                    size="small"
-                    type="text"
-                    icon={<DeleteOutlined />}
-                    onClick={() => remove(r.id)}
-                  />
+                  <Popconfirm
+                    title="Удалить занятие?"
+                    okText="Удалить"
+                    cancelText="Отмена"
+                    okButtonProps={{ danger: true }}
+                    onConfirm={() => remove(r.id)}
+                  >
+                    <Button
+                      danger
+                      size="small"
+                      type="text"
+                      icon={<DeleteOutlined />}
+                    />
+                  </Popconfirm>
                 ),
               },
             ]}
           />
+          )}
         </Card>
       </motion.div>
 

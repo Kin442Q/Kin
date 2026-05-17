@@ -5,6 +5,7 @@ import {
   DatePicker,
   Empty,
   Form,
+  Grid,
   Input,
   Modal,
   Popconfirm,
@@ -26,7 +27,7 @@ import { motion } from 'framer-motion'
 import dayjs, { type Dayjs } from 'dayjs'
 
 import { Megaphone } from 'lucide-react'
-import { SproutPageHeader } from '../components/sprout'
+import { SP, SproutPageHeader } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { meetingsService } from '../api'
@@ -40,8 +41,12 @@ interface MeetingFormValues {
   description?: string
 }
 
+const { useBreakpoint } = Grid
+
 export default function MeetingsPage() {
   const { message } = AntdApp.useApp()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
   const groups = useDataStore((s) => s.groups)
   const user = useAuthStore((s) => s.user)
 
@@ -187,6 +192,102 @@ export default function MeetingsPage() {
         transition={{ duration: 0.3 }}
       >
         <Card className="glass" bordered={false}>
+          {isMobile ? (
+            sorted.length === 0 ? (
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description="Пока нет собраний"
+                style={{ padding: 32 }}
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {sorted.map((r) => {
+                  const d = dayjs(r.scheduledAt)
+                  const past = d.isBefore(dayjs())
+                  const g = r.group || groups.find((gr) => gr.id === r.groupId)
+                  return (
+                    <div key={r.id} className="sp-mcard">
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          marginBottom: 6,
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <Tag
+                          icon={<CalendarOutlined />}
+                          color={past ? 'default' : 'purple'}
+                          style={{ margin: 0 }}
+                        >
+                          {d.format('DD.MM.YYYY HH:mm')}
+                        </Tag>
+                        {g && (
+                          <Tag
+                            color={g.color || 'blue'}
+                            style={{ margin: 0 }}
+                          >
+                            {g.name}
+                          </Tag>
+                        )}
+                        <div style={{ marginLeft: 'auto' }}>
+                          <Popconfirm
+                            title="Удалить собрание?"
+                            okText="Удалить"
+                            cancelText="Отмена"
+                            okButtonProps={{ danger: true }}
+                            onConfirm={() => remove(r.id)}
+                          >
+                            <Button
+                              danger
+                              size="small"
+                              type="text"
+                              icon={<DeleteOutlined />}
+                            />
+                          </Popconfirm>
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 15,
+                          fontWeight: 600,
+                          color: SP.text,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {r.title}
+                      </div>
+                      {r.description && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: SP.muted,
+                            marginBottom: 4,
+                          }}
+                        >
+                          {r.description}
+                        </div>
+                      )}
+                      {r.location && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: SP.textMid,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4,
+                          }}
+                        >
+                          <EnvironmentOutlined /> {r.location}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          ) : (
           <Table
             rowKey="id"
             loading={loading}
@@ -298,6 +399,7 @@ export default function MeetingsPage() {
               },
             ]}
           />
+          )}
         </Card>
       </motion.div>
 
