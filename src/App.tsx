@@ -53,9 +53,9 @@ export default function App() {
             <Route
               path="dashboard"
               element={
-                <RequireRole roles={["TEACHER", "teacher", "SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["TEACHER", "SUPER_ADMIN", "admin"]}>
                   <TeacherDashboard />
-                </RequireRole>
+                </RequireRole>    
               }
             />
           </Route>

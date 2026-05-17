@@ -26,8 +26,34 @@ async function bootstrap() {
   // Безопасность HTTP-заголовков
   app.use(helmet())
   app.use(cookieParser())
+  // CORS: явный список из env + автоматически разрешаем localhost (dev)
+  // и *.netlify.app (preview/prod деплои), чтобы не настраивать вручную.
+  const configuredOrigins = config.get<string[]>('corsOrigin') || []
   app.enableCors({
-    origin: config.get<string[]>('corsOrigin'),
+    origin: (origin, callback) => {
+      // Прямые запросы без origin (curl, Postman) — разрешаем
+      if (!origin) return callback(null, true)
+
+      // Точное совпадение с env-списком
+      if (configuredOrigins.includes(origin)) return callback(null, true)
+
+      // Любой localhost / 127.0.0.1 (для разработки)
+      if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return callback(null, true)
+      }
+
+      // Любой *.netlify.app (включая preview-деплои)
+      if (/^https:\/\/[\w-]+\.netlify\.app$/.test(origin)) {
+        return callback(null, true)
+      }
+
+      // Любой *.up.railway.app
+      if (/^https:\/\/[\w-]+\.up\.railway\.app$/.test(origin)) {
+        return callback(null, true)
+      }
+
+      callback(new Error(`CORS: origin ${origin} не разрешён`))
+    },
     credentials: true,
   })
 
