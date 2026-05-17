@@ -346,49 +346,114 @@ export class TimeTrackingService {
   // ─── Демо-данные для тестирования (идемпотентно) ───────────────────
 
   /**
-   * Обновить демо-учителей (teacher1@..teacher4@kindergarten.tj):
-   * добавить телефоны, terminalCode, hourlyRate, salaryMode=HOURLY.
-   * Нужно для тестирования логина по телефону и фичи терминала.
+   * Создать или обновить демо-учителей (4 шт.) для тестирования.
+   * Идемпотентно: создаёт если нет, обновляет если есть.
+   * Параметры: phone (для логина), terminalCode, HOURLY ставка.
    */
   async setupDemoTeachers(user: AuthUser) {
     if (user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Только SUPER_ADMIN')
     }
 
+    // Найти или создать садик
+    let kindergarten = await this.prisma.kindergarten.findFirst({
+      where: { slug: 'default' },
+    })
+    if (!kindergarten) {
+      kindergarten = await this.prisma.kindergarten.create({
+        data: {
+          slug: 'default',
+          name: 'Мой Детский Сад',
+          address: 'Душанбе',
+          isActive: true,
+        },
+      })
+    }
+
+    // Дефолтный пароль для всех демо-учителей: Teacher123456!
+    // bcrypt hash сгенерирован локально через bcryptjs.hashSync('Teacher123456!', 10)
+    const pwHash =
+      '$2a$10$FTdp1BbC0zm99qtg4zJeMe8UseHt3RNuWcr2PLVQyVOu7.QSv9ju.'
+
     const teachers = [
-      { email: 'teacher1@kindergarten.tj', phone: '+992901111111', code: 'T001', rate: 45 },
-      { email: 'teacher2@kindergarten.tj', phone: '+992902222222', code: 'T002', rate: 50 },
-      { email: 'teacher3@kindergarten.tj', phone: '+992903333333', code: 'T003', rate: 55 },
-      { email: 'teacher4@kindergarten.tj', phone: '+992904444444', code: 'T004', rate: 50 },
+      {
+        email: 'teacher1@kindergarten.tj',
+        phone: '+992901111111',
+        fullName: 'Зарина Аминова',
+        code: 'T001',
+        rate: 45,
+      },
+      {
+        email: 'teacher2@kindergarten.tj',
+        phone: '+992902222222',
+        fullName: 'Мадина Каримова',
+        code: 'T002',
+        rate: 50,
+      },
+      {
+        email: 'teacher3@kindergarten.tj',
+        phone: '+992903333333',
+        fullName: 'Шахноза Турсунова',
+        code: 'T003',
+        rate: 55,
+      },
+      {
+        email: 'teacher4@kindergarten.tj',
+        phone: '+992904444444',
+        fullName: 'Гулнора Назарова',
+        code: 'T004',
+        rate: 50,
+      },
     ]
 
-    const results: Array<{ email: string; updated: boolean; reason?: string }> = []
+    const results: Array<{ email: string; phone: string; action: string }> = []
 
     for (const t of teachers) {
       const existing = await this.prisma.user.findUnique({
         where: { email: t.email },
       })
-      if (!existing) {
-        results.push({ email: t.email, updated: false, reason: 'not found' })
-        continue
+
+      if (existing) {
+        await this.prisma.user.update({
+          where: { id: existing.id },
+          data: {
+            phone: t.phone,
+            terminalCode: t.code,
+            salaryMode: 'HOURLY',
+            hourlyRate: t.rate as any,
+            workNorm: 176,
+            kindergartenId: kindergarten.id,
+            isActive: true,
+          },
+        })
+        results.push({ email: t.email, phone: t.phone, action: 'updated' })
+      } else {
+        await this.prisma.user.create({
+          data: {
+            email: t.email,
+            phone: t.phone,
+            passwordHash: pwHash,
+            fullName: t.fullName,
+            role: 'TEACHER',
+            isActive: true,
+            kindergartenId: kindergarten.id,
+            terminalCode: t.code,
+            salaryMode: 'HOURLY',
+            hourlyRate: t.rate as any,
+            workNorm: 176,
+          },
+        })
+        results.push({ email: t.email, phone: t.phone, action: 'created' })
       }
-      await this.prisma.user.update({
-        where: { id: existing.id },
-        data: {
-          phone: t.phone,
-          terminalCode: t.code,
-          salaryMode: 'HOURLY',
-          hourlyRate: t.rate as any,
-          workNorm: 176,
-        },
-      })
-      results.push({ email: t.email, updated: true })
     }
 
-    this.logger.log(
-      `[demo] setup teachers: ${results.filter((r) => r.updated).length}/${results.length}`,
-    )
-    return { success: true, results }
+    this.logger.log(`[demo] setup teachers: ${JSON.stringify(results)}`)
+    return {
+      success: true,
+      kindergartenId: kindergarten.id,
+      password: 'Teacher123456!',
+      results,
+    }
   }
 }
 
