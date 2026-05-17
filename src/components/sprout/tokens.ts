@@ -1,12 +1,27 @@
 /**
  * Sprout design tokens — единый источник правды для всех Sprout-компонентов.
- * Дублирует CSS-переменные из index.css для удобства inline-styles.
+ *
+ * - Базовые цвета (фон, поверхность, текст, границы) — это **CSS-переменные**,
+ *   они автоматически переключаются между светлой и тёмной темой через
+ *   `[data-theme='dark']` в index.css.
+ * - Акцентные цвета (мята, голубой, жёлтый, и т.д.) — hex-константы,
+ *   потому что они одинаковые в обеих темах.
+ *
+ * Если нужны hex-значения базовых цветов (для графиков/charts), используйте
+ * `SPHex` ниже — там лежат сырые цвета светлой темы.
  */
 export const SP = {
-  bg: '#FBF9F4',
-  surface: '#FFFFFF',
-  surfaceAlt: '#F4F1EA',
+  // ─── Базовые: реагируют на тему через CSS-переменные ─────────────
+  bg: 'var(--sp-bg)',
+  surface: 'var(--sp-surface)',
+  surfaceAlt: 'var(--sp-surface-alt)',
+  text: 'var(--sp-text)',
+  textMid: 'var(--sp-text-mid)',
+  muted: 'var(--sp-muted)',
+  border: 'var(--sp-border)',
+  borderSoft: 'var(--sp-border-soft)',
 
+  // ─── Акценты: одинаковые в обеих темах ───────────────────────────
   primary: '#4FB286',
   primaryDeep: '#2F8862',
   primarySoft: '#D8EFE3',
@@ -34,13 +49,22 @@ export const SP = {
   cyan: '#3FA8B3',
   cyanSoft: '#E0F1F2',
 
+  danger: '#D86464',
+} as const
+
+/**
+ * Hex-цвета светлой темы — для графиков и других мест где нельзя
+ * использовать CSS var (например конфиг chart-библиотеки).
+ */
+export const SPHex = {
+  bg: '#FBF9F4',
+  surface: '#FFFFFF',
+  surfaceAlt: '#F4F1EA',
   text: '#1F2D27',
   textMid: '#4A5752',
   muted: '#8A968F',
-
   border: '#E8E4DA',
   borderSoft: '#F0EDE4',
-  danger: '#D86464',
 } as const
 
 export const shadow = {

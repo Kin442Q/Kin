@@ -58,14 +58,24 @@
 }
 
 html[data-theme='dark'] {
-  --sp-bg: #1A2520;
-  --sp-surface: #1F2D27;
+  /* Глубокий мятно-зелёный фон (Sprout dark) */
+  --sp-bg: #131D19;
+  --sp-surface: #1B2722;
   --sp-surface-alt: #243530;
+
   --sp-text: #F4F1EA;
-  --sp-text-mid: rgba(244, 241, 234, 0.75);
-  --sp-muted: rgba(244, 241, 234, 0.5);
-  --sp-border: rgba(244, 241, 234, 0.1);
-  --sp-border-soft: rgba(244, 241, 234, 0.06);
+  --sp-text-mid: #B6BDB8;
+  --sp-muted: #7C8581;
+
+  --sp-border: #2D3D37;
+  --sp-border-soft: #243530;
+
+  /* Tweak акцентных под тёмный фон — добавим прозрачности фону плашек */
+  --sp-primary-ghost: rgba(79, 178, 134, 0.12);
+  --sp-primary-soft: rgba(79, 178, 134, 0.22);
+  --sp-blue-soft: rgba(91, 169, 209, 0.18);
+  --sp-yellow-soft: rgba(229, 180, 58, 0.18);
+  --sp-lilac-soft: rgba(155, 123, 212, 0.18);
 
   --text-primary: var(--sp-text);
   --text-muted: var(--sp-muted);
@@ -76,6 +86,94 @@ html[data-theme='dark'] {
   --sidebar-border: var(--sp-border-soft);
   --scrollbar-track: var(--sp-surface);
   --scrollbar-thumb: #334440;
+}
+
+/* AntD-tweaks для тёмной темы */
+html[data-theme='dark'] .ant-table {
+  background: transparent !important;
+  color: var(--sp-text) !important;
+}
+html[data-theme='dark'] .ant-table-thead > tr > th {
+  background: var(--sp-surface-alt) !important;
+  color: var(--sp-text-mid) !important;
+  border-bottom-color: var(--sp-border) !important;
+}
+html[data-theme='dark'] .ant-table-tbody > tr > td {
+  border-bottom-color: var(--sp-border-soft) !important;
+  color: var(--sp-text) !important;
+}
+html[data-theme='dark'] .ant-table-tbody > tr:hover > td {
+  background: var(--sp-surface-alt) !important;
+}
+html[data-theme='dark'] .ant-table-cell-fix-left,
+html[data-theme='dark'] .ant-table-cell-fix-right {
+  background: var(--sp-surface) !important;
+}
+
+html[data-theme='dark'] .ant-modal-content,
+html[data-theme='dark'] .ant-drawer-content,
+html[data-theme='dark'] .ant-dropdown-menu {
+  background: var(--sp-surface) !important;
+}
+html[data-theme='dark'] .ant-modal-header,
+html[data-theme='dark'] .ant-drawer-header {
+  background: var(--sp-surface) !important;
+  border-bottom-color: var(--sp-border-soft) !important;
+}
+html[data-theme='dark'] .ant-modal-title,
+html[data-theme='dark'] .ant-drawer-title {
+  color: var(--sp-text) !important;
+}
+
+html[data-theme='dark'] .ant-input,
+html[data-theme='dark'] .ant-input-affix-wrapper,
+html[data-theme='dark'] .ant-input-number,
+html[data-theme='dark'] .ant-picker,
+html[data-theme='dark'] .ant-select-selector {
+  background: var(--sp-surface-alt) !important;
+  border-color: var(--sp-border) !important;
+  color: var(--sp-text) !important;
+}
+html[data-theme='dark'] .ant-input::placeholder,
+html[data-theme='dark'] .ant-input-affix-wrapper input::placeholder {
+  color: var(--sp-muted) !important;
+}
+html[data-theme='dark'] .ant-select-arrow,
+html[data-theme='dark'] .ant-picker-suffix {
+  color: var(--sp-muted) !important;
+}
+
+html[data-theme='dark'] .ant-btn-default,
+html[data-theme='dark'] .ant-btn-text:hover {
+  background: var(--sp-surface-alt) !important;
+  color: var(--sp-text) !important;
+  border-color: var(--sp-border) !important;
+}
+
+html[data-theme='dark'] .ant-typography {
+  color: var(--sp-text) !important;
+}
+html[data-theme='dark'] .ant-typography-secondary,
+html[data-theme='dark'] .ant-typography.ant-typography-secondary {
+  color: var(--sp-muted) !important;
+}
+
+html[data-theme='dark'] .ant-tabs-tab {
+  color: var(--sp-muted) !important;
+}
+html[data-theme='dark'] .ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--sp-primary-deep, #4FB286) !important;
+}
+
+html[data-theme='dark'] .ant-segmented {
+  background: var(--sp-surface-alt) !important;
+}
+html[data-theme='dark'] .ant-segmented-item-selected {
+  background: var(--sp-surface) !important;
+}
+
+html[data-theme='dark'] .ant-divider {
+  border-color: var(--sp-border-soft) !important;
 }
 
 @layer base {
