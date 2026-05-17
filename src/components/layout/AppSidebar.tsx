@@ -9,7 +9,6 @@ import {
   PieChart,
   TrendingUp,
   Users,
-  GraduationCap,
   Calendar,
   Megaphone,
   UtensilsCrossed,
@@ -111,13 +110,9 @@ const NAV: NavEntry[] = [
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin'],
   },
-  {
-    key: '/admin/TEACHERs',
-    label: 'Учителя',
-    icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
-    accentClass: 'sp-icon-lilac',
-    roles: ['SUPER_ADMIN', 'admin'],
-  },
+  // «Учителя» убрали — воспитатели заводятся теперь на странице «Сотрудники»
+  // с галочкой «Может входить в систему».
+  // Старый роут /admin/teachers оставлен в App.tsx для обратной совместимости.
   {
     key: '/admin/timesheet',
     label: 'Табель',

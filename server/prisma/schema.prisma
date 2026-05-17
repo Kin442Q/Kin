@@ -178,6 +178,11 @@ model Staff {
   salary       Decimal  @db.Decimal(12, 2) @default(0)
   hireDate     DateTime
 
+  /// Связь с учёткой User, если сотрудник может входить в систему
+  /// (например, воспитатель). Один к одному.
+  userId       String?  @unique
+  user         User?    @relation("StaffUser", fields: [userId], references: [id], onDelete: SetNull)
+
   kindergartenId String
   kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
 
@@ -240,6 +245,7 @@ model User {
   auditLogs     AuditLog[]      @relation("AuditActor")
   notifications Notification[]
   timeEntries   TimeEntry[]
+  staffProfile  Staff?          @relation("StaffUser")
 
   @@index([role])
   @@index([groupId])
