@@ -15,8 +15,13 @@ import { CheckCircle2, AlertCircle, Wallet } from 'lucide-react-native'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Avatar from '../components/Avatar'
+import Btn from '../components/Btn'
+import BottomModal from '../components/BottomModal'
+import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
 import { adminApi, type AdminPaymentDto } from '../api/admin'
+
+type Method = 'CASH' | 'CARD' | 'TRANSFER'
 
 type Filter = 'all' | 'paid' | 'unpaid'
 
@@ -26,6 +31,10 @@ export default function AdminPaymentsScreen() {
   const [filter, setFilter] = useState<Filter>('all')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [editing, setEditing] = useState<AdminPaymentDto | null>(null)
+  const [method, setMethod] = useState<Method>('CASH')
+  const [comment, setComment] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const reload = useCallback(async () => {
     try {
@@ -180,35 +189,44 @@ export default function AdminPaymentsScreen() {
             ? `${item.student.firstName} ${item.student.lastName}`
             : '—'
           return (
-            <Card padding={12}>
-              <View style={styles.row}>
-                <Avatar name={name} size={40} />
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Text style={styles.name}>{name}</Text>
-                  <Text style={styles.meta}>
-                    {item.paid
-                      ? `Оплачено${item.paidAt ? ' · ' + dayjs(item.paidAt).format('D MMM') : ''}`
-                      : 'Не оплачено'}
-                    {item.method ? ` · ${methodLabel(item.method)}` : ''}
-                  </Text>
+            <Pressable
+              onPress={() => {
+                setEditing(item)
+                setMethod((item.method ?? 'CASH') as Method)
+                setComment(item.comment ?? '')
+              }}
+              style={({ pressed }) => [pressed && { opacity: 0.6 }]}
+            >
+              <Card padding={12}>
+                <View style={styles.row}>
+                  <Avatar name={name} size={40} />
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.name}>{name}</Text>
+                    <Text style={styles.meta}>
+                      {item.paid
+                        ? `Оплачено${item.paidAt ? ' · ' + dayjs(item.paidAt).format('D MMM') : ''}`
+                        : 'Не оплачено'}
+                      {item.method ? ` · ${methodLabel(item.method)}` : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.amountCol}>
+                    <Text
+                      style={[
+                        styles.amount,
+                        { color: item.paid ? colors.text : colors.roseDeep },
+                      ]}
+                    >
+                      {Math.round(Number(item.amount)).toLocaleString('ru-RU')} с
+                    </Text>
+                    {item.paid ? (
+                      <CheckCircle2 size={16} color={colors.primaryDeep} />
+                    ) : (
+                      <Wallet size={16} color={colors.roseDeep} />
+                    )}
+                  </View>
                 </View>
-                <View style={styles.amountCol}>
-                  <Text
-                    style={[
-                      styles.amount,
-                      { color: item.paid ? colors.text : colors.roseDeep },
-                    ]}
-                  >
-                    {Math.round(Number(item.amount)).toLocaleString('ru-RU')} с
-                  </Text>
-                  {item.paid ? (
-                    <CheckCircle2 size={16} color={colors.primaryDeep} />
-                  ) : (
-                    <Wallet size={16} color={colors.roseDeep} />
-                  )}
-                </View>
-              </View>
-            </Card>
+              </Card>
+            </Pressable>
           )
         }}
         ListEmptyComponent={
@@ -223,6 +241,133 @@ export default function AdminPaymentsScreen() {
           </View>
         }
       />
+
+      <BottomModal
+        visible={!!editing}
+        onClose={() => setEditing(null)}
+        title={editing?.paid ? 'Изменить платёж' : 'Принять оплату'}
+      >
+        {editing && (
+          <>
+            <View style={styles.modalHead}>
+              <Avatar
+                name={
+                  editing.student
+                    ? `${editing.student.firstName} ${editing.student.lastName}`
+                    : '?'
+                }
+                size={48}
+              />
+              <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={styles.modalName}>
+                  {editing.student
+                    ? `${editing.student.firstName} ${editing.student.lastName}`
+                    : '—'}
+                </Text>
+                <Text style={styles.modalMeta}>
+                  {dayjs(editing.month + '-01').format('MMMM YYYY')} ·{' '}
+                  {Math.round(Number(editing.amount)).toLocaleString('ru-RU')} с
+                </Text>
+              </View>
+            </View>
+
+            <Select<Method>
+              label="Способ оплаты"
+              value={method}
+              onChange={setMethod}
+              options={[
+                { value: 'CASH', label: 'Наличные' },
+                { value: 'CARD', label: 'Карта' },
+                { value: 'TRANSFER', label: 'Перевод' },
+              ]}
+              columns={3}
+            />
+
+            <Field
+              label="Комментарий"
+              value={comment}
+              onChangeText={setComment}
+              placeholder="(необязательно)"
+              multiline
+            />
+
+            {!editing.paid && (
+              <Btn
+                block
+                size="lg"
+                loading={saving}
+                onPress={async () => {
+                  if (!editing) return
+                  setSaving(true)
+                  try {
+                    await adminApi.upsertPayment({
+                      studentId: editing.studentId,
+                      month: editing.month,
+                      amount: Number(editing.amount),
+                      paid: true,
+                      method,
+                      comment: comment || undefined,
+                    })
+                    setEditing(null)
+                    reload()
+                  } catch (e: any) {
+                    Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+                  } finally {
+                    setSaving(false)
+                  }
+                }}
+              >
+                Принять оплату
+              </Btn>
+            )}
+
+            {editing.paid && (
+              <Btn
+                block
+                size="lg"
+                variant="danger"
+                loading={saving}
+                onPress={async () => {
+                  if (!editing) return
+                  Alert.alert(
+                    'Отменить оплату?',
+                    'Платёж будет помечен как не оплаченный.',
+                    [
+                      { text: 'Отмена', style: 'cancel' },
+                      {
+                        text: 'Отменить оплату',
+                        style: 'destructive',
+                        onPress: async () => {
+                          setSaving(true)
+                          try {
+                            await adminApi.upsertPayment({
+                              studentId: editing.studentId,
+                              month: editing.month,
+                              amount: Number(editing.amount),
+                              paid: false,
+                            })
+                            setEditing(null)
+                            reload()
+                          } catch (e: any) {
+                            Alert.alert(
+                              'Ошибка',
+                              e?.response?.data?.message || String(e),
+                            )
+                          } finally {
+                            setSaving(false)
+                          }
+                        },
+                      },
+                    ],
+                  )
+                }}
+              >
+                Отменить оплату
+              </Btn>
+            )}
+          </>
+        )}
+      </BottomModal>
     </Screen>
   )
 }
@@ -274,4 +419,7 @@ const styles = StyleSheet.create({
   },
   empty: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
+  modalHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  modalName: { fontSize: 16, fontWeight: '800', color: colors.text },
+  modalMeta: { fontSize: 13, color: colors.muted, marginTop: 2 },
 })

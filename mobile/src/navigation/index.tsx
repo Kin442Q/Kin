@@ -27,6 +27,9 @@ import ProfileScreen from '../screens/ProfileScreen'
 import AdminDashboardScreen from '../screens/AdminDashboardScreen'
 import AdminGroupsScreen from '../screens/AdminGroupsScreen'
 import AdminPaymentsScreen from '../screens/AdminPaymentsScreen'
+import AdminStudentsScreen from '../screens/AdminStudentsScreen'
+import AdminExpensesScreen from '../screens/AdminExpensesScreen'
+import AdminMeetingsScreen from '../screens/AdminMeetingsScreen'
 
 const navTheme = {
   ...DefaultTheme,
@@ -140,12 +143,37 @@ function MainTabs() {
   )
 }
 
+const RootStack = createNativeStackNavigator()
+
+function MainNavigator() {
+  return (
+    <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <RootStack.Screen name="Tabs" component={MainTabs} />
+      <RootStack.Screen
+        name="AdminStudents"
+        component={AdminStudentsScreen}
+        options={{ presentation: 'card' }}
+      />
+      <RootStack.Screen
+        name="AdminExpenses"
+        component={AdminExpensesScreen}
+        options={{ presentation: 'card' }}
+      />
+      <RootStack.Screen
+        name="AdminMeetings"
+        component={AdminMeetingsScreen}
+        options={{ presentation: 'card' }}
+      />
+    </RootStack.Navigator>
+  )
+}
+
 export default function RootNavigator() {
   const user = useAuthStore((s) => s.user)
 
   return (
     <NavigationContainer theme={navTheme}>
-      {user ? <MainTabs /> : <AuthNavigator />}
+      {user ? <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   )
 }

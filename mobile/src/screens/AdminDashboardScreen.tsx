@@ -2,12 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
+import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import {
   Users,
@@ -16,6 +18,10 @@ import {
   TrendingDown,
   Wallet,
   ArrowDownCircle,
+  Baby,
+  Receipt,
+  CalendarHeart,
+  ChevronRight,
 } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
@@ -26,6 +32,7 @@ import { adminApi, type DashboardDto } from '../api/admin'
 
 export default function AdminDashboardScreen() {
   const user = useAuthStore((s) => s.user)
+  const navigation = useNavigation<any>()
   const month = useMemo(() => dayjs().format('YYYY-MM'), [])
 
   const [data, setData] = useState<DashboardDto | null>(null)
@@ -125,6 +132,28 @@ export default function AdminDashboardScreen() {
             </Text>
           )}
         </Card>
+
+        <Text style={styles.section}>Быстрые действия</Text>
+        <View style={styles.quickRow}>
+          <QuickAction
+            icon={<Baby size={20} color={colors.primaryDeep} />}
+            bg={colors.primarySoft}
+            label="Дети"
+            onPress={() => navigation.navigate('AdminStudents')}
+          />
+          <QuickAction
+            icon={<Receipt size={20} color={colors.roseDeep} />}
+            bg={colors.roseSoft}
+            label="Расходы"
+            onPress={() => navigation.navigate('AdminExpenses')}
+          />
+          <QuickAction
+            icon={<CalendarHeart size={20} color={colors.lilacDeep} />}
+            bg={colors.lilacSoft}
+            label="Собрания"
+            onPress={() => navigation.navigate('AdminMeetings')}
+          />
+        </View>
 
         <Text style={styles.section}>Доходы и расходы</Text>
 
@@ -229,6 +258,28 @@ function Divider() {
   return <View style={styles.divider} />
 }
 
+interface QuickProps {
+  icon: React.ReactNode
+  bg: string
+  label: string
+  onPress: () => void
+}
+function QuickAction({ icon, bg, label, onPress }: QuickProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.quickCard,
+        pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
+      ]}
+    >
+      <View style={[styles.quickIcon, { backgroundColor: bg }]}>{icon}</View>
+      <Text style={styles.quickLabel}>{label}</Text>
+      <ChevronRight size={14} color={colors.muted} />
+    </Pressable>
+  )
+}
+
 const styles = StyleSheet.create({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 20, gap: 14 },
@@ -303,4 +354,24 @@ const styles = StyleSheet.create({
     marginVertical: 6,
     marginLeft: 46,
   },
+  quickRow: { gap: 8 },
+  quickCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  quickIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
 })
