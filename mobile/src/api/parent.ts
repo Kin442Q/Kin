@@ -37,11 +37,34 @@ export interface PaymentDto {
   comment: string | null
 }
 
+export interface DiaryTodayDto {
+  id: string
+  groupId: string
+  date: string
+  breakfast: string | null
+  lunch: string | null
+  snack: string | null
+  activities: string | null
+  note: string | null
+}
+
+export interface KidNoteTodayDto {
+  id: string
+  studentId: string
+  date: string
+  mood: 'HAPPY' | 'NEUTRAL' | 'SAD' | 'SICK' | null
+  napQuality: 'GOOD' | 'NORMAL' | 'POOR' | 'NO_NAP' | null
+  note: string | null
+  photoUrls: string[]
+}
+
 export interface KidTodayDto {
   kid: KidDto
   today: {
     attendance: { status: AttendanceStatus } | null
     schedule: ScheduleItemDto[]
+    diary: DiaryTodayDto | null
+    kidNote: KidNoteTodayDto | null
   }
   lastPayment: PaymentDto | null
 }

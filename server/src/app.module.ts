@@ -32,6 +32,7 @@ import { TelegramModule } from './modules/telegram/telegram.module'
 import { MeetingsModule } from './modules/meetings/meetings.module'
 import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module'
 import { ParentModule } from './modules/parent/parent.module'
+import { DiaryModule } from './modules/diary/diary.module'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
@@ -88,6 +89,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     MeetingsModule,
     TimeTrackingModule,
     ParentModule,
+    DiaryModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.

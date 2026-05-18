@@ -10,7 +10,18 @@ import {
   View,
 } from 'react-native'
 import dayjs from 'dayjs'
-import { Clock, AlertCircle, CheckCircle2, Wallet } from 'lucide-react-native'
+import {
+  Clock,
+  AlertCircle,
+  CheckCircle2,
+  Wallet,
+  Coffee,
+  Soup,
+  Cookie,
+  Sparkles,
+  StickyNote,
+  BookOpen,
+} from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
@@ -219,6 +230,79 @@ export default function ParentHomeScreen() {
           </Card>
         )}
 
+        {/* Электронный дневник за сегодня */}
+        {(today?.today.diary || today?.today.kidNote) && (
+          <>
+            <Text style={styles.section}>
+              <BookOpen size={14} color={colors.text} /> Дневник за сегодня
+            </Text>
+            <Card padding={16} style={shadow.sm}>
+              {today.today.diary?.breakfast && (
+                <DiaryRow
+                  icon={<Coffee size={14} color={colors.primaryDeep} />}
+                  bg={colors.primarySoft}
+                  label="Завтрак"
+                  text={today.today.diary.breakfast}
+                />
+              )}
+              {today.today.diary?.lunch && (
+                <DiaryRow
+                  icon={<Soup size={14} color={colors.yellowDeep} />}
+                  bg={colors.yellowSoft}
+                  label="Обед"
+                  text={today.today.diary.lunch}
+                />
+              )}
+              {today.today.diary?.snack && (
+                <DiaryRow
+                  icon={<Cookie size={14} color={colors.roseDeep} />}
+                  bg={colors.roseSoft}
+                  label="Полдник"
+                  text={today.today.diary.snack}
+                />
+              )}
+              {today.today.diary?.activities && (
+                <DiaryRow
+                  icon={<Sparkles size={14} color={colors.blueDeep} />}
+                  bg={colors.blueSoft}
+                  label="Активности"
+                  text={today.today.diary.activities}
+                />
+              )}
+              {today.today.diary?.note && (
+                <DiaryRow
+                  icon={<StickyNote size={14} color={colors.lilacDeep} />}
+                  bg={colors.lilacSoft}
+                  label="Заметка"
+                  text={today.today.diary.note}
+                />
+              )}
+              {today.today.kidNote && (
+                <View style={styles.kidNoteBlock}>
+                  <Text style={styles.kidNoteLabel}>О твоём {L.student}</Text>
+                  {today.today.kidNote.mood && (
+                    <Text style={styles.kidNoteText}>
+                      Настроение:{' '}
+                      {moodEmoji(today.today.kidNote.mood)}{' '}
+                      {moodLabel(today.today.kidNote.mood)}
+                    </Text>
+                  )}
+                  {today.today.kidNote.napQuality && (
+                    <Text style={styles.kidNoteText}>
+                      Сон: {napLabel(today.today.kidNote.napQuality)}
+                    </Text>
+                  )}
+                  {today.today.kidNote.note && (
+                    <Text style={styles.kidNoteText}>
+                      «{today.today.kidNote.note}»
+                    </Text>
+                  )}
+                </View>
+              )}
+            </Card>
+          </>
+        )}
+
         <Text style={styles.section}>
           Сегодня {L.institution === 'школа' ? 'в школе' : 'в саду'}
         </Text>
@@ -249,6 +333,65 @@ export default function ParentHomeScreen() {
     </Screen>
   )
 }
+
+function DiaryRow({
+  icon,
+  bg,
+  label,
+  text,
+}: {
+  icon: React.ReactNode
+  bg: string
+  label: string
+  text: string
+}) {
+  return (
+    <View style={diaryStyles.row}>
+      <View style={[diaryStyles.icon, { backgroundColor: bg }]}>{icon}</View>
+      <View style={{ flex: 1 }}>
+        <Text style={diaryStyles.label}>{label}</Text>
+        <Text style={diaryStyles.text}>{text}</Text>
+      </View>
+    </View>
+  )
+}
+
+function moodEmoji(m: 'HAPPY' | 'NEUTRAL' | 'SAD' | 'SICK'): string {
+  return m === 'HAPPY' ? '😊' : m === 'NEUTRAL' ? '😐' : m === 'SAD' ? '😟' : '🤒'
+}
+function moodLabel(m: 'HAPPY' | 'NEUTRAL' | 'SAD' | 'SICK'): string {
+  return m === 'HAPPY'
+    ? 'хорошее'
+    : m === 'NEUTRAL'
+      ? 'обычное'
+      : m === 'SAD'
+        ? 'грустное'
+        : 'болел(а)'
+}
+function napLabel(n: 'GOOD' | 'NORMAL' | 'POOR' | 'NO_NAP'): string {
+  return n === 'GOOD'
+    ? 'хорошо спал(а)'
+    : n === 'NORMAL'
+      ? 'обычно'
+      : n === 'POOR'
+        ? 'плохо спал(а)'
+        : 'не спал(а)'
+}
+
+const diaryStyles = StyleSheet.create({
+  row: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
+  icon: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  label: { fontSize: 11, color: colors.muted, fontWeight: '700' },
+  text: { fontSize: 13, color: colors.text, marginTop: 1, lineHeight: 18 },
+})
 
 const styles = StyleSheet.create({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -329,4 +472,20 @@ const styles = StyleSheet.create({
   },
   itemTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   itemSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  kidNoteBlock: {
+    marginTop: 6,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderSoft,
+    gap: 4,
+  },
+  kidNoteLabel: {
+    fontSize: 11,
+    color: colors.primaryDeep,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  kidNoteText: { fontSize: 13, color: colors.text, lineHeight: 18 },
 })

@@ -10,6 +10,7 @@ import {
   ClipboardCheck,
   LayoutGrid,
   BarChart3,
+  BookOpen,
   type LucideIcon,
 } from 'lucide-react-native'
 
@@ -31,6 +32,7 @@ import AdminPaymentsScreen from '../screens/AdminPaymentsScreen'
 import AdminStudentsScreen from '../screens/AdminStudentsScreen'
 import AdminExpensesScreen from '../screens/AdminExpensesScreen'
 import AdminMeetingsScreen from '../screens/AdminMeetingsScreen'
+import TeacherDiaryScreen from '../screens/TeacherDiaryScreen'
 
 const navTheme = {
   ...DefaultTheme,
@@ -79,6 +81,7 @@ function buildTabs(
     return [
       { name: 'TeacherHome', label: L.group[0].toUpperCase() + L.group.slice(1), icon: LayoutGrid, component: TeacherHomeScreen },
       { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen },
+      { name: 'TeacherDiary', label: 'Дневник', icon: BookOpen, component: TeacherDiaryScreen },
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
     ]
   }

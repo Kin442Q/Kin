@@ -91,33 +91,45 @@ class ParentService {
     })
   }
 
-  /** Сводка для главного экрана: ребёнок + статус на сегодня + следующее занятие. */
+  /** Сводка для главного экрана: ребёнок + статус на сегодня + следующее занятие + дневник. */
   async kidToday(user: AuthUser, kidId: string) {
     const kid = await this.ensureKidAccess(user, kidId)
 
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
 
-    const [todayAttendance, todaySchedule, lastPayment] = await Promise.all([
-      this.prisma.attendance.findFirst({
-        where: { studentId: kidId, date: todayStart },
-      }),
-      this.prisma.scheduleItem.findMany({
-        where: {
-          groupId: kid.groupId,
-          dayOfWeek: ((new Date().getDay() + 6) % 7) + 1, // Mon=1..Sun=7
-        },
-        orderBy: { startTime: 'asc' },
-      }),
-      this.prisma.payment.findFirst({
-        where: { studentId: kidId },
-        orderBy: { month: 'desc' },
-      }),
-    ])
+    const [todayAttendance, todaySchedule, lastPayment, todayDiary, todayKidNote] =
+      await Promise.all([
+        this.prisma.attendance.findFirst({
+          where: { studentId: kidId, date: todayStart },
+        }),
+        this.prisma.scheduleItem.findMany({
+          where: {
+            groupId: kid.groupId,
+            dayOfWeek: ((new Date().getDay() + 6) % 7) + 1, // Mon=1..Sun=7
+          },
+          orderBy: { startTime: 'asc' },
+        }),
+        this.prisma.payment.findFirst({
+          where: { studentId: kidId },
+          orderBy: { month: 'desc' },
+        }),
+        this.prisma.diaryEntry.findUnique({
+          where: { groupId_date: { groupId: kid.groupId, date: todayStart } },
+        }),
+        this.prisma.kidNote.findUnique({
+          where: { studentId_date: { studentId: kidId, date: todayStart } },
+        }),
+      ])
 
     return {
       kid,
-      today: { attendance: todayAttendance, schedule: todaySchedule },
+      today: {
+        attendance: todayAttendance,
+        schedule: todaySchedule,
+        diary: todayDiary,
+        kidNote: todayKidNote,
+      },
       lastPayment,
     }
   }

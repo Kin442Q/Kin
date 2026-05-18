@@ -45,6 +45,22 @@ enum AttendanceStatus {
   VACATION
 }
 
+/// Настроение ребёнка/ученика в дневнике (заметка учителя за день).
+enum Mood {
+  HAPPY
+  NEUTRAL
+  SAD
+  SICK
+}
+
+/// Качество сна в детсаду / отдыха в школе.
+enum NapQuality {
+  GOOD
+  NORMAL
+  POOR
+  NO_NAP
+}
+
 enum PaymentMethod {
   CASH
   CARD
@@ -265,6 +281,8 @@ model User {
   notifications Notification[]
   timeEntries   TimeEntry[]
   staffProfile  Staff?          @relation("StaffUser")
+  diaryEntries  DiaryEntry[]    @relation("DiaryAuthor")
+  kidNotes      KidNote[]       @relation("KidNoteAuthor")
 
   @@index([role])
   @@index([groupId])
@@ -374,6 +392,7 @@ model Group {
   salaries             Salary[]
   monthlyReports       MonthlyReport[]
   meetings             Meeting[]
+  diary                DiaryEntry[]
 
   @@index([isActive])
   @@index([kindergartenId])
@@ -421,6 +440,7 @@ model Student {
   attendance    Attendance[]
   payments      Payment[]
   parents       User[]        // PARENT-аккаунты, привязанные к ребёнку
+  kidNotes      KidNote[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -671,4 +691,57 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// DIARY (электронный дневник для садика/школы)
+// ---------------------------------------------------------------------------
+
+/// Запись дневника группы на день. Одна на (group, date).
+/// Учитель заполняет в конце дня; родители видят.
+model DiaryEntry {
+  id          String   @id @default(cuid())
+  groupId     String
+  date        DateTime @db.Date
+  // Меню дня
+  breakfast   String?
+  lunch       String?
+  snack       String?
+  // Чем занимались
+  activities  String?
+  // Общая заметка от учителя на группу
+  note        String?
+  // Автор записи
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  group       Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author      User  @relation("DiaryAuthor", fields: [authorId], references: [id])
+
+  @@unique([groupId, date])
+  @@index([groupId])
+  @@index([date])
+}
+
+/// Заметка о конкретном ученике на день. Одна на (student, date).
+/// Учитель пишет, родитель видит только своего ребёнка.
+model KidNote {
+  id          String      @id @default(cuid())
+  studentId   String
+  date        DateTime    @db.Date
+  mood        Mood?
+  napQuality  NapQuality?
+  note        String?
+  photoUrls   String[]    @default([])
+  authorId    String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  author      User    @relation("KidNoteAuthor", fields: [authorId], references: [id])
+
+  @@unique([studentId, date])
+  @@index([studentId])
+  @@index([date])
 }

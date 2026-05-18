@@ -10,13 +10,17 @@ import {
   View,
 } from 'react-native'
 import dayjs from 'dayjs'
-import { Check, Heart, MinusCircle, Sun } from 'lucide-react-native'
+import { Check, Heart, MinusCircle, Sun, StickyNote } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Avatar from '../components/Avatar'
+import Btn from '../components/Btn'
+import BottomModal from '../components/BottomModal'
+import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
 import { useLabels } from '../theme/useLabels'
+import { diaryApi, type Mood, type NapQuality, type KidNoteDto } from '../api/diary'
 import { studentsApi, type StudentDto } from '../api/students'
 import {
   attendanceApi,
@@ -77,9 +81,17 @@ export default function TeacherAttendanceScreen() {
 
   const [students, setStudents] = useState<StudentDto[]>([])
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({})
+  const [kidNotes, setKidNotes] = useState<Record<string, KidNoteDto>>({})
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [savingId, setSavingId] = useState<string | null>(null)
+
+  // Modal: заметка о ребёнке
+  const [noteFor, setNoteFor] = useState<StudentDto | null>(null)
+  const [noteMood, setNoteMood] = useState<Mood | null>(null)
+  const [noteNap, setNoteNap] = useState<NapQuality | null>(null)
+  const [noteText, setNoteText] = useState('')
+  const [noteSaving, setNoteSaving] = useState(false)
 
   const reload = useCallback(async () => {
     try {
@@ -91,6 +103,19 @@ export default function TeacherAttendanceScreen() {
       const map: Record<string, AttendanceStatus> = {}
       for (const a of attendance) map[a.studentId] = a.status
       setMarks(map)
+
+      // Подтянем kid-notes за день (по группе первого ребёнка — учитель привязан к одной группе).
+      const groupId = list[0]?.groupId
+      if (groupId) {
+        try {
+          const notes = await diaryApi.kidNotesForGroup(groupId, today)
+          const noteMap: Record<string, KidNoteDto> = {}
+          for (const n of notes) noteMap[n.studentId] = n
+          setKidNotes(noteMap)
+        } catch {
+          // некритично
+        }
+      }
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || String(e))
     } finally {
@@ -98,6 +123,34 @@ export default function TeacherAttendanceScreen() {
       setRefreshing(false)
     }
   }, [today])
+
+  const openNoteModal = (student: StudentDto) => {
+    const existing = kidNotes[student.id]
+    setNoteFor(student)
+    setNoteMood(existing?.mood ?? null)
+    setNoteNap(existing?.napQuality ?? null)
+    setNoteText(existing?.note ?? '')
+  }
+
+  const saveNote = async () => {
+    if (!noteFor) return
+    setNoteSaving(true)
+    try {
+      const saved = await diaryApi.upsertKidNote({
+        studentId: noteFor.id,
+        date: today,
+        mood: noteMood ?? undefined,
+        napQuality: noteNap ?? undefined,
+        note: noteText.trim() || undefined,
+      })
+      setKidNotes((m) => ({ ...m, [noteFor.id]: saved }))
+      setNoteFor(null)
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+    } finally {
+      setNoteSaving(false)
+    }
+  }
 
   useEffect(() => {
     reload()
@@ -196,7 +249,9 @@ export default function TeacherAttendanceScreen() {
             student={item}
             status={marks[item.id] ?? null}
             saving={savingId === item.id}
+            hasNote={!!kidNotes[item.id]}
             onChange={(s) => setStatus(item.id, s)}
+            onOpenNote={() => openNoteModal(item)}
           />
         )}
         ListEmptyComponent={
@@ -207,6 +262,57 @@ export default function TeacherAttendanceScreen() {
           </View>
         }
       />
+
+      <BottomModal
+        visible={!!noteFor}
+        onClose={() => setNoteFor(null)}
+        title={
+          noteFor
+            ? `Заметка о ${noteFor.firstName} ${noteFor.lastName}`
+            : 'Заметка'
+        }
+      >
+        <Select<Mood>
+          label="Настроение"
+          value={noteMood}
+          onChange={setNoteMood}
+          options={[
+            { value: 'HAPPY', label: '😊 Хорошее' },
+            { value: 'NEUTRAL', label: '😐 Обычное' },
+            { value: 'SAD', label: '😟 Грустное' },
+            { value: 'SICK', label: '🤒 Болел' },
+          ]}
+          columns={2}
+        />
+
+        {L.institution === 'садик' && (
+          <Select<NapQuality>
+            label="Сон"
+            value={noteNap}
+            onChange={setNoteNap}
+            options={[
+              { value: 'GOOD', label: 'Хорошо' },
+              { value: 'NORMAL', label: 'Обычно' },
+              { value: 'POOR', label: 'Плохо' },
+              { value: 'NO_NAP', label: 'Не спал' },
+            ]}
+            columns={2}
+          />
+        )}
+
+        <Field
+          label="Заметка"
+          value={noteText}
+          onChangeText={setNoteText}
+          placeholder="Что хочется передать родителям"
+          multiline
+          style={{ minHeight: 80, textAlignVertical: 'top' }}
+        />
+
+        <Btn block size="lg" loading={noteSaving} onPress={saveNote}>
+          Сохранить заметку
+        </Btn>
+      </BottomModal>
     </Screen>
   )
 }
@@ -215,10 +321,19 @@ interface RowProps {
   student: StudentDto
   status: AttendanceStatus | null
   saving: boolean
+  hasNote: boolean
   onChange: (s: AttendanceStatus) => void
+  onOpenNote: () => void
 }
 
-function StudentRow({ student, status, saving, onChange }: RowProps) {
+function StudentRow({
+  student,
+  status,
+  saving,
+  hasNote,
+  onChange,
+  onOpenNote,
+}: RowProps) {
   const fullName = `${student.firstName} ${student.lastName}`.trim()
   const current = STATUSES.find((s) => s.key === status)
 
@@ -235,6 +350,19 @@ function StudentRow({ student, status, saving, onChange }: RowProps) {
             {saving ? ' · сохраняем…' : ''}
           </Text>
         </View>
+        <Pressable
+          onPress={onOpenNote}
+          hitSlop={8}
+          style={[
+            styles.noteBtn,
+            hasNote && { backgroundColor: colors.primarySoft },
+          ]}
+        >
+          <StickyNote
+            size={16}
+            color={hasNote ? colors.primaryDeep : colors.muted}
+          />
+        </Pressable>
       </View>
 
       <View style={styles.chipRow}>
@@ -328,5 +456,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.muted,
     textAlign: 'center',
+  },
+  noteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+    marginLeft: 8,
   },
 })
