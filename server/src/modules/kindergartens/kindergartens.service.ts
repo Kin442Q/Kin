@@ -159,7 +159,9 @@ export class KindergartensService {
 
   /**
    * Обновление текущего учреждения «своими» админами (без прав global-owner).
-   * Доступные поля ограничены: тип, координаты, радиус, базовая инфа.
+   * Тип учреждения (KINDERGARTEN / SCHOOL) задаётся ОДИН раз при создании
+   * глобальным владельцем платформы и не меняется. Админ может править только
+   * имя, адрес, телефон и геолокацию check-in.
    */
   async updateMine(user: AuthUser, dto: UpdateKindergartenDto) {
     if (!user.kindergartenId) {
@@ -168,7 +170,9 @@ export class KindergartensService {
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Доступ только для администратора')
     }
-    return this.applyUpdate(user.kindergartenId, dto)
+    // Принудительно отрезаем type — администратор учреждения не может его менять.
+    const { type: _ignored, ...allowed } = dto
+    return this.applyUpdate(user.kindergartenId, allowed)
   }
 
   private async applyUpdate(id: string, dto: UpdateKindergartenDto) {

@@ -31,7 +31,6 @@ import { useThemeStore } from '../store/themeStore'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { http } from '../api'
-import type { InstitutionType } from '../types'
 
 const { Text, Title } = Typography
 
@@ -55,7 +54,6 @@ export default function SettingsPage() {
     if (inst) {
       instForm.setFieldsValue({
         name: inst.name,
-        type: inst.type,
         latitude: inst.latitude,
         longitude: inst.longitude,
         checkInRadiusMeters: inst.checkInRadiusMeters,
@@ -89,7 +87,6 @@ export default function SettingsPage() {
       setSavingInst(true)
       const r = await http.patch('/v1/kindergartens/mine', {
         name: values.name,
-        type: values.type as InstitutionType,
         latitude: values.latitude ?? null,
         longitude: values.longitude ?? null,
         checkInRadiusMeters: values.checkInRadiusMeters,
@@ -146,45 +143,38 @@ export default function SettingsPage() {
                   </>
                 }
               >
-                <Text type="secondary">
-                  Тип учреждения определяет лейблы интерфейса (группа↔класс,
-                  ребёнок↔ученик) на телефоне и в вебе. Координаты используются
-                  для проверки check-in воспитателя/учителя через мобильное
-                  приложение.
-                </Text>
+                <Space size="middle" style={{ marginBottom: 12 }}>
+                  <Text type="secondary">Тип учреждения:</Text>
+                  <Tag
+                    color={inst?.type === 'SCHOOL' ? 'geekblue' : 'green'}
+                    style={{ fontSize: 13, padding: '2px 10px' }}
+                  >
+                    {inst?.type === 'SCHOOL' ? '🏫 Школа' : '🌱 Детский сад'}
+                  </Tag>
+                </Space>
+                <div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Тип задаётся при создании учреждения владельцем платформы и
+                    не может быть изменён. Если нужна другая школа/садик —
+                    обратитесь к владельцу платформы для создания нового
+                    учреждения.
+                  </Text>
+                </div>
+
+                <Divider />
 
                 <Form
                   form={instForm}
                   layout="vertical"
-                  style={{ marginTop: 16 }}
                   onFinish={saveInstitution}
                 >
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        label="Название"
-                        name="name"
-                        rules={[{ required: true, message: 'Укажите название' }]}
-                      >
-                        <Input placeholder="ДОУ «Солнышко» или Школа №42" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        label="Тип учреждения"
-                        name="type"
-                        rules={[{ required: true }]}
-                      >
-                        <Segmented
-                          block
-                          options={[
-                            { value: 'KINDERGARTEN', label: '🌱 Детский сад' },
-                            { value: 'SCHOOL', label: '🏫 Школа' },
-                          ]}
-                        />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                  <Form.Item
+                    label="Название"
+                    name="name"
+                    rules={[{ required: true, message: 'Укажите название' }]}
+                  >
+                    <Input placeholder="ДОУ «Солнышко» или Школа №42" />
+                  </Form.Item>
 
                   <Divider orientation="left" plain>
                     <EnvironmentOutlined /> Геолокация для check-in

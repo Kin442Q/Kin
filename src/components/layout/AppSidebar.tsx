@@ -27,32 +27,97 @@ import { useLabels } from '../../hooks/useLabels'
 import { SP, SproutLogo, SproutBalloons } from '../sprout'
 import type { Role, InstitutionType } from '../../types'
 
+/**
+ * Структура сайдбара:
+ *
+ * Платформа-владелец (SUPER_ADMIN без kindergartenId):
+ *   ▸ Платформа: Учреждения, Настройки
+ *
+ * Админ садика (SUPER_ADMIN/admin учреждения KINDERGARTEN):
+ *   ▸ Основное: Главная
+ *   ▸ Состав: Группы, Дети
+ *   ▸ Учебный процесс: Посещаемость, Расписание, Меню питания, Собрания
+ *   ▸ Финансы: Оплата, Расходы, Аналитика
+ *   ▸ Персонал: Сотрудники, Табель
+ *   ▸ Система: Настройки
+ *
+ * Админ школы (SUPER_ADMIN/admin учреждения SCHOOL):
+ *   ▸ Основное: Главная
+ *   ▸ Состав: Классы, Ученики, Предметы
+ *   ▸ Учебный процесс: Расписание уроков, Журнал оценок, Домашние задания, Посещаемость, Собрания
+ *   ▸ Финансы: Оплата, Расходы, Аналитика
+ *   ▸ Персонал: Сотрудники, Табель
+ *   ▸ Система: Настройки
+ *
+ * Воспитатель (TEACHER, KINDERGARTEN):
+ *   ▸ Мой кабинет
+ *   ▸ Моя группа: Дети, Посещаемость, Расписание, Меню питания
+ *   ▸ Общение: Собрания
+ *
+ * Учитель (TEACHER, SCHOOL):
+ *   ▸ Мой кабинет
+ *   ▸ Мой класс: Ученики, Посещаемость
+ *   ▸ Учебный процесс: Журнал оценок, Домашние задания, Расписание уроков
+ *   ▸ Общение: Собрания
+ */
+
+type SectionKey =
+  | 'platform'
+  | 'main'
+  | 'composition'
+  | 'studying'
+  | 'finance'
+  | 'hr'
+  | 'system'
+  | 'my-group'
+  | 'communication'
+
 interface NavEntry {
   key: string
-  /** Может быть статичная строка или функция от лейблов */
+  /** Текст пункта — статический или функция от лейблов институции (для «Группы»/«Классы») */
   label: string | ((L: { groups: string; students: string }) => string)
   icon: ReactNode
   /** Класс из index.css: sp-icon-mint / sp-icon-blue / ... */
   accentClass: string
   roles: Role[]
-  /** Если true — показывается только глобальному супер-админу (kindergartenId === null) */
+  /** Если true — показывается только глобальному владельцу платформы */
   globalOnly?: boolean
-  /** Если задано — пункт показывается только для учреждений этого типа */
+  /** Если false — НЕ показывается глобальному владельцу (он не в одном из учреждений) */
+  hiddenForGlobalOwner?: boolean
+  /** Тип учреждения, если ограничивает */
   institutionType?: InstitutionType
+  /** В какой раздел поместить */
+  section: SectionKey
 }
 
 const ICON_SIZE = 18
 
+const SECTION_TITLES: Record<SectionKey, string> = {
+  platform: 'Платформа',
+  main: 'Основное',
+  composition: 'Состав',
+  studying: 'Учебный процесс',
+  finance: 'Финансы',
+  hr: 'Персонал',
+  system: 'Система',
+  'my-group': 'Моя группа',
+  communication: 'Общение',
+}
+
+const SECTION_ORDER: SectionKey[] = [
+  'platform',
+  'main',
+  'composition',
+  'my-group',
+  'studying',
+  'finance',
+  'hr',
+  'communication',
+  'system',
+]
+
 const NAV: NavEntry[] = [
-  // ─── Для учителя — личный кабинет ────────────────────────────────
-  {
-    key: '/teacher/dashboard',
-    label: 'Мой кабинет',
-    icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
-    accentClass: 'sp-icon-mint',
-    roles: ['TEACHER', 'teacher'],
-  },
-  // ─── Для админа ──────────────────────────────────────────────────
+  // ─── Платформа (только глобальный владелец) ──────────────────────
   {
     key: '/admin/kindergartens',
     label: 'Учреждения',
@@ -60,6 +125,17 @@ const NAV: NavEntry[] = [
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN'],
     globalOnly: true,
+    section: 'platform',
+  },
+
+  // ─── Основное ────────────────────────────────────────────────────
+  {
+    key: '/teacher/dashboard',
+    label: 'Мой кабинет',
+    icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['TEACHER', 'teacher'],
+    section: 'main',
   },
   {
     key: '/admin/dashboard',
@@ -67,37 +143,87 @@ const NAV: NavEntry[] = [
     icon: <LayoutDashboard size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'main',
   },
+
+  // ─── Состав (админ) ──────────────────────────────────────────────
   {
     key: '/admin/groups',
-    label: (l) => l.groups, // «Группы» для садика, «Классы» для школы
+    label: (l) => l.groups,
     icon: <LayoutGrid size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
     roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'composition',
   },
   {
     key: '/admin/children',
-    label: (l) => l.students, // «Дети» / «Ученики»
+    label: (l) => l.students,
     icon: <Baby size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
-    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'composition',
   },
-  // ─── Школа: предметы / журнал / домашка ──────────────────────────
   {
     key: '/admin/subjects',
     label: 'Предметы',
     icon: <BookMarked size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
     roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
     institutionType: 'SCHOOL',
+    section: 'composition',
   },
+
+  // ─── Моя группа/класс (учитель) ──────────────────────────────────
+  {
+    key: '/admin/children',
+    label: (l) => l.students,
+    icon: <Baby size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
+    roles: ['TEACHER'],
+    section: 'my-group',
+  },
+  {
+    key: '/admin/attendance',
+    label: 'Посещаемость',
+    icon: <ClipboardCheck size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-lilac',
+    roles: ['TEACHER'],
+    section: 'my-group',
+  },
+  {
+    key: '/admin/schedule',
+    label: 'Расписание',
+    icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
+    roles: ['TEACHER'],
+    institutionType: 'KINDERGARTEN',
+    section: 'my-group',
+  },
+  {
+    key: '/admin/menu',
+    label: 'Меню питания',
+    icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['TEACHER'],
+    institutionType: 'KINDERGARTEN',
+    section: 'my-group',
+  },
+
+  // ─── Учебный процесс ─────────────────────────────────────────────
+  // Школа — для админа и учителя:
   {
     key: '/admin/grades',
     label: 'Журнал оценок',
     icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    hiddenForGlobalOwner: true,
     institutionType: 'SCHOOL',
+    section: 'studying',
   },
   {
     key: '/admin/homework',
@@ -105,21 +231,60 @@ const NAV: NavEntry[] = [
     icon: <BookOpen size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    hiddenForGlobalOwner: true,
     institutionType: 'SCHOOL',
+    section: 'studying',
+  },
+  {
+    key: '/admin/schedule',
+    label: 'Расписание уроков',
+    icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
+    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    hiddenForGlobalOwner: true,
+    institutionType: 'SCHOOL',
+    section: 'studying',
+  },
+  // Админ садика — учебный блок:
+  {
+    key: '/admin/schedule',
+    label: 'Расписание занятий',
+    icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
+    roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    institutionType: 'KINDERGARTEN',
+    section: 'studying',
+  },
+  {
+    key: '/admin/menu',
+    label: 'Меню питания',
+    icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    institutionType: 'KINDERGARTEN',
+    section: 'studying',
   },
   {
     key: '/admin/attendance',
     label: 'Посещаемость',
     icon: <ClipboardCheck size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
-    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'studying',
   },
+
+  // ─── Финансы (только админ) ──────────────────────────────────────
   {
     key: '/admin/payments',
     label: 'Оплата',
     icon: <Wallet size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-rose',
-    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'finance',
   },
   {
     key: '/admin/expenses',
@@ -127,6 +292,8 @@ const NAV: NavEntry[] = [
     icon: <PieChart size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-pink',
     roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'finance',
   },
   {
     key: '/admin/analytics',
@@ -134,52 +301,49 @@ const NAV: NavEntry[] = [
     icon: <TrendingUp size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
     roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'finance',
   },
+
+  // ─── Персонал (только админ) ─────────────────────────────────────
   {
     key: '/admin/staff',
     label: 'Сотрудники',
     icon: <Users size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'hr',
   },
-  // «Учителя» убрали — воспитатели заводятся теперь на странице «Сотрудники»
-  // с галочкой «Может входить в систему».
-  // Старый роут /admin/teachers оставлен в App.tsx для обратной совместимости.
   {
     key: '/admin/timesheet',
     label: 'Табель',
     icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
     roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'hr',
   },
-  {
-    key: '/admin/schedule',
-    label: 'Расписание',
-    icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
-    accentClass: 'sp-icon-blue',
-    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
-  },
+
+  // ─── Общение (родительские собрания) ─────────────────────────────
   {
     key: '/admin/meetings',
     label: 'Собрания',
     icon: <Megaphone size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    hiddenForGlobalOwner: true,
+    section: 'communication',
   },
-  {
-    key: '/admin/menu',
-    label: 'Меню питания',
-    icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={2} />,
-    accentClass: 'sp-icon-mint',
-    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
-    institutionType: 'KINDERGARTEN',
-  },
+
+  // ─── Система ─────────────────────────────────────────────────────
   {
     key: '/admin/settings',
     label: 'Настройки',
     icon: <Settings size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-gray',
     roles: ['SUPER_ADMIN', 'admin'],
+    section: 'system',
   },
 ]
 
@@ -196,13 +360,26 @@ export default function AppSidebar({ collapsed }: Props) {
   const isGlobalOwner = !!user && !user.kindergartenId
   const institutionType = user?.institution?.type ?? null
 
-  const items = NAV.filter((n) => {
+  // Сначала фильтруем по правам и типу учреждения,
+  // затем группируем по разделам.
+  const visible = NAV.filter((n) => {
     if (!user) return false
     if (!n.roles.includes(user.role)) return false
     if (n.globalOnly && !isGlobalOwner) return false
+    if (n.hiddenForGlobalOwner && isGlobalOwner) return false
     if (n.institutionType && institutionType !== n.institutionType) return false
     return true
-  }).map((n) => {
+  })
+
+  // У некоторых пунктов key дублируется (например /admin/schedule для разных
+  // типов учреждения). Защита: сохраняем только первое попадание.
+  const dedup = new Map<string, NavEntry>()
+  for (const n of visible) {
+    if (!dedup.has(n.key)) dedup.set(n.key, n)
+  }
+  const list = Array.from(dedup.values())
+
+  const renderEntry = (n: NavEntry) => {
     const text =
       typeof n.label === 'function'
         ? n.label({ groups: L.groups, students: L.students })
@@ -218,11 +395,29 @@ export default function AppSidebar({ collapsed }: Props) {
       ),
       icon: <span className={`sp-nav-icon ${n.accentClass}`}>{n.icon}</span>,
     }
-  })
+  }
 
+  // Собираем элементы Menu с заголовками разделов через item-group
+  const items: ReturnType<typeof toMenuItem>[] = []
+  function toMenuItem(n: NavEntry) {
+    return renderEntry(n)
+  }
+  for (const sec of SECTION_ORDER) {
+    const inSection = list.filter((n) => n.section === sec)
+    if (inSection.length === 0) continue
+    items.push({
+      // тип-группа — заголовок раздела
+      type: 'group',
+      key: `section-${sec}`,
+      label: collapsed ? null : SECTION_TITLES[sec],
+      children: inSection.map(toMenuItem),
+    } as any)
+  }
+
+  const flat = list
   const activeKey =
-    items.find((i) => location.pathname.startsWith(i.key))?.key ??
-    items[0]?.key ??
+    flat.find((i) => location.pathname.startsWith(i.key))?.key ??
+    flat[0]?.key ??
     '/admin/dashboard'
 
   return (
@@ -257,33 +452,26 @@ export default function AppSidebar({ collapsed }: Props) {
         <SproutLogo size={collapsed ? 16 : 18} showSubtitle={!collapsed} />
       </div>
 
-      {/* Section label */}
-      {!collapsed && (
-        <div
-          style={{
-            fontSize: 10.5,
-            fontWeight: 700,
-            color: SP.muted,
-            textTransform: 'uppercase',
-            letterSpacing: '0.08em',
-            padding: '6px 12px',
-            marginBottom: 4,
-            position: 'relative',
-            zIndex: 2,
-          }}
-        >
-          Меню
-        </div>
-      )}
-
-      {/* Menu */}
-      <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', position: 'relative', zIndex: 2 }}>
+      {/* Menu с разделами */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
         <Menu
           mode="inline"
           inlineCollapsed={collapsed}
           selectedKeys={[activeKey]}
-          items={items}
-          onClick={({ key }) => navigate(key as string)}
+          items={items as any}
+          onClick={({ key }) => {
+            if (typeof key === 'string' && !key.startsWith('section-')) {
+              navigate(key)
+            }
+          }}
           className="nav-menu"
           style={{
             background: 'transparent',
@@ -320,7 +508,6 @@ export default function AppSidebar({ collapsed }: Props) {
         </div>
       )}
 
-      {/* Decorative balloons (только в развёрнутом виде, чтобы не отвлекать) */}
       {!collapsed && <SproutBalloons />}
     </motion.div>
   )
