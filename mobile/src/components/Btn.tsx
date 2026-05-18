@@ -70,8 +70,8 @@ export default function Btn({
           minHeight: sizes.minH,
           alignSelf: block ? 'stretch' : 'auto',
           opacity: isDisabled ? 0.5 : pressed ? 0.85 : 1,
-          transform: pressed ? [{ scale: 0.97 }] : undefined,
         },
+        pressed && { transform: [{ scale: 0.97 }] },
         style,
       ]}
     >
