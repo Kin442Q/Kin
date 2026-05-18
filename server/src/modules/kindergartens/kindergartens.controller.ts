@@ -56,7 +56,7 @@ export class KindergartensController {
   @Post()
   @Roles('SUPER_ADMIN')
   @ApiOperation({
-    summary: 'Создать садик + первого SUPER_ADMIN атомарно',
+    summary: 'Создать учреждение (садик/школа) + первого SUPER_ADMIN атомарно',
   })
   create(
     @CurrentUser() user: AuthUser,
@@ -65,6 +65,7 @@ export class KindergartensController {
       name: string
       address?: string
       phone?: string
+      type?: 'KINDERGARTEN' | 'SCHOOL'
       owner: {
         fullName: string
         email: string

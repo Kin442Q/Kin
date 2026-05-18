@@ -13,6 +13,7 @@ import {
   Modal,
   Popconfirm,
   Row,
+  Segmented,
   Space,
   Table,
   Tag,
@@ -44,6 +45,8 @@ import { http } from '../api'
 const { Text } = Typography
 const { useBreakpoint } = Grid
 
+type InstitutionType = 'KINDERGARTEN' | 'SCHOOL'
+
 interface KindergartenApi {
   id: string
   slug: string
@@ -51,6 +54,7 @@ interface KindergartenApi {
   address: string | null
   phone: string | null
   isActive: boolean
+  type: InstitutionType
   createdAt: string
   stats: {
     usersCount: number
@@ -79,6 +83,8 @@ export default function KindergartensPage() {
     password: string
   } | null>(null)
 
+  const [createType, setCreateType] = useState<InstitutionType>('KINDERGARTEN')
+
   const load = async () => {
     try {
       setLoading(true)
@@ -88,7 +94,7 @@ export default function KindergartensPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить садики'
+        'Не удалось загрузить учреждения'
       message.error(msg)
     } finally {
       setLoading(false)
@@ -112,11 +118,13 @@ export default function KindergartensPage() {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
+    setCreateType('KINDERGARTEN')
     setDrawerOpen(true)
   }
 
   const openEdit = (k: KindergartenApi) => {
     setEditing(k)
+    setCreateType(k.type)
     form.setFieldsValue({
       name: k.name,
       address: k.address,
@@ -135,13 +143,15 @@ export default function KindergartensPage() {
           name: v.name,
           address: v.address || undefined,
           phone: v.phone || undefined,
+          type: createType,
         })
-        message.success('Садик обновлён')
+        message.success('Учреждение обновлено')
       } else {
         await http.post('/v1/kindergartens', {
           name: v.name,
           address: v.address || undefined,
           phone: v.phone || undefined,
+          type: createType,
           owner: {
             fullName: v.ownerFullName,
             email: v.ownerEmail.trim().toLowerCase(),
@@ -154,7 +164,9 @@ export default function KindergartensPage() {
           email: v.ownerEmail.trim().toLowerCase(),
           password: v.ownerPassword,
         })
-        message.success('Садик создан')
+        message.success(
+          createType === 'SCHOOL' ? 'Школа создана' : 'Детский сад создан',
+        )
       }
 
       setDrawerOpen(false)
@@ -174,7 +186,7 @@ export default function KindergartensPage() {
   const remove = async (k: KindergartenApi) => {
     try {
       await http.delete(`/v1/kindergartens/${k.id}`)
-      message.success(`Садик «${k.name}» удалён`)
+      message.success(`«${k.name}» удалено`)
       await load()
     } catch (err: any) {
       const msg =
@@ -188,13 +200,13 @@ export default function KindergartensPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Садики"
+        title="Учреждения"
         icon={<School size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Управление всеми садиками платформы. Каждый садик изолирован."
+        description="Управление всеми учреждениями платформы — детскими садами и школами. Каждое учреждение изолировано."
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            {isMobile ? 'Новый' : 'Новый садик'}
+            {isMobile ? 'Новое' : 'Новое учреждение'}
           </Button>
         }
       />
@@ -203,7 +215,7 @@ export default function KindergartensPage() {
         type="info"
         showIcon
         message="Вы — владелец платформы"
-        description="Создавайте новые садики и назначайте им владельцев. У каждого садика своя изолированная база данных."
+        description="Создавайте новые учреждения (детсады или школы) и назначайте им владельцев. У каждого учреждения своя изолированная база данных."
         style={{ marginBottom: 16 }}
       />
 
@@ -221,24 +233,39 @@ export default function KindergartensPage() {
             scroll={{ x: 700 }}
             columns={[
               {
-                title: 'Садик',
+                title: 'Название',
                 key: 'name',
                 render: (_, k) => (
                   <Space>
                     <Avatar
                       icon={<BankOutlined />}
                       style={{
-                        background: 'linear-gradient(135deg,#6366f1,#a855f7)',
+                        background:
+                          k.type === 'SCHOOL'
+                            ? 'linear-gradient(135deg,#0EA5E9,#6366f1)'
+                            : 'linear-gradient(135deg,#4FB286,#a855f7)',
                       }}
                     />
                     <div>
-                      <div style={{ fontWeight: 600 }}>{k.name}</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {k.name}
+                      </div>
                       <Text type="secondary" style={{ fontSize: 12 }}>
                         slug: <code>{k.slug}</code>
                       </Text>
                     </div>
                   </Space>
                 ),
+              },
+              {
+                title: 'Тип',
+                key: 'type',
+                render: (_, k) =>
+                  k.type === 'SCHOOL' ? (
+                    <Tag color="geekblue">🏫 Школа</Tag>
+                  ) : (
+                    <Tag color="green">🌱 Детский сад</Tag>
+                  ),
               },
               {
                 title: 'Адрес',
@@ -306,7 +333,11 @@ export default function KindergartensPage() {
                     </Tooltip>
                     <Popconfirm
                       title={`Удалить «${k.name}»?`}
-                      description="Все данные садика (группы, дети, платежи) удалятся безвозвратно!"
+                      description={
+                        k.type === 'SCHOOL'
+                          ? 'Все данные школы (классы, ученики, оценки, домашка, платежи) удалятся безвозвратно!'
+                          : 'Все данные садика (группы, дети, платежи) удалятся безвозвратно!'
+                      }
                       okText="Удалить"
                       okButtonProps={{ danger: true }}
                       cancelText="Отмена"
@@ -328,7 +359,7 @@ export default function KindergartensPage() {
       </motion.div>
 
       <Drawer
-        title={editing ? 'Редактировать садик' : 'Новый садик'}
+        title={editing ? 'Редактировать учреждение' : 'Новое учреждение'}
         width={isMobile ? '100%' : 480}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -343,14 +374,44 @@ export default function KindergartensPage() {
         }
       >
         <Form layout="vertical" form={form}>
-          <Typography.Title level={5}>📍 Информация о садике</Typography.Title>
+          <Typography.Title level={5}>🏛 Тип учреждения</Typography.Title>
+          <Segmented<InstitutionType>
+            block
+            value={createType}
+            onChange={(v) => setCreateType(v)}
+            options={[
+              { value: 'KINDERGARTEN', label: '🌱 Детский сад' },
+              { value: 'SCHOOL', label: '🏫 Школа' },
+            ]}
+            style={{ marginBottom: 18 }}
+          />
+          <Alert
+            type="info"
+            showIcon
+            message={
+              createType === 'SCHOOL'
+                ? 'Интерфейс школы: классы, предметы, оценки, домашние задания, дневник.'
+                : 'Интерфейс детсада: группы, посещаемость, расписание занятий, питание, дневник.'
+            }
+            style={{ marginBottom: 18 }}
+          />
+
+          <Typography.Title level={5}>
+            📍 Информация {createType === 'SCHOOL' ? 'о школе' : 'о садике'}
+          </Typography.Title>
 
           <Form.Item
             name="name"
-            label="Название садика"
+            label="Название"
             rules={[{ required: true, message: 'Введите название' }]}
           >
-            <Input placeholder="Например, Радуга" />
+            <Input
+              placeholder={
+                createType === 'SCHOOL'
+                  ? 'Например, Школа №42'
+                  : 'Например, ДОУ «Радуга»'
+              }
+            />
           </Form.Item>
 
           <Form.Item name="address" label="Адрес">
@@ -370,8 +431,12 @@ export default function KindergartensPage() {
               <Alert
                 type="info"
                 showIcon
-                message="Это будет владелец садика"
-                description="Передайте ему email и пароль — он сможет управлять своим садиком."
+                message={
+                  createType === 'SCHOOL'
+                    ? 'Это будет владелец школы'
+                    : 'Это будет владелец садика'
+                }
+                description="Передайте ему email и пароль — он сможет управлять своим учреждением."
                 style={{ marginBottom: 12 }}
               />
 
@@ -438,7 +503,7 @@ export default function KindergartensPage() {
         title={
           <Space>
             <KeyOutlined style={{ color: '#10b981' }} />
-            <span>Учётные данные владельца садика</span>
+            <span>Учётные данные владельца учреждения</span>
           </Space>
         }
         open={!!credentialsModal}
@@ -450,7 +515,7 @@ export default function KindergartensPage() {
             onClick={() => {
               if (!credentialsModal) return
               const text =
-                `KinderCRM — Доступ к садику "${credentialsModal.kindergartenName}"\n\n` +
+                `redi — Доступ к учреждению "${credentialsModal.kindergartenName}"\n\n` +
                 `👤 ${credentialsModal.ownerName}\n` +
                 `📧 Email: ${credentialsModal.email}\n` +
                 `🔑 Пароль: ${credentialsModal.password}\n\n` +

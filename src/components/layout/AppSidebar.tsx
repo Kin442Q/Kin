@@ -14,24 +14,31 @@ import {
   UtensilsCrossed,
   Settings,
   Clock,
+  GraduationCap,
+  BookOpen,
+  BookMarked,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { ReactNode } from 'react'
 
 import { useAuthStore } from '../../store/authStore'
+import { useLabels } from '../../hooks/useLabels'
 import { SP, SproutLogo, SproutBalloons } from '../sprout'
-import type { Role } from '../../types'
+import type { Role, InstitutionType } from '../../types'
 
 interface NavEntry {
   key: string
-  label: string
+  /** Может быть статичная строка или функция от лейблов */
+  label: string | ((L: { groups: string; students: string }) => string)
   icon: ReactNode
   /** Класс из index.css: sp-icon-mint / sp-icon-blue / ... */
   accentClass: string
   roles: Role[]
   /** Если true — показывается только глобальному супер-админу (kindergartenId === null) */
   globalOnly?: boolean
+  /** Если задано — пункт показывается только для учреждений этого типа */
+  institutionType?: InstitutionType
 }
 
 const ICON_SIZE = 18
@@ -48,7 +55,7 @@ const NAV: NavEntry[] = [
   // ─── Для админа ──────────────────────────────────────────────────
   {
     key: '/admin/kindergartens',
-    label: 'Садики',
+    label: 'Учреждения',
     icon: <School size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN'],
@@ -63,17 +70,42 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/groups',
-    label: 'Группы',
+    label: (l) => l.groups, // «Группы» для садика, «Классы» для школы
     icon: <LayoutGrid size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
     roles: ['SUPER_ADMIN', 'admin'],
   },
   {
     key: '/admin/children',
-    label: 'Дети',
+    label: (l) => l.students, // «Дети» / «Ученики»
     icon: <Baby size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+  },
+  // ─── Школа: предметы / журнал / домашка ──────────────────────────
+  {
+    key: '/admin/subjects',
+    label: 'Предметы',
+    icon: <BookMarked size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-cyan',
+    roles: ['SUPER_ADMIN', 'admin'],
+    institutionType: 'SCHOOL',
+  },
+  {
+    key: '/admin/grades',
+    label: 'Журнал оценок',
+    icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    institutionType: 'SCHOOL',
+  },
+  {
+    key: '/admin/homework',
+    label: 'Домашние задания',
+    icon: <BookOpen size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-yellow',
+    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    institutionType: 'SCHOOL',
   },
   {
     key: '/admin/attendance',
@@ -136,10 +168,11 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/menu',
-    label: 'Меню',
+    label: 'Меню питания',
     icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    institutionType: 'KINDERGARTEN',
   },
   {
     key: '/admin/settings',
@@ -158,25 +191,34 @@ export default function AppSidebar({ collapsed }: Props) {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const L = useLabels()
 
   const isGlobalOwner = !!user && !user.kindergartenId
+  const institutionType = user?.institution?.type ?? null
 
   const items = NAV.filter((n) => {
     if (!user) return false
     if (!n.roles.includes(user.role)) return false
     if (n.globalOnly && !isGlobalOwner) return false
+    if (n.institutionType && institutionType !== n.institutionType) return false
     return true
-  }).map((n) => ({
-    key: n.key,
-    label: collapsed ? (
-      <Tooltip title={n.label} placement="right">
-        <span>{n.label}</span>
-      </Tooltip>
-    ) : (
-      n.label
-    ),
-    icon: <span className={`sp-nav-icon ${n.accentClass}`}>{n.icon}</span>,
-  }))
+  }).map((n) => {
+    const text =
+      typeof n.label === 'function'
+        ? n.label({ groups: L.groups, students: L.students })
+        : n.label
+    return {
+      key: n.key,
+      label: collapsed ? (
+        <Tooltip title={text} placement="right">
+          <span>{text}</span>
+        </Tooltip>
+      ) : (
+        text
+      ),
+      icon: <span className={`sp-nav-icon ${n.accentClass}`}>{n.icon}</span>,
+    }
+  })
 
   const activeKey =
     items.find((i) => location.pathname.startsWith(i.key))?.key ??

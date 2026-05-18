@@ -13,6 +13,7 @@ interface CreateKindergartenDto {
   name: string
   address?: string
   phone?: string
+  type?: 'KINDERGARTEN' | 'SCHOOL'
   owner: {
     fullName: string
     email: string
@@ -73,6 +74,7 @@ export class KindergartensService {
       address: k.address,
       phone: k.phone,
       isActive: k.isActive,
+      type: k.type,
       createdAt: k.createdAt,
       stats: {
         usersCount: k._count.users,
@@ -123,6 +125,7 @@ export class KindergartensService {
           address: dto.address?.trim() || null,
           phone: dto.phone?.trim() || null,
           isActive: true,
+          type: dto.type ?? 'KINDERGARTEN',
         },
       })
 
