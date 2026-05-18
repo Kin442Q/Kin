@@ -69,6 +69,38 @@ export interface KidTodayDto {
   lastPayment: PaymentDto | null
 }
 
+export interface ParentGradeDto {
+  id: string
+  studentId: string
+  subjectId: string
+  value: number
+  type: 'CLASSWORK' | 'HOMEWORK' | 'CONTROL' | 'EXAM' | 'PROJECT' | 'OTHER'
+  date: string
+  comment: string | null
+  subject?: { id: string; name: string; color: string }
+  author?: { id: string; fullName: string }
+}
+
+export interface ParentHomeworkDto {
+  id: string
+  subjectId: string
+  groupId: string
+  title: string
+  description: string | null
+  dueDate: string
+  attachments: string[]
+  subject?: { id: string; name: string; color: string }
+}
+
+export interface GradeStatsRow {
+  subjectId: string
+  name: string
+  color: string
+  count: number
+  sum: number
+  average: number
+}
+
 export const parentApi = {
   myKids: () =>
     http.get<KidDto[]>('/v1/parent/me/kids').then((r) => r.data),
@@ -87,5 +119,19 @@ export const parentApi = {
   payments: (kidId: string) =>
     http
       .get<PaymentDto[]>(`/v1/parent/kids/${kidId}/payments`)
+      .then((r) => r.data),
+  grades: (kidId: string, from?: string, to?: string) =>
+    http
+      .get<ParentGradeDto[]>(`/v1/parent/kids/${kidId}/grades`, {
+        params: { from, to },
+      })
+      .then((r) => r.data),
+  gradeStats: (kidId: string) =>
+    http
+      .get<GradeStatsRow[]>(`/v1/parent/kids/${kidId}/grades/stats`)
+      .then((r) => r.data),
+  homework: (kidId: string) =>
+    http
+      .get<ParentHomeworkDto[]>(`/v1/parent/kids/${kidId}/homework`)
       .then((r) => r.data),
 }

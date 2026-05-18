@@ -61,6 +61,16 @@ enum NapQuality {
   NO_NAP
 }
 
+/// Тип оценки в школьном журнале.
+enum GradeType {
+  CLASSWORK      // работа на уроке
+  HOMEWORK       // домашнее задание
+  CONTROL        // контрольная работа
+  EXAM           // экзамен
+  PROJECT        // проект / реферат
+  OTHER
+}
+
 enum PaymentMethod {
   CASH
   CARD
@@ -163,6 +173,7 @@ model Kindergarten {
   extraIncomes  ExtraIncome[]
   staff         Staff[]
   menuItems     MenuItem[]
+  subjects      Subject[]
 
   @@index([isActive])
 }
@@ -283,6 +294,8 @@ model User {
   staffProfile  Staff?          @relation("StaffUser")
   diaryEntries  DiaryEntry[]    @relation("DiaryAuthor")
   kidNotes      KidNote[]       @relation("KidNoteAuthor")
+  gradesGiven   Grade[]         @relation("GradeAuthor")
+  homeworkSet   Homework[]      @relation("HomeworkAuthor")
 
   @@index([role])
   @@index([groupId])
@@ -393,6 +406,7 @@ model Group {
   monthlyReports       MonthlyReport[]
   meetings             Meeting[]
   diary                DiaryEntry[]
+  homework             Homework[]
 
   @@index([isActive])
   @@index([kindergartenId])
@@ -441,6 +455,7 @@ model Student {
   payments      Payment[]
   parents       User[]        // PARENT-аккаунты, привязанные к ребёнку
   kidNotes      KidNote[]
+  grades        Grade[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -461,12 +476,23 @@ model ScheduleItem {
   dayOfWeek  Int      // 1..7 (Mon..Sun)
   startTime  String   // "HH:mm"
   endTime    String
+  /// Для садика — название активности (лепка, музыка, прогулка).
+  /// Для школы — название предмета (если subjectId не задан) или подтверждение.
   activity   String
+  /// Опционально — предмет (для школы). Если задан, activity дублирует subject.name для удобства.
+  subjectId  String?
+  /// Опционально — конкретный учитель, ведущий этот урок.
+  teacherId  String?
+  /// Кабинет: "304", "Физкультурный зал".
+  room       String?
   createdAt  DateTime @default(now())
 
   group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subject    Subject? @relation(fields: [subjectId], references: [id], onDelete: SetNull)
 
   @@index([groupId, dayOfWeek])
+  @@index([subjectId])
+  @@index([teacherId])
 }
 
 // ---------------------------------------------------------------------------
@@ -745,3 +771,79 @@ model KidNote {
   @@index([studentId])
   @@index([date])
 }
+
+// ---------------------------------------------------------------------------
+// SCHOOL: SUBJECTS / GRADES / HOMEWORK
+// ---------------------------------------------------------------------------
+
+/// Учебный предмет (только для школы). Зависит от Kindergarten (institution).
+model Subject {
+  id              String   @id @default(cuid())
+  name            String   // "Математика", "Физика"
+  color           String   @default("#4FB286") // для UI
+
+  /// Multi-tenant — к какой школе/садику принадлежит предмет.
+  kindergartenId  String?
+  kindergarten    Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lessons         ScheduleItem[]
+  grades          Grade[]
+  homework        Homework[]
+
+  @@unique([kindergartenId, name])
+  @@index([kindergartenId])
+}
+
+/// Оценка, выставленная учеником по предмету.
+model Grade {
+  id          String     @id @default(cuid())
+  studentId   String
+  subjectId   String
+  /// Шкала 5-балльная (или 10-балльная — хранится числом, UI рендерит как нужно)
+  value       Int
+  type        GradeType  @default(CLASSWORK)
+  /// Дата оценки (день урока)
+  date        DateTime   @db.Date
+  comment     String?
+  /// Автор (учитель)
+  authorId    String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  student     Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  author      User       @relation("GradeAuthor", fields: [authorId], references: [id])
+
+  @@index([studentId])
+  @@index([subjectId])
+  @@index([studentId, subjectId, date])
+  @@index([date])
+}
+
+/// Домашнее задание. Одно ДЗ на (subject, group, dueDate), видно всему классу.
+model Homework {
+  id          String   @id @default(cuid())
+  subjectId   String
+  groupId     String   // класс, которому задано
+  title       String
+  description String?
+  /// Дата к которой нужно выполнить
+  dueDate     DateTime @db.Date
+  /// Ссылки на файлы/изображения
+  attachments String[] @default([])
+  /// Автор
+  authorId    String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subject     Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  group       Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author      User    @relation("HomeworkAuthor", fields: [authorId], references: [id])
+
+  @@index([groupId, dueDate])
+  @@index([subjectId])
+}
+

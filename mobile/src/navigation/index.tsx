@@ -33,6 +33,9 @@ import AdminStudentsScreen from '../screens/AdminStudentsScreen'
 import AdminExpensesScreen from '../screens/AdminExpensesScreen'
 import AdminMeetingsScreen from '../screens/AdminMeetingsScreen'
 import TeacherDiaryScreen from '../screens/TeacherDiaryScreen'
+import TeacherGradesScreen from '../screens/TeacherGradesScreen'
+import TeacherHomeworkScreen from '../screens/TeacherHomeworkScreen'
+import ParentGradesScreen from '../screens/ParentGradesScreen'
 
 const navTheme = {
   ...DefaultTheme,
@@ -170,6 +173,21 @@ function MainNavigator() {
       <RootStack.Screen
         name="AdminMeetings"
         component={AdminMeetingsScreen}
+        options={{ presentation: 'card' }}
+      />
+      <RootStack.Screen
+        name="TeacherGrades"
+        component={TeacherGradesScreen}
+        options={{ presentation: 'card' }}
+      />
+      <RootStack.Screen
+        name="TeacherHomework"
+        component={TeacherHomeworkScreen}
+        options={{ presentation: 'card' }}
+      />
+      <RootStack.Screen
+        name="ParentGrades"
+        component={ParentGradesScreen}
         options={{ presentation: 'card' }}
       />
     </RootStack.Navigator>

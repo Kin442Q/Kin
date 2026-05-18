@@ -9,6 +9,8 @@ import {
   Receipt,
   CalendarHeart,
   ChevronRight,
+  GraduationCap,
+  BookOpen,
 } from 'lucide-react-native'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
@@ -27,6 +29,9 @@ export default function ProfileScreen() {
 
   const r = String(user?.role ?? '').toUpperCase()
   const isAdmin = r === 'ADMIN' || r === 'SUPER_ADMIN'
+  const isTeacher = r === 'TEACHER'
+  const isParent = r === 'PARENT'
+  const isSchool = user?.institution?.type === 'SCHOOL'
 
   const onLogout = () => {
     Alert.alert('Выход', 'Точно выйти из системы?', [
@@ -76,6 +81,42 @@ export default function ProfileScreen() {
                 bg={colors.lilacSoft}
                 title="Собрания"
                 onPress={() => navigation.navigate('AdminMeetings')}
+                last
+              />
+            </View>
+          </>
+        )}
+
+        {isTeacher && isSchool && (
+          <>
+            <Text style={styles.section}>Школа</Text>
+            <View style={styles.list}>
+              <ListRow
+                icon={<GraduationCap size={18} color={colors.primaryDeep} />}
+                bg={colors.primarySoft}
+                title="Журнал оценок"
+                onPress={() => navigation.navigate('TeacherGrades')}
+              />
+              <ListRow
+                icon={<BookOpen size={18} color={colors.yellowDeep} />}
+                bg={colors.yellowSoft}
+                title="Домашние задания"
+                onPress={() => navigation.navigate('TeacherHomework')}
+                last
+              />
+            </View>
+          </>
+        )}
+
+        {isParent && isSchool && (
+          <>
+            <Text style={styles.section}>Школа</Text>
+            <View style={styles.list}>
+              <ListRow
+                icon={<GraduationCap size={18} color={colors.primaryDeep} />}
+                bg={colors.primarySoft}
+                title="Оценки и домашка"
+                onPress={() => navigation.navigate('ParentGrades')}
                 last
               />
             </View>

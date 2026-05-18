@@ -91,6 +91,73 @@ class ParentService {
     })
   }
 
+  async kidGrades(
+    user: AuthUser,
+    kidId: string,
+    from?: string,
+    to?: string,
+  ) {
+    await this.ensureKidAccess(user, kidId)
+    return this.prisma.grade.findMany({
+      where: {
+        studentId: kidId,
+        ...(from || to
+          ? {
+              date: {
+                ...(from ? { gte: new Date(from) } : {}),
+                ...(to ? { lte: new Date(to) } : {}),
+              },
+            }
+          : {}),
+      },
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      include: {
+        subject: { select: { id: true, name: true, color: true } },
+        author: { select: { id: true, fullName: true } },
+      },
+    })
+  }
+
+  async kidGradeStats(user: AuthUser, kidId: string) {
+    await this.ensureKidAccess(user, kidId)
+    const grades = await this.prisma.grade.findMany({
+      where: { studentId: kidId },
+      select: { subjectId: true, value: true, subject: true },
+    })
+    const map: Record<
+      string,
+      { subjectId: string; name: string; color: string; count: number; sum: number }
+    > = {}
+    for (const g of grades) {
+      const m =
+        map[g.subjectId] ||
+        (map[g.subjectId] = {
+          subjectId: g.subjectId,
+          name: g.subject.name,
+          color: g.subject.color,
+          count: 0,
+          sum: 0,
+        })
+      m.count++
+      m.sum += g.value
+    }
+    return Object.values(map).map((m) => ({
+      ...m,
+      average: m.count ? Number((m.sum / m.count).toFixed(2)) : 0,
+    }))
+  }
+
+  async kidHomework(user: AuthUser, kidId: string) {
+    const kid = await this.ensureKidAccess(user, kidId)
+    return this.prisma.homework.findMany({
+      where: { groupId: kid.groupId },
+      orderBy: { dueDate: 'asc' },
+      include: {
+        subject: { select: { id: true, name: true, color: true } },
+      },
+    })
+  }
+
   /** Сводка для главного экрана: ребёнок + статус на сегодня + следующее занятие + дневник. */
   async kidToday(user: AuthUser, kidId: string) {
     const kid = await this.ensureKidAccess(user, kidId)
@@ -171,6 +238,26 @@ class ParentController {
   @Get('kids/:id/payments')
   kidPayments(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.kidPayments(user, id)
+  }
+
+  @Get('kids/:id/grades')
+  kidGrades(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.service.kidGrades(user, id, from, to)
+  }
+
+  @Get('kids/:id/grades/stats')
+  kidGradeStats(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.kidGradeStats(user, id)
+  }
+
+  @Get('kids/:id/homework')
+  kidHomework(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.kidHomework(user, id)
   }
 }
 
