@@ -14,11 +14,27 @@ export const configuration = () => ({
     url: process.env.DATABASE_URL!,
   },
 
-  redis: {
-    host: process.env.REDIS_HOST ?? 'redis',
-    port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
-    password: process.env.REDIS_PASSWORD,
-  },
+  redis: (() => {
+    // Если задан полный URL (Railway / Upstash) — парсим его.
+    const url = process.env.REDIS_URL
+    if (url) {
+      try {
+        const u = new URL(url)
+        return {
+          host: u.hostname,
+          port: parseInt(u.port || '6379', 10),
+          password: u.password || undefined,
+        }
+      } catch {
+        // если URL невалидный — упадём на ENV-переменные ниже
+      }
+    }
+    return {
+      host: process.env.REDIS_HOST ?? 'redis',
+      port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
+      password: process.env.REDIS_PASSWORD,
+    }
+  })(),
 
   jwt: {
     accessSecret: process.env.JWT_ACCESS_SECRET!,
