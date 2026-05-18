@@ -1,0 +1,134 @@
+import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
+import { createNativeStackNavigator } from '@react-navigation/native-stack'
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import {
+  Home,
+  Calendar,
+  CreditCard,
+  MessageCircle,
+  User,
+  ClipboardCheck,
+  LayoutGrid,
+  type LucideIcon,
+} from 'lucide-react-native'
+
+import { useAuthStore } from '../store/authStore'
+import { colors } from '../theme/colors'
+
+import LoginScreen from '../screens/LoginScreen'
+import TeacherHomeScreen from '../screens/TeacherHomeScreen'
+import TeacherAttendanceScreen from '../screens/TeacherAttendanceScreen'
+import ParentHomeScreen from '../screens/ParentHomeScreen'
+import ParentSchedulePlaceholder from '../screens/ParentSchedulePlaceholder'
+import ParentPaymentsPlaceholder from '../screens/ParentPaymentsPlaceholder'
+import ParentChatPlaceholder from '../screens/ParentChatPlaceholder'
+import ProfileScreen from '../screens/ProfileScreen'
+
+const navTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: colors.bg,
+    card: colors.surface,
+    text: colors.text,
+    primary: colors.primary,
+    border: colors.borderSoft,
+  },
+}
+
+const AuthStack = createNativeStackNavigator()
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+    </AuthStack.Navigator>
+  )
+}
+
+const Tab = createBottomTabNavigator()
+
+interface TabConfig {
+  name: string
+  label: string
+  icon: LucideIcon
+  component: React.ComponentType
+}
+
+function buildTabs(role: 'teacher' | 'parent'): TabConfig[] {
+  if (role === 'teacher') {
+    return [
+      { name: 'TeacherHome', label: 'Группа', icon: LayoutGrid, component: TeacherHomeScreen },
+      { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen },
+      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+    ]
+  }
+  return [
+    { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
+    { name: 'ParentSchedule', label: 'Сегодня', icon: Calendar, component: ParentSchedulePlaceholder },
+    { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder },
+    { name: 'ParentChat', label: 'Чат', icon: MessageCircle, component: ParentChatPlaceholder },
+    { name: 'Profile', label: 'Профиль', icon: User, component: ProfileScreen },
+  ]
+}
+
+function MainTabs() {
+  const user = useAuthStore((s) => s.user)
+  const role: 'teacher' | 'parent' =
+    user?.role === 'TEACHER' || user?.role === 'teacher' ? 'teacher' : 'parent'
+
+  const tabs = buildTabs(role)
+
+  return (
+    <Tab.Navigator
+      screenOptions={({ route }) => {
+        const tab = tabs.find((t) => t.name === route.name)
+        const Icon = tab?.icon ?? Home
+        return {
+          headerShown: false,
+          tabBarShowLabel: true,
+          tabBarActiveTintColor: colors.primaryDeep,
+          tabBarInactiveTintColor: colors.muted,
+          tabBarLabelStyle: {
+            fontSize: 10.5,
+            fontWeight: '600',
+            marginTop: -2,
+          },
+          tabBarStyle: {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.borderSoft,
+            borderTopWidth: 1,
+            height: 64,
+            paddingTop: 6,
+            paddingBottom: 8,
+          },
+          tabBarIcon: ({ color, focused }) => (
+            <Icon
+              size={22}
+              color={color}
+              strokeWidth={focused ? 2.4 : 2}
+            />
+          ),
+        }
+      }}
+    >
+      {tabs.map((t) => (
+        <Tab.Screen
+          key={t.name}
+          name={t.name}
+          component={t.component}
+          options={{ tabBarLabel: t.label }}
+        />
+      ))}
+    </Tab.Navigator>
+  )
+}
+
+export default function RootNavigator() {
+  const user = useAuthStore((s) => s.user)
+
+  return (
+    <NavigationContainer theme={navTheme}>
+      {user ? <MainTabs /> : <AuthNavigator />}
+    </NavigationContainer>
+  )
+}
