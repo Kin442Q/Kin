@@ -8,7 +8,8 @@ import {
   View,
 } from 'react-native'
 import * as LocalAuthentication from 'expo-local-authentication'
-import { Clock, LogIn, LogOut, Wallet, TrendingUp } from 'lucide-react-native'
+import * as Location from 'expo-location'
+import { Clock, LogIn, LogOut, Wallet, TrendingUp, MapPin } from 'lucide-react-native'
 import dayjs from 'dayjs'
 
 import Screen from '../components/Screen'
@@ -29,6 +30,10 @@ export default function TeacherHomeScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(new Date())
+  const [geoStatus, setGeoStatus] = useState<
+    'idle' | 'inside' | 'outside' | 'denied' | 'unknown' | 'no-fence'
+  >('idle')
+  const [distanceM, setDistanceM] = useState<number | null>(null)
 
   const month = dayjs().format('YYYY-MM')
 
@@ -52,6 +57,45 @@ export default function TeacherHomeScreen() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  // Геофенс-индикатор: показываем «в саду / вне / расстояние»
+  useEffect(() => {
+    let cancelled = false
+    const inst = user?.institution
+    if (!inst || inst.latitude == null || inst.longitude == null) {
+      setGeoStatus('no-fence')
+      return () => {
+        cancelled = true
+      }
+    }
+    ;(async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync()
+      if (cancelled) return
+      if (status !== 'granted') {
+        setGeoStatus('denied')
+        return
+      }
+      try {
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        })
+        if (cancelled) return
+        const d = haversineMeters(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          inst.latitude!,
+          inst.longitude!,
+        )
+        setDistanceM(Math.round(d))
+        setGeoStatus(d <= inst.checkInRadiusMeters ? 'inside' : 'outside')
+      } catch {
+        if (!cancelled) setGeoStatus('unknown')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user?.institution])
 
   // Тикающий таймер
   useEffect(() => {
@@ -97,7 +141,35 @@ export default function TeacherHomeScreen() {
         await timeApi.checkOut()
         Alert.alert('Хорошего отдыха! 👋', '')
       } else {
-        await timeApi.checkIn('FACE')
+        // Перед check-in пробуем взять свежие координаты для геофенс-валидации.
+        let coords: { lat: number; lon: number } | undefined
+        const inst = user?.institution
+        if (inst?.latitude != null && inst?.longitude != null) {
+          const { status } = await Location.requestForegroundPermissionsAsync()
+          if (status !== 'granted') {
+            Alert.alert(
+              'Нужна геолокация',
+              'Включите доступ к геолокации в настройках, чтобы отметить приход.',
+            )
+            return
+          }
+          try {
+            const pos = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.High,
+            })
+            coords = {
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+            }
+          } catch {
+            Alert.alert(
+              'Геолокация',
+              'Не удалось получить координаты. Попробуйте ещё раз на открытом воздухе.',
+            )
+            return
+          }
+        }
+        await timeApi.checkIn('FACE', coords)
         Alert.alert('Добро пожаловать! 🌿', '')
       }
       reload()
@@ -130,6 +202,55 @@ export default function TeacherHomeScreen() {
           />
         }
       >
+        {/* Geo indicator */}
+        {geoStatus !== 'idle' && geoStatus !== 'no-fence' && (
+          <View
+            style={[
+              styles.geoBadge,
+              {
+                backgroundColor:
+                  geoStatus === 'inside'
+                    ? colors.primarySoft
+                    : geoStatus === 'outside'
+                      ? colors.roseSoft
+                      : colors.surfaceAlt,
+              },
+            ]}
+          >
+            <MapPin
+              size={12}
+              color={
+                geoStatus === 'inside'
+                  ? colors.primaryDeep
+                  : geoStatus === 'outside'
+                    ? colors.roseDeep
+                    : colors.muted
+              }
+            />
+            <Text
+              style={[
+                styles.geoText,
+                {
+                  color:
+                    geoStatus === 'inside'
+                      ? colors.primaryDeep
+                      : geoStatus === 'outside'
+                        ? colors.roseDeep
+                        : colors.muted,
+                },
+              ]}
+            >
+              {geoStatus === 'inside'
+                ? `На территории${distanceM != null ? ' · ' + distanceM + ' м' : ''}`
+                : geoStatus === 'outside'
+                  ? `Вне территории${distanceM != null ? ' · ' + distanceM + ' м' : ''}`
+                  : geoStatus === 'denied'
+                    ? 'Геолокация выключена'
+                    : 'Не удалось определить позицию'}
+            </Text>
+          </View>
+        )}
+
         {/* Greeting */}
         <Text style={styles.greeting}>{greeting},</Text>
         <Text style={styles.name}>{user?.fullName}</Text>
@@ -254,11 +375,37 @@ export default function TeacherHomeScreen() {
   )
 }
 
+function haversineMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371000
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
+}
+
 const styles = StyleSheet.create({
   container: {
     padding: 20,
     gap: 14,
   },
+  geoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+  },
+  geoText: { fontSize: 11, fontWeight: '700' },
   greeting: {
     fontSize: 14,
     color: colors.muted,

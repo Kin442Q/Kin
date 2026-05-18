@@ -13,6 +13,9 @@ import type { AuthUser } from '../../common/types/jwt-payload'
 interface CheckInDto {
   verifyMethod?: TimeVerifyMethod
   note?: string
+  /** GPS-координаты с устройства */
+  lat?: number
+  lon?: number
 }
 
 interface CheckOutDto {
@@ -53,6 +56,31 @@ export class TimeTrackingService {
       )
     }
 
+    // Геофенс: если у учреждения заданы координаты и check-in пришёл с
+    // мобайла (есть lat/lon), проверяем расстояние. Без координат
+    // у садика валидация пропускается (обратная совместимость).
+    let distanceMeters: number | undefined
+    if (user.kindergartenId && dto.lat != null && dto.lon != null) {
+      const kg = await this.prisma.kindergarten.findUnique({
+        where: { id: user.kindergartenId },
+        select: {
+          latitude: true,
+          longitude: true,
+          checkInRadiusMeters: true,
+        },
+      })
+      if (kg?.latitude != null && kg?.longitude != null) {
+        distanceMeters = Math.round(
+          haversineMeters(dto.lat, dto.lon, kg.latitude, kg.longitude),
+        )
+        if (distanceMeters > (kg.checkInRadiusMeters ?? 150)) {
+          throw new ForbiddenException(
+            `Вы не на территории учреждения (расстояние ${distanceMeters} м, допустимо ${kg.checkInRadiusMeters} м).`,
+          )
+        }
+      }
+    }
+
     const now = new Date()
     const date = startOfDay(now)
 
@@ -63,6 +91,9 @@ export class TimeTrackingService {
         checkIn: now,
         verifyMethod: dto.verifyMethod ?? 'MANUAL',
         note: dto.note ?? null,
+        checkInLat: dto.lat ?? null,
+        checkInLon: dto.lon ?? null,
+        distanceMeters: distanceMeters ?? null,
       },
     })
   }
@@ -470,4 +501,24 @@ function monthRange(month: string): { from: Date; to: Date } {
   const from = new Date(Date.UTC(y, m - 1, 1))
   const to = new Date(Date.UTC(y, m, 1)) // следующий месяц
   return { from, to }
+}
+
+/**
+ * Расстояние между двумя точками на сфере (formula Haversine) в метрах.
+ * Достаточно точно для геофенсинга в пределах радиуса учреждения.
+ */
+function haversineMeters(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
+): number {
+  const R = 6371000 // радиус Земли в метрах
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLon = toRad(lon2 - lon1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(a))
 }

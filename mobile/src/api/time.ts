@@ -27,8 +27,16 @@ export interface TimeMonthSummary {
 }
 
 export const timeApi = {
-  checkIn: (verifyMethod: 'MANUAL' | 'FACE' = 'FACE') =>
-    http.post<TimeEntryDto>('/v1/time/check-in', { verifyMethod }).then((r) => r.data),
+  checkIn: (
+    verifyMethod: 'MANUAL' | 'FACE' = 'FACE',
+    location?: { lat: number; lon: number },
+  ) =>
+    http
+      .post<TimeEntryDto>('/v1/time/check-in', {
+        verifyMethod,
+        ...(location ? { lat: location.lat, lon: location.lon } : {}),
+      })
+      .then((r) => r.data),
   checkOut: () =>
     http.post<TimeEntryDto>('/v1/time/check-out', {}).then((r) => r.data),
   status: () =>

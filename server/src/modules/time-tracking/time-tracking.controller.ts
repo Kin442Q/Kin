@@ -44,6 +44,9 @@ enum SalaryModeDto {
 class CheckInBody {
   @IsOptional() @IsEnum(VerifyMethodDto) verifyMethod?: VerifyMethodDto
   @IsOptional() @IsString() @MaxLength(500) note?: string
+  /** GPS-координаты из мобайла (для геофенс-валидации) */
+  @IsOptional() @IsNumber() lat?: number
+  @IsOptional() @IsNumber() lon?: number
 }
 
 class CheckOutBody {
