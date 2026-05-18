@@ -30,8 +30,10 @@ import {
   PhoneOutlined,
   WomanOutlined,
   ManOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { Baby } from 'lucide-react'
+import ChildParentsModal from '../components/ChildParentsModal'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
@@ -63,6 +65,8 @@ export default function ChildrenPage() {
   const [editing, setEditing] = useState<Child | null>(null)
   const [photoList, setPhotoList] = useState<UploadFile[]>([])
   const [form] = Form.useForm()
+  const [parentsModal, setParentsModal] = useState<Child | null>(null)
+  const isAdmin = user?.role === 'admin' || user?.role === 'SUPER_ADMIN'
 
   const visibleChildren = useMemo(() => {
     let res = children
@@ -287,6 +291,16 @@ export default function ChildrenPage() {
           user?.role !== 'teacher' || c.groupId === user.groupId
         return (
           <Space>
+            {isAdmin && (
+              <Tooltip title="Родители">
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<TeamOutlined />}
+                  onClick={() => setParentsModal(c)}
+                />
+              </Tooltip>
+            )}
             <Tooltip title={canModify ? 'Редактировать' : 'Нет прав'}>
               <Button
                 size="small"
@@ -522,6 +536,13 @@ export default function ChildrenPage() {
                         </div>
                       </div>
                       <Space size={4}>
+                        {isAdmin && (
+                          <Button
+                            size="middle"
+                            icon={<TeamOutlined />}
+                            onClick={() => setParentsModal(c)}
+                          />
+                        )}
                         <Button
                           size="middle"
                           icon={<EditOutlined />}
@@ -730,6 +751,17 @@ export default function ChildrenPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <ChildParentsModal
+        open={!!parentsModal}
+        onClose={() => setParentsModal(null)}
+        childId={parentsModal?.id ?? null}
+        childName={
+          parentsModal
+            ? `${parentsModal.firstName} ${parentsModal.lastName}`
+            : ''
+        }
+      />
     </div>
   )
 }

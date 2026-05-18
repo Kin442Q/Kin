@@ -5,12 +5,12 @@ import {
   Home,
   Calendar,
   CreditCard,
-  MessageCircle,
   User,
   ClipboardCheck,
   LayoutGrid,
   BarChart3,
   BookOpen,
+  GraduationCap,
   type LucideIcon,
 } from 'lucide-react-native'
 
@@ -24,7 +24,6 @@ import TeacherAttendanceScreen from '../screens/TeacherAttendanceScreen'
 import ParentHomeScreen from '../screens/ParentHomeScreen'
 import ParentSchedulePlaceholder from '../screens/ParentSchedulePlaceholder'
 import ParentPaymentsPlaceholder from '../screens/ParentPaymentsPlaceholder'
-import ParentChatPlaceholder from '../screens/ParentChatPlaceholder'
 import ProfileScreen from '../screens/ProfileScreen'
 import AdminDashboardScreen from '../screens/AdminDashboardScreen'
 import AdminGroupsScreen from '../screens/AdminGroupsScreen'
@@ -81,6 +80,17 @@ function buildTabs(
     ]
   }
   if (role === 'teacher') {
+    // Учитель школы: Кабинет / Отметить / Журнал / ДЗ / Я (5)
+    if (type === 'SCHOOL') {
+      return [
+        { name: 'TeacherHome', label: 'Кабинет', icon: LayoutGrid, component: TeacherHomeScreen },
+        { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen },
+        { name: 'TeacherGrades', label: 'Журнал', icon: GraduationCap, component: TeacherGradesScreen },
+        { name: 'TeacherHomework', label: 'ДЗ', icon: BookOpen, component: TeacherHomeworkScreen },
+        { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+      ]
+    }
+    // Воспитатель садика: Группа / Отметить / Дневник / Я (4)
     return [
       { name: 'TeacherHome', label: L.group[0].toUpperCase() + L.group.slice(1), icon: LayoutGrid, component: TeacherHomeScreen },
       { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen },
@@ -88,12 +98,22 @@ function buildTabs(
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
     ]
   }
+  // Родитель школы: Главная / Расписание / Оценки / Оплата / Я (5)
+  if (type === 'SCHOOL') {
+    return [
+      { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
+      { name: 'ParentSchedule', label: 'Расписание', icon: Calendar, component: ParentSchedulePlaceholder },
+      { name: 'ParentGrades', label: 'Оценки', icon: GraduationCap, component: ParentGradesScreen },
+      { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder },
+      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+    ]
+  }
+  // Родитель садика: Главная / Сегодня / Оплата / Я (4)
   return [
     { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
     { name: 'ParentSchedule', label: 'Сегодня', icon: Calendar, component: ParentSchedulePlaceholder },
     { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder },
-    { name: 'ParentChat', label: 'Чат', icon: MessageCircle, component: ParentChatPlaceholder },
-    { name: 'Profile', label: 'Профиль', icon: User, component: ProfileScreen },
+    { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
   ]
 }
 
@@ -173,21 +193,6 @@ function MainNavigator() {
       <RootStack.Screen
         name="AdminMeetings"
         component={AdminMeetingsScreen}
-        options={{ presentation: 'card' }}
-      />
-      <RootStack.Screen
-        name="TeacherGrades"
-        component={TeacherGradesScreen}
-        options={{ presentation: 'card' }}
-      />
-      <RootStack.Screen
-        name="TeacherHomework"
-        component={TeacherHomeworkScreen}
-        options={{ presentation: 'card' }}
-      />
-      <RootStack.Screen
-        name="ParentGrades"
-        component={ParentGradesScreen}
         options={{ presentation: 'card' }}
       />
     </RootStack.Navigator>

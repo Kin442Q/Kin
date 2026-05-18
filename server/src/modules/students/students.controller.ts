@@ -58,4 +58,47 @@ export class StudentsController {
   remove(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.service.remove(id, user)
   }
+
+  // ─── Управление родительскими аккаунтами ученика ─────────────────
+
+  @Get(':id/parents')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')
+  @ApiOperation({ summary: 'Список родителей ученика' })
+  listParents(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.listParents(id, user)
+  }
+
+  @Post(':id/parents')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({
+    summary:
+      'Создать аккаунт родителя и привязать к ученику (или привязать существующий по email)',
+  })
+  addParent(
+    @Param('id') id: string,
+    @Body()
+    dto: {
+      fullName?: string
+      email?: string
+      phone?: string
+      password?: string
+      /** Если задан — привязать существующего пользователя-родителя */
+      existingUserId?: string
+    },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.addParent(id, dto, user)
+  }
+
+  @Delete(':id/parents/:parentId')
+  @HttpCode(204)
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'Отвязать родителя от ученика (аккаунт не удаляется)' })
+  removeParent(
+    @Param('id') id: string,
+    @Param('parentId') parentId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.removeParent(id, parentId, user)
+  }
 }
