@@ -9,6 +9,7 @@ import {
   User,
   ClipboardCheck,
   LayoutGrid,
+  BarChart3,
   type LucideIcon,
 } from 'lucide-react-native'
 
@@ -23,6 +24,9 @@ import ParentSchedulePlaceholder from '../screens/ParentSchedulePlaceholder'
 import ParentPaymentsPlaceholder from '../screens/ParentPaymentsPlaceholder'
 import ParentChatPlaceholder from '../screens/ParentChatPlaceholder'
 import ProfileScreen from '../screens/ProfileScreen'
+import AdminDashboardScreen from '../screens/AdminDashboardScreen'
+import AdminGroupsScreen from '../screens/AdminGroupsScreen'
+import AdminPaymentsScreen from '../screens/AdminPaymentsScreen'
 
 const navTheme = {
   ...DefaultTheme,
@@ -54,7 +58,15 @@ interface TabConfig {
   component: React.ComponentType
 }
 
-function buildTabs(role: 'teacher' | 'parent'): TabConfig[] {
+function buildTabs(role: 'admin' | 'teacher' | 'parent'): TabConfig[] {
+  if (role === 'admin') {
+    return [
+      { name: 'AdminDashboard', label: 'Сводка', icon: BarChart3, component: AdminDashboardScreen },
+      { name: 'AdminGroups', label: 'Группы', icon: LayoutGrid, component: AdminGroupsScreen },
+      { name: 'AdminPayments', label: 'Оплаты', icon: CreditCard, component: AdminPaymentsScreen },
+      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+    ]
+  }
   if (role === 'teacher') {
     return [
       { name: 'TeacherHome', label: 'Группа', icon: LayoutGrid, component: TeacherHomeScreen },
@@ -73,8 +85,13 @@ function buildTabs(role: 'teacher' | 'parent'): TabConfig[] {
 
 function MainTabs() {
   const user = useAuthStore((s) => s.user)
-  const role: 'teacher' | 'parent' =
-    user?.role === 'TEACHER' || user?.role === 'teacher' ? 'teacher' : 'parent'
+  const r = String(user?.role ?? '').toUpperCase()
+  const role: 'admin' | 'teacher' | 'parent' =
+    r === 'SUPER_ADMIN' || r === 'ADMIN'
+      ? 'admin'
+      : r === 'TEACHER'
+        ? 'teacher'
+        : 'parent'
 
   const tabs = buildTabs(role)
 
