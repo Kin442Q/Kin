@@ -38,6 +38,18 @@ export default function LoginPage() {
         return
       }
 
+      // Сохраняем токен и тут же запрашиваем /me — чтобы получить institution.type
+      // и сразу корректно показать UI-лейблы.
+      let institution = null
+      try {
+        const meResp = await http.get('/v1/auth/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        })
+        institution = meResp.data?.institution ?? null
+      } catch {
+        // некритично, лейблы будут «садиковыми» по умолчанию
+      }
+
       login(
         {
           id: user.id,
@@ -47,6 +59,7 @@ export default function LoginPage() {
           kindergartenId: user.kindergartenId ?? null,
           groupId: user.groupId ?? undefined,
           childId: user.childId ?? undefined,
+          institution,
         },
         accessToken,
       )

@@ -14,18 +14,31 @@ export type Role =
   | 'PARENT'
   | 'parent'
 
+export type InstitutionType = 'KINDERGARTEN' | 'SCHOOL'
+
+export interface Institution {
+  id: string
+  name: string
+  type: InstitutionType
+  latitude: number | null
+  longitude: number | null
+  checkInRadiusMeters: number
+}
+
 export interface User {
   id: string
   fullName: string
   email: string
   role: Role
   avatarUrl?: string
-  /** Multi-tenant: id садика. null = глобальный супер-админ */
+  /** Multi-tenant: id учреждения. null = глобальный супер-админ */
   kindergartenId?: string | null
   /** Для роли teacher — id назначенной группы */
   groupId?: string
   /** Для роли parent — id ребёнка */
   childId?: string
+  /** Заполняется в ответе /auth/me — тип учреждения для лейблов UI. */
+  institution?: Institution | null
 }
 
 /**

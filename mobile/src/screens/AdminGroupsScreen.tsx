@@ -13,9 +13,11 @@ import { Users, GraduationCap } from 'lucide-react-native'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import { colors, radius } from '../theme/colors'
+import { useLabels } from '../theme/useLabels'
 import { adminApi, type GroupDto } from '../api/admin'
 
 export default function AdminGroupsScreen() {
+  const L = useLabels()
   const [groups, setGroups] = useState<GroupDto[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -69,9 +71,9 @@ export default function AdminGroupsScreen() {
         }
         ListHeaderComponent={
           <View style={{ marginBottom: 14 }}>
-            <Text style={styles.title}>Группы</Text>
+            <Text style={styles.title}>{L.groups}</Text>
             <Text style={styles.subtitle}>
-              {groups.length} групп · {totalKids} детей
+              {groups.length} · {totalKids} {L.students.toLowerCase() === 'дети' ? 'детей' : 'учеников'}
             </Text>
           </View>
         }
@@ -131,7 +133,7 @@ export default function AdminGroupsScreen() {
                 <View style={styles.stat}>
                   <GraduationCap size={14} color={colors.muted} />
                   <Text style={styles.statText}>
-                    {teachers} {teachers === 1 ? 'воспитатель' : 'воспитателя'}
+                    {teachers} {teachers === 1 ? L.teacher : pluralizeTeacher(teachers, L.teacher)}
                   </Text>
                 </View>
                 {!item.isActive && (
@@ -146,13 +148,21 @@ export default function AdminGroupsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
-              Групп пока нет. Добавьте первую в веб-версии.
+              {L.groups} пока нет. Добавьте первую в веб-версии.
             </Text>
           </View>
         }
       />
     </Screen>
   )
+}
+
+function pluralizeTeacher(n: number, base: string): string {
+  // «воспитатель» → «воспитателя» (мн.ч.); «учитель» → «учителя».
+  // Простое правило: чтобы не плодить кейсы, используем родительный падеж.
+  if (base === 'воспитатель') return n < 5 ? 'воспитателя' : 'воспитателей'
+  if (base === 'учитель') return n < 5 ? 'учителя' : 'учителей'
+  return base
 }
 
 const styles = StyleSheet.create({

@@ -28,11 +28,14 @@ import Screen from '../components/Screen'
 import Card from '../components/Card'
 import { colors, radius, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
+import { useLabels } from '../theme/useLabels'
+import { cap } from '../theme/labels'
 import { adminApi, type DashboardDto } from '../api/admin'
 
 export default function AdminDashboardScreen() {
   const user = useAuthStore((s) => s.user)
   const navigation = useNavigation<any>()
+  const L = useLabels()
   const month = useMemo(() => dayjs().format('YYYY-MM'), [])
 
   const [data, setData] = useState<DashboardDto | null>(null)
@@ -83,21 +86,21 @@ export default function AdminDashboardScreen() {
         <Text style={styles.greeting}>Привет,</Text>
         <Text style={styles.name}>{user?.fullName}</Text>
         <Text style={styles.date}>
-          {dayjs().format('MMMM YYYY')} · сводка по садику
+          {dayjs().format('MMMM YYYY')} · сводка по {L.institution === 'школа' ? 'школе' : 'садику'}
         </Text>
 
         <View style={styles.kpiRow}>
           <KpiCard
             icon={<Users size={18} color={colors.primaryDeep} />}
             bg={colors.primaryGhost}
-            label="Активных детей"
+            label={`Активных ${L.students.toLowerCase() === 'дети' ? 'детей' : 'учеников'}`}
             value={String(data?.activeStudents ?? 0)}
             sub={data ? `из ${data.totalStudents} всего` : ''}
           />
           <KpiCard
             icon={<LayoutGrid size={18} color={colors.blueDeep} />}
             bg={colors.blueSoft}
-            label="Групп"
+            label={L.groups}
             value={String(data?.groups ?? 0)}
             sub="активных"
           />
@@ -138,7 +141,7 @@ export default function AdminDashboardScreen() {
           <QuickAction
             icon={<Baby size={20} color={colors.primaryDeep} />}
             bg={colors.primarySoft}
-            label="Дети"
+            label={L.students}
             onPress={() => navigation.navigate('AdminStudents')}
           />
           <QuickAction

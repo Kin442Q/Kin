@@ -106,6 +106,14 @@ enum AuditAction {
 // KINDERGARTEN (мульти-тенант: каждый садик = отдельный изолированный аккаунт)
 // ---------------------------------------------------------------------------
 
+/// Тип учреждения. По умолчанию KINDERGARTEN (для обратной совместимости
+/// с существующими записями). SCHOOL включает школьные фичи: предметы,
+/// уроки, оценки, домашние задания, журнал.
+enum InstitutionType {
+  KINDERGARTEN
+  SCHOOL
+}
+
 model Kindergarten {
   id            String   @id @default(cuid())
   name          String
@@ -114,9 +122,20 @@ model Kindergarten {
   phone         String?
   isActive      Boolean  @default(true)
 
+  /// Тип учреждения: садик или школа.
+  /// Влияет на лейблы в UI (группа↔класс, ребёнок↔ученик) и доступные фичи.
+  type          InstitutionType @default(KINDERGARTEN)
+
   /// API-ключ для внешнего терминала контроля доступа.
   /// Если задан — webhook /v1/time/webhook принимает события от устройства.
   terminalApiKey String? @unique
+
+  /// Геолокация садика — для check-in валидации с телефона учителя.
+  /// Если оба заданы, check-in через мобайл валидируется по расстоянию.
+  latitude              Float?
+  longitude             Float?
+  /// Допустимый радиус check-in в метрах (по умолчанию 150 м).
+  checkInRadiusMeters   Int     @default(150)
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -287,6 +306,13 @@ model TimeEntry {
   /// Если запись правил админ, фиксируем
   editedByAdminId String?
 
+  /// GPS-координаты, откуда был сделан check-in (если с мобайла).
+  /// Используются для аудита и валидации геофенсинга.
+  checkInLat      Float?
+  checkInLon      Float?
+  /// Расстояние от точки садика в метрах (на момент check-in)
+  distanceMeters  Int?
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -320,7 +346,12 @@ model RefreshToken {
 model Group {
   id                   String   @id @default(cuid())
   name                 String
-  ageRange             String         // "3–4 года"
+  /// Возрастной диапазон (для садика). Школа использует gradeLabel/gradeNumber.
+  ageRange             String         // "3–4 года" в саду, в школе можно "10–11 лет" или пусто
+  /// Школьный лейбл класса: "5А", "11Б". NULL для садика.
+  gradeLabel           String?
+  /// Параллель (5, 11) — для агрегаций «5-е классы». NULL для садика.
+  gradeNumber          Int?
   capacity             Int      @default(20)
   monthlyFee           Decimal  @db.Decimal(12, 2) @default(0)
   /// Фикс. ежемесячные расходы на группу (питание, материалы и т.п.)

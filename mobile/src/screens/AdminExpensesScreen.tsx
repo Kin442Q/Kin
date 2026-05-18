@@ -35,6 +35,8 @@ import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
 import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
+import { useLabels } from '../theme/useLabels'
+import { cap } from '../theme/labels'
 import {
   adminApi,
   type ExpenseDto,
@@ -68,6 +70,7 @@ const CAT_META = Object.fromEntries(
 
 export default function AdminExpensesScreen() {
   const navigation = useNavigation()
+  const L = useLabels()
   const month = useMemo(() => dayjs().format('YYYY-MM'), [])
 
   const [items, setItems] = useState<ExpenseDto[]>([])
@@ -293,7 +296,7 @@ export default function AdminExpensesScreen() {
 
         {groups.length > 0 && (
           <Select<string>
-            label="Группа (необязательно)"
+            label={`${cap(L.group)} (необязательно)`}
             value={groupId ?? ('' as string)}
             onChange={(v) => setGroupId(v === '' ? null : v)}
             options={[

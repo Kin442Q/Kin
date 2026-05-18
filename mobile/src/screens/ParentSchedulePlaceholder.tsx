@@ -14,6 +14,8 @@ import { Calendar } from 'lucide-react-native'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import { colors, radius } from '../theme/colors'
+import { useLabels } from '../theme/useLabels'
+import { cap } from '../theme/labels'
 import {
   parentApi,
   type KidDto,
@@ -40,6 +42,7 @@ const DAYS_SHORT: Record<number, string> = {
 }
 
 export default function ParentScheduleScreen() {
+  const L = useLabels()
   const todayDow = ((new Date().getDay() + 6) % 7) + 1
   const [kids, setKids] = useState<KidDto[]>([])
   const [activeKidId, setActiveKidId] = useState<string | null>(null)
@@ -117,7 +120,7 @@ export default function ParentScheduleScreen() {
             <Text style={styles.title}>Расписание</Text>
             {activeKid && (
               <Text style={styles.subtitle}>
-                {activeKid.firstName} · группа «{activeKid.group?.name}»
+                {activeKid.firstName} · {L.group} «{activeKid.group?.name}»
               </Text>
             )}
 

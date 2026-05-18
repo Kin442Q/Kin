@@ -16,11 +16,14 @@ import Btn from '../components/Btn'
 import Avatar from '../components/Avatar'
 import { colors, radius } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
+import { useLabels } from '../theme/useLabels'
+import { cap } from '../theme/labels'
 
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const navigation = useNavigation<any>()
+  const L = useLabels()
 
   const r = String(user?.role ?? '').toUpperCase()
   const isAdmin = r === 'ADMIN' || r === 'SUPER_ADMIN'
@@ -38,8 +41,8 @@ export default function ProfileScreen() {
       : r === 'ADMIN'
         ? 'Администратор'
         : r === 'TEACHER'
-          ? 'Воспитатель'
-          : 'Родитель'
+          ? cap(L.teacher)
+          : cap(L.parent)
 
   return (
     <Screen>
@@ -59,7 +62,7 @@ export default function ProfileScreen() {
               <ListRow
                 icon={<Baby size={18} color={colors.primaryDeep} />}
                 bg={colors.primarySoft}
-                title="Дети"
+                title={L.students}
                 onPress={() => navigation.navigate('AdminStudents')}
               />
               <ListRow

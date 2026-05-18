@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Post,
   Req,
@@ -88,6 +89,16 @@ export class AuthController {
 
     await this.auth.logout(user.sub, jti, accessJti)
     res.clearCookie('refreshToken')
+  }
+
+  // ---------------- Current user -------------------------------
+  @ApiBearerAuth()
+  @Get('me')
+  @ApiOperation({
+    summary: 'Текущий пользователь + учреждение (тип, координаты, радиус)',
+  })
+  me(@CurrentUser() user: AuthUser) {
+    return this.auth.me(user.sub)
   }
 
   // ---------------- Register (only super admin) ----------------

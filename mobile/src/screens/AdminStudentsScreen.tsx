@@ -16,6 +16,8 @@ import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Avatar from '../components/Avatar'
 import { colors, radius } from '../theme/colors'
+import { useLabels } from '../theme/useLabels'
+import { cap } from '../theme/labels'
 import {
   adminApi,
   type AdminStudentDto,
@@ -24,6 +26,7 @@ import {
 
 export default function AdminStudentsScreen() {
   const navigation = useNavigation()
+  const L = useLabels()
   const [students, setStudents] = useState<AdminStudentDto[]>([])
   const [groups, setGroups] = useState<GroupDto[]>([])
   const [activeGroup, setActiveGroup] = useState<string | null>(null)
@@ -80,7 +83,7 @@ export default function AdminStudentsScreen() {
         >
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.topTitle}>Дети</Text>
+        <Text style={styles.topTitle}>{L.students}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -150,7 +153,7 @@ export default function AdminStudentsScreen() {
                     fontWeight: '700',
                   }}
                 >
-                  Все группы
+                  Все {L.groups.toLowerCase()}
                 </Text>
               </Pressable>
               {groups.map((g) => {
@@ -184,12 +187,7 @@ export default function AdminStudentsScreen() {
             <View style={styles.summary}>
               <Users size={14} color={colors.muted} />
               <Text style={styles.summaryText}>
-                {students.length}{' '}
-                {students.length === 1
-                  ? 'ребёнок'
-                  : students.length < 5
-                    ? 'ребёнка'
-                    : 'детей'}
+                {students.length} {pluralizeStudent(students.length, L.student)}
               </Text>
             </View>
           </View>
@@ -248,13 +246,28 @@ export default function AdminStudentsScreen() {
             <Text style={styles.emptyText}>
               {status === 'ARCHIVED'
                 ? 'В архиве пусто'
-                : 'Здесь пока никого нет. Добавьте детей в веб-версии.'}
+                : `Здесь пока никого нет. Добавьте ${L.students.toLowerCase()} в веб-версии.`}
             </Text>
           </View>
         }
       />
     </Screen>
   )
+}
+
+function pluralizeStudent(n: number, base: string): string {
+  // «ребёнок» / «ученик» с согласованием падежей.
+  if (base === 'ребёнок') {
+    if (n === 1) return 'ребёнок'
+    if (n < 5) return 'ребёнка'
+    return 'детей'
+  }
+  if (base === 'ученик') {
+    if (n === 1) return 'ученик'
+    if (n < 5) return 'ученика'
+    return 'учеников'
+  }
+  return base
 }
 
 const styles = StyleSheet.create({

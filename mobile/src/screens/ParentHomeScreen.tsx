@@ -17,21 +17,29 @@ import Card from '../components/Card'
 import Avatar from '../components/Avatar'
 import { colors, radius, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
+import { useLabels } from '../theme/useLabels'
+import { cap } from '../theme/labels'
 import { parentApi, type KidDto, type KidTodayDto } from '../api/parent'
 import type { AttendanceStatus } from '../api/attendance'
 
-const STATUS_META: Record<
+function statusMeta(type: 'KINDERGARTEN' | 'SCHOOL' | null | undefined): Record<
   AttendanceStatus,
   { label: string; bg: string; fg: string; emoji: string }
-> = {
-  PRESENT: { label: 'В саду', bg: colors.primarySoft, fg: colors.primaryDeep, emoji: '🟢' },
-  ABSENT: { label: 'Нет в саду', bg: colors.roseSoft, fg: colors.roseDeep, emoji: '🔴' },
-  SICK: { label: 'Болеет', bg: colors.yellowSoft, fg: colors.yellowDeep, emoji: '🤒' },
-  VACATION: { label: 'В отпуске', bg: colors.lilacSoft, fg: colors.lilacDeep, emoji: '🌴' },
+> {
+  const place = type === 'SCHOOL' ? 'в школе' : 'в саду'
+  const placeNeg = type === 'SCHOOL' ? 'Нет в школе' : 'Нет в саду'
+  return {
+    PRESENT: { label: `В ${place === 'в школе' ? 'школе' : 'саду'}`, bg: colors.primarySoft, fg: colors.primaryDeep, emoji: '🟢' },
+    ABSENT: { label: placeNeg, bg: colors.roseSoft, fg: colors.roseDeep, emoji: '🔴' },
+    SICK: { label: 'Болеет', bg: colors.yellowSoft, fg: colors.yellowDeep, emoji: '🤒' },
+    VACATION: { label: 'В отпуске', bg: colors.lilacSoft, fg: colors.lilacDeep, emoji: '🌴' },
+  }
 }
 
 export default function ParentHomeScreen() {
   const user = useAuthStore((s) => s.user)
+  const L = useLabels()
+  const STATUS_META = statusMeta(user?.institution?.type)
 
   const [kids, setKids] = useState<KidDto[]>([])
   const [activeKidId, setActiveKidId] = useState<string | null>(null)
@@ -96,8 +104,8 @@ export default function ParentHomeScreen() {
         <View style={styles.empty}>
           <AlertCircle size={40} color={colors.muted} />
           <Text style={styles.emptyText}>
-            К вашему аккаунту пока не привязан ни один ребёнок. Обратитесь к
-            администратору сада.
+            К вашему аккаунту пока не привязан ни один {L.student.toLowerCase()}. Обратитесь к
+            администратору {L.institution === 'школа' ? 'школы' : 'сада'}.
           </Text>
         </View>
       </Screen>
@@ -166,7 +174,7 @@ export default function ParentHomeScreen() {
             <View style={{ marginLeft: 14, flex: 1 }}>
               <Text style={styles.childName}>{kid.firstName}</Text>
               <Text style={styles.childSub}>
-                Группа «{kid.group?.name ?? '—'}»
+                {cap(L.group)} «{kid.group?.name ?? '—'}»
                 {kid.group?.ageRange ? ` · ${kid.group.ageRange}` : ''}
               </Text>
             </View>
@@ -211,7 +219,9 @@ export default function ParentHomeScreen() {
           </Card>
         )}
 
-        <Text style={styles.section}>Сегодня в саду</Text>
+        <Text style={styles.section}>
+          Сегодня {L.institution === 'школа' ? 'в школе' : 'в саду'}
+        </Text>
 
         {upcoming.length === 0 ? (
           <Card padding={20}>

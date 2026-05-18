@@ -15,6 +15,7 @@ import {
 
 import { useAuthStore } from '../store/authStore'
 import { colors } from '../theme/colors'
+import { labels } from '../theme/labels'
 
 import LoginScreen from '../screens/LoginScreen'
 import TeacherHomeScreen from '../screens/TeacherHomeScreen'
@@ -61,18 +62,22 @@ interface TabConfig {
   component: React.ComponentType
 }
 
-function buildTabs(role: 'admin' | 'teacher' | 'parent'): TabConfig[] {
+function buildTabs(
+  role: 'admin' | 'teacher' | 'parent',
+  type?: 'KINDERGARTEN' | 'SCHOOL' | null,
+): TabConfig[] {
+  const L = labels(type)
   if (role === 'admin') {
     return [
       { name: 'AdminDashboard', label: 'Сводка', icon: BarChart3, component: AdminDashboardScreen },
-      { name: 'AdminGroups', label: 'Группы', icon: LayoutGrid, component: AdminGroupsScreen },
+      { name: 'AdminGroups', label: L.groups, icon: LayoutGrid, component: AdminGroupsScreen },
       { name: 'AdminPayments', label: 'Оплаты', icon: CreditCard, component: AdminPaymentsScreen },
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
     ]
   }
   if (role === 'teacher') {
     return [
-      { name: 'TeacherHome', label: 'Группа', icon: LayoutGrid, component: TeacherHomeScreen },
+      { name: 'TeacherHome', label: L.group[0].toUpperCase() + L.group.slice(1), icon: LayoutGrid, component: TeacherHomeScreen },
       { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen },
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
     ]
@@ -96,7 +101,7 @@ function MainTabs() {
         ? 'teacher'
         : 'parent'
 
-  const tabs = buildTabs(role)
+  const tabs = buildTabs(role, user?.institution?.type ?? null)
 
   return (
     <Tab.Navigator

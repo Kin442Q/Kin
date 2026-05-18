@@ -25,10 +25,13 @@ import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
 import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
+import { useLabels } from '../theme/useLabels'
+import { cap } from '../theme/labels'
 import { adminApi, type MeetingDto, type GroupDto } from '../api/admin'
 
 export default function AdminMeetingsScreen() {
   const navigation = useNavigation()
+  const L = useLabels()
   const [items, setItems] = useState<MeetingDto[]>([])
   const [groups, setGroups] = useState<GroupDto[]>([])
   const [loading, setLoading] = useState(true)
@@ -80,7 +83,7 @@ export default function AdminMeetingsScreen() {
 
   const submit = async () => {
     if (!groupId || !title.trim()) {
-      Alert.alert('Заполните', 'Нужны группа и заголовок')
+      Alert.alert('Заполните', `Нужны ${L.group} и заголовок`)
       return
     }
     const scheduledAt = `${dateStr}T${timeStr}:00`
@@ -104,7 +107,7 @@ export default function AdminMeetingsScreen() {
       reload()
       Alert.alert(
         'Создано',
-        'Родителям группы будет отправлено уведомление в Telegram.',
+        `Родителям ${L.group === 'класс' ? 'класса' : 'группы'} будет отправлено уведомление в Telegram.`,
       )
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || String(e))
@@ -234,7 +237,7 @@ export default function AdminMeetingsScreen() {
       >
         {groups.length > 0 && (
           <Select<string>
-            label="Группа"
+            label={cap(L.group)}
             value={groupId ?? groups[0]?.id ?? ''}
             onChange={setGroupId}
             options={groups.map((g) => ({ value: g.id, label: g.name }))}
@@ -288,7 +291,7 @@ export default function AdminMeetingsScreen() {
           Создать и оповестить
         </Btn>
         <Text style={styles.hint}>
-          Родителям группы отправится сообщение в Telegram (если настроен бот).
+          Родителям {L.group === 'класс' ? 'класса' : 'группы'} отправится сообщение в Telegram (если настроен бот).
         </Text>
       </BottomModal>
     </Screen>

@@ -25,6 +25,10 @@ interface UpdateKindergartenDto {
   address?: string
   phone?: string
   isActive?: boolean
+  type?: 'KINDERGARTEN' | 'SCHOOL'
+  latitude?: number | null
+  longitude?: number | null
+  checkInRadiusMeters?: number
 }
 
 @Injectable()
@@ -147,19 +151,46 @@ export class KindergartensService {
 
   async update(user: AuthUser, id: string, dto: UpdateKindergartenDto) {
     this.assertGlobalOwner(user)
-    const existing = await this.prisma.kindergarten.findUnique({
-      where: { id },
-    })
-    if (!existing) throw new NotFoundException('Садик не найден')
+    return this.applyUpdate(id, dto)
+  }
+
+  /**
+   * Обновление текущего учреждения «своими» админами (без прав global-owner).
+   * Доступные поля ограничены: тип, координаты, радиус, базовая инфа.
+   */
+  async updateMine(user: AuthUser, dto: UpdateKindergartenDto) {
+    if (!user.kindergartenId) {
+      throw new ForbiddenException('Пользователь не привязан к учреждению')
+    }
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Доступ только для администратора')
+    }
+    return this.applyUpdate(user.kindergartenId, dto)
+  }
+
+  private async applyUpdate(id: string, dto: UpdateKindergartenDto) {
+    const existing = await this.prisma.kindergarten.findUnique({ where: { id } })
+    if (!existing) throw new NotFoundException('Учреждение не найдено')
+
+    const data: Record<string, unknown> = {}
+    if (dto.name !== undefined) data.name = dto.name.trim()
+    if (dto.address !== undefined) data.address = dto.address?.trim() || null
+    if (dto.phone !== undefined) data.phone = dto.phone?.trim() || null
+    if (dto.isActive !== undefined) data.isActive = dto.isActive
+    if (dto.type !== undefined) data.type = dto.type
+    if (dto.latitude !== undefined) data.latitude = dto.latitude
+    if (dto.longitude !== undefined) data.longitude = dto.longitude
+    if (dto.checkInRadiusMeters !== undefined) {
+      const r = Number(dto.checkInRadiusMeters)
+      if (!Number.isFinite(r) || r < 20 || r > 5000) {
+        throw new BadRequestException('Радиус должен быть от 20 до 5000 метров')
+      }
+      data.checkInRadiusMeters = Math.round(r)
+    }
 
     return this.prisma.kindergarten.update({
       where: { id },
-      data: {
-        name: dto.name?.trim(),
-        address: dto.address?.trim(),
-        phone: dto.phone?.trim(),
-        isActive: dto.isActive,
-      },
+      data,
     })
   }
 

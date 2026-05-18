@@ -16,6 +16,7 @@ import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Avatar from '../components/Avatar'
 import { colors, radius, shadow } from '../theme/colors'
+import { useLabels } from '../theme/useLabels'
 import { studentsApi, type StudentDto } from '../api/students'
 import {
   attendanceApi,
@@ -71,6 +72,7 @@ const STATUSES: Array<{
 ]
 
 export default function TeacherAttendanceScreen() {
+  const L = useLabels()
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [])
 
   const [students, setStudents] = useState<StudentDto[]>([])
@@ -172,7 +174,9 @@ export default function TeacherAttendanceScreen() {
                 </Text>
               </Card>
               <Card padding={14} style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>В саду</Text>
+                <Text style={styles.kpiLabel}>
+                  В {L.institution === 'школа' ? 'школе' : 'саду'}
+                </Text>
                 <Text style={[styles.kpiValue, { color: colors.primaryDeep }]}>
                   {counts.present}
                 </Text>
@@ -198,7 +202,7 @@ export default function TeacherAttendanceScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
-              В вашей группе пока нет активных детей.
+              В вашем {L.group === 'класс' ? 'классе' : 'группе'} пока никого нет.
             </Text>
           </View>
         }

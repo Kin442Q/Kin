@@ -17,6 +17,7 @@ import Btn from '../components/Btn'
 import Avatar from '../components/Avatar'
 import { colors, radius, font, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
+import { useLabels } from '../theme/useLabels'
 import { timeApi, type TimeMonthSummary } from '../api/time'
 
 export default function TeacherHomeScreen() {

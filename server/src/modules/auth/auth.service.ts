@@ -192,6 +192,34 @@ export class AuthService {
       groupId: user.groupId,
       childId: user.childId,
       avatarUrl: user.avatarUrl,
+      phone: user.phone,
+    }
+  }
+
+  /**
+   * Возвращает данные о текущем пользователе + типе его учреждения.
+   * Используется мобилкой / вебом сразу после логина или при гидратации.
+   */
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        kindergarten: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+            latitude: true,
+            longitude: true,
+            checkInRadiusMeters: true,
+          },
+        },
+      },
+    })
+    if (!user) throw new UnauthorizedException('Пользователь не найден')
+    return {
+      ...this.serialize(user),
+      institution: user.kindergarten ?? null,
     }
   }
 

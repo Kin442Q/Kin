@@ -12,6 +12,8 @@ interface AuthState {
   hydrate: () => Promise<void>
   /** Логин по email или phone */
   login: (creds: { email?: string; phone?: string; password: string }) => Promise<void>
+  /** Перечитать /auth/me и обновить локальный кэш (для актуальной institution.type и пр.) */
+  refreshMe: () => Promise<void>
   /** Выход */
   logout: () => Promise<void>
 }
@@ -29,7 +31,16 @@ export const useAuthStore = create<AuthState>((set) => ({
         AsyncStorage.getItem('kg_user'),
       ])
       if (t && u) {
-        set({ token: t, user: JSON.parse(u), isHydrated: true })
+        const parsed: User = JSON.parse(u)
+        set({ token: t, user: parsed, isHydrated: true })
+        // Фоном перепроверим что institution.type актуален — не блокируем UI.
+        authApi
+          .me()
+          .then(async (me) => {
+            await AsyncStorage.setItem('kg_user', JSON.stringify(me))
+            set({ user: me })
+          })
+          .catch(() => {})
       } else {
         set({ isHydrated: true })
       }
@@ -43,11 +54,29 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res = await authApi.login(creds)
       await AsyncStorage.setItem('kg_token', res.accessToken)
-      await AsyncStorage.setItem('kg_user', JSON.stringify(res.user))
-      set({ user: res.user, token: res.accessToken, loading: false })
+      // Сразу после логина дотягиваем /me чтобы получить institution.type
+      let user: User = res.user
+      try {
+        const me = await authApi.me()
+        user = me
+      } catch {
+        // если /me временно недоступен — используем то что пришло с логина
+      }
+      await AsyncStorage.setItem('kg_user', JSON.stringify(user))
+      set({ user, token: res.accessToken, loading: false })
     } catch (e) {
       set({ loading: false })
       throw e
+    }
+  },
+
+  refreshMe: async () => {
+    try {
+      const me = await authApi.me()
+      await AsyncStorage.setItem('kg_user', JSON.stringify(me))
+      set({ user: me })
+    } catch {
+      // ignore — не критично
     }
   },
 
