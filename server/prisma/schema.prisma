@@ -284,6 +284,10 @@ model User {
   /// По нему webhook сопоставляет событие с пользователем.
   terminalCode      String?    @unique
 
+  /// Expo push token мобильного устройства (для push-уведомлений).
+  /// Обновляется при каждом логине из мобайла.
+  expoPushToken     String?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

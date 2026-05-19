@@ -8,6 +8,7 @@ import {
 import { PaymentMethod, Prisma } from '@prisma/client'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { TelegramLinkService } from '../telegram/telegram-link.service'
+import { PushService } from '../push/push.module'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
 interface UpsertPaymentDto {
@@ -26,6 +27,7 @@ export class PaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly telegram: TelegramLinkService,
+    private readonly push: PushService,
   ) {}
 
   /**
@@ -131,6 +133,15 @@ export class PaymentsService {
           `[payments] notifyPaid failed: ${e?.message || e}`,
         )
       })
+      this.push
+        .sendToStudentParents(student.id, {
+          title: 'Оплата принята ✅',
+          body: `${student.firstName} · ${dto.month} · ${Math.round(dto.amount).toLocaleString('ru-RU')} с`,
+          data: { kind: 'payment', studentId: student.id, month: dto.month },
+        })
+        .catch((e) =>
+          this.logger.warn(`[payments] push failed: ${(e as Error).message}`),
+        )
     }
 
     return payment

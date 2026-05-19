@@ -6,8 +6,10 @@ import {
   BadRequestException,
 } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
+import dayjs from 'dayjs'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { TelegramLinkService } from '../telegram/telegram-link.service'
+import { PushService } from '../push/push.module'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
 interface CreateMeetingDto {
@@ -32,6 +34,7 @@ export class MeetingsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly telegram: TelegramLinkService,
+    private readonly push: PushService,
   ) {}
 
   /**
@@ -109,6 +112,17 @@ export class MeetingsService {
         `[meetings] notifyParents failed: ${e?.message || e}`,
       )
     })
+
+    // Push-уведомление родителям группы
+    this.push
+      .sendToGroupParents(meeting.groupId, {
+        title: `Собрание · ${meeting.group.name}`,
+        body: `${meeting.title} · ${dayjs(meeting.scheduledAt).format('D MMM, HH:mm')}${meeting.location ? ' · ' + meeting.location : ''}`,
+        data: { kind: 'meeting', meetingId: meeting.id, groupId: meeting.groupId },
+      })
+      .catch((e) =>
+        this.logger.warn(`[meetings] push failed: ${(e as Error).message}`),
+      )
 
     return meeting
   }

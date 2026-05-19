@@ -30,6 +30,7 @@ import {
 } from 'class-validator'
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
+import { PushService } from '../push/push.module'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
@@ -74,7 +75,10 @@ class UpdateHomeworkDto {
 
 @Injectable()
 class SchoolService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
 
   private tenantFilter(user: AuthUser) {
     return user.kindergartenId ? { kindergartenId: user.kindergartenId } : {}
@@ -192,7 +196,7 @@ class SchoolService {
 
     if (dto.value < 1) throw new BadRequestException('Оценка должна быть >= 1')
 
-    return this.prisma.grade.create({
+    const grade = await this.prisma.grade.create({
       data: {
         studentId: dto.studentId,
         subjectId: dto.subjectId,
@@ -206,6 +210,16 @@ class SchoolService {
         subject: { select: { id: true, name: true, color: true } },
       },
     })
+
+    this.push
+      .sendToStudentParents(dto.studentId, {
+        title: `Новая оценка · ${grade.subject.name}`,
+        body: `${dto.value}${dto.comment ? ' · ' + dto.comment : ''}`,
+        data: { kind: 'grade', gradeId: grade.id, studentId: dto.studentId },
+      })
+      .catch(() => {})
+
+    return grade
   }
 
   async deleteGrade(user: AuthUser, id: string) {
@@ -321,7 +335,7 @@ class SchoolService {
       throw new ForbiddenException('Объект из другого учреждения')
     }
 
-    return this.prisma.homework.create({
+    const hw = await this.prisma.homework.create({
       data: {
         subjectId: dto.subjectId,
         groupId: dto.groupId,
@@ -335,6 +349,16 @@ class SchoolService {
         subject: { select: { id: true, name: true, color: true } },
       },
     })
+
+    this.push
+      .sendToGroupParents(dto.groupId, {
+        title: `Новое ДЗ · ${hw.subject.name}`,
+        body: `${hw.title} · до ${new Date(hw.dueDate).toLocaleDateString('ru-RU')}`,
+        data: { kind: 'homework', homeworkId: hw.id, groupId: dto.groupId },
+      })
+      .catch(() => {})
+
+    return hw
   }
 
   async updateHomework(user: AuthUser, id: string, dto: UpdateHomeworkDto) {

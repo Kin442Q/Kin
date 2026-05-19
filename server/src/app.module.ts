@@ -34,6 +34,7 @@ import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module
 import { ParentModule } from './modules/parent/parent.module'
 import { DiaryModule } from './modules/diary/diary.module'
 import { SchoolModule } from './modules/school/school.module'
+import { PushModule } from './modules/push/push.module'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
@@ -92,6 +93,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     ParentModule,
     DiaryModule,
     SchoolModule,
+    PushModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.

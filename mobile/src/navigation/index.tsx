@@ -1,6 +1,12 @@
-import { NavigationContainer, DefaultTheme } from '@react-navigation/native'
+import { useEffect, useRef } from 'react'
+import {
+  NavigationContainer,
+  DefaultTheme,
+  createNavigationContainerRef,
+} from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
+import * as Notifications from 'expo-notifications'
 import {
   Home,
   Calendar,
@@ -199,11 +205,74 @@ function MainNavigator() {
   )
 }
 
+const navRef = createNavigationContainerRef<any>()
+
+/**
+ * Куда переходить при тапе по уведомлению — на основе data.kind:
+ *   meeting | payment | diary  → главная родителя
+ *   homework | grade           → экран Оценки родителя (или Журнал учителя)
+ */
+function handleNotificationTap(data: unknown, role?: string) {
+  if (!navRef.isReady() || !data || typeof data !== 'object') return
+  const kind = (data as any).kind
+  const r = String(role ?? '').toUpperCase()
+  const isParent = r === 'PARENT'
+  // Для родителя — главная (диари / оплата / собрание)
+  if (
+    isParent &&
+    (kind === 'diary' || kind === 'payment' || kind === 'meeting')
+  ) {
+    navRef.navigate('Tabs', { screen: 'ParentHome' })
+    return
+  }
+  // Школьные — оценки/домашка
+  if (isParent && (kind === 'grade' || kind === 'homework')) {
+    navRef.navigate('Tabs', { screen: 'ParentGrades' })
+    return
+  }
+  // Учитель — журнал/ДЗ
+  if (r === 'TEACHER' && kind === 'homework') {
+    navRef.navigate('Tabs', { screen: 'TeacherHomework' })
+  }
+}
+
 export default function RootNavigator() {
   const user = useAuthStore((s) => s.user)
+  const responseListener = useRef<Notifications.Subscription | null>(null)
+
+  useEffect(() => {
+    // Холодный старт по уведомлению
+    Notifications.getLastNotificationResponseAsync()
+      .then((resp) => {
+        if (resp?.notification.request.content.data) {
+          // Дать времени NavigationContainer прогрузиться
+          setTimeout(() => {
+            handleNotificationTap(
+              resp.notification.request.content.data,
+              user?.role,
+            )
+          }, 500)
+        }
+      })
+      .catch(() => {})
+
+    // На лету (тап по баннеру, когда приложение открыто)
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener((resp) => {
+        handleNotificationTap(
+          resp.notification.request.content.data,
+          user?.role,
+        )
+      })
+    return () => {
+      if (responseListener.current) {
+        responseListener.current.remove()
+      }
+    }
+  }, [user?.role])
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer theme={navTheme} ref={navRef}>
       {user ? <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   )

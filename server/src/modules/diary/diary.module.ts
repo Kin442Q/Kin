@@ -23,6 +23,7 @@ import {
 } from 'class-validator'
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
+import { PushService } from '../push/push.module'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
@@ -49,7 +50,10 @@ class UpsertKidNoteDto {
 
 @Injectable()
 class DiaryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly push: PushService,
+  ) {}
 
   // ─── Доступы ────────────────────────────────────────────────────────
 
@@ -124,7 +128,12 @@ class DiaryService {
     await this.assertGroupAccess(user, dto.groupId)
 
     const date = new Date(dto.date)
-    return this.prisma.diaryEntry.upsert({
+    const existed = await this.prisma.diaryEntry.findUnique({
+      where: { groupId_date: { groupId: dto.groupId, date } },
+      select: { id: true },
+    })
+
+    const entry = await this.prisma.diaryEntry.upsert({
       where: { groupId_date: { groupId: dto.groupId, date } },
       create: {
         groupId: dto.groupId,
@@ -145,6 +154,19 @@ class DiaryService {
         authorId: user.sub,
       },
     })
+
+    // Шлём push только при первой записи за день, чтобы не спамить
+    // при каждом сохранении черновика.
+    if (!existed) {
+      this.push
+        .sendToGroupParents(dto.groupId, {
+          title: 'Дневник на сегодня обновлён',
+          body: 'Воспитатель добавил запись о дне в саду',
+          data: { kind: 'diary', groupId: dto.groupId, date: dto.date },
+        })
+        .catch(() => {})
+    }
+    return entry
   }
 
   // ─── Заметка про ребёнка ────────────────────────────────────────────
