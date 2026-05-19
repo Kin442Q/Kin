@@ -29,6 +29,10 @@ class CreateScheduleDto {
   @IsString() startTime!: string
   @IsString() endTime!: string
   @IsString() activity!: string
+  /** Только для школы */
+  @IsOptional() @IsString() subjectId?: string
+  @IsOptional() @IsString() teacherId?: string
+  @IsOptional() @IsString() room?: string
 }
 
 class UpdateScheduleDto {
@@ -36,6 +40,9 @@ class UpdateScheduleDto {
   @IsOptional() @IsString() startTime?: string
   @IsOptional() @IsString() endTime?: string
   @IsOptional() @IsString() activity?: string
+  @IsOptional() @IsString() subjectId?: string
+  @IsOptional() @IsString() teacherId?: string
+  @IsOptional() @IsString() room?: string
 }
 
 @Injectable()
@@ -52,6 +59,9 @@ class ScheduleService {
           : {}),
       },
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+      include: {
+        subject: { select: { id: true, name: true, color: true } },
+      },
     })
   }
 

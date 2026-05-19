@@ -26,8 +26,28 @@ import dayjs from 'dayjs'
 import { Calendar } from 'lucide-react'
 import { SP, SproutPageHeader, SproutEmpty } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
+import { useLabels } from '../hooks/useLabels'
 import { http } from '../api'
 import { ScheduleItem } from '../types'
+
+interface ScheduleApi extends ScheduleItem {
+  subjectId?: string | null
+  teacherId?: string | null
+  room?: string | null
+  subject?: { id: string; name: string; color: string } | null
+}
+
+interface SubjectDto {
+  id: string
+  name: string
+  color: string
+}
+
+interface StaffDto {
+  id: string
+  firstName: string
+  lastName: string
+}
 
 const DAYS = [
   '',
@@ -47,8 +67,10 @@ export default function SchedulePage() {
   const screens = useBreakpoint()
   const isMobile = !screens.md
   const groups = useDataStore((s) => s.groups)
+  const L = useLabels()
+  const isSchool = L.group === 'класс'
 
-  const [items, setItems] = useState<ScheduleItem[]>([])
+  const [items, setItems] = useState<ScheduleApi[]>([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
@@ -56,10 +78,26 @@ export default function SchedulePage() {
   const [open, setOpen] = useState(false)
   const [form] = Form.useForm()
 
+  // Школьные справочники
+  const [subjects, setSubjects] = useState<SubjectDto[]>([])
+  const [teachers, setTeachers] = useState<StaffDto[]>([])
+
+  useEffect(() => {
+    if (!isSchool) return
+    http
+      .get<SubjectDto[]>('/v1/subjects')
+      .then((r) => setSubjects(r.data))
+      .catch(() => {})
+    http
+      .get<StaffDto[]>('/v1/staff')
+      .then((r) => setTeachers(r.data))
+      .catch(() => {})
+  }, [isSchool])
+
   const load = async () => {
     try {
       setLoading(true)
-      const res = await http.get<ScheduleItem[]>('/v1/schedule', {
+      const res = await http.get<ScheduleApi[]>('/v1/schedule', {
         params: groupId ? { groupId } : undefined,
       })
       setItems(res.data || [])
@@ -93,16 +131,25 @@ export default function SchedulePage() {
     try {
       const v = await form.validateFields()
       setSubmitting(true)
+      // Для школы activity = название предмета (для обратной совместимости)
+      let activity = v.activity
+      if (isSchool && v.subjectId) {
+        const subj = subjects.find((s) => s.id === v.subjectId)
+        if (subj) activity = subj.name
+      }
       await http.post('/v1/schedule', {
         groupId: v.groupId,
         dayOfWeek: v.dayOfWeek,
         startTime: dayjs(v.startTime).format('HH:mm'),
         endTime: dayjs(v.endTime).format('HH:mm'),
-        activity: v.activity,
+        activity,
+        subjectId: isSchool ? v.subjectId || undefined : undefined,
+        teacherId: isSchool ? v.teacherId || undefined : undefined,
+        room: isSchool ? v.room?.trim() || undefined : undefined,
       })
       setOpen(false)
       form.resetFields()
-      message.success('Добавлено')
+      message.success(isSchool ? 'Урок добавлен' : 'Занятие добавлено')
       await load()
     } catch (err: any) {
       if (err?.errorFields) return
@@ -133,16 +180,20 @@ export default function SchedulePage() {
   return (
     <div>
       <SproutPageHeader
-        title="Расписание"
+        title={isSchool ? 'Расписание уроков' : 'Расписание'}
         icon={<Calendar size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Расписание занятий по группам"
+        description={
+          isSchool
+            ? 'Уроки по классам: предмет, учитель, кабинет'
+            : 'Расписание занятий по группам'
+        }
         actions={
           <Space>
             <Select
               style={{ minWidth: 200 }}
               allowClear
-              placeholder="Все группы"
+              placeholder={isSchool ? 'Все классы' : 'Все группы'}
               value={groupId}
               onChange={setGroupId}
               options={groups.map((g) => ({ value: g.id, label: g.name }))}
@@ -152,7 +203,7 @@ export default function SchedulePage() {
               icon={<PlusOutlined />}
               onClick={() => setOpen(true)}
             >
-              Добавить
+              {isSchool ? 'Добавить урок' : 'Добавить'}
             </Button>
           </Space>
         }
@@ -228,17 +279,35 @@ export default function SchedulePage() {
                         style={{
                           fontSize: 15,
                           fontWeight: 600,
-                          color: SP.text,
+                          color: r.subject?.color ?? SP.text,
                           marginBottom: 4,
                         }}
                       >
-                        {r.activity}
+                        {r.subject?.name ?? r.activity}
                       </div>
-                      {g && (
-                        <div style={{ fontSize: 12, color: SP.muted }}>
-                          Группа: <strong>{g.name}</strong>
-                        </div>
-                      )}
+                      <div style={{ fontSize: 12, color: SP.muted }}>
+                        {g && (
+                          <>
+                            {isSchool ? 'Класс' : 'Группа'}:{' '}
+                            <strong>{g.name}</strong>
+                          </>
+                        )}
+                        {isSchool && r.room && (
+                          <>
+                            {' · '}
+                            каб. <strong>{r.room}</strong>
+                          </>
+                        )}
+                        {isSchool && r.teacherId && (() => {
+                          const t = teachers.find((x) => x.id === r.teacherId)
+                          return t ? (
+                            <>
+                              {' · '}
+                              {t.lastName} {t.firstName[0]}.
+                            </>
+                          ) : null
+                        })()}
+                      </div>
                     </div>
                   )
                 })}
@@ -271,25 +340,61 @@ export default function SchedulePage() {
               {
                 title: 'Время',
                 key: 'time',
-                render: (_, r: ScheduleItem) => (
+                render: (_, r: ScheduleApi) => (
                   <Tag color="geekblue">
                     {r.startTime} – {r.endTime}
                   </Tag>
                 ),
               },
-              { title: 'Активность', dataIndex: 'activity' },
               {
-                title: 'Группа',
+                title: isSchool ? 'Предмет' : 'Активность',
+                key: 'activity',
+                render: (_, r: ScheduleApi) =>
+                  r.subject ? (
+                    <Tag
+                      style={{
+                        background: r.subject.color,
+                        color: '#fff',
+                        border: 'none',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {r.subject.name}
+                    </Tag>
+                  ) : (
+                    <span>{r.activity}</span>
+                  ),
+              },
+              {
+                title: isSchool ? 'Класс' : 'Группа',
                 dataIndex: 'groupId',
                 render: (v: string) =>
                   groups.find((g) => g.id === v)?.name || '—',
               },
+              ...(isSchool
+                ? [
+                    {
+                      title: 'Учитель',
+                      key: 'teacher',
+                      render: (_: unknown, r: ScheduleApi) => {
+                        if (!r.teacherId) return '—'
+                        const t = teachers.find((x) => x.id === r.teacherId)
+                        return t ? `${t.lastName} ${t.firstName[0]}.` : '—'
+                      },
+                    },
+                    {
+                      title: 'Каб.',
+                      dataIndex: 'room',
+                      render: (v: string | null) => v || '—',
+                    },
+                  ]
+                : []),
               {
                 title: '',
                 key: 'a',
-                render: (_, r) => (
+                render: (_: unknown, r: ScheduleApi) => (
                   <Popconfirm
-                    title="Удалить занятие?"
+                    title={isSchool ? 'Удалить урок?' : 'Удалить занятие?'}
                     okText="Удалить"
                     cancelText="Отмена"
                     okButtonProps={{ danger: true }}
@@ -311,7 +416,7 @@ export default function SchedulePage() {
       </motion.div>
 
       <Modal
-        title="Добавить занятие"
+        title={isSchool ? 'Добавить урок' : 'Добавить занятие'}
         open={open}
         onOk={submit}
         onCancel={() => setOpen(false)}
@@ -323,7 +428,7 @@ export default function SchedulePage() {
         <Form layout="vertical" form={form}>
           <Form.Item
             name="groupId"
-            label="Группа"
+            label={isSchool ? 'Класс' : 'Группа'}
             rules={[{ required: true }]}
           >
             <Select
@@ -362,13 +467,64 @@ export default function SchedulePage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item
-            name="activity"
-            label="Активность"
-            rules={[{ required: true }]}
-          >
-            <Input placeholder="Например: Развитие речи" />
-          </Form.Item>
+
+          {isSchool ? (
+            <>
+              <Form.Item
+                name="subjectId"
+                label="Предмет"
+                rules={[{ required: true, message: 'Выберите предмет' }]}
+              >
+                <Select
+                  placeholder="Выберите предмет"
+                  options={subjects.map((s) => ({
+                    value: s.id,
+                    label: (
+                      <Space size={4}>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            background: s.color,
+                          }}
+                        />
+                        {s.name}
+                      </Space>
+                    ),
+                  }))}
+                />
+              </Form.Item>
+              <Row gutter={12}>
+                <Col span={14}>
+                  <Form.Item name="teacherId" label="Учитель (опц.)">
+                    <Select
+                      allowClear
+                      placeholder="Выберите учителя"
+                      options={teachers.map((t) => ({
+                        value: t.id,
+                        label: `${t.lastName} ${t.firstName}`,
+                      }))}
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={10}>
+                  <Form.Item name="room" label="Кабинет (опц.)">
+                    <Input placeholder="304" />
+                  </Form.Item>
+                </Col>
+              </Row>
+            </>
+          ) : (
+            <Form.Item
+              name="activity"
+              label="Активность"
+              rules={[{ required: true }]}
+            >
+              <Input placeholder="Например: Развитие речи" />
+            </Form.Item>
+          )}
         </Form>
       </Modal>
     </div>

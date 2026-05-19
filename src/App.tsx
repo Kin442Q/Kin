@@ -25,6 +25,8 @@ import TimesheetPage from "./pages/TimesheetPage";
 import MenuPage from "./pages/MenuPage";
 import SettingsPage from "./pages/SettingsPage";
 import SubjectsPage from "./pages/SubjectsPage";
+import GradesPage from "./pages/GradesPage";
+import HomeworkPage from "./pages/HomeworkPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
@@ -197,6 +199,22 @@ export default function App() {
               element={
                 <RequireRole roles={["SUPER_ADMIN", "admin"]}>
                   <SubjectsPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="grades"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                  <GradesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="homework"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                  <HomeworkPage />
                 </RequireRole>
               }
             />
