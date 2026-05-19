@@ -18,6 +18,7 @@ import {
   BookOpen,
   BookMarked,
   Home as HomeIcon,
+  MapPin,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -324,6 +325,15 @@ const NAV: NavEntry[] = [
     label: 'Табель',
     icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
+    roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'hr',
+  },
+  {
+    key: '/admin/checkin-audit',
+    label: 'Журнал check-in',
+    icon: <MapPin size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN', 'admin'],
     hiddenForGlobalOwner: true,
     section: 'hr',

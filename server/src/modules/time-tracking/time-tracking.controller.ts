@@ -129,6 +129,28 @@ export class TimeTrackingController {
     return this.service.allTeachersMonth(user, month)
   }
 
+  @Get('audit')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({
+    summary:
+      'Журнал check-in: кто, когда и откуда отметился (с координатами и расстоянием от учреждения)',
+  })
+  @ApiQuery({ name: 'from', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'to', required: false, description: 'YYYY-MM-DD' })
+  @ApiQuery({ name: 'limit', required: false })
+  checkInAudit(
+    @CurrentUser() user: AuthUser,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.service.checkInAudit(user, {
+      from,
+      to,
+      limit: limit ? Math.min(500, Math.max(1, Number(limit))) : 200,
+    })
+  }
+
   @Patch(':id')
   @Roles('SUPER_ADMIN', 'ADMIN')
   @ApiOperation({ summary: 'Коррекция записи (только админ)' })

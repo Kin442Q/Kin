@@ -155,6 +155,50 @@ export class TimeTrackingService {
   /**
    * Админская сводка по всем учителям садика за месяц.
    */
+  /**
+   * Журнал check-in для админа: все приходы учителей с координатами
+   * и расстоянием от учреждения. Сортировка по дате (новые сверху).
+   */
+  async checkInAudit(
+    user: AuthUser,
+    params: { from?: string; to?: string; limit: number },
+  ) {
+    const where: Prisma.TimeEntryWhereInput = {}
+    if (user.kindergartenId) {
+      where.user = { kindergartenId: user.kindergartenId }
+    }
+    if (params.from || params.to) {
+      where.checkIn = {
+        ...(params.from ? { gte: new Date(params.from) } : {}),
+        ...(params.to
+          ? { lte: new Date(new Date(params.to).getTime() + 86_400_000) }
+          : {}),
+      }
+    }
+    const entries = await this.prisma.timeEntry.findMany({
+      where,
+      orderBy: { checkIn: 'desc' },
+      take: params.limit,
+      include: {
+        user: { select: { id: true, fullName: true, avatarUrl: true } },
+      },
+    })
+    return entries.map((e) => ({
+      id: e.id,
+      userId: e.userId,
+      userName: e.user.fullName,
+      avatarUrl: e.user.avatarUrl,
+      checkIn: e.checkIn,
+      checkOut: e.checkOut,
+      minutesWorked: e.minutesWorked,
+      verifyMethod: e.verifyMethod,
+      lat: e.checkInLat,
+      lon: e.checkInLon,
+      distanceMeters: e.distanceMeters,
+      note: e.note,
+    }))
+  }
+
   async allTeachersMonth(user: AuthUser, month: string) {
     if (!/^\d{4}-\d{2}$/.test(month)) {
       throw new BadRequestException('month должен быть в формате YYYY-MM')

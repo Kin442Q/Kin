@@ -30,6 +30,7 @@ import { SproutPageHeader } from '../components/sprout'
 import { useThemeStore } from '../store/themeStore'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
+import InstitutionMap from '../components/InstitutionMap'
 import { http } from '../api'
 
 const { Text, Title } = Typography
@@ -179,6 +180,33 @@ export default function SettingsPage() {
                   <Divider orientation="left" plain>
                     <EnvironmentOutlined /> Геолокация для check-in
                   </Divider>
+
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    Кликните по карте чтобы поставить точку или перетащите
+                    маркер. Учитель сможет отметить приход только в пределах
+                    зелёного круга.
+                  </Text>
+
+                  <Form.Item shouldUpdate noStyle>
+                    {() => {
+                      const lat = instForm.getFieldValue('latitude') as number | null
+                      const lon = instForm.getFieldValue('longitude') as number | null
+                      const radius =
+                        (instForm.getFieldValue('checkInRadiusMeters') as number) || 150
+                      return (
+                        <div style={{ margin: '12px 0' }}>
+                          <InstitutionMap
+                            latitude={lat ?? null}
+                            longitude={lon ?? null}
+                            radiusMeters={radius}
+                            onChange={(la, lo) => {
+                              instForm.setFieldsValue({ latitude: la, longitude: lo })
+                            }}
+                          />
+                        </div>
+                      )
+                    }}
+                  </Form.Item>
 
                   <Row gutter={16}>
                     <Col xs={24} md={8}>

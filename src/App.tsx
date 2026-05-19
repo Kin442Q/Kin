@@ -27,6 +27,7 @@ import SettingsPage from "./pages/SettingsPage";
 import SubjectsPage from "./pages/SubjectsPage";
 import GradesPage from "./pages/GradesPage";
 import HomeworkPage from "./pages/HomeworkPage";
+import CheckInAuditPage from "./pages/CheckInAuditPage";
 import ParentHomePage from "./pages/parent/ParentHomePage";
 import ParentSchedulePage from "./pages/parent/ParentSchedulePage";
 import ParentGradesPage from "./pages/parent/ParentGradesPage";
@@ -263,6 +264,14 @@ export default function App() {
               element={
                 <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
                   <HomeworkPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="checkin-audit"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                  <CheckInAuditPage />
                 </RequireRole>
               }
             />
