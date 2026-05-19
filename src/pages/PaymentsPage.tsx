@@ -163,14 +163,33 @@ export default function PaymentsPage() {
   const togglePaid = async (row: (typeof rows)[number]) => {
     try {
       const newPaid = !row.paid;
+      // Берём актуальный fee из ребёнка / группы прямо на момент клика,
+      // а не из устаревшего row.amount (мог быть 0 если строка отрендерилась
+      // до того как frontend получил monthlyFee).
+      const childNow =
+        childrenAll.find((c) => c.id === row.child.id) ?? row.child;
+      const groupNow =
+        groups.find((g) => g.id === childNow.groupId) ?? row.group;
+      const computedAmount =
+        Number(row.payment?.amount ?? 0) ||
+        Number(childNow.monthlyFee ?? 0) ||
+        Number(groupNow?.monthlyFee ?? 0) ||
+        0;
+
       await http.post("/v1/payments/upsert", {
         studentId: row.child.id,
         month,
-        amount: row.amount,
+        amount: computedAmount,
         paid: newPaid,
         method: row.payment?.method ?? "CASH",
       });
-      message.success(newPaid ? "Помечено как оплачено" : "Помечено как долг");
+      if (newPaid && computedAmount === 0) {
+        message.warning(
+          "Сохранено, но плата не задана — укажите Индивидуальную плату или Ежемесячную плату группы",
+        );
+      } else {
+        message.success(newPaid ? "Помечено как оплачено" : "Помечено как долг");
+      }
       await loadPayments(month);
     } catch (err: any) {
       const msg =
@@ -180,6 +199,7 @@ export default function PaymentsPage() {
       message.error(msg);
     }
   };
+
 
   const removePayment = async (id: string) => {
     try {

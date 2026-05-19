@@ -104,12 +104,24 @@ export class PaymentsService {
 
     const becamePaid = dto.paid && (!previous || !previous.paid)
 
+    // Если фронт прислал 0/неположительную сумму — автоматически подтянуть из
+    // student.monthlyFee (индивидуальная плата), а если её нет — из
+    // group.monthlyFee. Так стейл-кэш на фронте не может всё обнулить.
+    let amount = Number(dto.amount)
+    if (!amount || amount <= 0) {
+      const fallback =
+        (student.monthlyFee != null ? Number(student.monthlyFee) : 0) ||
+        Number(student.group.monthlyFee) ||
+        0
+      amount = fallback
+    }
+
     const payment = await this.prisma.payment.upsert({
       where: {
         studentId_month: { studentId: dto.studentId, month: dto.month },
       },
       update: {
-        amount: dto.amount,
+        amount,
         paid: dto.paid,
         paidAt: dto.paid ? new Date() : null,
         method: dto.method ?? null,
@@ -118,7 +130,7 @@ export class PaymentsService {
       create: {
         studentId: dto.studentId,
         month: dto.month,
-        amount: dto.amount,
+        amount,
         paid: dto.paid,
         paidAt: dto.paid ? new Date() : null,
         method: dto.method ?? null,
