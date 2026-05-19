@@ -17,6 +17,7 @@ import {
   GraduationCap,
   BookOpen,
   BookMarked,
+  Home as HomeIcon,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -71,6 +72,7 @@ type SectionKey =
   | 'system'
   | 'my-group'
   | 'communication'
+  | 'parent'
 
 interface NavEntry {
   key: string
@@ -102,6 +104,7 @@ const SECTION_TITLES: Record<SectionKey, string> = {
   system: 'Система',
   'my-group': 'Моя группа',
   communication: 'Общение',
+  parent: 'Мой ребёнок',
 }
 
 const SECTION_ORDER: SectionKey[] = [
@@ -109,6 +112,7 @@ const SECTION_ORDER: SectionKey[] = [
   'main',
   'composition',
   'my-group',
+  'parent',
   'studying',
   'finance',
   'hr',
@@ -344,6 +348,41 @@ const NAV: NavEntry[] = [
     accentClass: 'sp-icon-gray',
     roles: ['SUPER_ADMIN', 'admin'],
     section: 'system',
+  },
+
+  // ─── РОДИТЕЛЬ ────────────────────────────────────────────────────
+  {
+    key: '/parent/home',
+    label: 'Главная',
+    icon: <HomeIcon size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['PARENT'],
+    section: 'parent',
+  },
+  {
+    key: '/parent/schedule',
+    label: 'Расписание',
+    icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
+    roles: ['PARENT'],
+    section: 'parent',
+  },
+  {
+    key: '/parent/grades',
+    label: 'Оценки и ДЗ',
+    icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['PARENT'],
+    institutionType: 'SCHOOL',
+    section: 'parent',
+  },
+  {
+    key: '/parent/payments',
+    label: 'Оплаты',
+    icon: <Wallet size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-rose',
+    roles: ['PARENT'],
+    section: 'parent',
   },
 ]
 

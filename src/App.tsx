@@ -27,15 +27,27 @@ import SettingsPage from "./pages/SettingsPage";
 import SubjectsPage from "./pages/SubjectsPage";
 import GradesPage from "./pages/GradesPage";
 import HomeworkPage from "./pages/HomeworkPage";
+import ParentHomePage from "./pages/parent/ParentHomePage";
+import ParentSchedulePage from "./pages/parent/ParentSchedulePage";
+import ParentGradesPage from "./pages/parent/ParentGradesPage";
+import ParentPaymentsPage from "./pages/parent/ParentPaymentsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "TEACHER" || user?.role === "teacher";
+  const isParent = user?.role === "PARENT";
 
-  // Учитель — на свой кабинет, остальные — на admin/dashboard
-  const homePath = isTeacher ? "/teacher/dashboard" : "/admin/dashboard";
+  // Куда направлять домой по умолчанию:
+  //   PARENT → личный кабинет родителя
+  //   TEACHER → свой кабинет
+  //   остальные → admin/dashboard
+  const homePath = isParent
+    ? "/parent/home"
+    : isTeacher
+      ? "/teacher/dashboard"
+      : "/admin/dashboard";
 
   return (
     <AnimatePresence mode="wait">
@@ -59,7 +71,43 @@ export default function App() {
               element={
                 <RequireRole roles={["TEACHER", "SUPER_ADMIN", "admin"]}>
                   <TeacherDashboard />
-                </RequireRole>    
+                </RequireRole>
+              }
+            />
+          </Route>
+
+          <Route path="parent">
+            <Route index element={<Navigate to="home" replace />} />
+            <Route
+              path="home"
+              element={
+                <RequireRole roles={["PARENT"]}>
+                  <ParentHomePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="schedule"
+              element={
+                <RequireRole roles={["PARENT"]}>
+                  <ParentSchedulePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="grades"
+              element={
+                <RequireRole roles={["PARENT"]}>
+                  <ParentGradesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="payments"
+              element={
+                <RequireRole roles={["PARENT"]}>
+                  <ParentPaymentsPage />
+                </RequireRole>
               }
             />
           </Route>

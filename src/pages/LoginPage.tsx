@@ -65,11 +65,18 @@ export default function LoginPage() {
       )
 
       message.success(`Добро пожаловать, ${user.fullName}`)
-      // Куда редиректить: учитель → свой кабинет, остальные → дашборд
+      // Куда редиректить по роли:
+      //   PARENT → личный кабинет родителя
+      //   TEACHER → свой кабинет
+      //   ADMIN/SUPER_ADMIN → дашборд админа
       const isTeacher = user.role === 'TEACHER' || user.role === 'teacher'
-      navigate(isTeacher ? '/teacher/dashboard' : '/admin/dashboard', {
-        replace: true,
-      })
+      const isParent = user.role === 'PARENT'
+      const path = isParent
+        ? '/parent/home'
+        : isTeacher
+          ? '/teacher/dashboard'
+          : '/admin/dashboard'
+      navigate(path, { replace: true })
     } catch (error: any) {
       const errorMsg =
         error?.response?.data?.message ||
