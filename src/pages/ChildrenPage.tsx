@@ -9,6 +9,7 @@ import {
   Form,
   Grid,
   Input,
+  InputNumber,
   Row,
   Select,
   Space,
@@ -172,7 +173,12 @@ export default function ChildrenPage() {
         extraContact: values.extraContact || undefined,
         telegram: values.telegram || undefined,
         whatsapp: values.whatsapp || undefined,
-        monthlyFee: values.monthlyFee ? Number(values.monthlyFee) : undefined,
+        // InputNumber возвращает number или null. Если null/0 — отправляем
+        // null чтобы сбросить индивидуальную плату (бэк подставит групповую).
+        monthlyFee:
+          values.monthlyFee != null && values.monthlyFee !== ''
+            ? Number(values.monthlyFee)
+            : null,
       }
 
       if (editing) {
@@ -767,8 +773,18 @@ export default function ChildrenPage() {
           <Form.Item name="extraContact" label="Доп. контакт">
             <Input />
           </Form.Item>
-          <Form.Item name="monthlyFee" label="Индивидуальная плата (опц.)">
-            <Input type="number" suffix="сомони" />
+          <Form.Item
+            name="monthlyFee"
+            label="Индивидуальная плата (опц.)"
+            tooltip="Если задано — будет использоваться вместо платы группы/класса"
+          >
+            <InputNumber
+              min={0}
+              step={50}
+              style={{ width: '100%' }}
+              addonAfter="сомони"
+              placeholder="например, 500"
+            />
           </Form.Item>
         </Form>
       </Drawer>

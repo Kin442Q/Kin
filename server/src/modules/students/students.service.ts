@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common'
 import { Prisma, StudentStatus } from '@prisma/client'
@@ -11,8 +12,32 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { CreateStudentDto, UpdateStudentDto } from './dto/student.dto'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
+/**
+ * Превращает Prisma Decimal/строку/число в чистый number или null
+ * для JSON-ответа. Без этого Decimal может сериализоваться как строка
+ * и фронт читает плату как "500.00" вместо 500.
+ */
+function decimalToNumber(v: unknown): number | null {
+  if (v == null) return null
+  if (typeof v === 'number') return v
+  if (typeof v === 'string') {
+    const n = Number(v)
+    return Number.isFinite(n) ? n : null
+  }
+  // Prisma.Decimal — у него есть toString()
+  const n = Number(String(v))
+  return Number.isFinite(n) ? n : null
+}
+
+/** Нормализует студента для ответа: monthlyFee → number/null. */
+function normalizeStudent<T extends Record<string, unknown> | null>(s: T): T {
+  if (!s) return s
+  return { ...s, monthlyFee: decimalToNumber(s.monthlyFee) } as T
+}
+
 @Injectable()
 export class StudentsService {
+  private readonly logger = new Logger(StudentsService.name)
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -35,11 +60,12 @@ export class StudentsService {
     }
     if (params.status) where.status = params.status
 
-    return this.prisma.student.findMany({
+    const list = await this.prisma.student.findMany({
       where,
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       include: { group: { select: { id: true, name: true, color: true } } },
     })
+    return list.map((s) => normalizeStudent(s as any))
   }
 
   async findOne(id: string, user: AuthUser) {
@@ -49,7 +75,7 @@ export class StudentsService {
     })
     if (!s) throw new NotFoundException('Ученик не найден')
     this.assertCanAccess(user, s.groupId, s.kindergartenId)
-    return s
+    return normalizeStudent(s as any)
   }
 
   async create(dto: CreateStudentDto, user: AuthUser) {
@@ -71,13 +97,27 @@ export class StudentsService {
       throw new ForbiddenException('Группа из другого садика')
     }
 
-    return this.prisma.student.create({
+    this.logger.log(
+      `[students.create] monthlyFee=${dto.monthlyFee} (type ${typeof dto.monthlyFee})`,
+    )
+
+    const created = await this.prisma.student.create({
       data: {
         ...dto,
+        // Явно конвертируем в number/null, чтобы Prisma корректно
+        // записал в колонку Decimal.
+        monthlyFee:
+          dto.monthlyFee == null || (dto.monthlyFee as unknown) === ''
+            ? null
+            : Number(dto.monthlyFee),
         birthDate: new Date(dto.birthDate),
         kindergartenId: user.kindergartenId,
       },
     })
+    this.logger.log(
+      `[students.create] saved id=${created.id} monthlyFee=${created.monthlyFee}`,
+    )
+    return normalizeStudent(created as any)
   }
 
   async update(id: string, dto: UpdateStudentDto, user: AuthUser) {
@@ -90,13 +130,30 @@ export class StudentsService {
       throw new ForbiddenException('Нельзя сменить группу')
     }
 
-    return this.prisma.student.update({
+    this.logger.log(
+      `[students.update] id=${id} monthlyFee=${dto.monthlyFee} (type ${typeof dto.monthlyFee})`,
+    )
+
+    // Если в dto явно прислан monthlyFee — нормализуем в number/null.
+    // Если поля нет — не трогаем.
+    const updateData: Prisma.StudentUpdateInput = {
+      ...dto,
+      birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
+    }
+    if (Object.prototype.hasOwnProperty.call(dto, 'monthlyFee')) {
+      const f = dto.monthlyFee
+      updateData.monthlyFee =
+        f == null || (f as unknown) === '' ? null : Number(f)
+    }
+
+    const updated = await this.prisma.student.update({
       where: { id },
-      data: {
-        ...dto,
-        birthDate: dto.birthDate ? new Date(dto.birthDate) : undefined,
-      },
+      data: updateData,
     })
+    this.logger.log(
+      `[students.update] saved id=${updated.id} monthlyFee=${updated.monthlyFee}`,
+    )
+    return normalizeStudent(updated as any)
   }
 
   async archive(id: string, user: AuthUser) {

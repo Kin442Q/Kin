@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Min,
+  ValidateIf,
 } from 'class-validator'
 
 export class CreateStudentDto {
@@ -54,11 +55,12 @@ export class CreateStudentDto {
   @IsOptional() @IsString() telegram?: string
   @IsOptional() @IsString() whatsapp?: string
 
-  @ApiProperty({ required: false })
+  @ApiProperty({ required: false, nullable: true })
   @IsOptional()
+  @ValidateIf((_, v) => v !== null) // null допустим — сбрасывает индивидуальную плату
   @IsNumber()
   @Min(0)
-  monthlyFee?: number
+  monthlyFee?: number | null
 
   @ApiProperty({ enum: StudentStatus, required: false })
   @IsOptional()
