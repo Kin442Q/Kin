@@ -40,6 +40,8 @@ import dayjs from 'dayjs'
 import { SP, SproutPageHeader, SproutEmpty } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
+import { useLabels } from '../hooks/useLabels'
+import { cap } from '../lib/labels'
 import { calcAge, formatDate, formatMoney } from '../lib/format'
 import { refreshTenantData } from '../hooks/useTenantSync'
 import { http } from '../api'
@@ -67,6 +69,8 @@ export default function ChildrenPage() {
   const [form] = Form.useForm()
   const [parentsModal, setParentsModal] = useState<Child | null>(null)
   const isAdmin = user?.role === 'admin' || user?.role === 'SUPER_ADMIN'
+  const L = useLabels()
+  const isSchool = L.group === 'класс'
 
   const visibleChildren = useMemo(() => {
     let res = children
@@ -311,7 +315,7 @@ export default function ChildrenPage() {
               />
             </Tooltip>
             <Popconfirm
-              title="Удалить ребёнка?"
+              title={isSchool ? 'Удалить ученика?' : 'Удалить ребёнка?'}
               okText="Удалить"
               cancelText="Отмена"
               disabled={!canModify}
@@ -334,13 +338,17 @@ export default function ChildrenPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Дети"
+        title={L.students}
         icon={<Baby size={22} strokeWidth={2} />}
         iconAccent="blue"
         description={
           user?.role === 'teacher'
-            ? 'Дети вашей группы. Вы можете добавлять и удалять только своих воспитанников.'
-            : 'Список всех воспитанников детского сада'
+            ? isSchool
+              ? 'Ученики вашего класса.'
+              : 'Дети вашей группы.'
+            : isSchool
+              ? 'Список всех учеников школы'
+              : 'Список всех воспитанников детского сада'
         }
         chip={
           <Tag
@@ -352,7 +360,8 @@ export default function ChildrenPage() {
               fontSize: 11,
             }}
           >
-            {visibleChildren.length} {visibleChildren.length === 1 ? 'ребёнок' : 'детей'}
+            {visibleChildren.length}{' '}
+            {pluralizeStudent(visibleChildren.length, isSchool)}
           </Tag>
         }
         actions={
@@ -362,7 +371,7 @@ export default function ChildrenPage() {
             onClick={openCreate}
             disabled={user?.role === 'teacher' && !user.groupId}
           >
-            Добавить ребёнка
+            {isSchool ? 'Добавить ученика' : 'Добавить ребёнка'}
           </Button>
         }
       />
@@ -378,7 +387,7 @@ export default function ChildrenPage() {
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
-                placeholder="Поиск по имени ребёнка или родителю"
+                placeholder={`Поиск по имени ${L.student} или родителю`}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -387,7 +396,7 @@ export default function ChildrenPage() {
               <Select
                 allowClear
                 style={{ width: '100%' }}
-                placeholder="Все группы"
+                placeholder={`Все ${L.groups.toLowerCase()}`}
                 value={groupFilter}
                 onChange={setGroupFilter}
                 disabled={user?.role === 'teacher'}
@@ -404,8 +413,12 @@ export default function ChildrenPage() {
               {visibleChildren.length === 0 && (
                 <SproutEmpty
                   icon={<Baby size={28} strokeWidth={1.8} />}
-                  title="Детей пока нет"
-                  description="Добавьте первого воспитанника кнопкой выше"
+                  title={isSchool ? 'Учеников пока нет' : 'Детей пока нет'}
+                  description={
+                    isSchool
+                      ? 'Добавьте первого ученика кнопкой выше'
+                      : 'Добавьте первого воспитанника кнопкой выше'
+                  }
                   minHeight={160}
                 />
               )}
@@ -550,7 +563,7 @@ export default function ChildrenPage() {
                           onClick={() => openEdit(c)}
                         />
                         <Popconfirm
-                          title="Удалить ребёнка?"
+                          title={isSchool ? 'Удалить ученика?' : 'Удалить ребёнка?'}
                           okText="Удалить"
                           cancelText="Отмена"
                           disabled={!canModify}
@@ -617,7 +630,15 @@ export default function ChildrenPage() {
       </motion.div>
 
       <Drawer
-        title={editing ? 'Редактировать ребёнка' : 'Новый ребёнок'}
+        title={
+          editing
+            ? isSchool
+              ? 'Редактировать ученика'
+              : 'Редактировать ребёнка'
+            : isSchool
+              ? 'Новый ученик'
+              : 'Новый ребёнок'
+        }
         open={drawerOpen}
         width={isMobile ? '100%' : 520}
         onClose={() => setDrawerOpen(false)}
@@ -764,4 +785,15 @@ export default function ChildrenPage() {
       />
     </div>
   )
+}
+
+function pluralizeStudent(n: number, isSchool: boolean): string {
+  if (isSchool) {
+    if (n === 1) return 'ученик'
+    if (n >= 2 && n <= 4) return 'ученика'
+    return 'учеников'
+  }
+  if (n === 1) return 'ребёнок'
+  if (n >= 2 && n <= 4) return 'ребёнка'
+  return 'детей'
 }

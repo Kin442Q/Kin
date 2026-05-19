@@ -40,6 +40,8 @@ import {
 } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { refreshTenantData } from '../hooks/useTenantSync'
+import { useLabels } from '../hooks/useLabels'
+import { cap } from '../lib/labels'
 import { http } from '../api'
 import type { Group, GroupFinance } from '../types'
 import { calcGroupFinances } from '../lib/finance'
@@ -64,6 +66,8 @@ export default function GroupsPage() {
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
   const isMobile = !screens.md
+  const L = useLabels()
+  const isSchool = L.group === 'класс'
 
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
@@ -137,10 +141,10 @@ export default function GroupsPage() {
 
       if (editing) {
         await http.patch(`/v1/groups/${editing.id}`, body)
-        message.success('Группа обновлена')
+        message.success(`${cap(L.group)} обновлён${L.group === 'группа' ? 'а' : ''}`)
       } else {
         await http.post('/v1/groups', body)
-        message.success('Группа создана')
+        message.success(`${cap(L.group)} созда${L.group === 'группа' ? 'на' : 'н'}`)
       }
 
       setModalOpen(false)
@@ -150,7 +154,7 @@ export default function GroupsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось сохранить группу'
+        `Не удалось сохранить ${L.group}`
       message.error(msg)
     } finally {
       setSubmitting(false)
@@ -160,20 +164,20 @@ export default function GroupsPage() {
   const remove = async (g: Group) => {
     try {
       await http.delete(`/v1/groups/${g.id}`)
-      message.success(`Группа «${g.name}» удалена`)
+      message.success(`«${g.name}» удалён${L.group === 'группа' ? 'а' : ''}`)
       refreshTenantData()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось удалить группу'
+        `Не удалось удалить ${L.group}`
       message.error(msg)
     }
   }
 
   const columns = [
     {
-      title: 'Группа',
+      title: cap(L.group),
       key: 'name',
       render: (_: unknown, row: GroupFinance) => (
         <Space>
@@ -195,7 +199,7 @@ export default function GroupsPage() {
       fixed: 'left' as const,
     },
     {
-      title: 'Детей',
+      title: isSchool ? 'Учеников' : 'Детей',
       dataIndex: 'childrenCount',
       key: 'childrenCount',
       sorter: (a: GroupFinance, b: GroupFinance) => a.childrenCount - b.childrenCount,
@@ -327,8 +331,12 @@ export default function GroupsPage() {
             />
           </Tooltip>
           <Popconfirm
-            title="Удалить группу?"
-            description="Дети группы останутся, но будут без группы"
+            title={`Удалить ${L.group}?`}
+            description={
+              isSchool
+                ? 'Ученики останутся, но будут без класса'
+                : 'Дети останутся, но будут без группы'
+            }
             okText="Удалить"
             cancelText="Отмена"
             okButtonProps={{ danger: true }}
@@ -344,10 +352,14 @@ export default function GroupsPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Группы"
+        title={L.groups}
         icon={<LayoutGrid size={22} strokeWidth={2} />}
         iconAccent="yellow"
-        description="Финансовая статистика по каждой группе — сразу видно, какая прибыльная"
+        description={
+          isSchool
+            ? 'Классы школы и финансовая статистика по каждому'
+            : 'Финансовая статистика по каждой группе — сразу видно, какая прибыльная'
+        }
         actions={
           <Space>
             <DatePicker
@@ -357,7 +369,7 @@ export default function GroupsPage() {
               allowClear={false}
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              Новая группа
+              {isSchool ? 'Новый класс' : 'Новая группа'}
             </Button>
           </Space>
         }
@@ -417,7 +429,7 @@ export default function GroupsPage() {
               }}
             >
               <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-                Прибыль по группам
+                Прибыль по {isSchool ? 'классам' : 'группам'}
               </div>
               <Tag
                 style={{
@@ -461,7 +473,7 @@ export default function GroupsPage() {
         <Col xs={24} lg={8} style={{ display: 'flex' }}>
           <SproutCard style={{ width: '100%' }} delay={0.25}>
             <div style={{ fontSize: 15, fontWeight: 700, color: SP.text, marginBottom: 12 }}>
-              Доля группы в доходе
+              Доля {L.group}а в доходе
             </div>
             {incomeShare.length > 0 ? (
               <Pie
@@ -494,7 +506,7 @@ export default function GroupsPage() {
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-            Подробно по группам
+            Подробно по {isSchool ? 'классам' : 'группам'}
           </div>
           <Tag style={{ background: SP.surfaceAlt, color: SP.textMid, border: 'none' }}>
             {dayjs(month + '-01').format('MMMM YYYY')}
@@ -503,8 +515,12 @@ export default function GroupsPage() {
         {finances.length === 0 ? (
           <SproutEmpty
             icon={<LayoutGrid size={28} strokeWidth={1.8} />}
-            title="Групп пока нет"
-            description="Создайте первую группу — Солнышко, Радуга или Звёздочка"
+            title={isSchool ? 'Классов пока нет' : 'Групп пока нет'}
+            description={
+              isSchool
+                ? 'Создайте первый класс — 1А, 5Б или 11А'
+                : 'Создайте первую группу — Солнышко, Радуга или Звёздочка'
+            }
             minHeight={220}
           />
         ) : isMobile ? (
@@ -554,7 +570,9 @@ export default function GroupsPage() {
                     }}
                   >
                     <div>
-                      <div style={{ fontSize: 11, color: SP.muted }}>Детей</div>
+                      <div style={{ fontSize: 11, color: SP.muted }}>
+                        {isSchool ? 'Учеников' : 'Детей'}
+                      </div>
                       <div
                         className="sp-num"
                         style={{ fontWeight: 700, fontSize: 15, color: SP.text }}
@@ -628,7 +646,7 @@ export default function GroupsPage() {
                       Изменить
                     </Button>
                     <Popconfirm
-                      title="Удалить группу?"
+                      title={`Удалить ${L.group}?`}
                       okText="Удалить"
                       cancelText="Отмена"
                       okButtonProps={{ danger: true }}
@@ -656,7 +674,13 @@ export default function GroupsPage() {
 
       {/* Modal */}
       <Modal
-        title={editing ? 'Редактировать группу' : 'Новая группа'}
+        title={
+          editing
+            ? `Редактировать ${L.group}`
+            : isSchool
+              ? 'Новый класс'
+              : 'Новая группа'
+        }
         open={modalOpen}
         onOk={submit}
         onCancel={() => setModalOpen(false)}
@@ -667,22 +691,25 @@ export default function GroupsPage() {
       >
         <Form layout="vertical" form={form}>
           <Form.Item
-            label="Название группы"
+            label={isSchool ? 'Название класса' : 'Название группы'}
             name="name"
             rules={[{ required: true, message: 'Введите название' }]}
           >
-            <Input placeholder="Например, Солнышко" />
+            <Input placeholder={isSchool ? 'Например, 5А' : 'Например, Солнышко'} />
           </Form.Item>
           <Form.Item
-            label="Возрастная категория"
+            label={isSchool ? 'Возрастная категория (опц.)' : 'Возрастная категория'}
             name="ageRange"
-            rules={[{ required: true, message: 'Укажите возраст' }]}
+            rules={isSchool ? [] : [{ required: true, message: 'Укажите возраст' }]}
           >
-            <Input placeholder="3–4 года" />
+            <Input placeholder={isSchool ? '10–11 лет' : '3–4 года'} />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item label="Ежемесячная плата за ребёнка" name="monthlyFee">
+              <Form.Item
+                label={`Ежемесячная плата за ${L.student}`}
+                name="monthlyFee"
+              >
                 <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
               </Form.Item>
             </Col>
@@ -696,10 +723,10 @@ export default function GroupsPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item label="Воспитатель" name="teacherId">
+          <Form.Item label={cap(L.teacher)} name="teacherId">
             <Select
               allowClear
-              placeholder="Выберите воспитателя"
+              placeholder={`Выберите ${L.teacher}`}
               options={staff
                 .filter((s) => s.position === 'Воспитатель')
                 .map((s) => ({

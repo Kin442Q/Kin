@@ -28,6 +28,8 @@ import { SproutPageHeader } from '../components/sprout'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
+import { useLabels } from '../hooks/useLabels'
+import { cap } from '../lib/labels'
 import { http } from '../api'
 import type { AttendanceStatus } from '../types'
 
@@ -82,6 +84,8 @@ export default function AttendancePage() {
   const groups = useDataStore((s) => s.groups)
   const childrenAll = useDataStore((s) => s.children)
   const user = useAuthStore((s) => s.user)
+  const L = useLabels()
+  const isSchool = L.group === 'класс'
 
   const [date, setDate] = useState<Dayjs>(dayjs())
   const [groupFilter, setGroupFilter] = useState<string | undefined>(
@@ -272,7 +276,7 @@ export default function AttendancePage() {
             scroll={{ x: 700 }}
             columns={[
               {
-                title: 'Ребёнок',
+                title: cap(L.student),
                 key: 'child',
                 render: (_, r) => (
                   <Space>

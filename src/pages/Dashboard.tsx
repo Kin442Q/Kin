@@ -25,6 +25,7 @@ import {
 } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
+import { useLabels } from '../hooks/useLabels'
 import { http } from '../api'
 import { formatMoney, formatMoneyCompact, formatPercent } from '../lib/format'
 
@@ -57,6 +58,8 @@ export default function Dashboard() {
   const user = useAuthStore((s) => s.user)
 
   const month = dayjs().format('YYYY-MM')
+  const L = useLabels()
+  const isSchool = L.group === 'класс'
 
   const [dashboard, setDashboard] = useState<DashboardApi | null>(null)
   const [trend, setTrend] = useState<TrendItem[]>([])
@@ -201,7 +204,7 @@ export default function Dashboard() {
         </Col>
         <Col xs={12} sm={12} lg={6}>
           <SproutKPI
-            label="Детей в саду"
+            label={isSchool ? 'Учеников в школе' : 'Детей в саду'}
             value={String(dashboard?.activeStudents ?? children.length)}
             accent="mint"
             hint={`Сотрудников: ${staff.length}`}
@@ -445,8 +448,12 @@ export default function Dashboard() {
               </div>
             ) : (
               <SproutEmpty
-                title="Группы ещё не созданы"
-                description="Добавьте первую группу — Солнышко, Радуга или Звёздочка"
+                title={isSchool ? 'Классы ещё не созданы' : 'Группы ещё не созданы'}
+                description={
+                  isSchool
+                    ? 'Добавьте первый класс — 1А, 5Б или 11А'
+                    : 'Добавьте первую группу — Солнышко, Радуга или Звёздочка'
+                }
                 minHeight={200}
               />
             )}
