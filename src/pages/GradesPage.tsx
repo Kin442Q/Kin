@@ -30,6 +30,7 @@ import dayjs from 'dayjs'
 
 import { SP, SproutPageHeader, SproutCard, SproutEmpty } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
+import { termsApi, type TermDto } from '../api/termsApi'
 import { http } from '../api'
 
 const { Text } = Typography
@@ -92,6 +93,11 @@ export default function GradesPage() {
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
 
+  // Учебные периоды (четверти). Если выбран — фильтруем по его диапазону,
+  // иначе по выбранному месяцу.
+  const [terms, setTerms] = useState<TermDto[]>([])
+  const [activeTermId, setActiveTermId] = useState<string | null>(null)
+
   // Modal
   const [editing, setEditing] = useState<{
     studentId: string
@@ -111,18 +117,44 @@ export default function GradesPage() {
       .catch((e) =>
         message.error(e?.response?.data?.message || 'Не удалось загрузить предметы'),
       )
+    // грузим четверти; если сегодня попадает в одну — выбираем её по умолчанию
+    termsApi
+      .list()
+      .then(async (list) => {
+        setTerms(list)
+        try {
+          const cur = await termsApi.current()
+          if (cur) setActiveTermId(cur.id)
+        } catch {
+          /* нет текущей — оставляем месяц */
+        }
+      })
+      .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Диапазон дат: либо четверть, либо месяц
+  const range = useMemo(() => {
+    const term = terms.find((t) => t.id === activeTermId)
+    if (term) {
+      return {
+        from: dayjs(term.startDate).format('YYYY-MM-DD'),
+        to: dayjs(term.endDate).format('YYYY-MM-DD'),
+      }
+    }
+    return {
+      from: dayjs(month + '-01').format('YYYY-MM-DD'),
+      to: dayjs(month + '-01').endOf('month').format('YYYY-MM-DD'),
+    }
+  }, [terms, activeTermId, month])
 
   // Загружаем оценки
   const loadGrades = async () => {
     if (!activeSubjectId) return
     setLoading(true)
     try {
-      const from = dayjs(month + '-01').format('YYYY-MM-DD')
-      const to = dayjs(month + '-01').endOf('month').format('YYYY-MM-DD')
       const r = await http.get<GradeDto[]>('/v1/grades', {
-        params: { subjectId: activeSubjectId, from, to },
+        params: { subjectId: activeSubjectId, from: range.from, to: range.to },
       })
       setGrades(r.data)
     } catch (e: any) {
@@ -135,7 +167,7 @@ export default function GradesPage() {
   useEffect(() => {
     loadGrades()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSubjectId, month])
+  }, [activeSubjectId, range.from, range.to])
 
   const visibleChildren = useMemo(() => {
     let list = children
@@ -219,14 +251,32 @@ export default function GradesPage() {
         title="Журнал оценок"
         icon={<GraduationCap size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description="Оценки учеников по предметам за выбранный месяц"
+        description="Оценки учеников по предметам за четверть или месяц"
         actions={
-          <DatePicker
-            picker="month"
-            value={dayjs(month + '-01')}
-            onChange={(d) => d && setMonth(d.format('YYYY-MM'))}
-            allowClear={false}
-          />
+          <Space wrap>
+            {terms.length > 0 && (
+              <Select
+                style={{ minWidth: 160 }}
+                placeholder="Период"
+                allowClear
+                value={activeTermId ?? undefined}
+                onChange={(v) => setActiveTermId(v ?? null)}
+                options={terms.map((t) => ({ value: t.id, label: t.name }))}
+              />
+            )}
+            <DatePicker
+              picker="month"
+              value={dayjs(month + '-01')}
+              onChange={(d) => {
+                if (d) {
+                  setMonth(d.format('YYYY-MM'))
+                  setActiveTermId(null) // выбор месяца сбрасывает четверть
+                }
+              }}
+              allowClear={false}
+              disabled={!!activeTermId}
+            />
+          </Space>
         }
       />
 

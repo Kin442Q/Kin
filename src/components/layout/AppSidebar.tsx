@@ -19,6 +19,7 @@ import {
   BookMarked,
   Home as HomeIcon,
   MapPin,
+  CalendarRange,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -176,6 +177,16 @@ const NAV: NavEntry[] = [
     label: 'Предметы',
     icon: <BookMarked size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
+    roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    institutionType: 'SCHOOL',
+    section: 'composition',
+  },
+  {
+    key: '/admin/terms',
+    label: 'Учебные периоды',
+    icon: <CalendarRange size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-lilac',
     roles: ['SUPER_ADMIN', 'admin'],
     hiddenForGlobalOwner: true,
     institutionType: 'SCHOOL',

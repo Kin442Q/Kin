@@ -138,10 +138,20 @@ class ParentService {
     })
   }
 
-  async kidGradeStats(user: AuthUser, kidId: string) {
+  async kidGradeStats(user: AuthUser, kidId: string, from?: string, to?: string) {
     await this.ensureKidAccess(user, kidId)
     const grades = await this.prisma.grade.findMany({
-      where: { studentId: kidId },
+      where: {
+        studentId: kidId,
+        ...(from || to
+          ? {
+              date: {
+                ...(from ? { gte: new Date(from) } : {}),
+                ...(to ? { lte: new Date(to) } : {}),
+              },
+            }
+          : {}),
+      },
       select: { subjectId: true, value: true, subject: true },
     })
     const map: Record<
@@ -271,8 +281,13 @@ class ParentController {
   }
 
   @Get('kids/:id/grades/stats')
-  kidGradeStats(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.service.kidGradeStats(user, id)
+  kidGradeStats(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.service.kidGradeStats(user, id, from, to)
   }
 
   @Get('kids/:id/homework')

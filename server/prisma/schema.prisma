@@ -71,6 +71,13 @@ enum GradeType {
   OTHER
 }
 
+/// Тип учебного периода (для школы).
+enum TermType {
+  QUARTER    // четверть
+  TRIMESTER  // триместр
+  SEMESTER   // полугодие
+}
+
 enum PaymentMethod {
   CASH
   CARD
@@ -174,6 +181,7 @@ model Kindergarten {
   staff         Staff[]
   menuItems     MenuItem[]
   subjects      Subject[]
+  terms         Term[]
 
   @@index([isActive])
 }
@@ -849,5 +857,23 @@ model Homework {
 
   @@index([groupId, dueDate])
   @@index([subjectId])
+}
+
+/// Учебный период школы (четверть / триместр / полугодие).
+/// Оценки группируются по нему через диапазон дат (startDate..endDate).
+model Term {
+  id              String   @id @default(cuid())
+  name            String   // "1 четверть"
+  type            TermType @default(QUARTER)
+  startDate       DateTime @db.Date
+  endDate         DateTime @db.Date
+
+  kindergartenId  String?
+  kindergarten    Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([kindergartenId, startDate])
 }
 
