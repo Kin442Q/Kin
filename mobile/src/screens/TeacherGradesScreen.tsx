@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
-import { ChevronLeft, Plus, Trash2, BookMarked } from 'lucide-react-native'
+import { ChevronLeft, Plus, BookMarked } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
@@ -28,6 +28,15 @@ import {
   type SubjectDto,
 } from '../api/school'
 
+const TYPE_LABELS: Record<GradeType, string> = {
+  CLASSWORK: 'Урок',
+  HOMEWORK: 'ДЗ',
+  CONTROL: 'Контр.',
+  EXAM: 'Экзамен',
+  PROJECT: 'Проект',
+  OTHER: 'Другое',
+}
+
 export default function TeacherGradesScreen() {
   const navigation = useNavigation()
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [])
@@ -36,13 +45,13 @@ export default function TeacherGradesScreen() {
   const [subjects, setSubjects] = useState<SubjectDto[]>([])
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null)
   const [grades, setGrades] = useState<GradeDto[]>([])
-  const [date, setDate] = useState(today)
+  const [month, setMonth] = useState(dayjs().format('YYYY-MM'))
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  // Modal: add grade
+  // Быстрый ввод
   const [editingStudent, setEditingStudent] = useState<StudentDto | null>(null)
-  const [valueStr, setValueStr] = useState('')
+  const [date, setDate] = useState(today)
   const [type, setType] = useState<GradeType>('CLASSWORK')
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
@@ -67,16 +76,14 @@ export default function TeacherGradesScreen() {
   const reloadGrades = useCallback(async () => {
     if (!activeSubjectId) return
     try {
-      const g = await schoolApi.listGrades({
-        subjectId: activeSubjectId,
-        from: date,
-        to: date,
-      })
+      const from = dayjs(month + '-01').format('YYYY-MM-DD')
+      const to = dayjs(month + '-01').endOf('month').format('YYYY-MM-DD')
+      const g = await schoolApi.listGrades({ subjectId: activeSubjectId, from, to })
       setGrades(g)
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || String(e))
     }
-  }, [activeSubjectId, date])
+  }, [activeSubjectId, month])
 
   useEffect(() => {
     reload()
@@ -95,26 +102,31 @@ export default function TeacherGradesScreen() {
     return map
   }, [grades])
 
-  const submit = async () => {
-    if (!editingStudent || !activeSubjectId) return
-    const v = Number(valueStr)
-    if (!v || v < 1 || v > 10) {
-      Alert.alert('Оценка', 'Введите от 1 до 10')
-      return
+  const avgByStudent = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const [sid, list] of Object.entries(gradesByStudent)) {
+      const sum = list.reduce((s, g) => s + g.value, 0)
+      map[sid] = list.length ? Number((sum / list.length).toFixed(1)) : 0
     }
+    return map
+  }, [gradesByStudent])
+
+  /** Мгновенно ставит оценку value текущему editingStudent. */
+  const quickSave = async (value: number) => {
+    if (!editingStudent || !activeSubjectId) return
     setSaving(true)
     try {
       await schoolApi.createGrade({
         studentId: editingStudent.id,
         subjectId: activeSubjectId,
-        value: v,
+        value,
         type,
         date,
         comment: comment.trim() || undefined,
       })
       setEditingStudent(null)
-      setValueStr('')
       setComment('')
+      setType('CLASSWORK')
       reloadGrades()
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || String(e))
@@ -124,21 +136,25 @@ export default function TeacherGradesScreen() {
   }
 
   const removeGrade = (g: GradeDto) => {
-    Alert.alert('Удалить оценку?', `${g.value} балл(а)?`, [
-      { text: 'Отмена', style: 'cancel' },
-      {
-        text: 'Удалить',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await schoolApi.deleteGrade(g.id)
-            reloadGrades()
-          } catch (e: any) {
-            Alert.alert('Ошибка', e?.response?.data?.message || String(e))
-          }
+    Alert.alert(
+      'Оценка ' + g.value,
+      `${TYPE_LABELS[g.type]} · ${dayjs(g.date).format('D MMM')}${g.comment ? '\n«' + g.comment + '»' : ''}`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Удалить',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await schoolApi.deleteGrade(g.id)
+              reloadGrades()
+            } catch (e: any) {
+              Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+            }
+          },
         },
-      },
-    ])
+      ],
+    )
   }
 
   if (loading) {
@@ -154,11 +170,7 @@ export default function TeacherGradesScreen() {
   return (
     <Screen>
       <View style={styles.topBar}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.backBtn}
-        >
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.backBtn}>
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.topTitle}>Журнал оценок</Text>
@@ -219,11 +231,11 @@ export default function TeacherGradesScreen() {
                 })}
               </View>
 
-              <Text style={styles.section}>Дата</Text>
+              <Text style={styles.section}>Месяц</Text>
               <View style={styles.dayBar}>
                 <Pressable
                   onPress={() =>
-                    setDate(dayjs(date).subtract(1, 'day').format('YYYY-MM-DD'))
+                    setMonth(dayjs(month + '-01').subtract(1, 'month').format('YYYY-MM'))
                   }
                   hitSlop={10}
                   style={styles.dayBtn}
@@ -231,11 +243,11 @@ export default function TeacherGradesScreen() {
                   <ChevronLeft size={20} color={colors.text} />
                 </Pressable>
                 <Text style={styles.dayLabel}>
-                  {dayjs(date).format('dd, D MMMM')}
+                  {dayjs(month + '-01').format('MMMM YYYY')}
                 </Text>
                 <Pressable
                   onPress={() =>
-                    setDate(dayjs(date).add(1, 'day').format('YYYY-MM-DD'))
+                    setMonth(dayjs(month + '-01').add(1, 'month').format('YYYY-MM'))
                   }
                   hitSlop={10}
                   style={styles.dayBtn}
@@ -253,6 +265,7 @@ export default function TeacherGradesScreen() {
           renderItem={({ item }) => {
             const fullName = `${item.firstName} ${item.lastName}`.trim()
             const stuGrades = gradesByStudent[item.id] ?? []
+            const avg = avgByStudent[item.id] ?? 0
             return (
               <Card padding={12}>
                 <View style={styles.row}>
@@ -261,33 +274,31 @@ export default function TeacherGradesScreen() {
                     <Text style={styles.name}>{fullName}</Text>
                     <View style={styles.gradeStrip}>
                       {stuGrades.map((g) => (
-                        <Pressable
-                          key={g.id}
-                          onLongPress={() => removeGrade(g)}
-                        >
+                        <Pressable key={g.id} onPress={() => removeGrade(g)}>
                           <View
-                            style={[
-                              styles.gradeBubble,
-                              {
-                                backgroundColor: gradeColor(g.value),
-                              },
-                            ]}
+                            style={[styles.gradeBubble, { backgroundColor: gradeColor(g.value) }]}
                           >
-                            <Text style={styles.gradeBubbleText}>
-                              {g.value}
-                            </Text>
+                            <Text style={styles.gradeBubbleText}>{g.value}</Text>
                           </View>
                         </Pressable>
                       ))}
-                      {stuGrades.length === 0 && (
-                        <Text style={styles.noGrade}>—</Text>
-                      )}
+                      {stuGrades.length === 0 && <Text style={styles.noGrade}>нет оценок</Text>}
                     </View>
                   </View>
+
+                  {avg > 0 && (
+                    <View style={styles.avgBox}>
+                      <Text style={styles.avgLabel}>ср.</Text>
+                      <Text style={[styles.avgValue, { color: gradeColor(Math.round(avg)) }]}>
+                        {avg.toFixed(1)}
+                      </Text>
+                    </View>
+                  )}
+
                   <Pressable
                     onPress={() => {
                       setEditingStudent(item)
-                      setValueStr('')
+                      setDate(today)
                       setType('CLASSWORK')
                       setComment('')
                     }}
@@ -312,17 +323,35 @@ export default function TeacherGradesScreen() {
         onClose={() => setEditingStudent(null)}
         title={
           editingStudent
-            ? `${editingStudent.firstName} ${editingStudent.lastName}`
+            ? `Оценка · ${editingStudent.firstName} ${editingStudent.lastName}`
             : 'Оценка'
         }
       >
-        <Field
-          label="Оценка"
-          value={valueStr}
-          onChangeText={setValueStr}
-          keyboardType="numeric"
-          placeholder="5"
-        />
+        {/* Дата */}
+        <View style={styles.modalDayBar}>
+          <Pressable
+            onPress={() => setDate(dayjs(date).subtract(1, 'day').format('YYYY-MM-DD'))}
+            hitSlop={8}
+            style={styles.dayBtn}
+          >
+            <ChevronLeft size={18} color={colors.text} />
+          </Pressable>
+          <Text style={styles.modalDayLabel}>
+            {dayjs(date).format('dd, D MMMM')}
+            {date === today ? ' · сегодня' : ''}
+          </Text>
+          <Pressable
+            onPress={() => setDate(dayjs(date).add(1, 'day').format('YYYY-MM-DD'))}
+            hitSlop={8}
+            style={styles.dayBtn}
+          >
+            <ChevronLeft
+              size={18}
+              color={colors.text}
+              style={{ transform: [{ rotate: '180deg' }] }}
+            />
+          </Pressable>
+        </View>
 
         <Select<GradeType>
           label="Тип"
@@ -330,8 +359,8 @@ export default function TeacherGradesScreen() {
           onChange={setType}
           options={[
             { value: 'CLASSWORK', label: 'Урок' },
-            { value: 'HOMEWORK', label: 'Дом. задание' },
-            { value: 'CONTROL', label: 'Контрольная' },
+            { value: 'HOMEWORK', label: 'ДЗ' },
+            { value: 'CONTROL', label: 'Контр.' },
             { value: 'EXAM', label: 'Экзамен' },
             { value: 'PROJECT', label: 'Проект' },
             { value: 'OTHER', label: 'Другое' },
@@ -340,19 +369,39 @@ export default function TeacherGradesScreen() {
         />
 
         <Field
-          label="Комментарий"
+          label="Комментарий (необязательно)"
           value={comment}
           onChangeText={setComment}
-          placeholder="За что (необязательно)"
-          multiline
+          placeholder="За что"
         />
 
-        <Btn block size="lg" loading={saving} onPress={submit}>
-          Поставить оценку
-        </Btn>
-        <Text style={styles.hint}>
-          Долгий тап на оценку в списке — удалить
-        </Text>
+        {/* Большие кнопки оценок — мгновенное сохранение */}
+        <Text style={styles.gradePadLabel}>Нажмите оценку — она сразу сохранится</Text>
+        <View style={styles.gradePad}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
+            <Pressable
+              key={v}
+              disabled={saving}
+              onPress={() => quickSave(v)}
+              style={({ pressed }) => [
+                styles.gradeKey,
+                {
+                  backgroundColor: gradeColor(v),
+                  opacity: saving ? 0.5 : pressed ? 0.8 : 1,
+                },
+                pressed && { transform: [{ scale: 0.95 }] },
+              ]}
+            >
+              <Text style={styles.gradeKeyText}>{v}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {saving && (
+          <View style={{ alignItems: 'center', marginTop: 8 }}>
+            <ActivityIndicator color={colors.primary} />
+          </View>
+        )}
       </BottomModal>
     </Screen>
   )
@@ -361,7 +410,6 @@ export default function TeacherGradesScreen() {
 function gradeColor(v: number): string {
   if (v >= 9) return colors.primaryDeep
   if (v >= 7) return colors.primary
-  if (v >= 5) return colors.yellowDeep
   if (v >= 4) return colors.yellowDeep
   return colors.roseDeep
 }
@@ -436,6 +484,9 @@ const styles = StyleSheet.create({
   },
   gradeBubbleText: { color: '#fff', fontSize: 13, fontWeight: '800' },
   noGrade: { fontSize: 12, color: colors.muted },
+  avgBox: { alignItems: 'center', marginRight: 8, minWidth: 36 },
+  avgLabel: { fontSize: 9, color: colors.muted, fontWeight: '700', textTransform: 'uppercase' },
+  avgValue: { fontSize: 17, fontWeight: '800', letterSpacing: -0.5 },
   addBtn: {
     width: 34,
     height: 34,
@@ -446,5 +497,35 @@ const styles = StyleSheet.create({
   },
   empty: { paddingVertical: 60, alignItems: 'center', gap: 12 },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-  hint: { fontSize: 11, color: colors.muted, textAlign: 'center', marginTop: 4 },
+  // modal
+  modalDayBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  modalDayLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
+  gradePadLabel: {
+    fontSize: 12,
+    color: colors.muted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  gradePad: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+  },
+  gradeKey: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gradeKeyText: { color: '#fff', fontSize: 22, fontWeight: '800' },
 })
