@@ -118,6 +118,7 @@ export default function KindergartensPage() {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
+    form.setFieldsValue({ phone: '+992 ' })
     setCreateType('KINDERGARTEN')
     setDrawerOpen(true)
   }

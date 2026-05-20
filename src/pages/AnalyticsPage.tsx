@@ -153,13 +153,28 @@ export default function AnalyticsPage() {
   // Самые прибыльные / убыточные группы
   const sortedByProfit = [...groupFin].sort((a, b) => b.profit - a.profit);
 
+  // Понятное объяснение «человеческим языком» — что значат цифры
+  const plainSummary = (() => {
+    const inc = Math.round(global.totalIncome)
+    const exp = Math.round(global.totalExpenses)
+    const net = Math.round(global.netProfit)
+    const monthName = dayjs(month + '-01').format('MMMM YYYY')
+    if (inc === 0 && exp === 0) {
+      return `За ${monthName} пока нет ни доходов, ни расходов. Как только появятся оплаты и расходы — здесь будет видно, в плюсе учреждение или в минусе.`
+    }
+    if (net >= 0) {
+      return `За ${monthName} учреждение получило ${formatMoney(inc)} и потратило ${formatMoney(exp)}. Осталось «в кармане» ${formatMoney(net)} — значит работаете в плюс. 👍`
+    }
+    return `За ${monthName} учреждение получило ${formatMoney(inc)}, но потратило больше — ${formatMoney(exp)}. Не хватило ${formatMoney(Math.abs(net))} — значит сейчас работаете в минус. Стоит снизить расходы или поднять оплату/набор. ⚠️`
+  })();
+
   return (
     <div>
       <SproutPageHeader
         title="Аналитика"
         icon={<TrendingUp size={22} strokeWidth={2} />}
         iconAccent="cyan"
-        description="Глобальная финансовая картина по всему саду"
+        description="Простыми словами: сколько заработали, сколько потратили и осталось ли в плюсе"
         actions={
           <DatePicker
             picker="month"
@@ -169,6 +184,34 @@ export default function AnalyticsPage() {
           />
         }
       />
+
+      {/* Объяснение человеческим языком */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+      >
+        <Card
+          bordered={false}
+          style={{
+            marginBottom: 16,
+            background: global.netProfit >= 0 ? '#EEF7F2' : '#FCEAE5',
+            borderRadius: 14,
+          }}
+          bodyStyle={{ padding: 16 }}
+        >
+          <Space align="start" size={12}>
+            <span style={{ fontSize: 22 }}>
+              {global.totalIncome === 0 && global.totalExpenses === 0
+                ? '📊'
+                : global.netProfit >= 0
+                  ? '✅'
+                  : '⚠️'}
+            </span>
+            <Text style={{ fontSize: 15, lineHeight: 1.5 }}>{plainSummary}</Text>
+          </Space>
+        </Card>
+      </motion.div>
 
       {/* Главная сводка с авто-выводом */}
       <motion.div

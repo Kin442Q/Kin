@@ -171,6 +171,7 @@ export default function StaffPage() {
       role: 'TEACHER',
       salaryMode: 'HOURLY',
       workNorm: 176,
+      phone: '+992 ',
     })
     setDrawerOpen(true)
   }

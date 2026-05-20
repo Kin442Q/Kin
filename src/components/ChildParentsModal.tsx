@@ -222,6 +222,7 @@ export default function ChildParentsModal({
             onClick={() => {
               setShowForm(true)
               form.resetFields()
+              form.setFieldsValue({ phone: '+992 ' })
               generatePassword()
             }}
             style={{ marginTop: 8 }}

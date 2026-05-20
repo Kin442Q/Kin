@@ -101,8 +101,18 @@ export default function GroupsPage() {
     const income = finances.reduce((s, g) => s + g.income, 0)
     const exp = finances.reduce((s, g) => s + g.expenses, 0)
     const profit = income - exp
-    const profitable = finances.filter((g) => g.profit >= 0).length
-    return { income, exp, profit, profitable, count: finances.length }
+    // «Выгодная» — только если есть реальный доход и прибыль не отрицательная.
+    // Группа без доходов (profit === 0) не считается выгодной — данных нет.
+    const withData = finances.filter((g) => g.income > 0 || g.expenses > 0)
+    const profitable = withData.filter((g) => g.profit >= 0).length
+    return {
+      income,
+      exp,
+      profit,
+      profitable,
+      count: finances.length,
+      withDataCount: withData.length,
+    }
   }, [finances])
 
   const incomeShare = finances
@@ -409,7 +419,11 @@ export default function GroupsPage() {
             label="Чистая прибыль"
             value={`${total.profit >= 0 ? '+' : ''}${formatMoneyCompact(total.profit)}`}
             accent={total.profit >= 0 ? 'mint' : 'rose'}
-            hint={`Выгодных: ${total.profitable} / ${total.count}`}
+            hint={
+              total.withDataCount > 0
+                ? `Выгодных: ${total.profitable} / ${total.withDataCount}`
+                : 'Пока нет данных за месяц'
+            }
             icon={<TrendingUp size={18} strokeWidth={2} />}
             delay={0.15}
           />

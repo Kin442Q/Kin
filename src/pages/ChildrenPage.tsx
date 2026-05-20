@@ -97,6 +97,8 @@ export default function ChildrenPage() {
     form.setFieldsValue({
       gender: 'male',
       groupId: user?.role === 'teacher' ? user.groupId : groups[0]?.id,
+      motherPhone: '+992 ',
+      fatherPhone: '+992 ',
     })
     setDrawerOpen(true)
   }
@@ -739,7 +741,7 @@ export default function ChildrenPage() {
             </Col>
             <Col span={12}>
               <Form.Item name="motherPhone" label="Телефон мамы">
-                <Input prefix={<PhoneOutlined />} />
+                <Input prefix={<PhoneOutlined />} placeholder="+992 XX XXX XX XX" />
               </Form.Item>
             </Col>
           </Row>
@@ -751,7 +753,7 @@ export default function ChildrenPage() {
             </Col>
             <Col span={12}>
               <Form.Item name="fatherPhone" label="Телефон папы">
-                <Input prefix={<PhoneOutlined />} />
+                <Input prefix={<PhoneOutlined />} placeholder="+992 XX XXX XX XX" />
               </Form.Item>
             </Col>
           </Row>

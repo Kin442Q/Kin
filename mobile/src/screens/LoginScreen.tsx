@@ -23,7 +23,7 @@ export default function LoginScreen() {
   const loading = useAuthStore((s) => s.loading)
 
   const [tab, setTab] = useState<Tab>('teacher')
-  const [emailOrPhone, setEmailOrPhone] = useState('')
+  const [emailOrPhone, setEmailOrPhone] = useState('+992 ')
   const [password, setPassword] = useState('')
 
   const onSubmit = async () => {
@@ -89,7 +89,8 @@ export default function LoginScreen() {
                   key={k}
                   onPress={() => {
                     setTab(k)
-                    setEmailOrPhone('')
+                    // Для входа учителя сразу подставляем код страны +992
+                    setEmailOrPhone(k === 'teacher' ? '+992 ' : '')
                   }}
                   style={[
                     styles.tabBtn,
