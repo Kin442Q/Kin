@@ -17,6 +17,20 @@ import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
+/** Prisma Decimal/строка/число → чистый number. */
+function num(v: unknown): number {
+  if (v == null) return 0
+  if (typeof v === 'number') return v
+  const n = Number(String(v))
+  return Number.isFinite(n) ? n : 0
+}
+
+/** Нормализует amount у платежа. */
+function normPayment<T extends { amount: unknown } | null>(p: T): T {
+  if (!p) return p
+  return { ...p, amount: num((p as { amount: unknown }).amount) } as T
+}
+
 /**
  * Парент-API: единая точка доступа для мобильного приложения родителя.
  * Все эндпоинты строго ограничены ребёнком, привязанным к текущему пользователю
@@ -54,6 +68,11 @@ class ParentService {
           { parents: { some: { id: user.sub } } },
         ],
       },
+      include: {
+        group: {
+          select: { id: true, name: true, color: true, ageRange: true },
+        },
+      },
     })
     if (!kid) throw new ForbiddenException('Нет доступа к этому ребёнку')
     return kid
@@ -85,10 +104,11 @@ class ParentService {
 
   async kidPayments(user: AuthUser, kidId: string) {
     await this.ensureKidAccess(user, kidId)
-    return this.prisma.payment.findMany({
+    const list = await this.prisma.payment.findMany({
       where: { studentId: kidId },
       orderBy: [{ month: 'desc' }],
     })
+    return list.map((p) => normPayment(p))
   }
 
   async kidGrades(
@@ -197,7 +217,7 @@ class ParentService {
         diary: todayDiary,
         kidNote: todayKidNote,
       },
-      lastPayment,
+      lastPayment: normPayment(lastPayment),
     }
   }
 }

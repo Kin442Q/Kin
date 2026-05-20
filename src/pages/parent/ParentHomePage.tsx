@@ -32,12 +32,15 @@ import { parentApi, type ParentKid, type ParentToday } from '../../api/parentApi
 
 const { Text, Title } = Typography
 
-const ATTENDANCE_META = {
-  PRESENT: { label: 'В саду', color: SP.primaryDeep, bg: SP.primarySoft, emoji: '🟢' },
-  ABSENT: { label: 'Нет', color: SP.danger, bg: '#FCEAE5', emoji: '🔴' },
-  SICK: { label: 'Болеет', color: SP.yellowDeep, bg: SP.yellowSoft, emoji: '🤒' },
-  VACATION: { label: 'В отпуске', color: SP.lilacDeep, bg: SP.lilacSoft, emoji: '🌴' },
-} as const
+function attendanceMeta(isSchool: boolean) {
+  const present = isSchool ? 'В школе' : 'В саду'
+  return {
+    PRESENT: { label: present, color: SP.primaryDeep, bg: SP.primarySoft, emoji: '🟢' },
+    ABSENT: { label: 'Нет', color: SP.danger, bg: '#FCEAE5', emoji: '🔴' },
+    SICK: { label: 'Болеет', color: SP.yellowDeep, bg: SP.yellowSoft, emoji: '🤒' },
+    VACATION: { label: 'В отпуске', color: SP.lilacDeep, bg: SP.lilacSoft, emoji: '🌴' },
+  } as const
+}
 
 function moodLabel(m: 'HAPPY' | 'NEUTRAL' | 'SAD' | 'SICK'): string {
   return m === 'HAPPY' ? '😊 хорошее'
@@ -119,6 +122,7 @@ export default function ParentHomePage() {
 
   const kid = today?.kid ?? kids[0]
   const attendance = today?.today.attendance
+  const ATTENDANCE_META = attendanceMeta(!!isSchool)
   const meta = attendance ? ATTENDANCE_META[attendance.status] : null
   const diary = today?.today.diary
   const kidNote = today?.today.kidNote
@@ -202,7 +206,7 @@ export default function ParentHomePage() {
                       {lastPayment.paid ? 'Оплачено' : 'К оплате'} · {lastPayment.month}
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: SP.text }}>
-                      {Math.round(Number(lastPayment.amount)).toLocaleString('ru-RU')}{' '}
+                      {Math.round(Number(lastPayment.amount) || 0).toLocaleString('ru-RU')}{' '}
                       <span style={{ color: SP.muted, fontSize: 14 }}>с</span>
                     </div>
                   </div>
