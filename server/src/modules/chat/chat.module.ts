@@ -30,7 +30,7 @@ class SendMessageDto {
 }
 
 @Injectable()
-class ChatService {
+export class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
@@ -47,17 +47,23 @@ class ChatService {
     if (user.role !== 'PARENT') {
       throw new ForbiddenException('Только для родителя')
     }
+    // Доступ к ребёнку как в ParentService.ensureKidAccess — БЕЗ строгого
+    // фильтра status, иначе чат 404-ит на детях, которых остальной кабинет
+    // родителя (today/payments/...) показывает. Активных предпочитаем.
     const kid = await this.prisma.student.findFirst({
       where: {
-        status: 'ACTIVE',
         OR: [
           { id: user.childId ?? '__none__' },
           { parents: { some: { id: user.sub } } },
         ],
       },
+      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
       select: { id: true, groupId: true, kindergartenId: true, group: { select: { name: true } } },
     })
     if (!kid) throw new NotFoundException('Нет привязанного ребёнка')
+    if (!kid.groupId) {
+      throw new BadRequestException('Ребёнок не закреплён за группой — чат недоступен')
+    }
 
     const conv = await this.prisma.conversation.upsert({
       where: {

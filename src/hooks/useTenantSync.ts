@@ -117,8 +117,10 @@ export function useTenantSync() {
     if (!user || !token) return
 
     // Глобальный супер-админ (без kindergartenId) не привязан к садику —
-    // ему не показываем чужие группы/детей, просто очищаем
-    if (!user.kindergartenId) {
+    // ему не показываем чужие группы/детей, просто очищаем.
+    // Родитель не имеет прав на /v1/groups и /v1/students (вернётся 403) —
+    // у него своя выдача через /v1/parent/*, поэтому пропускаем синк.
+    if (!user.kindergartenId || user.role === 'PARENT') {
       setGroups([])
       setChildren([])
       return
