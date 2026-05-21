@@ -5,7 +5,7 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache openssl
-COPY package*.json ./
+COPY package*.json .npmrc ./
 COPY prisma ./prisma
 RUN npm ci --include=dev && npx prisma generate
 
@@ -29,7 +29,7 @@ WORKDIR /app
 RUN apk add --no-cache openssl
 
 # Только prod-deps
-COPY package*.json ./
+COPY package*.json .npmrc ./
 RUN npm ci --omit=dev && npm cache clean --force
 
 # Prisma client + CLI + миграции
