@@ -17,12 +17,14 @@ import { Send } from 'lucide-react-native'
 import Screen from '../components/Screen'
 import { colors, radius } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
+import { connectSocket } from '../lib/socket'
 import { chatApi, type ChatMessage } from '../api/chat'
 
 export default function ParentChatScreen() {
   const user = useAuthStore((s) => s.user)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [groupName, setGroupName] = useState<string | undefined>()
+  const [convId, setConvId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
@@ -33,6 +35,7 @@ export default function ParentChatScreen() {
       const r = await chatApi.my()
       setMessages(r.messages)
       setGroupName(r.conversation.groupName)
+      setConvId(r.conversation.id)
     } catch {
       // нет ребёнка / ошибка — оставляем пусто
     } finally {
@@ -43,6 +46,28 @@ export default function ParentChatScreen() {
   useEffect(() => {
     load()
   }, [load])
+
+  // Realtime через Socket.io
+  useEffect(() => {
+    if (!convId) return
+    let cleanup = () => {}
+    connectSocket().then((socket) => {
+      socket.emit('join', { conversationId: convId })
+      const onMessage = (msg: ChatMessage) => {
+        if (msg.conversationId !== convId) return
+        setMessages((prev) =>
+          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+        )
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50)
+      }
+      socket.on('message', onMessage)
+      cleanup = () => {
+        socket.emit('leave', { conversationId: convId })
+        socket.off('message', onMessage)
+      }
+    })
+    return () => cleanup()
+  }, [convId])
 
   // Перезагружаем при возврате на экран (чтобы видеть ответы)
   useFocusEffect(

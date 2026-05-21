@@ -16,6 +16,7 @@ import dayjs from 'dayjs'
 
 import { SP, SproutPageHeader } from '../components/sprout'
 import { useAuthStore } from '../store/authStore'
+import { getSocket } from '../lib/socket'
 import {
   chatApi,
   type ChatMessage,
@@ -43,6 +44,9 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
+  // id текущей открытой переписки (для socket-комнаты)
+  const [convId, setConvId] = useState<string | null>(null)
+
   const scrollDown = () =>
     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
 
@@ -52,6 +56,7 @@ export default function ChatPage() {
     try {
       const r = await chatApi.my()
       setMessages(r.messages)
+      setConvId(r.conversation.id)
       setActiveMeta({ name: 'Учитель', group: r.conversation.groupName ?? '' })
       scrollDown()
     } catch (e: any) {
@@ -79,6 +84,7 @@ export default function ChatPage() {
 
   const openThread = async (c: StaffConversation) => {
     setActiveId(c.id)
+    setConvId(c.id)
     setActiveMeta({ name: c.parentName, group: c.groupName })
     try {
       const r = await chatApi.messages(c.id)
@@ -94,6 +100,36 @@ export default function ChatPage() {
     else loadStaffList()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Realtime: входим в комнату текущей переписки и слушаем новые сообщения
+  useEffect(() => {
+    if (!convId) return
+    const socket = getSocket()
+    socket.emit('join', { conversationId: convId })
+
+    const onMessage = (msg: ChatMessage) => {
+      if (msg.conversationId !== convId) return
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === msg.id)) return prev // не дублируем свои
+        return [...prev, msg]
+      })
+      scrollDown()
+    }
+    socket.on('message', onMessage)
+
+    // обновление списка переписок у сотрудника
+    const onConversation = () => {
+      if (!isParent) loadStaffList()
+    }
+    socket.on('conversation', onConversation)
+
+    return () => {
+      socket.emit('leave', { conversationId: convId })
+      socket.off('message', onMessage)
+      socket.off('conversation', onConversation)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convId])
 
   const send = async () => {
     const t = text.trim()

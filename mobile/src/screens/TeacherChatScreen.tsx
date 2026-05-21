@@ -20,6 +20,7 @@ import Card from '../components/Card'
 import Avatar from '../components/Avatar'
 import { colors, radius } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
+import { connectSocket } from '../lib/socket'
 import { chatApi, type ChatMessage, type StaffConversation } from '../api/chat'
 
 export default function TeacherChatScreen() {
@@ -69,6 +70,29 @@ export default function TeacherChatScreen() {
       setMsgLoading(false)
     }
   }
+
+  // Realtime: подписка на сообщения активного треда
+  useEffect(() => {
+    if (!active) return
+    const convId = active.id
+    let cleanup = () => {}
+    connectSocket().then((socket) => {
+      socket.emit('join', { conversationId: convId })
+      const onMessage = (msg: ChatMessage) => {
+        if (msg.conversationId !== convId) return
+        setMessages((prev) =>
+          prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+        )
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50)
+      }
+      socket.on('message', onMessage)
+      cleanup = () => {
+        socket.emit('leave', { conversationId: convId })
+        socket.off('message', onMessage)
+      }
+    })
+    return () => cleanup()
+  }, [active])
 
   const send = async () => {
     const t = text.trim()

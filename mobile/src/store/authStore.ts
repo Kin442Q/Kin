@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { authApi, type User } from '../api/auth'
 import { setUnauthorizedHandler } from '../api/http'
+import { disconnectSocket } from '../lib/socket'
 import {
   registerForPushNotificationsAsync,
   registerPushTokenOnServer,
@@ -99,6 +100,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Снимаем push-токен на бэкенде — чтобы не получать уведомления
     // после выхода из аккаунта.
     await unregisterPushTokenOnServer().catch(() => {})
+    disconnectSocket()
     try {
       await authApi.logout()
     } catch {

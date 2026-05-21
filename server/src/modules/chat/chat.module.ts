@@ -12,10 +12,13 @@ import {
   UseGuards,
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
+import { JwtModule } from '@nestjs/jwt'
+import { ConfigModule, ConfigService } from '@nestjs/config'
 import { IsString, MaxLength, MinLength } from 'class-validator'
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { PushService } from '../push/push.module'
+import { ChatGateway } from './chat.gateway'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
@@ -30,6 +33,7 @@ class ChatService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
+    private readonly gateway: ChatGateway,
   ) {}
 
   // ─── Родитель ───────────────────────────────────────────────────────
@@ -174,6 +178,15 @@ class ChatService {
       },
     })
 
+    // Realtime: рассылаем сообщение всем в комнате переписки
+    this.gateway.emitMessage(conversationId, msg)
+    // и обновление списка другой стороне (бейдж/последнее сообщение)
+    this.gateway.emitConversationUpdate(conv.parentId, {
+      conversationId,
+      lastText: t,
+      lastMessageAt: conv.lastMessageAt,
+    })
+
     // Push другой стороне
     if (user.role === 'PARENT') {
       // уведомляем учителей группы + админов учреждения
@@ -288,7 +301,16 @@ class ChatController {
 }
 
 @Module({
+  imports: [
+    ConfigModule,
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.get<string>('jwt.accessSecret'),
+      }),
+    }),
+  ],
   controllers: [ChatController],
-  providers: [ChatService],
+  providers: [ChatService, ChatGateway],
 })
 export class ChatModule {}
