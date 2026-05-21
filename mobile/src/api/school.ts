@@ -14,6 +14,15 @@ export interface SubjectDto {
   color: string
 }
 
+export type TermType = 'QUARTER' | 'TRIMESTER' | 'SEMESTER'
+export interface TermDto {
+  id: string
+  name: string
+  type: TermType
+  startDate: string
+  endDate: string
+}
+
 export interface GradeDto {
   id: string
   studentId: string
@@ -53,6 +62,11 @@ export interface GradeStatsRow {
 }
 
 export const schoolApi = {
+  // Terms
+  listTerms: () => http.get<TermDto[]>('/v1/terms').then((r) => r.data),
+  currentTerm: () =>
+    http.get<TermDto | null>('/v1/terms/current').then((r) => r.data),
+
   // Subjects
   listSubjects: () =>
     http.get<SubjectDto[]>('/v1/subjects').then((r) => r.data),

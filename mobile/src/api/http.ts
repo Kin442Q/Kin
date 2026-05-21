@@ -8,6 +8,15 @@ export const http = axios.create({
   timeout: 15_000,
 })
 
+/**
+ * Колбэк, вызываемый при 401 (протух/невалиден токен). authStore
+ * регистрирует здесь сброс сессии, чтобы навигация увела на экран логина.
+ */
+let unauthorizedHandler: (() => void) | null = null
+export function setUnauthorizedHandler(fn: () => void) {
+  unauthorizedHandler = fn
+}
+
 http.interceptors.request.use(async (config) => {
   const token = await AsyncStorage.getItem('kg_token')
   if (token) {
@@ -32,8 +41,14 @@ http.interceptors.response.use(
   },
   async (error) => {
     if (error?.response?.status === 401) {
-      await AsyncStorage.removeItem('kg_token')
-      await AsyncStorage.removeItem('kg_user')
+      // Токен протух/невалиден — чистим хранилище и уводим на логин.
+      // Эндпоинты логина исключаем, чтобы неверный пароль не «выкидывал».
+      const url: string = error?.config?.url ?? ''
+      if (!url.includes('/auth/login')) {
+        await AsyncStorage.removeItem('kg_token')
+        await AsyncStorage.removeItem('kg_user')
+        unauthorizedHandler?.()
+      }
     }
     return Promise.reject(error)
   },

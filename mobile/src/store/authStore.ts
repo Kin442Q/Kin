@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { authApi, type User } from '../api/auth'
+import { setUnauthorizedHandler } from '../api/http'
 import {
   registerForPushNotificationsAsync,
   registerPushTokenOnServer,
@@ -107,3 +108,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, token: null })
   },
 }))
+
+// Когда любой запрос вернёт 401 (токен протух) — сбрасываем сессию в сторе,
+// и RootNavigator автоматически покажет экран логина.
+setUnauthorizedHandler(() => {
+  useAuthStore.setState({ user: null, token: null })
+})

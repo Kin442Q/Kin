@@ -16,8 +16,8 @@ import { ChevronLeft, Plus, BookMarked } from 'lucide-react-native'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Avatar from '../components/Avatar'
-import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
+import Dropdown from '../components/Dropdown'
 import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
 import { studentsApi, type StudentDto } from '../api/students'
@@ -26,6 +26,7 @@ import {
   type GradeDto,
   type GradeType,
   type SubjectDto,
+  type TermDto,
 } from '../api/school'
 
 const TYPE_LABELS: Record<GradeType, string> = {
@@ -46,6 +47,8 @@ export default function TeacherGradesScreen() {
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null)
   const [grades, setGrades] = useState<GradeDto[]>([])
   const [month, setMonth] = useState(dayjs().format('YYYY-MM'))
+  const [terms, setTerms] = useState<TermDto[]>([])
+  const [activeTermId, setActiveTermId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -58,32 +61,56 @@ export default function TeacherGradesScreen() {
 
   const reload = useCallback(async () => {
     try {
-      const [list, subs] = await Promise.all([
+      const [list, subs, ts] = await Promise.all([
         studentsApi.list({ status: 'ACTIVE' }),
         schoolApi.listSubjects(),
+        schoolApi.listTerms().catch(() => [] as TermDto[]),
       ])
       setStudents(list)
       setSubjects(subs)
+      setTerms(ts)
       if (subs.length && !activeSubjectId) setActiveSubjectId(subs[0].id)
+      // авто-выбор текущей четверти
+      if (ts.length && !activeTermId) {
+        const cur = await schoolApi.currentTerm().catch(() => null)
+        if (cur) setActiveTermId(cur.id)
+      }
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || String(e))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeSubjectId])
+  }, [activeSubjectId, activeTermId])
+
+  // Диапазон дат: четверть или месяц
+  const range = useMemo(() => {
+    const term = terms.find((t) => t.id === activeTermId)
+    if (term) {
+      return {
+        from: dayjs(term.startDate).format('YYYY-MM-DD'),
+        to: dayjs(term.endDate).format('YYYY-MM-DD'),
+      }
+    }
+    return {
+      from: dayjs(month + '-01').format('YYYY-MM-DD'),
+      to: dayjs(month + '-01').endOf('month').format('YYYY-MM-DD'),
+    }
+  }, [terms, activeTermId, month])
 
   const reloadGrades = useCallback(async () => {
     if (!activeSubjectId) return
     try {
-      const from = dayjs(month + '-01').format('YYYY-MM-DD')
-      const to = dayjs(month + '-01').endOf('month').format('YYYY-MM-DD')
-      const g = await schoolApi.listGrades({ subjectId: activeSubjectId, from, to })
+      const g = await schoolApi.listGrades({
+        subjectId: activeSubjectId,
+        from: range.from,
+        to: range.to,
+      })
       setGrades(g)
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || String(e))
     }
-  }, [activeSubjectId, month])
+  }, [activeSubjectId, range.from, range.to])
 
   useEffect(() => {
     reload()
@@ -202,63 +229,65 @@ export default function TeacherGradesScreen() {
           ListHeaderComponent={
             <View style={{ marginBottom: 12 }}>
               <Text style={styles.section}>Предмет</Text>
-              <View style={styles.chipRow}>
-                {subjects.map((s) => {
-                  const on = activeSubjectId === s.id
-                  return (
-                    <Pressable
-                      key={s.id}
-                      onPress={() => setActiveSubjectId(s.id)}
-                      style={[
-                        styles.subjectChip,
-                        {
-                          backgroundColor: on ? s.color : colors.surface,
-                          borderColor: on ? s.color : colors.borderSoft,
-                        },
-                      ]}
-                    >
-                      <Text
-                        style={{
-                          color: on ? '#fff' : colors.text,
-                          fontWeight: '700',
-                          fontSize: 13,
-                        }}
-                      >
-                        {s.name}
-                      </Text>
-                    </Pressable>
-                  )
-                })}
-              </View>
+              <Dropdown
+                value={activeSubjectId}
+                onChange={setActiveSubjectId}
+                placeholder="Выберите предмет"
+                options={subjects.map((s) => ({
+                  value: s.id,
+                  label: s.name,
+                  color: s.color,
+                }))}
+              />
 
-              <Text style={styles.section}>Месяц</Text>
-              <View style={styles.dayBar}>
-                <Pressable
-                  onPress={() =>
-                    setMonth(dayjs(month + '-01').subtract(1, 'month').format('YYYY-MM'))
-                  }
-                  hitSlop={10}
-                  style={styles.dayBtn}
-                >
-                  <ChevronLeft size={20} color={colors.text} />
-                </Pressable>
-                <Text style={styles.dayLabel}>
-                  {dayjs(month + '-01').format('MMMM YYYY')}
-                </Text>
-                <Pressable
-                  onPress={() =>
-                    setMonth(dayjs(month + '-01').add(1, 'month').format('YYYY-MM'))
-                  }
-                  hitSlop={10}
-                  style={styles.dayBtn}
-                >
-                  <ChevronLeft
-                    size={20}
-                    color={colors.text}
-                    style={{ transform: [{ rotate: '180deg' }] }}
+              {terms.length > 0 && (
+                <>
+                  <Text style={[styles.section, { marginTop: 12 }]}>Четверть</Text>
+                  <Dropdown
+                    value={activeTermId ?? '__month__'}
+                    onChange={(v) =>
+                      setActiveTermId(v === '__month__' ? null : v)
+                    }
+                    options={[
+                      { value: '__month__', label: 'По месяцу' },
+                      ...terms.map((t) => ({ value: t.id, label: t.name })),
+                    ]}
                   />
-                </Pressable>
-              </View>
+                </>
+              )}
+
+              {!activeTermId && (
+                <>
+                  <Text style={[styles.section, { marginTop: 12 }]}>Месяц</Text>
+                  <View style={styles.dayBar}>
+                    <Pressable
+                      onPress={() =>
+                        setMonth(dayjs(month + '-01').subtract(1, 'month').format('YYYY-MM'))
+                      }
+                      hitSlop={10}
+                      style={styles.dayBtn}
+                    >
+                      <ChevronLeft size={20} color={colors.text} />
+                    </Pressable>
+                    <Text style={styles.dayLabel}>
+                      {dayjs(month + '-01').format('MMMM YYYY')}
+                    </Text>
+                    <Pressable
+                      onPress={() =>
+                        setMonth(dayjs(month + '-01').add(1, 'month').format('YYYY-MM'))
+                      }
+                      hitSlop={10}
+                      style={styles.dayBtn}
+                    >
+                      <ChevronLeft
+                        size={20}
+                        color={colors.text}
+                        style={{ transform: [{ rotate: '180deg' }] }}
+                      />
+                    </Pressable>
+                  </View>
+                </>
+              )}
             </View>
           }
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}

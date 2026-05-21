@@ -130,6 +130,16 @@ export default function ParentHomeScreen() {
   const nextLesson = today?.today.schedule?.[0]
   const upcoming = (today?.today.schedule ?? []).slice(0, 4)
 
+  // Часы пребывания сегодня: от начала первого занятия до конца последнего
+  const schedule = today?.today.schedule ?? []
+  const dayHours =
+    schedule.length > 0
+      ? {
+          from: schedule[0].startTime,
+          to: schedule[schedule.length - 1].endTime,
+        }
+      : null
+
   return (
     <Screen>
       <ScrollView
@@ -188,6 +198,12 @@ export default function ParentHomeScreen() {
                 {cap(L.group)} «{kid.group?.name ?? '—'}»
                 {kid.group?.ageRange ? ` · ${kid.group.ageRange}` : ''}
               </Text>
+              {dayHours && (
+                <Text style={styles.childHours}>
+                  🕐 Сегодня {L.institution === 'школа' ? 'в школе' : 'в саду'} с{' '}
+                  {dayHours.from} до {dayHours.to}
+                </Text>
+              )}
             </View>
           </View>
 
@@ -428,6 +444,7 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: 'row', alignItems: 'center' },
   childName: { fontSize: 18, fontWeight: '800', color: colors.text },
   childSub: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  childHours: { fontSize: 12, color: colors.primaryDeep, fontWeight: '600', marginTop: 4 },
   statusBadge: {
     marginTop: 14,
     padding: 12,
