@@ -7,7 +7,9 @@ import {
   Card,
   Empty,
   Input,
+  Segmented,
   Spin,
+  Tag,
   Typography,
 } from 'antd'
 import { SendOutlined } from '@ant-design/icons'
@@ -20,6 +22,7 @@ import { getSocket } from '../lib/socket'
 import {
   chatApi,
   type ChatMessage,
+  type ChatScope,
   type StaffConversation,
 } from '../api/chatApi'
 
@@ -47,17 +50,23 @@ export default function ChatPage() {
   // id текущей открытой переписки (для socket-комнаты)
   const [convId, setConvId] = useState<string | null>(null)
 
+  // Родитель: канал переписки (учитель / администрация-финансы)
+  const [parentScope, setParentScope] = useState<ChatScope>('GENERAL')
+
   const scrollDown = () =>
     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
 
   // ─── Родитель: одна переписка ──────────────────────────────────────
-  const loadParent = async () => {
+  const loadParent = async (scope: ChatScope = parentScope) => {
     setLoading(true)
     try {
-      const r = await chatApi.my()
+      const r = await chatApi.my(scope)
       setMessages(r.messages)
       setConvId(r.conversation.id)
-      setActiveMeta({ name: 'Учитель', group: r.conversation.groupName ?? '' })
+      setActiveMeta({
+        name: scope === 'ADMIN' ? 'Администрация' : 'Учитель',
+        group: r.conversation.groupName ?? '',
+      })
       scrollDown()
     } catch (e: any) {
       message.error(e?.response?.data?.message || 'Не удалось загрузить чат')
@@ -138,7 +147,7 @@ export default function ChatPage() {
     setText('')
     try {
       const msg = isParent
-        ? await chatApi.parentSend(t)
+        ? await chatApi.parentSend(t, parentScope)
         : await chatApi.staffSend(activeId!, t)
       setMessages((prev) => [...prev, msg])
       scrollDown()
@@ -186,51 +195,92 @@ export default function ChatPage() {
         ) : (
           messages.map((m) => {
             const mine = m.senderId === user?.id
+            const isPayment = m.kind === 'PAYMENT'
             return (
               <div
                 key={m.id}
                 style={{
                   display: 'flex',
-                  justifyContent: mine ? 'flex-end' : 'flex-start',
+                  justifyContent: isPayment
+                    ? 'center'
+                    : mine
+                    ? 'flex-end'
+                    : 'flex-start',
                   marginBottom: 8,
                 }}
               >
-                <div
-                  style={{
-                    maxWidth: '70%',
-                    background: mine ? SP.primary : SP.surface,
-                    color: mine ? '#fff' : SP.text,
-                    border: mine ? 'none' : `1px solid ${SP.borderSoft}`,
-                    borderRadius: 14,
-                    borderBottomRightRadius: mine ? 4 : 14,
-                    borderBottomLeftRadius: mine ? 14 : 4,
-                    padding: '8px 12px',
-                  }}
-                >
-                  {!mine && m.sender && (
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: SP.primaryDeep,
-                        marginBottom: 2,
-                      }}
-                    >
-                      {m.sender.fullName}
-                    </div>
-                  )}
-                  <div style={{ fontSize: 14, lineHeight: 1.4 }}>{m.text}</div>
+                {isPayment ? (
                   <div
                     style={{
-                      fontSize: 10,
-                      marginTop: 3,
-                      textAlign: 'right',
-                      color: mine ? 'rgba(255,255,255,0.7)' : SP.muted,
+                      maxWidth: '85%',
+                      background: '#fff7e6',
+                      border: '1px solid #ffd591',
+                      borderRadius: 14,
+                      padding: '10px 14px',
                     }}
                   >
-                    {dayjs(m.createdAt).format('HH:mm')}
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: '#d46b08',
+                        marginBottom: 4,
+                      }}
+                    >
+                      💰 Напоминание об оплате
+                    </div>
+                    <div style={{ fontSize: 14, lineHeight: 1.4, color: SP.text }}>
+                      {m.text}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        marginTop: 4,
+                        textAlign: 'right',
+                        color: SP.muted,
+                      }}
+                    >
+                      {dayjs(m.createdAt).format('DD.MM HH:mm')}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div
+                    style={{
+                      maxWidth: '70%',
+                      background: mine ? SP.primary : SP.surface,
+                      color: mine ? '#fff' : SP.text,
+                      border: mine ? 'none' : `1px solid ${SP.borderSoft}`,
+                      borderRadius: 14,
+                      borderBottomRightRadius: mine ? 4 : 14,
+                      borderBottomLeftRadius: mine ? 14 : 4,
+                      padding: '8px 12px',
+                    }}
+                  >
+                    {!mine && m.sender && (
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          color: SP.primaryDeep,
+                          marginBottom: 2,
+                        }}
+                      >
+                        {m.sender.fullName}
+                      </div>
+                    )}
+                    <div style={{ fontSize: 14, lineHeight: 1.4 }}>{m.text}</div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        marginTop: 3,
+                        textAlign: 'right',
+                        color: mine ? 'rgba(255,255,255,0.7)' : SP.muted,
+                      }}
+                    >
+                      {dayjs(m.createdAt).format('HH:mm')}
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })
@@ -282,6 +332,22 @@ export default function ChatPage() {
             : 'Переписки с родителями'
         }
       />
+
+      {isParent && (
+        <Segmented
+          value={parentScope}
+          onChange={(v) => {
+            const s = v as ChatScope
+            setParentScope(s)
+            loadParent(s)
+          }}
+          options={[
+            { label: 'Учитель', value: 'GENERAL' },
+            { label: 'Администрация', value: 'ADMIN' },
+          ]}
+          style={{ marginBottom: 12 }}
+        />
+      )}
 
       {loading ? (
         <Card className="glass" bordered={false}>
@@ -336,9 +402,16 @@ export default function ChatPage() {
                     >
                       {c.lastText ?? 'Нет сообщений'}
                     </Text>
-                    <Text type="secondary" style={{ fontSize: 11 }}>
-                      Класс «{c.groupName}»
-                    </Text>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        Класс «{c.groupName}»
+                      </Text>
+                      {c.scope === 'ADMIN' && (
+                        <Tag color="gold" style={{ margin: 0, lineHeight: '16px', fontSize: 10 }}>
+                          Финансы
+                        </Tag>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))

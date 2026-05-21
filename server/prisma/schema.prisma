@@ -884,12 +884,26 @@ model Term {
 // CHAT (родитель ↔ учитель/админ)
 // ---------------------------------------------------------------------------
 
-/// Переписка: одна на (группа/класс, родитель). Учитель и админы группы
-/// видят все переписки своей группы, родитель — только свою.
+/// Канал переписки:
+///   GENERAL — родитель ↔ учитель (+админ): учёба, быт. Учитель ВИДИТ.
+///   ADMIN   — родитель ↔ администрация: оплата, финансы. Учитель НЕ видит.
+enum ConversationScope {
+  GENERAL
+  ADMIN
+}
+
+/// Тип сообщения — для отрисовки (обычное / карточка оплаты).
+enum MessageKind {
+  TEXT
+  PAYMENT
+}
+
+/// Переписка: одна на (группа/класс, родитель, канал).
 model Conversation {
   id              String   @id @default(cuid())
   groupId         String
   parentId        String
+  scope           ConversationScope @default(GENERAL)
   kindergartenId  String?
   lastMessageAt   DateTime @default(now())
   /// Когда родитель / сотрудник в последний раз открывал — для подсчёта непрочитанного
@@ -901,7 +915,7 @@ model Conversation {
   parent          User  @relation("ParentConversations", fields: [parentId], references: [id], onDelete: Cascade)
   messages        Message[]
 
-  @@unique([groupId, parentId])
+  @@unique([groupId, parentId, scope])
   @@index([groupId, lastMessageAt])
   @@index([parentId])
 }
@@ -911,6 +925,7 @@ model Message {
   conversationId  String
   senderId        String
   text            String
+  kind            MessageKind @default(TEXT)
   createdAt       DateTime @default(now())
 
   conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

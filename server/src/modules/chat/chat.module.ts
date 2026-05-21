@@ -9,6 +9,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
@@ -39,10 +40,10 @@ class ChatService {
   // ─── Родитель ───────────────────────────────────────────────────────
 
   /**
-   * Получить (или создать) переписку родителя. Привязывается к группе
-   * его ребёнка (берём первого активного ребёнка).
+   * Получить (или создать) переписку родителя в заданном канале.
+   *   GENERAL — с учителем; ADMIN — с администрацией (финансы).
    */
-  async myConversation(user: AuthUser) {
+  async myConversation(user: AuthUser, scope: 'GENERAL' | 'ADMIN' = 'GENERAL') {
     if (user.role !== 'PARENT') {
       throw new ForbiddenException('Только для родителя')
     }
@@ -59,10 +60,17 @@ class ChatService {
     if (!kid) throw new NotFoundException('Нет привязанного ребёнка')
 
     const conv = await this.prisma.conversation.upsert({
-      where: { groupId_parentId: { groupId: kid.groupId, parentId: user.sub } },
+      where: {
+        groupId_parentId_scope: {
+          groupId: kid.groupId,
+          parentId: user.sub,
+          scope,
+        },
+      },
       create: {
         groupId: kid.groupId,
         parentId: user.sub,
+        scope,
         kindergartenId: kid.kindergartenId,
       },
       update: {},
@@ -74,7 +82,6 @@ class ChatService {
       include: { sender: { select: { id: true, fullName: true, role: true } } },
     })
 
-    // Помечаем прочитанным родителем
     await this.prisma.conversation.update({
       where: { id: conv.id },
       data: { parentReadAt: new Date() },
@@ -85,7 +92,11 @@ class ChatService {
 
   // ─── Учитель / админ ────────────────────────────────────────────────
 
-  /** Список переписок: учитель — своей группы, админ — всего учреждения. */
+  /**
+   * Список переписок.
+   *   TEACHER — только GENERAL своей группы (финансы не видит).
+   *   ADMIN — все переписки учреждения (оба канала).
+   */
   async listConversations(user: AuthUser) {
     if (user.role === 'PARENT') throw new ForbiddenException()
 
@@ -93,6 +104,7 @@ class ChatService {
     if (user.role === 'TEACHER') {
       if (!user.groupId) return []
       where.groupId = user.groupId
+      where.scope = 'GENERAL' // учитель НЕ видит финансовый канал
     } else if (user.kindergartenId) {
       where.kindergartenId = user.kindergartenId
     }
@@ -123,6 +135,7 @@ class ChatService {
         parentName: c.parent.fullName,
         groupId: c.groupId,
         groupName: c.group.name,
+        scope: c.scope,
         lastMessageAt: c.lastMessageAt,
         lastText: last?.text ?? null,
         unread,
@@ -147,9 +160,9 @@ class ChatService {
 
   // ─── Отправка ───────────────────────────────────────────────────────
 
-  /** Родитель пишет в свою переписку. */
-  async parentSend(user: AuthUser, text: string) {
-    const { conversation } = await this.myConversation(user)
+  /** Родитель пишет в свою переписку (канал по умолчанию — учитель). */
+  async parentSend(user: AuthUser, text: string, scope: 'GENERAL' | 'ADMIN' = 'GENERAL') {
+    const { conversation } = await this.myConversation(user, scope)
     return this.send(user, conversation.id, text)
   }
 
@@ -159,12 +172,83 @@ class ChatService {
     return this.send(user, conversationId, text)
   }
 
-  private async send(user: AuthUser, conversationId: string, text: string) {
+  /**
+   * Напоминание об оплате — ТОЛЬКО админ. Уходит в ADMIN-канал родителя
+   * (учитель его не видит). Создаёт канал при необходимости.
+   */
+  async paymentReminder(
+    user: AuthUser,
+    studentId: string,
+    month: string,
+    amount: number,
+  ) {
+    if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
+      throw new ForbiddenException('Напоминание об оплате может отправить только администратор')
+    }
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: {
+        firstName: true,
+        groupId: true,
+        kindergartenId: true,
+        parents: { select: { id: true } },
+        // через childId-legacy
+      },
+    })
+    if (!student) throw new NotFoundException('Ученик не найден')
+    if (user.kindergartenId && student.kindergartenId !== user.kindergartenId) {
+      throw new ForbiddenException('Ученик из другого учреждения')
+    }
+
+    // Все привязанные родители (M:N) + legacy childId
+    const legacy = await this.prisma.user.findMany({
+      where: { role: 'PARENT', childId: studentId },
+      select: { id: true },
+    })
+    const parentIds = Array.from(
+      new Set([...student.parents.map((p) => p.id), ...legacy.map((l) => l.id)]),
+    )
+    if (parentIds.length === 0) {
+      throw new BadRequestException('У ученика нет родительских аккаунтов')
+    }
+
+    const text = `💰 Напоминание об оплате за ${month}: ${Math.round(amount).toLocaleString('ru-RU')} сом. Просьба оплатить.`
+
+    let sent = 0
+    for (const parentId of parentIds) {
+      const conv = await this.prisma.conversation.upsert({
+        where: {
+          groupId_parentId_scope: {
+            groupId: student.groupId,
+            parentId,
+            scope: 'ADMIN',
+          },
+        },
+        create: {
+          groupId: student.groupId,
+          parentId,
+          scope: 'ADMIN',
+          kindergartenId: student.kindergartenId,
+        },
+        update: {},
+      })
+      await this.send(user, conv.id, text, 'PAYMENT')
+      sent++
+    }
+    return { sent }
+  }
+
+  private async send(
+    user: AuthUser,
+    conversationId: string,
+    text: string,
+    kind: 'TEXT' | 'PAYMENT' = 'TEXT',
+  ) {
     const t = text.trim()
     if (!t) throw new BadRequestException('Пустое сообщение')
 
     const msg = await this.prisma.message.create({
-      data: { conversationId, senderId: user.sub, text: t },
+      data: { conversationId, senderId: user.sub, text: t, kind },
       include: { sender: { select: { id: true, fullName: true, role: true } } },
     })
     const conv = await this.prisma.conversation.update({
@@ -189,8 +273,8 @@ class ChatService {
 
     // Push другой стороне
     if (user.role === 'PARENT') {
-      // уведомляем учителей группы + админов учреждения
-      this.notifyStaff(conv.groupId, conv.kindergartenId, user.sub, t).catch(() => {})
+      // В ADMIN-канале уведомляем только админов (учителя финансы не видят).
+      this.notifyStaff(conv.groupId, conv.kindergartenId, user.sub, t, conv.scope).catch(() => {})
     } else {
       this.push
         .sendToUser(conv.parentId, {
@@ -209,6 +293,7 @@ class ChatService {
     kindergartenId: string | null,
     senderId: string,
     text: string,
+    scope: 'GENERAL' | 'ADMIN',
   ) {
     const staff = await this.prisma.user.findMany({
       where: {
@@ -216,7 +301,10 @@ class ChatService {
         expoPushToken: { not: null },
         id: { not: senderId },
         OR: [
-          { role: 'TEACHER', groupId },
+          // Учителя получают уведомления только в общем канале
+          ...(scope === 'GENERAL'
+            ? [{ role: 'TEACHER' as const, groupId }]
+            : []),
           ...(kindergartenId
             ? [{ role: 'ADMIN' as const, kindergartenId }]
             : []),
@@ -243,6 +331,10 @@ class ChatService {
       },
     })
     if (!conv) throw new NotFoundException('Переписка не найдена')
+    // Учитель не имеет доступа к финансовому (ADMIN) каналу
+    if (user.role === 'TEACHER' && conv.scope === 'ADMIN') {
+      throw new ForbiddenException('Финансовый канал доступен только администрации')
+    }
     if (user.role === 'TEACHER' && conv.groupId !== user.groupId) {
       throw new ForbiddenException('Не ваша группа')
     }
@@ -266,15 +358,43 @@ class ChatController {
   constructor(private readonly service: ChatService) {}
 
   @Get('my')
-  @ApiOperation({ summary: 'Переписка родителя (создаётся автоматически)' })
-  my(@CurrentUser() user: AuthUser) {
-    return this.service.myConversation(user)
+  @ApiOperation({
+    summary:
+      'Переписка родителя. scope=GENERAL (учитель) | ADMIN (администрация/оплата)',
+  })
+  my(
+    @CurrentUser() user: AuthUser,
+    @Query('scope') scope?: 'GENERAL' | 'ADMIN',
+  ) {
+    return this.service.myConversation(
+      user,
+      scope === 'ADMIN' ? 'ADMIN' : 'GENERAL',
+    )
   }
 
   @Post('my/messages')
   @Roles('PARENT')
-  parentSend(@CurrentUser() user: AuthUser, @Body() dto: SendMessageDto) {
-    return this.service.parentSend(user, dto.text)
+  parentSend(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: SendMessageDto & { scope?: 'GENERAL' | 'ADMIN' },
+  ) {
+    return this.service.parentSend(
+      user,
+      dto.text,
+      dto.scope === 'ADMIN' ? 'ADMIN' : 'GENERAL',
+    )
+  }
+
+  @Post('payment-reminder')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({
+    summary: 'Отправить родителю напоминание об оплате в финансовый канал',
+  })
+  paymentReminder(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: { studentId: string; month: string; amount: number },
+  ) {
+    return this.service.paymentReminder(user, dto.studentId, dto.month, dto.amount)
   }
 
   @Get('conversations')

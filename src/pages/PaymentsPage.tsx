@@ -28,6 +28,7 @@ import {
   CloseOutlined,
   SendOutlined,
   WarningOutlined,
+  MessageOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
@@ -39,6 +40,7 @@ import { useAuthStore } from "../store/authStore";
 import StatCard from "../components/ui/StatCard";
 import { formatMoney } from "../lib/format";
 import { http } from "../api";
+import { chatApi } from "../api/chatApi";
 
 interface PaymentApi {
   id: string;
@@ -200,6 +202,30 @@ export default function PaymentsPage() {
     }
   };
 
+
+  const [chatRemindId, setChatRemindId] = useState<string | null>(null);
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+
+  // Напоминание об оплате прямо в чат (канал «Администрация», учитель его не видит)
+  const remindInChat = async (row: (typeof rows)[number]) => {
+    try {
+      setChatRemindId(row.child.id);
+      const res = await chatApi.paymentReminder(row.child.id, month, row.amount);
+      if (res.sent > 0) {
+        message.success(
+          `Напоминание отправлено в чат (${res.sent} родител${res.sent === 1 ? "ю" : "ям"})`,
+        );
+      } else {
+        message.warning("Нет родителей с аккаунтом для чата");
+      }
+    } catch (err: any) {
+      message.error(
+        err?.response?.data?.message || "Не удалось отправить в чат",
+      );
+    } finally {
+      setChatRemindId(null);
+    }
+  };
 
   const removePayment = async (id: string) => {
     try {
@@ -582,6 +608,14 @@ export default function PaymentsPage() {
                     >
                       {r.paid ? "Снять оплату" : "Отметить оплачено"}
                     </Button>
+                    {isAdmin && !r.paid && (
+                      <Button
+                        size="middle"
+                        icon={<MessageOutlined />}
+                        loading={chatRemindId === r.child.id}
+                        onClick={() => remindInChat(r)}
+                      />
+                    )}
                     {r.payment && (
                       <Popconfirm
                         title="Удалить запись?"
@@ -680,6 +714,16 @@ export default function PaymentsPage() {
                           {r.paid ? "Долг" : "Оплачено"}
                         </Button>
                       </Tooltip>
+                      {isAdmin && !r.paid && (
+                        <Tooltip title="Напомнить об оплате в чате">
+                          <Button
+                            size="small"
+                            icon={<MessageOutlined />}
+                            loading={chatRemindId === r.child.id}
+                            onClick={() => remindInChat(r)}
+                          />
+                        </Tooltip>
+                      )}
                       {r.payment && (
                         <Popconfirm
                           title="Удалить запись?"

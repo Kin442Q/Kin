@@ -18,30 +18,34 @@ import Screen from '../components/Screen'
 import { colors, radius } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { connectSocket } from '../lib/socket'
-import { chatApi, type ChatMessage } from '../api/chat'
+import { chatApi, type ChatMessage, type ChatScope } from '../api/chat'
 
 export default function ParentChatScreen() {
   const user = useAuthStore((s) => s.user)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [groupName, setGroupName] = useState<string | undefined>()
   const [convId, setConvId] = useState<string | null>(null)
+  const [scope, setScope] = useState<ChatScope>('GENERAL')
   const [loading, setLoading] = useState(true)
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const listRef = useRef<FlatList<ChatMessage>>(null)
 
-  const load = useCallback(async () => {
-    try {
-      const r = await chatApi.my()
-      setMessages(r.messages)
-      setGroupName(r.conversation.groupName)
-      setConvId(r.conversation.id)
-    } catch {
-      // нет ребёнка / ошибка — оставляем пусто
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const load = useCallback(
+    async (s: ChatScope = scope) => {
+      try {
+        const r = await chatApi.my(s)
+        setMessages(r.messages)
+        setGroupName(r.conversation.groupName)
+        setConvId(r.conversation.id)
+      } catch {
+        // нет ребёнка / ошибка — оставляем пусто
+      } finally {
+        setLoading(false)
+      }
+    },
+    [scope],
+  )
 
   useEffect(() => {
     load()
@@ -82,7 +86,7 @@ export default function ParentChatScreen() {
     setSending(true)
     setText('')
     try {
-      const msg = await chatApi.parentSend(t)
+      const msg = await chatApi.parentSend(t, scope)
       setMessages((prev) => [...prev, msg])
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50)
     } catch {
@@ -105,8 +109,33 @@ export default function ParentChatScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Чат с учителем</Text>
+        <Text style={styles.title}>
+          {scope === 'ADMIN' ? 'Чат с администрацией' : 'Чат с учителем'}
+        </Text>
         {groupName && <Text style={styles.sub}>Класс «{groupName}»</Text>}
+        <View style={styles.switcher}>
+          {(['GENERAL', 'ADMIN'] as ChatScope[]).map((s) => {
+            const active = scope === s
+            return (
+              <Pressable
+                key={s}
+                onPress={() => {
+                  if (active) return
+                  setScope(s)
+                  setLoading(true)
+                  load(s)
+                }}
+                style={[styles.switchBtn, active && styles.switchBtnActive]}
+              >
+                <Text
+                  style={[styles.switchText, active && styles.switchTextActive]}
+                >
+                  {s === 'ADMIN' ? 'Администрация' : 'Учитель'}
+                </Text>
+              </Pressable>
+            )
+          })}
+        </View>
       </View>
 
       <KeyboardAvoidingView
@@ -124,6 +153,17 @@ export default function ParentChatScreen() {
           }
           renderItem={({ item }) => {
             const mine = item.senderId === user?.id
+            if (item.kind === 'PAYMENT') {
+              return (
+                <View style={styles.payCard}>
+                  <Text style={styles.payTitle}>💰 Напоминание об оплате</Text>
+                  <Text style={styles.payText}>{item.text}</Text>
+                  <Text style={styles.payTime}>
+                    {dayjs(item.createdAt).format('DD.MM HH:mm')}
+                  </Text>
+                </View>
+              )
+            }
             return (
               <View
                 style={[
@@ -158,7 +198,9 @@ export default function ParentChatScreen() {
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyText}>
-                Здесь можно написать учителю. Напишите первое сообщение 👇
+                {scope === 'ADMIN'
+                  ? 'Здесь администрация присылает напоминания об оплате. Можно написать первым 👇'
+                  : 'Здесь можно написать учителю. Напишите первое сообщение 👇'}
               </Text>
             </View>
           }
@@ -194,6 +236,36 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
   sub: { fontSize: 13, color: colors.muted, marginTop: 2 },
+  switcher: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 10,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.lg,
+    padding: 4,
+  },
+  switchBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: radius.md,
+    alignItems: 'center',
+  },
+  switchBtnActive: { backgroundColor: colors.primary },
+  switchText: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  switchTextActive: { color: '#fff' },
+  payCard: {
+    alignSelf: 'center',
+    maxWidth: '90%',
+    backgroundColor: '#fff7e6',
+    borderWidth: 1,
+    borderColor: '#ffd591',
+    borderRadius: radius.lg,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  payTitle: { fontSize: 12, fontWeight: '800', color: '#d46b08', marginBottom: 4 },
+  payText: { fontSize: 14, color: colors.text, lineHeight: 19 },
+  payTime: { fontSize: 10, color: colors.muted, marginTop: 4, alignSelf: 'flex-end' },
   list: { padding: 16, gap: 8, flexGrow: 1 },
   bubbleRow: { flexDirection: 'row' },
   bubble: { maxWidth: '80%', borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 8 },
