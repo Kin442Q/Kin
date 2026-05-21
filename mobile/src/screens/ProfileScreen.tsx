@@ -19,6 +19,7 @@ import {
   Receipt,
   CalendarHeart,
   ChevronRight,
+  MessageCircle,
 } from 'lucide-react-native'
 import Constants from 'expo-constants'
 import Screen from '../components/Screen'
@@ -48,6 +49,8 @@ export default function ProfileScreen() {
 
   const r = String(user?.role ?? '').toUpperCase()
   const isAdmin = r === 'ADMIN' || r === 'SUPER_ADMIN'
+  const isParent = r === 'PARENT'
+  const isTeacher = r === 'TEACHER'
 
   const [notifModal, setNotifModal] = useState(false)
   const [notifs, setNotifs] = useState<NotificationDto[]>([])
@@ -139,7 +142,22 @@ export default function ProfileScreen() {
           </>
         )}
 
-        {/* Школьные разделы (оценки/ДЗ) теперь в табах внизу — дублировать не нужно */}
+        {(isParent || isTeacher) && (
+          <>
+            <Text style={styles.section}>Общение</Text>
+            <View style={styles.list}>
+              <ListRow
+                icon={<MessageCircle size={18} color={colors.blueDeep} />}
+                bg={colors.blueSoft}
+                title={isParent ? 'Чат с учителем' : 'Чат с родителями'}
+                onPress={() =>
+                  navigation.navigate(isParent ? 'ParentChat' : 'TeacherChat')
+                }
+                last
+              />
+            </View>
+          </>
+        )}
 
         <Text style={styles.section}>Аккаунт</Text>
         <View style={styles.list}>

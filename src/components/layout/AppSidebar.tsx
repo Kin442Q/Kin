@@ -20,6 +20,7 @@ import {
   Home as HomeIcon,
   MapPin,
   CalendarRange,
+  MessageCircle,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -360,6 +361,15 @@ const NAV: NavEntry[] = [
     hiddenForGlobalOwner: true,
     section: 'communication',
   },
+  {
+    key: '/admin/chat',
+    label: 'Чат с родителями',
+    icon: <MessageCircle size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
+    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    hiddenForGlobalOwner: true,
+    section: 'communication',
+  },
 
   // ─── Система ─────────────────────────────────────────────────────
   {
@@ -402,6 +412,14 @@ const NAV: NavEntry[] = [
     label: 'Оплаты',
     icon: <Wallet size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-rose',
+    roles: ['PARENT'],
+    section: 'parent',
+  },
+  {
+    key: '/parent/chat',
+    label: 'Чат с учителем',
+    icon: <MessageCircle size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
     roles: ['PARENT'],
     section: 'parent',
   },

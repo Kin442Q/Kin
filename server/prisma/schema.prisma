@@ -308,6 +308,8 @@ model User {
   kidNotes      KidNote[]       @relation("KidNoteAuthor")
   gradesGiven   Grade[]         @relation("GradeAuthor")
   homeworkSet   Homework[]      @relation("HomeworkAuthor")
+  conversations Conversation[]  @relation("ParentConversations")
+  sentMessages  Message[]       @relation("SentMessages")
 
   @@index([role])
   @@index([groupId])
@@ -419,6 +421,7 @@ model Group {
   meetings             Meeting[]
   diary                DiaryEntry[]
   homework             Homework[]
+  conversations        Conversation[]
 
   @@index([isActive])
   @@index([kindergartenId])
@@ -875,5 +878,44 @@ model Term {
   updatedAt       DateTime @updatedAt
 
   @@index([kindergartenId, startDate])
+}
+
+// ---------------------------------------------------------------------------
+// CHAT (родитель ↔ учитель/админ)
+// ---------------------------------------------------------------------------
+
+/// Переписка: одна на (группа/класс, родитель). Учитель и админы группы
+/// видят все переписки своей группы, родитель — только свою.
+model Conversation {
+  id              String   @id @default(cuid())
+  groupId         String
+  parentId        String
+  kindergartenId  String?
+  lastMessageAt   DateTime @default(now())
+  /// Когда родитель / сотрудник в последний раз открывал — для подсчёта непрочитанного
+  parentReadAt    DateTime?
+  staffReadAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  group           Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  parent          User  @relation("ParentConversations", fields: [parentId], references: [id], onDelete: Cascade)
+  messages        Message[]
+
+  @@unique([groupId, parentId])
+  @@index([groupId, lastMessageAt])
+  @@index([parentId])
+}
+
+model Message {
+  id              String   @id @default(cuid())
+  conversationId  String
+  senderId        String
+  text            String
+  createdAt       DateTime @default(now())
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User         @relation("SentMessages", fields: [senderId], references: [id])
+
+  @@index([conversationId, createdAt])
 }
 

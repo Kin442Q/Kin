@@ -41,6 +41,8 @@ import TeacherDiaryScreen from '../screens/TeacherDiaryScreen'
 import TeacherGradesScreen from '../screens/TeacherGradesScreen'
 import TeacherHomeworkScreen from '../screens/TeacherHomeworkScreen'
 import ParentGradesScreen from '../screens/ParentGradesScreen'
+import ParentChatScreen from '../screens/ParentChatScreen'
+import TeacherChatScreen from '../screens/TeacherChatScreen'
 
 const navTheme = {
   ...DefaultTheme,
@@ -199,6 +201,16 @@ function MainNavigator() {
       <RootStack.Screen
         name="AdminMeetings"
         component={AdminMeetingsScreen}
+        options={{ presentation: 'card' }}
+      />
+      <RootStack.Screen
+        name="ParentChat"
+        component={ParentChatScreen}
+        options={{ presentation: 'card' }}
+      />
+      <RootStack.Screen
+        name="TeacherChat"
+        component={TeacherChatScreen}
         options={{ presentation: 'card' }}
       />
     </RootStack.Navigator>

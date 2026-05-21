@@ -36,6 +36,7 @@ import { DiaryModule } from './modules/diary/diary.module'
 import { SchoolModule } from './modules/school/school.module'
 import { PushModule } from './modules/push/push.module'
 import { TermsModule } from './modules/terms/terms.module'
+import { ChatModule } from './modules/chat/chat.module'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
@@ -96,6 +97,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     SchoolModule,
     PushModule,
     TermsModule,
+    ChatModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.
