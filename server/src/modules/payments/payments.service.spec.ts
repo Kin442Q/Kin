@@ -8,6 +8,7 @@ import {
 import { PaymentsService } from './payments.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { TelegramLinkService } from '../telegram/telegram-link.service'
+import { PushService } from '../push/push.module'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
@@ -33,15 +34,26 @@ describe('PaymentsService', () => {
   let service: PaymentsService
   let prisma: PrismaMock
   let telegram: { sendPaymentConfirmation: jest.Mock }
+  let push: {
+    sendToUser: jest.Mock
+    sendToUsers: jest.Mock
+    sendToStudentParents: jest.Mock
+  }
 
   beforeEach(async () => {
     prisma = createPrismaMock()
     telegram = { sendPaymentConfirmation: jest.fn().mockResolvedValue({}) }
+    push = {
+      sendToUser: jest.fn().mockResolvedValue({}),
+      sendToUsers: jest.fn().mockResolvedValue({}),
+      sendToStudentParents: jest.fn().mockResolvedValue({}),
+    }
     const ref = await Test.createTestingModule({
       providers: [
         PaymentsService,
         { provide: PrismaService, useValue: prisma },
         { provide: TelegramLinkService, useValue: telegram },
+        { provide: PushService, useValue: push },
       ],
     }).compile()
     service = ref.get(PaymentsService)

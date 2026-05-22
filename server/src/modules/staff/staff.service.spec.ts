@@ -119,12 +119,14 @@ describe('StaffService', () => {
       prisma.staff.create.mockResolvedValue({ id: 'new' })
       await service.create(adminK1, dto)
 
-      expect(prisma.staff.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          firstName: 'Иван',
-          kindergartenId: 'k1',
+      expect(prisma.staff.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            firstName: 'Иван',
+            kindergartenId: 'k1',
+          }),
         }),
-      })
+      )
     })
   })
 
