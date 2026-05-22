@@ -1,215 +1,165 @@
-# 🌸 KinderCRM — система управления детским садом
+# 🌸 KinderCRM
 
-Современная **CRM/ERP** система для детского сада в стиле Linear / Stripe / Vercel.
-Premium SaaS-дизайн, **полностью на Ant Design** + анимации Framer Motion,
-glassmorphism, light/dark тема, ролевой доступ и полноценная финансовая аналитика.
+Мульти-тенантная **SaaS-платформа управления детскими садами и школами**: веб-кабинет,
+мобильное приложение и backend. Один продукт обслуживает много учреждений; каждое работает
+в режиме **детского сада** или **школы**, и интерфейс адаптируется под выбранный тип.
 
-> Версия 2.0 · 2026 · Full-stack: React + Express + Prisma + PostgreSQL.
+> Full-stack: **React + Vite** (web) · **Expo / React Native** (mobile) · **NestJS + Prisma + PostgreSQL** (backend).
 
 ---
 
-## ✨ Что внутри
+## ✨ Возможности
 
-### Возможности
+### Общее
+- 🏫 **Тип учреждения** — детский сад или школа. Задаётся при создании владельцем платформы и **неизменяем**; от него зависят разделы и термины («группа» ↔ «класс»).
+- 📊 **Дашборд и аналитика** — доходы/расходы, прибыль по группам/классам, посещаемость, человекочитаемые выводы.
+- 👶 **Дети / ученики** — карточка, родители, телефоны (по умолчанию `+992`), мед.инфо.
+- 🧩 **Группы / классы**, 👨‍🏫 **сотрудники** и ФОТ, 📅 **расписание**, 🍽️ **меню**.
+- ✅ **Посещаемость** + 💰 **оплата** (статусы, способы, долги).
+- 💬 **Чат** родитель ↔ сотрудник с разделением каналов (см. ниже).
+- 🔔 **Уведомления**: realtime (Socket.io), **push** (Expo) и **Telegram-бот**.
 
-- 📊 **Дашборд** — KPI, доход/расход за 6 мес., структура дохода и расходов, топ групп
-- 👶 **Дети** — полная карточка ребёнка (имя, возраст, пол, фото, мед.инфо, родители, Telegram/WhatsApp)
-- 🧩 **Группы** — создание/редактирование, статистика по каждой:
-  - количество детей, оплативших, должников
-  - доход группы, расходы группы (с долей общих расходов)
-  - чистая прибыль, маржа, посещаемость
-  - **диаграмма выгодности**: какая группа прибыльная, какая убыточная
-- 🧮 **Финансы**
-  - доходы: оплата родителей, доп. занятия и услуги
-  - расходы: зарплата, налоги, аренда, коммунальные, питание, игрушки, канцелярия, интернет, ремонт, прочее
-- 📈 **Аналитика** (`/admin/analytics`)
-  - Monthly revenue / expenses, Profit / Loss chart, Cash flow, ROI
-  - Авто-вывод: компания прибыльная / убыточная, прибыль растёт / падает
-  - Рейтинг лучших и худших групп
-- ✅ **Посещаемость** — отметка по дням, статусы present / absent / sick / vacation
-- 💰 **Оплата** — статус по каждому ребёнку, фильтры, способ оплаты
-- 👨‍🏫 **Сотрудники** — позиции, ФОТ
-- 📅 **Расписание** и 🍽️ **Меню питания**
-- 🔔 **Уведомления** real-time (Socket.io)
-- ⚙️ **Настройки** + переключатель темы
+### Режим школы
+- 📚 **Предметы**, ✍️ **оценки** (электронный журнал), 📝 **домашние задания**.
+- 🗓️ **Учебные четверти/триместры/семестры** (academic terms).
+- 📖 **Электронный дневник** (учитель ведёт, родитель видит).
+
+### Мобильное приложение (Expo)
+- Кабинеты родителя и учителя, журнал оценок с большой клавиатурой ввода.
+- 📍 **Геозоны и чек-ин** с картой + аудит отметок.
+- Биометрический вход, push-уведомления.
+
+### Чат — разделение каналов
+Учитель **не видит финансы**. Реализованы два независимых канала:
+- **GENERAL** — родитель ↔ учитель (общение по ребёнку).
+- **ADMIN** — родитель ↔ администрация (финансы/оплата). Напоминания об оплате
+  отправляет **только админ**; учителю этот канал недоступен ни в списке, ни по прямой ссылке.
+
+Сообщения доставляются мгновенно через Socket.io, дублируются в Telegram-бот и push.
 
 ### Роли
-
 | Роль | Доступ |
 | ---- | ------ |
-| **Super Admin / Admin** | Всё: финансы, аналитика, все группы, расходы, сотрудники, настройки |
-| **Teacher** | Только своя группа: дети, посещаемость, оплата своей группы, расписание |
-| **Parent** | Ребёнок, посещаемость, оплата, расписание, чат |
-
-### Стек
-
-**Frontend**
-
-- React 18 + Vite + TypeScript
-- Ant Design 5 + Ant Design Charts + Ant Design Icons
-- Framer Motion (page transitions, animated cards, hover effects, smooth fades)
-- Tailwind CSS (только utility/layout)
-- Zustand (state) + persist в localStorage
-- React Router DOM 6
-- TanStack React Query, Axios (API-слой)
-- dayjs (локаль `ru`)
-
-**Backend**
-
-- Node.js + Express
-- Prisma ORM + PostgreSQL
-- JWT-аутентификация (bcrypt)
-- Socket.io (real-time)
-- Zod-валидация
-- helmet / cors / morgan
+| **SUPER_ADMIN** (владелец платформы) | Создание учреждений, задание типа, полный доступ |
+| **ADMIN** | Всё внутри своего учреждения: финансы, аналитика, все группы/классы, чат (оба канала) |
+| **TEACHER** | Своя группа/класс: дети, посещаемость, оценки, расписание, чат (только GENERAL) |
+| **PARENT** | Свой ребёнок: посещаемость, оплата, оценки, дневник, чат |
 
 ---
 
-## 🗂️ Структура проекта
+## 🧱 Стек
+
+**Web** (`/src`)
+- React 18 · Vite 5 · TypeScript
+- Ant Design 5 · Framer Motion · Tailwind (utility)
+- Zustand · React Router 6 · Axios
+- Leaflet / react-leaflet (карты) · socket.io-client
+
+**Mobile** (`/mobile`)
+- Expo SDK 54 · React Native 0.81 · React Navigation
+- Zustand · AsyncStorage · Axios · socket.io-client
+- expo-location / -notifications / -device / -local-authentication
+
+**Backend** (`/server`)
+- NestJS 10 · Prisma 5 · PostgreSQL
+- Redis + BullMQ (очереди: Telegram, отчёты)
+- JWT (access + refresh) · class-validator · Swagger
+- Socket.io (WebSocket gateway) · Telegram Bot API
+
+**Деплой**
+- Backend + Postgres → **Railway** (Docker, миграции при старте контейнера)
+- Frontend → **GitHub Pages** (GitHub Actions), base `/Kin/`
+- Mobile → Expo / EAS Build
+
+---
+
+## 🗂️ Структура
 
 ```
 .
-├── src/                       # Frontend
-│   ├── api/                   # axios + сервисы
-│   ├── components/
-│   │   ├── auth/              # RequireAuth, RequireRole
-│   │   ├── layout/            # AppLayout, AppSidebar, AppHeader
-│   │   └── ui/                # переиспользуемые UI (StatCard и т.д.)
-│   ├── lib/                   # форматтеры, финансовая логика
-│   ├── pages/                 # Dashboard, Groups, GroupDetail, Children,
-│   │                          # Payments, Expenses, Analytics, Staff,
-│   │                          # Schedule, Menu, Settings, Login, NotFound
-│   ├── store/                 # zustand: auth, data, theme
-│   ├── theme/                 # ConfigProvider тема antd
-│   ├── types.ts               # доменные типы
-│   ├── App.tsx                # роутер + protected routes
-│   └── main.tsx               # ConfigProvider antd + react-query
+├── src/                  # Web (React)
+│   ├── api/              # axios-клиент + сервисы (chatApi, parentApi, ...)
+│   ├── components/       # sprout UI, layout, auth-гарды
+│   ├── hooks/            # useTenantSync и пр.
+│   ├── lib/              # форматтеры, socket-клиент
+│   ├── pages/            # Dashboard, Payments, Chat, Grades, Terms, parent/*
+│   └── store/            # zustand: auth, data, theme
 │
-├── server/                    # Backend
-│   ├── prisma/
-│   │   ├── schema.prisma      # Prisma schema
-│   │   └── seed.ts            # Database seed
-│   ├── src/
-│   │   ├── middleware/        # auth, error
-│   │   ├── routes/            # auth, groups, children, staff, attendance,
-│   │   │                      # payments, expenses, analytics, notifications
-│   │   ├── db.ts              # Prisma client
-│   │   └── index.ts           # Express + Socket.io
-│   ├── Dockerfile
-│   └── .env.example
+├── mobile/               # Expo / React Native (см. mobile/AGENTS.md)
+│   └── src/{screens,api,components,lib,store,theme}
 │
-├── docker-compose.yml         # Postgres + backend + frontend
-├── Dockerfile                 # Frontend
-├── .env.example
+├── server/               # NestJS
+│   ├── prisma/           # schema.prisma + migrations + seed
+│   └── src/
+│       ├── modules/      # auth, chat, payments, telegram, school, terms, ...
+│       ├── infrastructure/  # prisma, bullmq, redis
+│       └── common/       # guards, decorators, types
+│
 └── README.md
 ```
 
 ---
 
-## 🚀 Быстрый старт
+## 🚀 Локальный запуск
 
-### Вариант 1 — только фронт (демо без backend)
-
-```bash
-npm install
-npm run dev
-```
-
-Откройте http://localhost:5173. Логин — любой preset со страницы входа
-(`super@kg.app`, `admin@kg.app`, `teacher@kg.app`, `parent@kg.app`, пароль `demo`).
-Данные генерируются и хранятся локально в браузере.
-
-### Вариант 2 — полный стек через Docker
-
-```bash
-docker compose up --build
-```
-
-- Frontend: http://localhost:5173
-- API:      http://localhost:4000/api/health
-- Postgres: localhost:5432 (user/pass/db: `kg_user / kg_pass / kg_db`)
-
-### Вариант 3 — локально, без Docker
-
-**Backend**
-
+### Backend
 ```bash
 cd server
-cp .env.example .env       # заполните DATABASE_URL и JWT_SECRET
+cp .env.example .env          # DATABASE_URL, JWT-секреты, REDIS_URL, TELEGRAM_BOT_TOKEN
 npm install
 npx prisma generate
-npx prisma migrate dev --name init
-npm run seed
-npm run dev                # http://localhost:4000
+npx prisma migrate dev
+npm run seed                  # тестовые данные
+npm run start:dev             # http://localhost:4000 (Swagger: /docs)
 ```
+Нужны запущенные **PostgreSQL** и **Redis** (или `docker compose up`).
 
-**Frontend**
-
+### Web
 ```bash
-cp .env.example .env       # VITE_API_URL=http://localhost:4000/api
+cp .env.example .env          # VITE_API_URL=http://localhost:4000/api
 npm install
-npm run dev                # http://localhost:5173
+npm run dev                   # http://localhost:5173
 ```
+
+### Mobile
+```bash
+cd mobile
+npm install
+npx expo start                # Expo Go / dev build
+```
+> ⚠️ Пакеты ставить только через `npx expo install <pkg>` — версии должны соответствовать SDK 54.
 
 ---
 
-## 🎨 Дизайн-система
+## 🧪 Тесты
 
-- **Premium SaaS** — Linear / Stripe / Notion / Vercel
-- **Glassmorphism**, soft shadows, blur effects, gradient backgrounds
-- **Light / Dark** — переключатель в шапке, сохраняется в localStorage
-- **Framer Motion** — page transitions, animated sidebar, hover, fade, slide,
-  skeleton loading, animated cards, scroll animations, modal animations
-- **Цвет акцента** — `#6366f1` (indigo). Меняется в `src/theme/antdTheme.ts`
+| Что | Команда | Стек |
+| --- | ------- | ---- |
+| Backend | `cd server && npm test` | Jest + @nestjs/testing |
+| Web | `npm test` | Vitest + Testing Library |
+
+Покрыты, в т.ч.: разделение каналов чата и доступ ролей, напоминания об оплате
+(только админ), контракт `chatApi` (scope/endpoints), финансовая логика, гварды.
 
 ---
-+992554770400
-Y2QFe2ee
 
-## 🧮 Как считается финансовая прибыль группы
+## 🚢 Деплой
 
-Логика лежит в `src/lib/finance.ts` и зеркалируется на бэке.
-
-```
-Доход группы  = (сумма paid Payment за месяц по детям группы)
-                + (extraIncome.groupId == group.id за этот месяц)
-
-Расход группы = (Expense.groupId == group.id за этот месяц)
-                + (Доля общих Expense, без groupId, пропорционально
-                   количеству детей в группе от общего числа детей)
-                + group.fixedMonthlyExpense
-
-Прибыль       = Доход - Расход
-Маржа         = Прибыль / Доход
-```
-
-Если **Прибыль ≥ 0** — группа считается **выгодной**, иначе — **убыточной**.
-На страницах **Groups** и **GroupDetail** это показано столбчатыми диаграммами
-и тегом «Выгодная / Убыточная».
+- **Backend (Railway):** автодеплой при push в `main`. Образ собирается по `server/Dockerfile`;
+  при старте контейнер выполняет `prisma migrate deploy && node dist/main.js`.
+  ⚠️ `server/package-lock.json` обязан быть в синхроне с `package.json` — иначе `npm ci` валит сборку.
+- **Frontend (GitHub Pages):** GitHub Actions собирает Vite (`base=/Kin/`) и публикует.
+- `.npmrc` (`legacy-peer-deps=true`) есть и в корне, и в `server/` — нужен в обоих,
+  т.к. docker-контекст backend не видит корневой.
 
 ---
 
 ## 🔐 Безопасность
-
-- Пароли хешируются `bcryptjs`
-- Токен JWT (по умолчанию 7 дней) — передаётся в `Authorization: Bearer …`
-- Middleware `requireRole(...)` ограничивает CRUD-эндпоинты ролями
-- helmet и cors на бэке
-- Zod-валидация всех POST/PUT тел
-
----
-
-## 🧪 Тестовые учётки (после seed)
-
-| Email | Пароль | Роль |
-| ----- | ------ | ---- |
-| super@kg.app | demo | SUPER_ADMIN |
-| admin@kg.app | demo | ADMIN |
-
-В демо-режиме без бэка просто нажмите любую кнопку быстрого входа.
+- Пароли — bcrypt; доступ — JWT access + refresh, на мобилке авто-разлогин по 401.
+- `RolesGuard` + `@Roles(...)` на эндпоинтах; мульти-тенантность по `kindergartenId`.
+- Никогда не коммить реальные токены/строки подключения. `.env` — вне git.
 
 ---
 
 ## 📜 Лицензия
-
-MIT.
+Proprietary. Все права принадлежат владельцу проекта.
