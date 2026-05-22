@@ -6,6 +6,8 @@ interface AuthState {
   user: User | null
   token: string | null
   login: (user: User, token?: string) => void
+  /** Обновить данные пользователя НЕ трогая токен (профиль, учреждение и т.п.). */
+  updateUser: (patch: Partial<User>) => void
   logout: () => void
   hasRole: (...roles: Role[]) => boolean
 }
@@ -33,6 +35,11 @@ export const useAuthStore = create<AuthState>()(
         const prev = get().user
         resetTenantData(prev?.id || null, user.id)
         set({ user, token })
+      },
+      updateUser: (patch) => {
+        const u = get().user
+        if (!u) return
+        set({ user: { ...u, ...patch } })
       },
       logout: () => {
         // При выходе тоже чистим — следующий вход начнётся с чистого листа

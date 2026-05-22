@@ -33,6 +33,19 @@ describe('authStore', () => {
     expect(useAuthStore.getState().token).toBe('demo-token')
   })
 
+  it('updateUser меняет данные пользователя, НЕ трогая токен', () => {
+    useAuthStore.getState().login(sampleUser, 'jwt-token')
+    useAuthStore.getState().updateUser({ fullName: 'Пётр Петров' })
+    expect(useAuthStore.getState().user?.fullName).toBe('Пётр Петров')
+    // токен должен сохраниться (это и был баг на странице настроек)
+    expect(useAuthStore.getState().token).toBe('jwt-token')
+  })
+
+  it('updateUser ничего не делает если не залогинен', () => {
+    useAuthStore.getState().updateUser({ fullName: 'X' })
+    expect(useAuthStore.getState().user).toBeNull()
+  })
+
   it('logout сбрасывает user + token', () => {
     useAuthStore.getState().login(sampleUser, 'jwt-token')
     useAuthStore.getState().logout()

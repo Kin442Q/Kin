@@ -42,7 +42,7 @@ export default function SettingsPage() {
   const seed = useDataStore((s) => s.seedDemo)
   const reset = useDataStore((s) => s.resetAll)
   const user = useAuthStore((s) => s.user)
-  const setUser = useAuthStore((s) => s.login)
+  const updateUser = useAuthStore((s) => s.updateUser)
 
   const canEditInstitution =
     user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'
@@ -93,23 +93,17 @@ export default function SettingsPage() {
         checkInRadiusMeters: values.checkInRadiusMeters,
       })
       message.success('Сохранено')
-      // Обновим institution в auth store
-      if (user) {
-        setUser(
-          {
-            ...user,
-            institution: {
-              id: r.data.id,
-              name: r.data.name,
-              type: r.data.type,
-              latitude: r.data.latitude,
-              longitude: r.data.longitude,
-              checkInRadiusMeters: r.data.checkInRadiusMeters,
-            },
-          },
-          undefined as unknown as string,
-        )
-      }
+      // Обновим institution в auth store, НЕ трогая JWT-токен
+      updateUser({
+        institution: {
+          id: r.data.id,
+          name: r.data.name,
+          type: r.data.type,
+          latitude: r.data.latitude,
+          longitude: r.data.longitude,
+          checkInRadiusMeters: r.data.checkInRadiusMeters,
+        },
+      })
     } catch (e: any) {
       if (e?.errorFields) return // ant-d form errors
       message.error(e?.response?.data?.message || 'Ошибка сохранения')
