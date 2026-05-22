@@ -101,7 +101,11 @@ export default function TeacherChatScreen() {
     setText('')
     try {
       const msg = await chatApi.staffSend(active.id, t)
-      setMessages((prev) => [...prev, msg])
+      // Дедуп: socket может вернуть это же сообщение отправителю (он в комнате),
+      // поэтому не добавляем второй раз — иначе дубль и «two children with the same key».
+      setMessages((prev) =>
+        prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+      )
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50)
     } catch {
       setText(t)
@@ -127,7 +131,7 @@ export default function TeacherChatScreen() {
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={90}
+          keyboardVerticalOffset={0}
         >
           {msgLoading ? (
             <View style={styles.loader}>

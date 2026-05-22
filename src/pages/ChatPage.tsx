@@ -149,7 +149,10 @@ export default function ChatPage() {
       const msg = isParent
         ? await chatApi.parentSend(t, parentScope)
         : await chatApi.staffSend(activeId!, t)
-      setMessages((prev) => [...prev, msg])
+      // Дедуп: socket возвращает это же сообщение отправителю (он в комнате).
+      setMessages((prev) =>
+        prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+      )
       scrollDown()
     } catch (e: any) {
       setText(t)

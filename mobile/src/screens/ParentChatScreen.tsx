@@ -87,7 +87,10 @@ export default function ParentChatScreen() {
     setText('')
     try {
       const msg = await chatApi.parentSend(t, scope)
-      setMessages((prev) => [...prev, msg])
+      // Дедуп: socket эхо-возвращает сообщение отправителю — не дублируем.
+      setMessages((prev) =>
+        prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+      )
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 50)
     } catch {
       setText(t) // вернуть текст при ошибке
@@ -141,7 +144,7 @@ export default function ParentChatScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={90}
+        keyboardVerticalOffset={0}
       >
         <FlatList
           ref={listRef}

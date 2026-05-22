@@ -19,6 +19,8 @@ import { IsString, MaxLength, MinLength } from 'class-validator'
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { PushService } from '../push/push.module'
+import { TelegramModule } from '../telegram/telegram.module'
+import { TelegramLinkService } from '../telegram/telegram-link.service'
 import { ChatGateway } from './chat.gateway'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
@@ -35,6 +37,7 @@ export class ChatService {
     private readonly prisma: PrismaService,
     private readonly push: PushService,
     private readonly gateway: ChatGateway,
+    private readonly telegram: TelegramLinkService,
   ) {}
 
   // ─── Родитель ───────────────────────────────────────────────────────
@@ -282,6 +285,8 @@ export class ChatService {
       // В ADMIN-канале уведомляем только админов (учителя финансы не видят).
       this.notifyStaff(conv.groupId, conv.kindergartenId, user.sub, t, conv.scope).catch(() => {})
     } else {
+      // Сотрудник → родитель: пуш в приложение + мгновенное уведомление в Telegram
+      // (как напоминания об оплате), чтобы родитель увидел сразу, даже без приложения.
       this.push
         .sendToUser(conv.parentId, {
           title: `Сообщение от ${msg.sender.fullName}`,
@@ -289,9 +294,41 @@ export class ChatService {
           data: { kind: 'chat', conversationId },
         })
         .catch(() => {})
+
+      const tgText =
+        kind === 'PAYMENT' ? t : `💬 ${msg.sender.fullName}:\n${t}`
+      this.parentPhones(conv.parentId)
+        .then((phones) => this.telegram.notifyByPhones(phones, tgText))
+        .catch(() => {})
     }
 
     return msg
+  }
+
+  /** Телефоны родителя для Telegram: личный + телефоны его детей. */
+  private async parentPhones(parentId: string): Promise<string[]> {
+    const [parent, kids] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: parentId },
+        select: { phone: true, childId: true },
+      }),
+      this.prisma.student.findMany({
+        where: { parents: { some: { id: parentId } } },
+        select: { motherPhone: true, fatherPhone: true },
+      }),
+    ])
+    const legacyKid = parent?.childId
+      ? await this.prisma.student.findUnique({
+          where: { id: parent.childId },
+          select: { motherPhone: true, fatherPhone: true },
+        })
+      : null
+    return [
+      parent?.phone,
+      ...kids.flatMap((k) => [k.motherPhone, k.fatherPhone]),
+      legacyKid?.motherPhone,
+      legacyKid?.fatherPhone,
+    ].filter((p): p is string => !!p)
   }
 
   private async notifyStaff(
@@ -429,6 +466,7 @@ class ChatController {
 @Module({
   imports: [
     ConfigModule,
+    TelegramModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

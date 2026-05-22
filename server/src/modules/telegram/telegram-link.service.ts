@@ -230,6 +230,28 @@ ${groupLine}${monthLine}
     await this.enqueueMessage(chatId, text)
   }
 
+  /**
+   * Универсальное уведомление в Telegram по телефонам (для чата и т.п.).
+   * Возвращает, скольким chat_id поставлено в очередь. Если ни один телефон
+   * не привязан к боту — тихо возвращает 0.
+   */
+  async notifyByPhones(phones: string[], text: string): Promise<number> {
+    const chatIds = Array.from(new Set(await this.resolveChatIds(phones || [])))
+    if (chatIds.length === 0) return 0
+    const safe = escapeHtml(text)
+    let queued = 0
+    for (const chatId of chatIds) {
+      try {
+        await this.enqueueMessage(chatId, safe)
+        queued++
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        this.logger.error(`[telegram] notifyByPhones enqueue failed: ${msg}`)
+      }
+    }
+    return queued
+  }
+
   private async enqueueMessage(chatId: number, text: string) {
     await this.telegramQueue.add('send-message', {
       chatId,

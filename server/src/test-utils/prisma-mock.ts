@@ -70,6 +70,8 @@ export function createPrismaMock() {
     auditLog: model(),
     salary: model(),
     monthlyReport: model(),
+    conversation: model(),
+    message: model(),
     $transaction,
     $queryRaw: jest.fn(),
     $disconnect: jest.fn(),
