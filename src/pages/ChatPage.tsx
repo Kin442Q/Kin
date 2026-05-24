@@ -6,13 +6,14 @@ import {
   Button,
   Card,
   Empty,
+  Grid,
   Input,
   Segmented,
   Spin,
   Tag,
   Typography,
 } from 'antd'
-import { SendOutlined } from '@ant-design/icons'
+import { SendOutlined, ArrowLeftOutlined } from '@ant-design/icons'
 import { MessageCircle } from 'lucide-react'
 import dayjs from 'dayjs'
 
@@ -28,10 +29,16 @@ import {
 
 const { Text } = Typography
 
+const { useBreakpoint } = Grid
+
 export default function ChatPage() {
   const { message } = AntdApp.useApp()
   const user = useAuthStore((s) => s.user)
   const isParent = user?.role === 'PARENT'
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  // На телефоне чат занимает почти весь экран, на десктопе — фиксированная высота.
+  const chatHeight = isMobile ? 'calc(100dvh - 180px)' : '70vh'
 
   // staff: список переписок
   const [conversations, setConversations] = useState<StaffConversation[]>([])
@@ -166,8 +173,18 @@ export default function ChatPage() {
     <Card
       className="glass"
       bordered={false}
-      style={{ display: 'flex', flexDirection: 'column', height: '70vh' }}
-      bodyStyle={{ display: 'flex', flexDirection: 'column', flex: 1, padding: 0 }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: chatHeight,
+      }}
+      bodyStyle={{
+        display: 'flex',
+        flexDirection: 'column',
+        flex: 1,
+        padding: 0,
+        minHeight: 0, // чтобы внутренний список мог скроллиться, а не растягивать карточку
+      }}
     >
       {activeMeta && (
         <div
@@ -185,7 +202,7 @@ export default function ChatPage() {
         </div>
       )}
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 16 }}>
         {messages.length === 0 ? (
           <Empty
             description={
@@ -323,6 +340,73 @@ export default function ChatPage() {
     </Card>
   )
 
+  const ConversationsList = (
+    <Card
+      className="glass"
+      bordered={false}
+      style={{
+        width: isMobile ? '100%' : 320,
+        flexShrink: 0,
+        height: chatHeight,
+        overflowY: 'auto',
+      }}
+      bodyStyle={{ padding: 8 }}
+    >
+      {conversations.length === 0 ? (
+        <Empty
+          description="Переписок пока нет"
+          image={Empty.PRESENTED_IMAGE_SIMPLE}
+        />
+      ) : (
+        conversations.map((c) => (
+          <div
+            key={c.id}
+            onClick={() => openThread(c)}
+            style={{
+              display: 'flex',
+              gap: 10,
+              alignItems: 'center',
+              padding: 10,
+              borderRadius: 12,
+              cursor: 'pointer',
+              background: activeId === c.id ? SP.primaryGhost : 'transparent',
+              marginBottom: 4,
+            }}
+          >
+            <Avatar style={{ background: SP.primarySoft, color: SP.primaryDeep }}>
+              {c.parentName[0]}
+            </Avatar>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Text strong style={{ fontSize: 14 }}>
+                  {c.parentName}
+                </Text>
+                {c.unread && <Badge color={SP.primary} />}
+              </div>
+              <Text
+                type="secondary"
+                style={{ fontSize: 12, display: 'block' }}
+                ellipsis
+              >
+                {c.lastText ?? 'Нет сообщений'}
+              </Text>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  Класс «{c.groupName}»
+                </Text>
+                {c.scope === 'ADMIN' && (
+                  <Tag color="gold" style={{ margin: 0, lineHeight: '16px', fontSize: 10 }}>
+                    Финансы
+                  </Tag>
+                )}
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </Card>
+  )
+
   return (
     <div>
       <SproutPageHeader
@@ -358,73 +442,34 @@ export default function ChatPage() {
         </Card>
       ) : isParent ? (
         MessagesView
+      ) : isMobile ? (
+        // Мобайл: либо список, либо открытый тред с кнопкой «назад»
+        activeId ? (
+          <div>
+            <Button
+              type="text"
+              icon={<ArrowLeftOutlined />}
+              onClick={() => {
+                setActiveId(null)
+                setConvId(null)
+              }}
+              style={{ marginBottom: 8, paddingLeft: 0 }}
+            >
+              К перепискам
+            </Button>
+            {MessagesView}
+          </div>
+        ) : (
+          ConversationsList
+        )
       ) : (
         <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-          {/* Список переписок */}
-          <Card
-            className="glass"
-            bordered={false}
-            style={{ width: 320, flexShrink: 0, height: '70vh', overflowY: 'auto' }}
-            bodyStyle={{ padding: 8 }}
-          >
-            {conversations.length === 0 ? (
-              <Empty
-                description="Переписок пока нет"
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-              />
-            ) : (
-              conversations.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => openThread(c)}
-                  style={{
-                    display: 'flex',
-                    gap: 10,
-                    alignItems: 'center',
-                    padding: 10,
-                    borderRadius: 12,
-                    cursor: 'pointer',
-                    background: activeId === c.id ? SP.primaryGhost : 'transparent',
-                    marginBottom: 4,
-                  }}
-                >
-                  <Avatar style={{ background: SP.primarySoft, color: SP.primaryDeep }}>
-                    {c.parentName[0]}
-                  </Avatar>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Text strong style={{ fontSize: 14 }}>
-                        {c.parentName}
-                      </Text>
-                      {c.unread && <Badge color={SP.primary} />}
-                    </div>
-                    <Text
-                      type="secondary"
-                      style={{ fontSize: 12, display: 'block' }}
-                      ellipsis
-                    >
-                      {c.lastText ?? 'Нет сообщений'}
-                    </Text>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <Text type="secondary" style={{ fontSize: 11 }}>
-                        Класс «{c.groupName}»
-                      </Text>
-                      {c.scope === 'ADMIN' && (
-                        <Tag color="gold" style={{ margin: 0, lineHeight: '16px', fontSize: 10 }}>
-                          Финансы
-                        </Tag>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </Card>
+          {ConversationsList}
 
           {/* Тред */}
           <div style={{ flex: 1 }}>
             {activeId ? MessagesView : (
-              <Card className="glass" bordered={false} style={{ height: '70vh' }}>
+              <Card className="glass" bordered={false} style={{ height: chatHeight }}>
                 <Empty description="Выберите переписку слева" />
               </Card>
             )}

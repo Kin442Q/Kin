@@ -192,8 +192,14 @@ class ParentService {
   async kidToday(user: AuthUser, kidId: string) {
     const kid = await this.ensureKidAccess(user, kidId)
 
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
+    // ВАЖНО: посещаемость/дневник/заметки хранятся как new Date("YYYY-MM-DD")
+    // = полночь UTC календарной даты. Раньше тут была локальная полночь
+    // (setHours), из-за TZ=Asia/Dushanbe она на 5ч раньше → exact-match не
+    // совпадал и родитель видел «учитель ещё не отметил», хотя отметка была.
+    // Считаем дату по локальному календарю и берём ту же UTC-полночь.
+    const now = new Date()
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const todayStart = new Date(todayStr)
 
     const [todayAttendance, todaySchedule, lastPayment, todayDiary, todayKidNote] =
       await Promise.all([
