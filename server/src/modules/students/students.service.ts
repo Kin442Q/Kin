@@ -40,6 +40,21 @@ export class StudentsService {
   private readonly logger = new Logger(StudentsService.name)
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Все классы, которые ведёт учитель: основная группа + M:N teachingGroups. */
+  private async teacherGroupIds(user: AuthUser): Promise<string[]> {
+    const me = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { groupId: true, teachingGroups: { select: { id: true } } },
+    })
+    return Array.from(
+      new Set(
+        [me?.groupId, ...(me?.teachingGroups.map((g) => g.id) ?? [])].filter(
+          (x): x is string => !!x,
+        ),
+      ),
+    )
+  }
+
   /**
    * Список учеников. TEACHER видит только свою группу.
    * SUPER_ADMIN/ADMIN — все, опционально с фильтром по groupId.
@@ -53,8 +68,12 @@ export class StudentsService {
     }
 
     if (user.role === 'TEACHER') {
-      if (!user.groupId) return []
-      where.groupId = user.groupId
+      const allowed = await this.teacherGroupIds(user)
+      if (allowed.length === 0) return []
+      where.groupId =
+        params.groupId && allowed.includes(params.groupId)
+          ? params.groupId
+          : { in: allowed }
     } else if (params.groupId) {
       where.groupId = params.groupId
     }
@@ -74,7 +93,7 @@ export class StudentsService {
       include: { group: true },
     })
     if (!s) throw new NotFoundException('Ученик не найден')
-    this.assertCanAccess(user, s.groupId, s.kindergartenId)
+    await this.assertCanAccess(user, s.groupId, s.kindergartenId)
     return normalizeStudent(s as any)
   }
 
@@ -123,7 +142,7 @@ export class StudentsService {
   async update(id: string, dto: UpdateStudentDto, user: AuthUser) {
     const existing = await this.prisma.student.findUnique({ where: { id } })
     if (!existing) throw new NotFoundException('Ученик не найден')
-    this.assertCanAccess(user, existing.groupId, existing.kindergartenId)
+    await this.assertCanAccess(user, existing.groupId, existing.kindergartenId)
 
     // Учитель не может перевести ребёнка в другую группу.
     if (user.role === 'TEACHER' && dto.groupId && dto.groupId !== existing.groupId) {
@@ -159,7 +178,7 @@ export class StudentsService {
   async archive(id: string, user: AuthUser) {
     const s = await this.prisma.student.findUnique({ where: { id } })
     if (!s) throw new NotFoundException('Ученик не найден')
-    this.assertCanAccess(user, s.groupId, s.kindergartenId)
+    await this.assertCanAccess(user, s.groupId, s.kindergartenId)
     return this.prisma.student.update({
       where: { id },
       data: { status: 'ARCHIVED', archivedAt: new Date() },
@@ -169,12 +188,12 @@ export class StudentsService {
   async remove(id: string, user: AuthUser) {
     const s = await this.prisma.student.findUnique({ where: { id } })
     if (!s) throw new NotFoundException('Ученик не найден')
-    this.assertCanAccess(user, s.groupId, s.kindergartenId)
+    await this.assertCanAccess(user, s.groupId, s.kindergartenId)
     await this.prisma.student.delete({ where: { id } })
   }
 
   // -------------------------------------------------------
-  private assertCanAccess(
+  private async assertCanAccess(
     user: AuthUser,
     studentGroupId: string,
     studentKindergartenId?: string | null,
@@ -182,8 +201,11 @@ export class StudentsService {
     if (user.kindergartenId && studentKindergartenId !== user.kindergartenId) {
       throw new ForbiddenException('Ученик из другого садика')
     }
-    if (user.role === 'TEACHER' && user.groupId !== studentGroupId) {
-      throw new ForbiddenException('Ученик не из вашей группы')
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(studentGroupId)
+    ) {
+      throw new ForbiddenException('Ученик не из ваших классов')
     }
   }
 
@@ -206,7 +228,7 @@ export class StudentsService {
       },
     })
     if (!s) throw new NotFoundException('Ученик не найден')
-    this.assertCanAccess(user, s.groupId, s.kindergartenId)
+    await this.assertCanAccess(user, s.groupId, s.kindergartenId)
     return s.parents
   }
 
@@ -228,7 +250,7 @@ export class StudentsService {
       where: { id: studentId },
     })
     if (!student) throw new NotFoundException('Ученик не найден')
-    this.assertCanAccess(user, student.groupId, student.kindergartenId)
+    await this.assertCanAccess(user, student.groupId, student.kindergartenId)
 
     // Вариант 1: привязать существующего родителя
     if (dto.existingUserId) {
@@ -307,7 +329,7 @@ export class StudentsService {
       where: { id: studentId },
     })
     if (!student) throw new NotFoundException('Ученик не найден')
-    this.assertCanAccess(user, student.groupId, student.kindergartenId)
+    await this.assertCanAccess(user, student.groupId, student.kindergartenId)
 
     await this.prisma.student.update({
       where: { id: studentId },

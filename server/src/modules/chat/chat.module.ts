@@ -40,6 +40,21 @@ export class ChatService {
     private readonly telegram: TelegramLinkService,
   ) {}
 
+  /** Все классы, которые ведёт учитель: основная группа + M:N teachingGroups. */
+  private async teacherGroupIds(user: AuthUser): Promise<string[]> {
+    const me = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { groupId: true, teachingGroups: { select: { id: true } } },
+    })
+    return Array.from(
+      new Set(
+        [me?.groupId, ...(me?.teachingGroups.map((g) => g.id) ?? [])].filter(
+          (x): x is string => !!x,
+        ),
+      ),
+    )
+  }
+
   // ─── Родитель ───────────────────────────────────────────────────────
 
   /**
@@ -111,8 +126,9 @@ export class ChatService {
 
     const where: Record<string, unknown> = {}
     if (user.role === 'TEACHER') {
-      if (!user.groupId) return []
-      where.groupId = user.groupId
+      const allowed = await this.teacherGroupIds(user)
+      if (allowed.length === 0) return []
+      where.groupId = { in: allowed } // все классы, которые ведёт учитель
       where.scope = 'GENERAL' // учитель НЕ видит финансовый канал
     } else if (user.kindergartenId) {
       where.kindergartenId = user.kindergartenId
@@ -378,8 +394,11 @@ export class ChatService {
     if (user.role === 'TEACHER' && conv.scope === 'ADMIN') {
       throw new ForbiddenException('Финансовый канал доступен только администрации')
     }
-    if (user.role === 'TEACHER' && conv.groupId !== user.groupId) {
-      throw new ForbiddenException('Не ваша группа')
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(conv.groupId)
+    ) {
+      throw new ForbiddenException('Не ваш класс')
     }
     if (
       (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') &&

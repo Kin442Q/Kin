@@ -50,10 +50,13 @@ describe('StudentsService', () => {
       ],
     }).compile()
     service = ref.get(StudentsService)
+    // teacherGroupIds() по умолчанию: учитель ведёт только g1
+    prisma.user.findUnique.mockResolvedValue({ groupId: 'g1', teachingGroups: [] })
   })
 
   describe('findAll', () => {
-    it('TEACHER без groupId — пустой массив', async () => {
+    it('TEACHER без классов — пустой массив', async () => {
+      prisma.user.findUnique.mockResolvedValue({ groupId: null, teachingGroups: [] })
       const res = await service.findAll(
         { ...teacherK1, groupId: null },
         {},
@@ -61,14 +64,14 @@ describe('StudentsService', () => {
       expect(res).toEqual([])
     })
 
-    it('TEACHER видит только свою группу', async () => {
+    it('TEACHER видит свои классы', async () => {
       prisma.student.findMany.mockResolvedValue([])
       await service.findAll(teacherK1, {})
 
       expect(prisma.student.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: expect.objectContaining({
-            groupId: 'g1',
+            groupId: { in: ['g1'] },
             kindergartenId: 'k1',
           }),
         }),

@@ -11,20 +11,45 @@ export class AttendanceService {
     private readonly redis: RedisService,
   ) {}
 
+  /** Все классы, которые ведёт учитель: основная группа + M:N teachingGroups. */
+  private async teacherGroupIds(user: AuthUser): Promise<string[]> {
+    const me = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { groupId: true, teachingGroups: { select: { id: true } } },
+    })
+    return Array.from(
+      new Set(
+        [me?.groupId, ...(me?.teachingGroups.map((g) => g.id) ?? [])].filter(
+          (x): x is string => !!x,
+        ),
+      ),
+    )
+  }
+
   /**
    * Журнал посещаемости по дню/группе.
-   * TEACHER ограничен своей группой. ADMIN — садиком.
+   * TEACHER ограничен своими классами (основным + назначенными). ADMIN — садиком.
    */
   async listByDay(user: AuthUser, params: { date: string; groupId?: string }) {
-    const groupId = user.role === 'TEACHER' ? user.groupId! : params.groupId
-    if (!groupId && user.role === 'TEACHER') return []
-
     const day = new Date(params.date)
+
+    let groupWhere: Record<string, unknown> = {}
+    if (user.role === 'TEACHER') {
+      const allowed = await this.teacherGroupIds(user)
+      if (allowed.length === 0) return []
+      // если запрошен конкретный свой класс — он; иначе все его классы
+      groupWhere =
+        params.groupId && allowed.includes(params.groupId)
+          ? { groupId: params.groupId }
+          : { groupId: { in: allowed } }
+    } else if (params.groupId) {
+      groupWhere = { groupId: params.groupId }
+    }
 
     return this.prisma.attendance.findMany({
       where: {
         date: day,
-        ...(groupId ? { groupId } : {}),
+        ...groupWhere,
         ...(user.kindergartenId
           ? { student: { kindergartenId: user.kindergartenId } }
           : {}),
@@ -59,8 +84,11 @@ export class AttendanceService {
     ) {
       throw new ForbiddenException('Ученик из другого садика')
     }
-    if (user.role === 'TEACHER' && student.groupId !== user.groupId) {
-      throw new ForbiddenException('Ученик не из вашей группы')
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(student.groupId)
+    ) {
+      throw new ForbiddenException('Ученик не из ваших классов')
     }
 
     const date = new Date(dto.date)

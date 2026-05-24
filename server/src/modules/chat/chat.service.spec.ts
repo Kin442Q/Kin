@@ -65,6 +65,8 @@ describe('ChatService', () => {
       ],
     }).compile()
     service = ref.get(ChatService)
+    // teacherGroupIds() по умолчанию: учитель ведёт только g1
+    prisma.user.findUnique.mockResolvedValue({ groupId: 'g1', teachingGroups: [] })
   })
 
   describe('myConversation', () => {
@@ -142,18 +144,19 @@ describe('ChatService', () => {
       )
     })
 
-    it('учитель: фильтр форсит scope=GENERAL и свою группу', async () => {
+    it('учитель: фильтр форсит scope=GENERAL и свои классы', async () => {
       prisma.conversation.findMany.mockResolvedValue([])
       await service.listConversations(teacherG1)
 
       expect(prisma.conversation.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { groupId: 'g1', scope: 'GENERAL' },
+          where: { groupId: { in: ['g1'] }, scope: 'GENERAL' },
         }),
       )
     })
 
-    it('учитель без группы получает пустой список', async () => {
+    it('учитель без классов получает пустой список', async () => {
+      prisma.user.findUnique.mockResolvedValue({ groupId: null, teachingGroups: [] })
       const r = await service.listConversations({ ...teacherG1, groupId: null })
       expect(r).toEqual([])
       expect(prisma.conversation.findMany).not.toHaveBeenCalled()

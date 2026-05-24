@@ -39,10 +39,13 @@ describe('AttendanceService', () => {
       ],
     }).compile()
     service = ref.get(AttendanceService)
+    // teacherGroupIds() по умолчанию: учитель ведёт только g1
+    prisma.user.findUnique.mockResolvedValue({ groupId: 'g1', teachingGroups: [] })
   })
 
   describe('listByDay', () => {
-    it('TEACHER без groupId — пустой массив', async () => {
+    it('TEACHER без классов — пустой массив', async () => {
+      prisma.user.findUnique.mockResolvedValue({ groupId: null, teachingGroups: [] })
       const res = await service.listByDay(
         { ...teacherK1, groupId: null },
         { date: '2026-05-14' },
@@ -50,18 +53,30 @@ describe('AttendanceService', () => {
       expect(res).toEqual([])
     })
 
-    it('TEACHER принудительно фильтрует по своей группе', async () => {
+    it('TEACHER: чужой класс игнорируется, фильтр по своим классам', async () => {
       prisma.attendance.findMany.mockResolvedValue([])
       await service.listByDay(teacherK1, {
         date: '2026-05-14',
-        groupId: 'g999', // игнорируется
+        groupId: 'g999', // не его класс → игнорируется
       })
 
       expect(prisma.attendance.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ groupId: 'g1' }),
+          where: expect.objectContaining({ groupId: { in: ['g1'] } }),
         }),
       )
+    })
+
+    it('TEACHER с несколькими классами фильтрует по всем', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        groupId: 'g1',
+        teachingGroups: [{ id: 'g2' }],
+      })
+      prisma.attendance.findMany.mockResolvedValue([])
+      await service.listByDay(teacherK1, { date: '2026-05-14' })
+
+      const arg = prisma.attendance.findMany.mock.calls[0][0]
+      expect(arg.where.groupId.in).toEqual(expect.arrayContaining(['g1', 'g2']))
     })
 
     it('ADMIN фильтрует по садику через student', async () => {
