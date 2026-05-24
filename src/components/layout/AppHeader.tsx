@@ -16,21 +16,26 @@ import {
   Bell,
   LogOut,
   Menu as MenuIcon,
+  MessageCircle,
   PanelLeftClose,
   Moon,
   Search,
   Settings as SettingsIcon,
   Sun,
+  GraduationCap,
   User as UserIcon,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 
 import { useThemeStore } from '../../store/themeStore'
 import { useAuthStore } from '../../store/authStore'
 import { useDataStore } from '../../store/dataStore'
+import { useActiveClassStore } from '../../store/activeClassStore'
+import { chatApi } from '../../api/chatApi'
+import { getSocket } from '../../lib/socket'
 import { SP } from '../sprout'
 
 const { Header } = Layout
@@ -48,9 +53,49 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
   const logout = useAuthStore((s) => s.logout)
   const notifications = useDataStore((s) => s.notifications)
   const markAllRead = useDataStore((s) => s.markAllNotificationsRead)
+  const groups = useDataStore((s) => s.groups)
+  const activeClassId = useActiveClassStore((s) => s.activeClassId)
+  const setActiveClass = useActiveClassStore((s) => s.setActiveClass)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [chatUnread, setChatUnread] = useState(0)
 
   const unread = notifications.filter((n) => !n.read).length
+
+  const isTeacher = user?.role === 'TEACHER'
+  const chatPath = user?.role === 'PARENT' ? '/parent/chat' : '/admin/chat'
+
+  // Текущий класс учителя (если ведёт несколько — можно переключить прямо в шапке)
+  const currentClassId =
+    (activeClassId && groups.some((g) => g.id === activeClassId)
+      ? activeClassId
+      : null) ??
+    (user?.groupId && groups.some((g) => g.id === user.groupId)
+      ? user.groupId
+      : null) ??
+    groups[0]?.id ??
+    null
+  const currentClass = groups.find((g) => g.id === currentClassId) ?? null
+
+  // Непрочитанные сообщения чата — бейдж в шапке, обновляется по сокету
+  const loadChatUnread = useCallback(() => {
+    chatApi
+      .unread()
+      .then((r) => setChatUnread(r.count))
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (!user) return
+    loadChatUnread()
+    const socket = getSocket()
+    const onEvent = () => loadChatUnread()
+    socket.on('message', onEvent)
+    socket.on('conversation', onEvent)
+    return () => {
+      socket.off('message', onEvent)
+      socket.off('conversation', onEvent)
+    }
+  }, [user, loadChatUnread])
 
   const initials = user?.fullName
     ?.split(' ')
@@ -153,6 +198,62 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
         {/* Spacer для mobile (когда поиска нет) */}
         <div className="flex-1 md:hidden" />
 
+        {/* Текущий класс учителя — заметный чип, по клику можно сменить класс */}
+        {isTeacher && currentClass && (
+          <Dropdown
+            trigger={['click']}
+            placement="bottomRight"
+            menu={{
+              selectedKeys: [currentClass.id],
+              items: groups.map((g) => ({
+                key: g.id,
+                label: g.name,
+                onClick: () => setActiveClass(g.id),
+              })),
+            }}
+            disabled={groups.length <= 1}
+          >
+            <motion.button
+              animate={{
+                boxShadow: [
+                  `0 0 0 0 ${currentClass.color}55`,
+                  `0 0 0 7px ${currentClass.color}00`,
+                ],
+              }}
+              transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '6px 12px',
+                borderRadius: 12,
+                border: 'none',
+                cursor: groups.length > 1 ? 'pointer' : 'default',
+                background: `${currentClass.color}1f`,
+                color: currentClass.color,
+                fontWeight: 700,
+                maxWidth: 180,
+              }}
+              title="Текущий класс"
+            >
+              <GraduationCap size={16} />
+              <span
+                style={{
+                  fontSize: 13,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {currentClass.name}
+              </span>
+              {groups.length > 1 && (
+                <span style={{ fontSize: 10, opacity: 0.7 }}>▾</span>
+              )}
+            </motion.button>
+          </Dropdown>
+        )}
+
         {/* Theme */}
         <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
           <Button
@@ -169,6 +270,41 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             }}
             icon={mode === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           />
+        </Tooltip>
+
+        {/* Сообщения чата — бейдж с числом непрочитанных, иконка «дрожит» когда есть новые */}
+        <Tooltip title="Сообщения">
+          <Badge count={chatUnread} size="small" offset={[-4, 4]}>
+            <motion.div
+              animate={
+                chatUnread > 0
+                  ? { rotate: [0, -14, 12, -8, 6, 0] }
+                  : { rotate: 0 }
+              }
+              transition={{
+                duration: 0.9,
+                repeat: chatUnread > 0 ? Infinity : 0,
+                repeatDelay: 2.2,
+              }}
+              style={{ display: 'inline-flex' }}
+            >
+              <Button
+                type="text"
+                onClick={() => navigate(chatPath)}
+                style={{
+                  width: 38,
+                  height: 38,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 11,
+                  background: chatUnread > 0 ? SP.primaryGhost : SP.surfaceAlt,
+                  color: chatUnread > 0 ? SP.primaryDeep : undefined,
+                }}
+                icon={<MessageCircle size={17} />}
+              />
+            </motion.div>
+          </Badge>
         </Tooltip>
 
         {/* Notifications */}

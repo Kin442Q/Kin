@@ -381,6 +381,63 @@ export class ChatService {
     )
   }
 
+  /** Кол-во непрочитанных переписок текущего пользователя (для бейджа в шапке). */
+  async unreadCount(user: AuthUser): Promise<{ count: number }> {
+    if (user.role === 'PARENT') {
+      const convs = await this.prisma.conversation.findMany({
+        where: { parentId: user.sub },
+        select: {
+          parentReadAt: true,
+          messages: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { senderId: true, createdAt: true },
+          },
+        },
+      })
+      const count = convs.filter((c) => {
+        const last = c.messages[0]
+        return (
+          last &&
+          last.senderId !== user.sub &&
+          (!c.parentReadAt || c.parentReadAt < last.createdAt)
+        )
+      }).length
+      return { count }
+    }
+
+    const where: Record<string, unknown> = {}
+    if (user.role === 'TEACHER') {
+      const allowed = await this.teacherGroupIds(user)
+      if (allowed.length === 0) return { count: 0 }
+      where.groupId = { in: allowed }
+      where.scope = 'GENERAL'
+    } else if (user.kindergartenId) {
+      where.kindergartenId = user.kindergartenId
+    }
+
+    const convs = await this.prisma.conversation.findMany({
+      where,
+      select: {
+        staffReadAt: true,
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { senderId: true, createdAt: true },
+        },
+      },
+    })
+    const count = convs.filter((c) => {
+      const last = c.messages[0]
+      return (
+        last &&
+        last.senderId !== user.sub &&
+        (!c.staffReadAt || c.staffReadAt < last.createdAt)
+      )
+    }).length
+    return { count }
+  }
+
   private async assertStaffAccess(user: AuthUser, conversationId: string) {
     const conv = await this.prisma.conversation.findUnique({
       where: { id: conversationId },
@@ -418,6 +475,12 @@ export class ChatService {
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT')
 class ChatController {
   constructor(private readonly service: ChatService) {}
+
+  @Get('unread')
+  @ApiOperation({ summary: 'Кол-во непрочитанных переписок (бейдж в шапке)' })
+  unread(@CurrentUser() user: AuthUser) {
+    return this.service.unreadCount(user)
+  }
 
   @Get('my')
   @ApiOperation({

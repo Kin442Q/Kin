@@ -54,6 +54,10 @@ export const chatApi = {
       })
       .then((r) => r.data),
 
+  // Непрочитанные (для бейджа в шапке) — работает для всех ролей
+  unread: () =>
+    http.get<{ count: number }>('/v1/chat/unread').then((r) => r.data),
+
   // Учитель / админ
   conversations: () =>
     http.get<StaffConversation[]>('/v1/chat/conversations').then((r) => r.data),

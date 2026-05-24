@@ -190,6 +190,33 @@ describe('ChatService', () => {
     })
   })
 
+  describe('unreadCount', () => {
+    it('родитель: считает переписки с новым сообщением не от него', async () => {
+      prisma.conversation.findMany.mockResolvedValue([
+        {
+          parentReadAt: null,
+          messages: [{ senderId: 'teacher', createdAt: new Date() }],
+        },
+        {
+          parentReadAt: new Date('2030-01-01'),
+          messages: [{ senderId: 'teacher', createdAt: new Date('2020-01-01') }],
+        },
+        {
+          parentReadAt: null,
+          messages: [{ senderId: 'parent', createdAt: new Date() }], // своё — не считается
+        },
+      ])
+      const r = await service.unreadCount(parent)
+      expect(r.count).toBe(1)
+    })
+
+    it('учитель без классов: 0', async () => {
+      prisma.user.findUnique.mockResolvedValue({ groupId: null, teachingGroups: [] })
+      const r = await service.unreadCount(teacherG1)
+      expect(r.count).toBe(0)
+    })
+  })
+
   describe('assertStaffAccess через conversationMessages', () => {
     it('404 если переписка не найдена', async () => {
       prisma.conversation.findUnique.mockResolvedValue(null)
