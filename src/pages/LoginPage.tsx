@@ -167,11 +167,11 @@ export default function LoginPage() {
               color: SP.text,
             }}
           >
-            Управляйте садиком
+            Управляйте садом и школой
             <br />
-            как{' '}
+            в{' '}
             <span style={{ color: SP.primaryDeep, fontStyle: 'italic' }}>
-              растущим садом
+              одном месте
             </span>
           </h1>
           <p
@@ -317,7 +317,7 @@ export default function LoginPage() {
               onFinish={onFinish}
               requiredMark={false}
             >
-              {tab === 'admin' ? (
+              {tab !== 'teacher' ? (
                 <Form.Item
                   label={
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>
@@ -328,7 +328,11 @@ export default function LoginPage() {
                   rules={[{ required: true, message: 'Введите email' }]}
                 >
                   <Input
-                    placeholder="admin@kindergarten.tj"
+                    placeholder={
+                      tab === 'parent'
+                        ? 'parent@kindergarten.tj'
+                        : 'admin@kindergarten.tj'
+                    }
                     disabled={loading}
                     style={{ height: 44 }}
                   />
