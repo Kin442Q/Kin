@@ -173,8 +173,6 @@ export default function ChildrenPage() {
         fatherPhone: values.fatherPhone || undefined,
         address: values.address || undefined,
         extraContact: values.extraContact || undefined,
-        telegram: values.telegram || undefined,
-        whatsapp: values.whatsapp || undefined,
         // InputNumber возвращает number или null. Если null/0 — отправляем
         // null чтобы сбросить индивидуальную плату (бэк подставит групповую).
         monthlyFee:
@@ -617,18 +615,6 @@ export default function ChildrenPage() {
                       <Text type="secondary">Комментарии:</Text> {c.notes}
                     </div>
                   )}
-                  <div className="flex gap-3">
-                    {c.telegram && (
-                      <Text type="secondary">
-                        Telegram: <Text copyable>{c.telegram}</Text>
-                      </Text>
-                    )}
-                    {c.whatsapp && (
-                      <Text type="secondary">
-                        WhatsApp: <Text copyable>{c.whatsapp}</Text>
-                      </Text>
-                    )}
-                  </div>
                 </div>
               ),
             }}
@@ -760,18 +746,6 @@ export default function ChildrenPage() {
           <Form.Item name="address" label="Адрес">
             <Input />
           </Form.Item>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="telegram" label="Telegram (@username)">
-                <Input placeholder="@username" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="whatsapp" label="WhatsApp">
-                <Input placeholder="+992 …" />
-              </Form.Item>
-            </Col>
-          </Row>
           <Form.Item name="extraContact" label="Доп. контакт">
             <Input />
           </Form.Item>

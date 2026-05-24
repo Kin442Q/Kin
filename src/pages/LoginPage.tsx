@@ -17,7 +17,7 @@ export default function LoginPage() {
   const login = useAuthStore((s) => s.login)
   const { message } = AntdApp.useApp()
   const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState<'admin' | 'teacher'>('admin')
+  const [tab, setTab] = useState<'admin' | 'teacher' | 'parent'>('admin')
   const [form] = Form.useForm()
 
   const onFinish = async (values: LoginValues) => {
@@ -155,7 +155,7 @@ export default function LoginPage() {
                 background: SP.primary,
               }}
             />
-            Новинка · модуль собраний с Telegram
+            Сад и школа · одна платформа
           </div>
           <h1
             style={{
@@ -183,23 +183,21 @@ export default function LoginPage() {
               marginBottom: 0,
             }}
           >
-            Дети, оплаты, посещаемость, расписание — всё в одном месте.
-            Аналитика прибыли по группам, уведомления родителям в Telegram.
+            Дети, оплаты, посещаемость, расписание и оценки — всё в одном
+            месте. Аналитика прибыли по группам и уведомления родителям.
           </p>
-          <div style={{ display: 'flex', gap: 32, marginTop: 36 }}>
+          <div style={{ display: 'flex', gap: 28, marginTop: 36, flexWrap: 'wrap' }}>
             {[
-              ['142', 'детей'],
-              ['18', 'воспитателей'],
-              ['89%', 'посещаемость'],
-            ].map(([v, l]) => (
-              <div key={l}>
-                <div
-                  className="sp-num"
-                  style={{ fontSize: 28, fontWeight: 700, color: SP.primaryDeep }}
-                >
-                  {v}
+              ['📊', 'Аналитика', 'прибыль по группам'],
+              ['💬', 'Чат', 'с родителями'],
+              ['📱', 'Веб + мобильное', 'приложение'],
+            ].map(([icon, title, sub]) => (
+              <div key={title} style={{ maxWidth: 120 }}>
+                <div style={{ fontSize: 22 }}>{icon}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: SP.primaryDeep, marginTop: 4 }}>
+                  {title}
                 </div>
-                <div style={{ fontSize: 12, color: SP.textMid, marginTop: 2 }}>{l}</div>
+                <div style={{ fontSize: 12, color: SP.textMid, marginTop: 2 }}>{sub}</div>
               </div>
             ))}
           </div>
@@ -280,8 +278,9 @@ export default function LoginPage() {
           >
             {(
               [
-                ['admin', '👤 Администратор'],
+                ['admin', '👤 Админ'],
                 ['teacher', '👨‍🏫 Воспитатель'],
+                ['parent', '👪 Родитель'],
               ] as const
             ).map(([k, l]) => (
               <button
@@ -293,10 +292,10 @@ export default function LoginPage() {
                 }}
                 style={{
                   flex: 1,
-                  padding: '9px 12px',
+                  padding: '9px 8px',
                   background: tab === k ? SP.surface : 'transparent',
                   color: tab === k ? SP.text : SP.muted,
-                  fontSize: 13,
+                  fontSize: 12.5,
                   fontWeight: 600,
                   border: 'none',
                   borderRadius: 10,
