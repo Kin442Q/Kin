@@ -24,12 +24,27 @@ export class GroupsService {
    */
   async findAll(user: AuthUser) {
     if (user.role === 'TEACHER') {
-      if (!user.groupId) return []
-      const g = await this.prisma.group.findUnique({
-        where: { id: user.groupId },
+      // Учитель видит все классы, которые ведёт: основную группу + M:N teachingGroups.
+      const me = await this.prisma.user.findUnique({
+        where: { id: user.sub },
+        select: {
+          groupId: true,
+          teachingGroups: { select: { id: true } },
+        },
+      })
+      const ids = Array.from(
+        new Set(
+          [me?.groupId, ...(me?.teachingGroups.map((g) => g.id) ?? [])].filter(
+            (x): x is string => !!x,
+          ),
+        ),
+      )
+      if (ids.length === 0) return []
+      return this.prisma.group.findMany({
+        where: { id: { in: ids } },
+        orderBy: { createdAt: 'asc' },
         include: { _count: { select: { students: true, teachers: true } } },
       })
-      return g ? [g] : []
     }
     return this.prisma.group.findMany({
       where: user.kindergartenId

@@ -21,4 +21,9 @@ export class TeachersController {
   assignGroup(@Param('id') id: string, @Body() body: { groupId: string | null }) {
     return this.service.assignGroup(id, body.groupId)
   }
+
+  @Patch(':id/classes')
+  setClasses(@Param('id') id: string, @Body() body: { groupIds: string[] }) {
+    return this.service.setClasses(id, body.groupIds || [])
+  }
 }

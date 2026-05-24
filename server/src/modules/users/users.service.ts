@@ -14,6 +14,8 @@ interface CreateTeacherDto {
   email?: string;
   password: string;
   groupId?: string;
+  /** Доп. классы, которые ведёт (many-to-many). */
+  teachingGroupIds?: string[];
 }
 
 interface UpdateTeacherDto {
@@ -22,6 +24,8 @@ interface UpdateTeacherDto {
   email?: string;
   password?: string;
   groupId?: string | null;
+  /** Полный набор классов учителя (заменяет текущий). */
+  teachingGroupIds?: string[];
 }
 
 interface ActorContext {
@@ -71,6 +75,7 @@ export class UsersService {
         role: true,
         phone: true,
         groupId: true,
+        teachingGroups: { select: { id: true } },
         isActive: true,
         lastLoginAt: true,
         createdAt: true,
@@ -186,6 +191,12 @@ export class UsersService {
       data.passwordHash = await bcrypt.hash(dto.password, 10);
     }
     if (dto.groupId !== undefined) data.groupId = dto.groupId || null;
+    if (dto.teachingGroupIds !== undefined) {
+      const ids = Array.from(new Set(dto.teachingGroupIds.filter(Boolean)));
+      data.teachingGroups = { set: ids.map((id) => ({ id })) };
+      // основная группа — первая из набора (если явно не задана отдельно)
+      if (dto.groupId === undefined) data.groupId = ids[0] ?? null;
+    }
 
     return this.prisma.user.update({
       where: { id: teacherId },
@@ -197,6 +208,7 @@ export class UsersService {
         role: true,
         phone: true,
         groupId: true,
+        teachingGroups: { select: { id: true } },
         isActive: true,
       },
     });

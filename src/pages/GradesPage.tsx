@@ -13,7 +13,6 @@ import {
   Modal,
   Popconfirm,
   Row,
-  Segmented,
   Select,
   Space,
   Tag,
@@ -303,27 +302,34 @@ export default function GradesPage() {
                   <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
                     ПРЕДМЕТ
                   </div>
-                  <Segmented
-                    block
+                  <Select
+                    showSearch
+                    optionFilterProp="label"
+                    style={{ width: '100%' }}
+                    placeholder="Выберите предмет"
                     value={activeSubjectId ?? subjects[0]?.id}
                     onChange={(v) => setActiveSubjectId(String(v))}
                     options={subjects.map((s) => ({
                       value: s.id,
-                      label: (
-                        <Space size={4}>
+                      label: s.name,
+                    }))}
+                    optionRender={(opt) => {
+                      const s = subjects.find((x) => x.id === opt.value)
+                      return (
+                        <Space size={6}>
                           <span
                             style={{
                               display: 'inline-block',
-                              width: 8,
-                              height: 8,
+                              width: 9,
+                              height: 9,
                               borderRadius: 4,
-                              background: s.color,
+                              background: s?.color ?? SP.muted,
                             }}
                           />
-                          {s.name}
+                          {s?.name}
                         </Space>
-                      ),
-                    }))}
+                      )
+                    }}
                   />
                 </Col>
                 <Col xs={24} md={8}>

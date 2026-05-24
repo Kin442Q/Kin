@@ -10,6 +10,7 @@ import {
   Spin,
   Table,
   Tooltip,
+  Select,
 } from 'antd'
 import {
   Clock,
@@ -19,6 +20,7 @@ import {
   Wallet,
   Calendar as CalendarIcon,
   TrendingUp,
+  GraduationCap,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
@@ -32,6 +34,8 @@ import {
 } from '../components/sprout'
 import FaceCapture from '../components/face/FaceCapture'
 import { useAuthStore } from '../store/authStore'
+import { useDataStore } from '../store/dataStore'
+import { useActiveClassStore } from '../store/activeClassStore'
 import { timeService, type TimeMonthSummary } from '../api'
 import { formatMoneyCompact, formatPercent } from '../lib/format'
 
@@ -40,6 +44,22 @@ type Mode = 'register' | 'verify' | null
 export default function TeacherDashboard() {
   const { message } = AntdApp.useApp()
   const user = useAuthStore((s) => s.user)
+  const groups = useDataStore((s) => s.groups)
+  const activeClassId = useActiveClassStore((s) => s.activeClassId)
+  const setActiveClass = useActiveClassStore((s) => s.setActiveClass)
+
+  // Классы, которые ведёт учитель (приходят из /v1/groups → dataStore).
+  // Текущий класс: сохранённый выбор, иначе основная группа, иначе первый.
+  const currentClassId =
+    (activeClassId && groups.some((g) => g.id === activeClassId)
+      ? activeClassId
+      : null) ??
+    (user?.groupId && groups.some((g) => g.id === user.groupId)
+      ? user.groupId
+      : null) ??
+    groups[0]?.id ??
+    null
+  const currentClass = groups.find((g) => g.id === currentClassId) ?? null
 
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState<TimeMonthSummary | null>(null)
@@ -174,6 +194,112 @@ export default function TeacherDashboard() {
         iconAccent="mint"
         description={`${dayjs().format('dddd, D MMMM')} · приход/уход через Face ID`}
       />
+
+      {/* Текущий класс — ярко и заметно. Если классов несколько — можно переключить. */}
+      {currentClass && (
+        <motion.div
+          key={currentClass.id}
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+          style={{ marginBottom: 16 }}
+        >
+          <div
+            style={{
+              position: 'relative',
+              overflow: 'hidden',
+              borderRadius: 18,
+              padding: '18px 22px',
+              background: `linear-gradient(120deg, ${currentClass.color}, ${currentClass.color}cc)`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+              flexWrap: 'wrap',
+              boxShadow: `0 14px 34px -12px ${currentClass.color}aa`,
+            }}
+          >
+            {/* пульсирующее свечение для привлечения внимания */}
+            <motion.div
+              aria-hidden
+              animate={{ opacity: [0.15, 0.4, 0.15], scale: [1, 1.15, 1] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                position: 'absolute',
+                right: -40,
+                top: -40,
+                width: 180,
+                height: 180,
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.35)',
+                filter: 'blur(8px)',
+                pointerEvents: 'none',
+              }}
+            />
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+                position: 'relative',
+                zIndex: 1,
+              }}
+            >
+              <motion.div
+                animate={{ rotate: [0, -8, 8, 0] }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 14,
+                  background: 'rgba(255,255,255,0.25)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  color: '#fff',
+                }}
+              >
+                <GraduationCap size={28} strokeWidth={2.2} />
+              </motion.div>
+              <div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: 'rgba(255,255,255,0.85)',
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Сейчас вы в классе
+                </div>
+                <div
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 900,
+                    color: '#fff',
+                    lineHeight: 1.1,
+                    letterSpacing: -0.5,
+                  }}
+                >
+                  {currentClass.name}
+                </div>
+              </div>
+            </div>
+
+            {groups.length > 1 && (
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <Select
+                  value={currentClass.id}
+                  onChange={(v) => setActiveClass(v)}
+                  style={{ minWidth: 180 }}
+                  size="large"
+                  options={groups.map((g) => ({ value: g.id, label: g.name }))}
+                />
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Центральный блок check-in/out */}
       <Row gutter={[16, 16]}>

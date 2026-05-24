@@ -265,10 +265,15 @@ model User {
   kindergartenId String?
   kindergarten   Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
 
-  /// Для TEACHER — id привязанной группы.
+  /// Для TEACHER — id основной (домашней) группы.
   /// (Может остаться NULL, пока админ не назначит группу.)
   groupId       String?
   group         Group?   @relation("GroupTeachers", fields: [groupId], references: [id], onDelete: SetNull)
+
+  /// Для TEACHER — все классы, которые он ведёт (many-to-many).
+  /// Учитель может преподавать в нескольких классах; основная группа выше —
+  /// одна из них (для совместимости со старой логикой посещаемости и т.п.).
+  teachingGroups Group[]  @relation("TeacherClasses")
 
   /// Для PARENT — id ребёнка.
   childId       String?
@@ -412,6 +417,8 @@ model Group {
 
   students             Student[]
   teachers             User[]          @relation("GroupTeachers")
+  /// Учителя, ведущие этот класс (many-to-many, помимо основного teacher).
+  teachingTeachers     User[]          @relation("TeacherClasses")
   schedule             ScheduleItem[]
   expenses             Expense[]
   extraIncomes         ExtraIncome[]

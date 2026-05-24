@@ -72,6 +72,7 @@ export class UsersController {
       email?: string
       password?: string
       groupId?: string | null
+      teachingGroupIds?: string[]
     },
   ) {
     return this.service.updateTeacher(

@@ -84,6 +84,21 @@ class SchoolService {
     return user.kindergartenId ? { kindergartenId: user.kindergartenId } : {}
   }
 
+  /** Все классы, к которым у учителя есть доступ: основная группа + M:N. */
+  private async teacherGroupIds(user: AuthUser): Promise<string[]> {
+    const me = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { groupId: true, teachingGroups: { select: { id: true } } },
+    })
+    return Array.from(
+      new Set(
+        [me?.groupId, ...(me?.teachingGroups.map((g) => g.id) ?? [])].filter(
+          (x): x is string => !!x,
+        ),
+      ),
+    )
+  }
+
   // ─── Subjects ───────────────────────────────────────────────────────
 
   async listSubjects(user: AuthUser) {
@@ -137,8 +152,12 @@ class SchoolService {
     user: AuthUser,
     params: { studentId?: string; subjectId?: string; from?: string; to?: string },
   ) {
-    // Учителю можно видеть оценки учеников своей группы
-    if (user.role === 'TEACHER' && !user.groupId) return []
+    // Учителю можно видеть оценки учеников всех классов, которые он ведёт
+    let teacherGroups: string[] = []
+    if (user.role === 'TEACHER') {
+      teacherGroups = await this.teacherGroupIds(user)
+      if (teacherGroups.length === 0) return []
+    }
 
     const where: Record<string, unknown> = {}
     if (params.studentId) where.studentId = params.studentId
@@ -151,7 +170,7 @@ class SchoolService {
     }
 
     if (user.role === 'TEACHER') {
-      where.student = { groupId: user.groupId, ...this.tenantFilter(user) }
+      where.student = { groupId: { in: teacherGroups }, ...this.tenantFilter(user) }
     } else if (user.kindergartenId) {
       where.student = { kindergartenId: user.kindergartenId }
     }
@@ -183,8 +202,11 @@ class SchoolService {
     if (!student) throw new NotFoundException('Ученик не найден')
     if (!subject) throw new NotFoundException('Предмет не найден')
 
-    if (user.role === 'TEACHER' && student.groupId !== user.groupId) {
-      throw new ForbiddenException('Ученик не из вашей группы')
+    if (user.role === 'TEACHER') {
+      const groups = await this.teacherGroupIds(user)
+      if (!student.groupId || !groups.includes(student.groupId)) {
+        throw new ForbiddenException('Ученик не из ваших классов')
+      }
     }
     if (
       user.kindergartenId &&
@@ -228,7 +250,10 @@ class SchoolService {
       include: { student: true },
     })
     if (!g) throw new NotFoundException('Оценка не найдена')
-    if (user.role === 'TEACHER' && g.student.groupId !== user.groupId) {
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(g.student.groupId ?? '')
+    ) {
       throw new ForbiddenException('Не ваш ученик')
     }
     if (user.kindergartenId && g.student.kindergartenId !== user.kindergartenId) {
@@ -246,7 +271,10 @@ class SchoolService {
       select: { groupId: true, kindergartenId: true },
     })
     if (!student) throw new NotFoundException('Ученик не найден')
-    if (user.role === 'TEACHER' && student.groupId !== user.groupId) {
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(student.groupId ?? '')
+    ) {
       throw new ForbiddenException()
     }
     if (user.kindergartenId && student.kindergartenId !== user.kindergartenId) {
@@ -295,8 +323,11 @@ class SchoolService {
       }
     }
     if (user.role === 'TEACHER') {
-      if (!user.groupId) return []
-      where.groupId = user.groupId
+      const groups = await this.teacherGroupIds(user)
+      if (groups.length === 0) return []
+      where.groupId = params.groupId && groups.includes(params.groupId)
+        ? params.groupId
+        : { in: groups }
     } else if (params.groupId) {
       where.groupId = params.groupId
     }
@@ -318,8 +349,11 @@ class SchoolService {
     if (user.role !== 'TEACHER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Доступно учителю/админу')
     }
-    if (user.role === 'TEACHER' && dto.groupId !== user.groupId) {
-      throw new ForbiddenException('Можно задавать только своему классу')
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(dto.groupId)
+    ) {
+      throw new ForbiddenException('Можно задавать только своим классам')
     }
     const [group, subject] = await Promise.all([
       this.prisma.group.findUnique({ where: { id: dto.groupId } }),
@@ -367,7 +401,10 @@ class SchoolService {
       include: { group: true },
     })
     if (!hw) throw new NotFoundException('ДЗ не найдено')
-    if (user.role === 'TEACHER' && hw.groupId !== user.groupId) {
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(hw.groupId)
+    ) {
       throw new ForbiddenException()
     }
     if (user.kindergartenId && hw.group.kindergartenId !== user.kindergartenId) {
@@ -390,7 +427,10 @@ class SchoolService {
       include: { group: true },
     })
     if (!hw) throw new NotFoundException('ДЗ не найдено')
-    if (user.role === 'TEACHER' && hw.groupId !== user.groupId) {
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(hw.groupId)
+    ) {
       throw new ForbiddenException()
     }
     if (user.kindergartenId && hw.group.kindergartenId !== user.kindergartenId) {

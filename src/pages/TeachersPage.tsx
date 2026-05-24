@@ -48,6 +48,7 @@ interface TeacherApi {
   fullName: string
   phone: string | null
   groupId: string | null
+  teachingGroups?: { id: string }[]
   isActive: boolean
   createdAt?: string
 }
@@ -142,11 +143,16 @@ export default function TeachersPage() {
 
   const openEdit = (t: TeacherApi) => {
     setEditing(t)
+    // доп. классы = все teachingGroups кроме основной
+    const extra = (t.teachingGroups ?? [])
+      .map((g) => g.id)
+      .filter((id) => id !== t.groupId)
     form.setFieldsValue({
       fullName: t.fullName,
       email: t.email,
       phone: t.phone,
       groupId: t.groupId,
+      extraGroupIds: extra,
       password: '',
     })
     setDrawerOpen(true)
@@ -159,10 +165,18 @@ export default function TeachersPage() {
 
       if (editing) {
         // Обновление
+        const teachingGroupIds = Array.from(
+          new Set(
+            [v.groupId, ...((v.extraGroupIds as string[]) ?? [])].filter(
+              Boolean,
+            ),
+          ),
+        )
         const body: Record<string, unknown> = {
           fullName: v.fullName.trim(),
           phone: v.phone,
           groupId: v.groupId ?? null,
+          teachingGroupIds,
         }
         if (v.email) body.email = v.email.trim()
         if (v.password) body.password = v.password
@@ -329,24 +343,50 @@ export default function TeachersPage() {
                 ),
               },
               {
-                title: 'Группа',
+                title: 'Классы',
                 dataIndex: 'groupId',
                 filters: groups.map((g) => ({ text: g.name, value: g.id })),
-                onFilter: (v, t) => t.groupId === v,
-                render: (groupId?: string | null) => {
+                onFilter: (v, t) =>
+                  t.groupId === v ||
+                  !!t.teachingGroups?.some((tg) => tg.id === v),
+                render: (groupId: string | null, t) => {
                   if (!groupId) return <Tag color="default">Не назначена</Tag>
                   const g = groups.find((x) => x.id === groupId)
-                  if (!g) return <Tag color="red">Удалена</Tag>
+                  const extra = (t.teachingGroups ?? []).filter(
+                    (tg) => tg.id !== groupId,
+                  )
                   return (
-                    <Tag
-                      style={{
-                        background: g.color + '22',
-                        color: g.color,
-                        border: `1px solid ${g.color}55`,
-                      }}
-                    >
-                      {g.name}
-                    </Tag>
+                    <Space size={4} wrap>
+                      {g ? (
+                        <Tag
+                          style={{
+                            background: g.color + '22',
+                            color: g.color,
+                            border: `1px solid ${g.color}55`,
+                          }}
+                        >
+                          {g.name}
+                        </Tag>
+                      ) : (
+                        <Tag color="red">Удалена</Tag>
+                      )}
+                      {extra.map((tg) => {
+                        const eg = groups.find((x) => x.id === tg.id)
+                        if (!eg) return null
+                        return (
+                          <Tag
+                            key={tg.id}
+                            style={{
+                              background: eg.color + '15',
+                              color: eg.color,
+                              border: `1px dashed ${eg.color}55`,
+                            }}
+                          >
+                            {eg.name}
+                          </Tag>
+                        )
+                      })}
+                    </Space>
                   )
                 },
               },
@@ -476,11 +516,11 @@ export default function TeachersPage() {
 
           <Form.Item
             name="groupId"
-            label="Группа"
+            label="Основная группа"
             rules={[{ required: true, message: 'Выберите группу' }]}
             extra={
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Учитель будет видеть только эту группу
+                Домашняя группа учителя (для посещаемости и отметок прихода)
               </Text>
             }
           >
@@ -508,6 +548,24 @@ export default function TeachersPage() {
                   </Space>
                 ),
               }))}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="extraGroupIds"
+            label="Ещё классы (если ведёт несколько)"
+            extra={
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Учитель сможет вести журнал и ДЗ во всех выбранных классах
+              </Text>
+            }
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder="Дополнительные классы"
+              optionFilterProp="label"
+              options={groups.map((g) => ({ value: g.id, label: g.name }))}
             />
           </Form.Item>
 
