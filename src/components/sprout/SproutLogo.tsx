@@ -54,7 +54,7 @@ export default function SproutLogo({ size = 18, showSubtitle = true }: Props) {
               marginTop: 2,
             }}
           >
-            kindergarten OS
+            school & kindergarten OS
           </div>
         </div>
       )}

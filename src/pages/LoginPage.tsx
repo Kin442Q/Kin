@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Form, Input, App as AntdApp, Spin } from 'antd'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
+import { BarChart3, MessageCircle, Smartphone } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 import { http } from '../api'
 import { SP, SproutLogo } from '../components/sprout'
@@ -186,15 +187,46 @@ export default function LoginPage() {
             Дети, оплаты, посещаемость, расписание и оценки — всё в одном
             месте. Аналитика прибыли по группам и уведомления родителям.
           </p>
-          <div style={{ display: 'flex', gap: 28, marginTop: 36, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 26, marginTop: 36, flexWrap: 'wrap' }}>
             {[
-              ['📊', 'Аналитика', 'прибыль по группам'],
-              ['💬', 'Чат', 'с родителями'],
-              ['📱', 'Веб + мобильное', 'приложение'],
-            ].map(([icon, title, sub]) => (
-              <div key={title} style={{ maxWidth: 120 }}>
-                <div style={{ fontSize: 22 }}>{icon}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: SP.primaryDeep, marginTop: 4 }}>
+              {
+                Icon: BarChart3,
+                title: 'Аналитика',
+                sub: 'прибыль по группам',
+                bg: SP.primarySoft,
+                fg: SP.primaryDeep,
+              },
+              {
+                Icon: MessageCircle,
+                title: 'Чат',
+                sub: 'с родителями',
+                bg: SP.blueSoft,
+                fg: SP.blueDeep,
+              },
+              {
+                Icon: Smartphone,
+                title: 'Веб + мобильное',
+                sub: 'приложение',
+                bg: SP.yellowSoft,
+                fg: SP.yellowDeep,
+              },
+            ].map(({ Icon, title, sub, bg, fg }) => (
+              <div key={title} style={{ maxWidth: 130 }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    background: bg,
+                    color: fg,
+                    display: 'grid',
+                    placeItems: 'center',
+                    marginBottom: 8,
+                  }}
+                >
+                  <Icon size={20} strokeWidth={2} />
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: SP.text }}>
                   {title}
                 </div>
                 <div style={{ fontSize: 12, color: SP.textMid, marginTop: 2 }}>{sub}</div>
