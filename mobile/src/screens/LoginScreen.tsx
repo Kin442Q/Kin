@@ -61,8 +61,8 @@ export default function LoginScreen() {
               <Leaf size={26} color="#fff" strokeWidth={2.2} />
             </View>
             <View>
-              <Text style={styles.logoTitle}>redi</Text>
-              <Text style={styles.logoSub}>kindergarten OS</Text>
+              <Text style={styles.logoTitle}>Nihol</Text>
+              <Text style={styles.logoSub}>school & kindergarten OS</Text>
             </View>
           </View>
 

@@ -312,7 +312,7 @@ export default function ChildParentsModal({
             onClick={() => {
               if (!credentialsModal) return
               const text =
-                `redi — Доступ родителя\n\n` +
+                `Nihol — Доступ родителя\n\n` +
                 `👤 ${credentialsModal.fullName}\n` +
                 `📧 ${credentialsModal.email}\n` +
                 `🔑 ${credentialsModal.password}\n\n` +

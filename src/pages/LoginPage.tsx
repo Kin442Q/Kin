@@ -439,26 +439,6 @@ export default function LoginPage() {
             </Form>
           </Spin>
 
-          <p
-            style={{
-              fontSize: 12,
-              color: SP.muted,
-              textAlign: 'center',
-              marginTop: 28,
-            }}
-          >
-            Нет аккаунта?{' '}
-            <a
-              href="#"
-              style={{
-                color: SP.primaryDeep,
-                fontWeight: 600,
-                textDecoration: 'none',
-              }}
-            >
-              Запросить демо
-            </a>
-          </p>
         </motion.div>
       </div>
 
