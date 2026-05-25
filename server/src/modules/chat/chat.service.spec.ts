@@ -162,13 +162,12 @@ describe('ChatService', () => {
       expect(prisma.conversation.findMany).not.toHaveBeenCalled()
     })
 
-    it('админ: видит оба канала (без фильтра по scope), только своё учреждение', async () => {
+    it('админ: видит ТОЛЬКО финансовый канал (scope=ADMIN) своего учреждения', async () => {
       prisma.conversation.findMany.mockResolvedValue([])
       await service.listConversations(adminK1)
 
       const arg = prisma.conversation.findMany.mock.calls[0][0]
-      expect(arg.where).toEqual({ kindergartenId: 'k1' })
-      expect(arg.where.scope).toBeUndefined()
+      expect(arg.where).toEqual({ scope: 'ADMIN', kindergartenId: 'k1' })
     })
 
     it('возвращает scope каждой переписки', async () => {
@@ -236,6 +235,20 @@ describe('ChatService', () => {
       })
       await expect(
         service.conversationMessages(teacherG1, 'c1'),
+      ).rejects.toThrow(ForbiddenException)
+    })
+
+    it('403: админ не может открыть личный канал учитель↔родитель (GENERAL)', async () => {
+      prisma.conversation.findUnique.mockResolvedValue({
+        id: 'c1',
+        scope: 'GENERAL',
+        groupId: 'g1',
+        kindergartenId: 'k1',
+        parent: { id: 'p1', fullName: 'Мама' },
+        group: { id: 'g1', name: 'Солнышко' },
+      })
+      await expect(
+        service.conversationMessages(adminK1, 'c1'),
       ).rejects.toThrow(ForbiddenException)
     })
 
@@ -371,7 +384,7 @@ describe('ChatService', () => {
     function mockStaffSendChain() {
       prisma.conversation.findUnique.mockResolvedValue({
         id: 'c1',
-        scope: 'GENERAL',
+        scope: 'ADMIN', // админ работает в финансовом канале
         groupId: 'g1',
         kindergartenId: 'k1',
         parent: { id: 'p1', fullName: 'Мама' },
@@ -387,7 +400,7 @@ describe('ChatService', () => {
         parentId: 'p1',
         groupId: 'g1',
         kindergartenId: 'k1',
-        scope: 'GENERAL',
+        scope: 'ADMIN',
         lastMessageAt: new Date(),
       })
       // parentPhones: личный телефон + телефоны детей

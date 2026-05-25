@@ -130,8 +130,11 @@ export class ChatService {
       if (allowed.length === 0) return []
       where.groupId = { in: allowed } // все классы, которые ведёт учитель
       where.scope = 'GENERAL' // учитель НЕ видит финансовый канал
-    } else if (user.kindergartenId) {
-      where.kindergartenId = user.kindergartenId
+    } else {
+      // ADMIN/SUPER_ADMIN видит ТОЛЬКО финансовый канал (ADMIN).
+      // Личные переписки учитель↔родитель (GENERAL) администрации недоступны.
+      where.scope = 'ADMIN'
+      if (user.kindergartenId) where.kindergartenId = user.kindergartenId
     }
 
     const convs = await this.prisma.conversation.findMany({
@@ -412,8 +415,9 @@ export class ChatService {
       if (allowed.length === 0) return { count: 0 }
       where.groupId = { in: allowed }
       where.scope = 'GENERAL'
-    } else if (user.kindergartenId) {
-      where.kindergartenId = user.kindergartenId
+    } else {
+      where.scope = 'ADMIN' // админ считает непрочитанные только в финансовом канале
+      if (user.kindergartenId) where.kindergartenId = user.kindergartenId
     }
 
     const convs = await this.prisma.conversation.findMany({
@@ -457,12 +461,16 @@ export class ChatService {
     ) {
       throw new ForbiddenException('Не ваш класс')
     }
-    if (
-      (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') &&
-      user.kindergartenId &&
-      conv.kindergartenId !== user.kindergartenId
-    ) {
-      throw new ForbiddenException('Из другого учреждения')
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+      // Админ работает только в финансовом канале; личный чат учитель↔родитель не его
+      if (conv.scope !== 'ADMIN') {
+        throw new ForbiddenException(
+          'Личная переписка учителя с родителем администрации недоступна',
+        )
+      }
+      if (user.kindergartenId && conv.kindergartenId !== user.kindergartenId) {
+        throw new ForbiddenException('Из другого учреждения')
+      }
     }
     return conv
   }
