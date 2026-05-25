@@ -19,3 +19,9 @@ server/node_modules/.prisma
 # Test coverage
 coverage
 server/coverage
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
