@@ -243,4 +243,62 @@ describe('StudentsService', () => {
       expect(prisma.student.delete).toHaveBeenCalled()
     })
   })
+
+  describe('bulkCreate', () => {
+    beforeEach(() => {
+      // группы учреждения для валидации/резолва по имени
+      prisma.group.findMany.mockResolvedValue([{ id: 'g1', name: '1А' }])
+      // create() проверяет группу по id
+      prisma.group.findUnique.mockResolvedValue({ id: 'g1', kindergartenId: 'k1' })
+      prisma.student.create.mockImplementation((args: any) =>
+        Promise.resolve({ id: 'new', ...args.data }),
+      )
+    })
+
+    it('403 если нет kindergartenId', async () => {
+      await expect(
+        service.bulkCreate({ ...adminK1, kindergartenId: null }, [
+          { firstName: 'A', lastName: 'B', birthDate: '2020-01-01', groupId: 'g1' },
+        ]),
+      ).rejects.toThrow(ForbiddenException)
+    })
+
+    it('400 если список пуст', async () => {
+      await expect(service.bulkCreate(adminK1, [])).rejects.toThrow(
+        'Список пуст',
+      )
+    })
+
+    it('создаёт валидные строки, ошибочные — в errors[]', async () => {
+      const r = await service.bulkCreate(adminK1, [
+        { firstName: 'Айша', lastName: 'К', birthDate: '2020-05-01', groupId: 'g1' },
+        { firstName: '', lastName: 'Нет имени', birthDate: '2020-01-01', groupId: 'g1' },
+        { firstName: 'Иван', lastName: 'П', birthDate: 'кривая', groupId: 'g1' },
+      ])
+      expect(r.createdCount).toBe(1)
+      expect(r.errorCount).toBe(2)
+      expect(r.errors[0].message).toMatch(/имя|фамилия/i)
+      expect(r.errors[1].message).toMatch(/дат/i)
+    })
+
+    it('резолвит группу по имени (groupName)', async () => {
+      const r = await service.bulkCreate(adminK1, [
+        { firstName: 'Лола', lastName: 'С', birthDate: '2021-03-03', groupName: '1а' },
+      ])
+      expect(r.createdCount).toBe(1)
+      expect(prisma.student.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ groupId: 'g1' }),
+        }),
+      )
+    })
+
+    it('неизвестная группа → строка в errors', async () => {
+      const r = await service.bulkCreate(adminK1, [
+        { firstName: 'X', lastName: 'Y', birthDate: '2020-01-01', groupName: 'нет такой' },
+      ])
+      expect(r.createdCount).toBe(0)
+      expect(r.errors[0].message).toMatch(/руппа|класс/i)
+    })
+  })
 })

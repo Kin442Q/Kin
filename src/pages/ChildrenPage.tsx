@@ -35,6 +35,7 @@ import {
 } from '@ant-design/icons'
 import { Baby } from 'lucide-react'
 import ChildParentsModal from '../components/ChildParentsModal'
+import ImportStudentsModal from '../components/ImportStudentsModal'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
@@ -69,6 +70,7 @@ export default function ChildrenPage() {
   const [photoList, setPhotoList] = useState<UploadFile[]>([])
   const [form] = Form.useForm()
   const [parentsModal, setParentsModal] = useState<Child | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const isAdmin = user?.role === 'admin' || user?.role === 'SUPER_ADMIN'
   const L = useLabels()
   const isSchool = L.group === 'класс'
@@ -371,14 +373,22 @@ export default function ChildrenPage() {
           </Tag>
         }
         actions={
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={openCreate}
-            disabled={user?.role === 'teacher' && !user.groupId}
-          >
-            {isSchool ? 'Добавить ученика' : 'Добавить ребёнка'}
-          </Button>
+          <Space>
+            <Button
+              icon={<UploadOutlined />}
+              onClick={() => setImportOpen(true)}
+            >
+              Импорт
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={openCreate}
+              disabled={user?.role === 'teacher' && !user.groupId}
+            >
+              {isSchool ? 'Добавить ученика' : 'Добавить ребёнка'}
+            </Button>
+          </Space>
         }
       />
 
@@ -774,6 +784,14 @@ export default function ChildrenPage() {
             ? `${parentsModal.firstName} ${parentsModal.lastName}`
             : ''
         }
+      />
+
+      <ImportStudentsModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        groups={groups}
+        isSchool={isSchool}
+        onDone={refreshTenantData}
       />
     </div>
   )

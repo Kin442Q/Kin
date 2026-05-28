@@ -41,6 +41,25 @@ export class StudentsController {
     return this.service.create(dto, user)
   }
 
+  @Post('bulk')
+  @ApiOperation({
+    summary: 'Массовое создание учеников (импорт из Excel/фото). Ошибочные строки в errors[].',
+  })
+  bulkCreate(
+    @Body() dto: { items: Array<Partial<CreateStudentDto> & { groupName?: string }> },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.bulkCreate(user, dto?.items ?? [])
+  }
+
+  @Post('scan')
+  @ApiOperation({
+    summary: 'Распознать учеников с фото списка (AI Vision). Возвращает черновики, без записи в БД.',
+  })
+  scan(@Body() dto: { image: string }, @CurrentUser() user: AuthUser) {
+    return this.service.scanFromImage(user, dto?.image ?? '')
+  }
+
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateStudentDto, @CurrentUser() user: AuthUser) {
     return this.service.update(id, dto, user)

@@ -139,6 +139,183 @@ export class StudentsService {
     return normalizeStudent(created as any)
   }
 
+  /**
+   * Массовое создание учеников (импорт из Excel/фото). Валидирует и создаёт
+   * каждую строку отдельно; ошибочные строки не валят весь импорт, а
+   * возвращаются в errors[] — пользователь поправит и повторит.
+   * Группу можно указать по id (groupId) или по имени (groupName).
+   */
+  async bulkCreate(
+    user: AuthUser,
+    items: Array<Partial<CreateStudentDto> & { groupName?: string }>,
+  ) {
+    if (!user.kindergartenId) {
+      throw new ForbiddenException('Не привязан к садику')
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new BadRequestException('Список пуст')
+    }
+    if (items.length > 300) {
+      throw new BadRequestException('За один раз можно импортировать до 300 учеников')
+    }
+
+    const groups = await this.prisma.group.findMany({
+      where: { kindergartenId: user.kindergartenId },
+      select: { id: true, name: true },
+    })
+    const byName = new Map(groups.map((g) => [g.name.trim().toLowerCase(), g.id]))
+
+    const created: unknown[] = []
+    const errors: Array<{ row: number; name: string; message: string }> = []
+
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i] ?? {}
+      const label =
+        `${(it.lastName ?? '').trim()} ${(it.firstName ?? '').trim()}`.trim() ||
+        `строка ${i + 1}`
+      try {
+        if (!it.firstName?.trim() || !it.lastName?.trim()) {
+          throw new Error('Не указано имя или фамилия')
+        }
+        const bd = it.birthDate ? new Date(it.birthDate) : null
+        if (!bd || Number.isNaN(bd.getTime())) {
+          throw new Error('Некорректная дата рождения (нужен формат ГГГГ-ММ-ДД)')
+        }
+
+        // Группа: учитель — только своя; иначе по id или по имени.
+        let groupId = it.groupId
+        if (user.role === 'TEACHER') {
+          groupId = user.groupId ?? undefined
+        } else if (!groupId && it.groupName) {
+          groupId = byName.get(it.groupName.trim().toLowerCase())
+        }
+        if (!groupId || !groups.some((g) => g.id === groupId)) {
+          throw new Error('Группа/класс не найдена в этом учреждении')
+        }
+
+        const c = await this.create(
+          {
+            firstName: it.firstName.trim(),
+            lastName: it.lastName.trim(),
+            middleName: it.middleName?.trim() || undefined,
+            birthDate: it.birthDate!,
+            gender: (it.gender as CreateStudentDto['gender']) ?? 'MALE',
+            groupId,
+            motherName: it.motherName?.trim() || undefined,
+            motherPhone: it.motherPhone?.trim() || undefined,
+            fatherName: it.fatherName?.trim() || undefined,
+            fatherPhone: it.fatherPhone?.trim() || undefined,
+            address: it.address?.trim() || undefined,
+            notes: it.notes?.trim() || undefined,
+            monthlyFee:
+              it.monthlyFee == null || (it.monthlyFee as unknown) === ''
+                ? null
+                : Number(it.monthlyFee),
+          },
+          user,
+        )
+        created.push(c)
+      } catch (e) {
+        errors.push({
+          row: i,
+          name: label,
+          message: e instanceof Error ? e.message : String(e),
+        })
+      }
+    }
+
+    return {
+      createdCount: created.length,
+      errorCount: errors.length,
+      created,
+      errors,
+    }
+  }
+
+  /**
+   * Распознать учеников с фото списка через Claude Vision (Anthropic API).
+   * Возвращает массив черновиков — БЕЗ записи в БД (пользователь правит и
+   * подтверждает на фронте). Требует ANTHROPIC_API_KEY в окружении.
+   */
+  async scanFromImage(user: AuthUser, image: string) {
+    if (!user.kindergartenId) {
+      throw new ForbiddenException('Не привязан к садику')
+    }
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) {
+      throw new BadRequestException(
+        'AI-распознавание не настроено: задайте ANTHROPIC_API_KEY на сервере',
+      )
+    }
+    if (!image) throw new BadRequestException('Нет изображения')
+
+    // Принимаем data-URL (data:image/jpeg;base64,...) или чистый base64.
+    const m = image.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/)
+    const mediaType = m ? m[1] : 'image/jpeg'
+    const data = m ? m[2] : image
+
+    const model = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
+    const prompt =
+      'На фото — список детей/учеников (печатный или рукописный). ' +
+      'Извлеки всех и верни ТОЛЬКО JSON-массив без markdown. ' +
+      'Каждый элемент: {"lastName","firstName","middleName","birthDate","gender","groupName","motherName","motherPhone","fatherName","fatherPhone"}. ' +
+      'birthDate в формате ГГГГ-ММ-ДД или null если не видно. gender — "MALE"/"FEMALE"/null. ' +
+      'Телефоны как на фото. Поля, которых нет, ставь null. Если список пуст — верни [].'
+
+    let resp: Response
+    try {
+      resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 4096,
+          messages: [
+            {
+              role: 'user',
+              content: [
+                { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
+                { type: 'text', text: prompt },
+              ],
+            },
+          ],
+        }),
+      })
+    } catch (e) {
+      throw new BadRequestException(
+        'Не удалось обратиться к сервису распознавания: ' +
+          (e instanceof Error ? e.message : String(e)),
+      )
+    }
+
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '')
+      this.logger.error(`[students.scan] Anthropic ${resp.status}: ${body}`)
+      throw new BadRequestException(
+        `Сервис распознавания вернул ошибку (${resp.status})`,
+      )
+    }
+
+    const json = (await resp.json()) as {
+      content?: Array<{ type: string; text?: string }>
+    }
+    const text = json.content?.find((c) => c.type === 'text')?.text ?? '[]'
+    // Вырезаем JSON-массив из ответа (на случай лишнего текста/markdown).
+    const start = text.indexOf('[')
+    const end = text.lastIndexOf(']')
+    let items: unknown = []
+    try {
+      items = start >= 0 && end > start ? JSON.parse(text.slice(start, end + 1)) : []
+    } catch {
+      throw new BadRequestException('Не удалось разобрать ответ распознавания')
+    }
+    return { items: Array.isArray(items) ? items : [] }
+  }
+
   async update(id: string, dto: UpdateStudentDto, user: AuthUser) {
     const existing = await this.prisma.student.findUnique({ where: { id } })
     if (!existing) throw new NotFoundException('Ученик не найден')
