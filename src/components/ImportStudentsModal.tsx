@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import {
   App as AntdApp,
   Button,
+  DatePicker,
   Modal,
   Select,
   Space,
@@ -11,6 +12,7 @@ import {
   Upload,
   Alert,
 } from 'antd'
+import dayjs from 'dayjs'
 import {
   FileExcelOutlined,
   CameraOutlined,
@@ -362,8 +364,23 @@ export default function ImportStudentsModal({
             { title: 'Отчество', width: 120, render: (_, r) => cell(r.key, 'middleName') },
             {
               title: 'Дата рожд.',
-              width: 120,
-              render: (_, r) => cell(r.key, 'birthDate', 'ГГГГ-ММ-ДД'),
+              width: 140,
+              render: (_, r) => (
+                <DatePicker
+                  size="small"
+                  style={{ width: '100%' }}
+                  format="DD.MM.YYYY"
+                  placeholder="дата"
+                  value={
+                    r.birthDate && dayjs(r.birthDate).isValid()
+                      ? dayjs(r.birthDate)
+                      : null
+                  }
+                  onChange={(d) =>
+                    update(r.key, { birthDate: d ? d.format('YYYY-MM-DD') : '' })
+                  }
+                />
+              ),
             },
             {
               title: 'Пол',

@@ -105,7 +105,7 @@
 ### Backend
 ```bash
 cd server
-cp .env.example .env          # DATABASE_URL, JWT-секреты, REDIS_URL, TELEGRAM_BOT_TOKEN
+св         # DATABASE_URL, JWT-секреты, REDIS_URL, TELEGRAM_BOT_TOKEN
 npm install
 npx prisma generate
 npx prisma migrate dev
