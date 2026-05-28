@@ -75,6 +75,9 @@ export class KindergartensService {
       phone: k.phone,
       isActive: k.isActive,
       type: k.type,
+      latitude: k.latitude,
+      longitude: k.longitude,
+      checkInRadiusMeters: k.checkInRadiusMeters,
       createdAt: k.createdAt,
       stats: {
         usersCount: k._count.users,

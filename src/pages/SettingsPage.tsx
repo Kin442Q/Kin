@@ -9,6 +9,7 @@ import {
   InputNumber,
   Popconfirm,
   Row,
+  Select,
   Space,
   Tag,
   Typography,
@@ -47,20 +48,53 @@ export default function SettingsPage() {
   const canEditInstitution =
     user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'
   const inst = user?.institution ?? null
+  // Владелец платформы (SUPER_ADMIN без привязки к садику) управляет всеми
+  // учреждениями: выбирает из списка и привязывает геолокацию к выбранному.
+  const isOwner = user?.role === 'SUPER_ADMIN' && !user?.kindergartenId
 
+  interface InstApi {
+    id: string
+    name: string
+    type: 'KINDERGARTEN' | 'SCHOOL'
+    latitude: number | null
+    longitude: number | null
+    checkInRadiusMeters: number
+  }
+
+  const [institutions, setInstitutions] = useState<InstApi[]>([])
+  const [selectedInstId, setSelectedInstId] = useState<string | null>(null)
   const [savingInst, setSavingInst] = useState(false)
   const [instForm] = Form.useForm()
 
+  const selectedInst = institutions.find((i) => i.id === selectedInstId) ?? null
+  // Учреждение, чьи данные сейчас в форме (для тега типа и карты).
+  const activeInst = isOwner ? selectedInst : inst
+
+  // Владелец: подгружаем список всех учреждений.
   useEffect(() => {
-    if (inst) {
+    if (!isOwner) return
+    http
+      .get<InstApi[]>('/v1/kindergartens')
+      .then((r) => {
+        setInstitutions(r.data)
+        setSelectedInstId((prev) => prev ?? r.data[0]?.id ?? null)
+      })
+      .catch((e: any) =>
+        message.error(e?.response?.data?.message || 'Не удалось загрузить учреждения'),
+      )
+  }, [isOwner, message])
+
+  // Заполняем форму данными активного учреждения.
+  useEffect(() => {
+    if (activeInst) {
       instForm.setFieldsValue({
-        name: inst.name,
-        latitude: inst.latitude,
-        longitude: inst.longitude,
-        checkInRadiusMeters: inst.checkInRadiusMeters,
+        name: activeInst.name,
+        latitude: activeInst.latitude,
+        longitude: activeInst.longitude,
+        checkInRadiusMeters: activeInst.checkInRadiusMeters,
       })
     }
-  }, [inst, instForm])
+  }, [activeInst, instForm])
 
   const useBrowserGeo = () => {
     if (!navigator.geolocation) {
@@ -83,27 +117,53 @@ export default function SettingsPage() {
   }
 
   const saveInstitution = async () => {
+    if (isOwner && !selectedInstId) {
+      message.warning('Сначала выберите учреждение')
+      return
+    }
     try {
       const values = await instForm.validateFields()
       setSavingInst(true)
-      const r = await http.patch('/v1/kindergartens/mine', {
+      // Владелец сохраняет в выбранное учреждение по id; админ — в своё (mine).
+      const url =
+        isOwner && selectedInstId
+          ? `/v1/kindergartens/${selectedInstId}`
+          : '/v1/kindergartens/mine'
+      const r = await http.patch(url, {
         name: values.name,
         latitude: values.latitude ?? null,
         longitude: values.longitude ?? null,
         checkInRadiusMeters: values.checkInRadiusMeters,
       })
       message.success('Сохранено')
-      // Обновим institution в auth store, НЕ трогая JWT-токен
-      updateUser({
-        institution: {
-          id: r.data.id,
-          name: r.data.name,
-          type: r.data.type,
-          latitude: r.data.latitude,
-          longitude: r.data.longitude,
-          checkInRadiusMeters: r.data.checkInRadiusMeters,
-        },
-      })
+      if (isOwner) {
+        // обновляем локальный список выбранного учреждения
+        setInstitutions((list) =>
+          list.map((i) =>
+            i.id === r.data.id
+              ? {
+                  ...i,
+                  name: r.data.name,
+                  latitude: r.data.latitude,
+                  longitude: r.data.longitude,
+                  checkInRadiusMeters: r.data.checkInRadiusMeters,
+                }
+              : i,
+          ),
+        )
+      } else {
+        // Обновим institution в auth store, НЕ трогая JWT-токен
+        updateUser({
+          institution: {
+            id: r.data.id,
+            name: r.data.name,
+            type: r.data.type,
+            latitude: r.data.latitude,
+            longitude: r.data.longitude,
+            checkInRadiusMeters: r.data.checkInRadiusMeters,
+          },
+        })
+      }
     } catch (e: any) {
       if (e?.errorFields) return // ant-d form errors
       message.error(e?.response?.data?.message || 'Ошибка сохранения')
@@ -138,13 +198,37 @@ export default function SettingsPage() {
                   </>
                 }
               >
+                {isOwner && (
+                  <div style={{ marginBottom: 16 }}>
+                    <Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>
+                      Учреждение
+                    </Text>
+                    <Select
+                      style={{ width: '100%', marginTop: 4, maxWidth: 420 }}
+                      placeholder="Выберите учреждение"
+                      value={selectedInstId ?? undefined}
+                      onChange={(v) => setSelectedInstId(v)}
+                      showSearch
+                      optionFilterProp="label"
+                      options={institutions.map((i) => ({
+                        value: i.id,
+                        label: `${i.type === 'SCHOOL' ? '🏫' : '🌱'} ${i.name}`,
+                      }))}
+                      notFoundContent="Учреждений нет"
+                    />
+                    <div style={{ marginTop: 6, fontSize: 12, color: '#8a8a8a' }}>
+                      Привязка геолокации сохранится для выбранного учреждения.
+                    </div>
+                  </div>
+                )}
+
                 <Space size="middle" style={{ marginBottom: 12 }}>
                   <Text type="secondary">Тип учреждения:</Text>
                   <Tag
-                    color={inst?.type === 'SCHOOL' ? 'geekblue' : 'green'}
+                    color={activeInst?.type === 'SCHOOL' ? 'geekblue' : 'green'}
                     style={{ fontSize: 13, padding: '2px 10px' }}
                   >
-                    {inst?.type === 'SCHOOL' ? '🏫 Школа' : '🌱 Детский сад'}
+                    {activeInst?.type === 'SCHOOL' ? '🏫 Школа' : '🌱 Детский сад'}
                   </Tag>
                 </Space>
                 <div>
@@ -255,9 +339,9 @@ export default function SettingsPage() {
                     <Button type="primary" htmlType="submit" loading={savingInst}>
                       Сохранить
                     </Button>
-                    {inst?.latitude != null && inst?.longitude != null && (
+                    {activeInst?.latitude != null && activeInst?.longitude != null && (
                       <a
-                        href={`https://www.google.com/maps?q=${inst.latitude},${inst.longitude}`}
+                        href={`https://www.google.com/maps?q=${activeInst.latitude},${activeInst.longitude}`}
                         target="_blank"
                         rel="noreferrer"
                       >
