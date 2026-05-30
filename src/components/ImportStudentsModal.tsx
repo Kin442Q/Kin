@@ -400,18 +400,40 @@ export default function ImportStudentsModal({
             },
             {
               title: isSchool ? 'Класс' : 'Группа',
-              width: 150,
-              render: (_, r) => (
-                <Select
-                  size="small"
-                  style={{ width: '100%' }}
-                  status={!r.groupId && !defaultGroupId ? 'warning' : undefined}
-                  placeholder={r.groupName || '—'}
-                  value={r.groupId}
-                  onChange={(v) => update(r.key, { groupId: v })}
-                  options={groups.map((g) => ({ value: g.id, label: g.name }))}
-                />
-              ),
+              width: 160,
+              render: (_, r) => {
+                // Если задан класс по умолчанию — колонка disabled и показывает
+                // дефолт (строки без своей группы попадут в него при создании).
+                const defGroup = groups.find((g) => g.id === defaultGroupId)
+                if (defaultGroupId && !r.groupId) {
+                  return (
+                    <Select
+                      size="small"
+                      style={{ width: '100%' }}
+                      disabled
+                      value={defaultGroupId}
+                      options={[
+                        {
+                          value: defaultGroupId,
+                          label: `${defGroup?.name ?? ''} (по умолч.)`,
+                        },
+                      ]}
+                    />
+                  )
+                }
+                return (
+                  <Select
+                    size="small"
+                    style={{ width: '100%' }}
+                    allowClear
+                    status={!r.groupId && !defaultGroupId ? 'warning' : undefined}
+                    placeholder={r.groupName || '—'}
+                    value={r.groupId}
+                    onChange={(v) => update(r.key, { groupId: v })}
+                    options={groups.map((g) => ({ value: g.id, label: g.name }))}
+                  />
+                )
+              },
             },
             { title: 'Тел. мамы', width: 140, render: (_, r) => cell(r.key, 'motherPhone') },
             { title: 'Тел. папы', width: 140, render: (_, r) => cell(r.key, 'fatherPhone') },
