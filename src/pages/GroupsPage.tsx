@@ -389,7 +389,7 @@ export default function GroupsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <SproutKPI
-            label="Всего групп"
+            label={`Всего ${isSchool ? 'классов' : 'групп'}`}
             value={String(total.count)}
             accent="mint"
             icon={<LayoutGrid size={18} strokeWidth={2} />}
@@ -398,7 +398,7 @@ export default function GroupsPage() {
         </Col>
         <Col xs={12} md={6}>
           <SproutKPI
-            label="Доход всех групп"
+            label={`Доход всех ${isSchool ? 'классов' : 'групп'}`}
             value={formatMoneyCompact(total.income)}
             accent="mint"
             icon={<Wallet size={18} strokeWidth={2} />}
@@ -407,7 +407,7 @@ export default function GroupsPage() {
         </Col>
         <Col xs={12} md={6}>
           <SproutKPI
-            label="Расходы всех групп"
+            label={`Расходы всех ${isSchool ? 'классов' : 'групп'}`}
             value={formatMoneyCompact(total.exp)}
             accent="yellow"
             icon={<TrendingUp size={18} strokeWidth={2} />}
@@ -456,13 +456,15 @@ export default function GroupsPage() {
                 выгодность
               </Tag>
             </div>
-            {finances.length > 0 ? (
+            {total.withDataCount > 0 ? (
               <Column
-                data={finances.map((g) => ({
-                  group: g.group.name,
-                  value: g.profit,
-                  type: g.profit >= 0 ? 'Прибыль' : 'Убыток',
-                }))}
+                data={finances
+                  .filter((g) => g.income > 0 || g.expenses > 0)
+                  .map((g) => ({
+                    group: g.group.name,
+                    value: g.profit,
+                    type: g.profit >= 0 ? 'Прибыль' : 'Убыток',
+                  }))}
                 xField="group"
                 yField="value"
                 seriesField="type"
@@ -479,7 +481,11 @@ export default function GroupsPage() {
                 legend={{ position: 'top-right' }}
               />
             ) : (
-              <SproutEmpty title="Нет данных за выбранный месяц" minHeight={240} />
+              <SproutEmpty
+                title="Пока нет финансовых данных"
+                description={`Прибыль по ${isSchool ? 'классам' : 'группам'} появится после первых оплат и расходов за месяц`}
+                minHeight={240}
+              />
             )}
           </SproutCard>
         </Col>
@@ -526,6 +532,26 @@ export default function GroupsPage() {
             {dayjs(month + '-01').format('MMMM YYYY')}
           </Tag>
         </div>
+
+        {/* Поясняем нули: есть классы, но за месяц нет оплат/расходов */}
+        {finances.length > 0 && total.withDataCount === 0 && (
+          <div
+            style={{
+              marginBottom: 14,
+              padding: '10px 14px',
+              borderRadius: 12,
+              background: SP.yellowSoft,
+              color: SP.yellowDeep,
+              fontSize: 12.5,
+              lineHeight: 1.5,
+            }}
+          >
+            ℹ️ За {dayjs(month + '-01').format('MMMM')} ещё нет оплат и расходов —
+            поэтому доход, прибыль и маржа показывают 0. Цифры появятся, как только
+            отметите оплаты на странице «Оплата».
+          </div>
+        )}
+
         {finances.length === 0 ? (
           <SproutEmpty
             icon={<LayoutGrid size={28} strokeWidth={1.8} />}
