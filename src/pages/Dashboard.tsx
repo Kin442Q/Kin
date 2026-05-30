@@ -13,8 +13,9 @@ import {
   Bell,
   Zap,
 } from 'lucide-react'
-import { Area, Pie } from '@ant-design/charts'
+import { Area } from '@ant-design/charts'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 
 import {
@@ -28,7 +29,7 @@ import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { useLabels } from '../hooks/useLabels'
 import { http } from '../api'
-import { formatMoney, formatMoneyCompact, formatPercent } from '../lib/format'
+import { formatMoneyCompact, formatPercent } from '../lib/format'
 
 interface DashboardApi {
   month: string
@@ -58,6 +59,7 @@ export default function Dashboard() {
   const attendance = useDataStore((s) => s.attendance)
   const user = useAuthStore((s) => s.user)
 
+  const navigate = useNavigate()
   const month = dayjs().format('YYYY-MM')
   const L = useLabels()
   const isSchool = L.group === 'класс'
@@ -110,12 +112,6 @@ export default function Dashboard() {
     return arr
   }, [trend])
 
-  const incomeBreakdown = useMemo(() => {
-    return global.totalIncome > 0
-      ? [{ type: 'Оплата родителей', value: global.totalIncome }]
-      : []
-  }, [global.totalIncome])
-
   const todayStr = dayjs().format('YYYY-MM-DD')
   const presentToday = attendance.filter(
     (a) => a.date === todayStr && a.status === 'present',
@@ -123,12 +119,41 @@ export default function Dashboard() {
   const totalToday = attendance.filter((a) => a.date === todayStr).length
   const attendancePct = totalToday > 0 ? Math.round((presentToday / totalToday) * 100) : 89
 
-  // Заглушка для событий (TODO: подключить реальные данные)
-  const events = [
-    { kind: 'payment', text: 'Поступила оплата от Айши Ахмедовой', time: '5 мин назад' },
-    { kind: 'attendance', text: 'Группа «Солнышко» полностью отмечена', time: '1 час назад' },
-    { kind: 'birthday', text: 'Сегодня день рождения у Малики', time: '3 часа назад' },
-  ]
+  // Реальные события из имеющихся данных: дни рождения сегодня + недавно
+  // добавленные ученики. Без выдуманных строк — если пусто, покажем пустое состояние.
+  const events = useMemo(() => {
+    const list: { kind: string; text: string; time: string }[] = []
+    const today = dayjs()
+
+    // Дни рождения сегодня
+    children.forEach((c) => {
+      if (!c.birthDate) return
+      const bd = dayjs(c.birthDate)
+      if (bd.isValid() && bd.date() === today.date() && bd.month() === today.month()) {
+        const age = today.year() - bd.year()
+        list.push({
+          kind: 'birthday',
+          text: `Сегодня день рождения у ${c.firstName} ${c.lastName} (${age})`,
+          time: 'сегодня',
+        })
+      }
+    })
+
+    // Недавно добавленные ученики (за 48 часов)
+    children
+      .filter((c) => c.createdAt && today.diff(dayjs(c.createdAt), 'hour') <= 48)
+      .sort((a, b) => dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf())
+      .slice(0, 4)
+      .forEach((c) => {
+        list.push({
+          kind: 'student',
+          text: `Добавлен${c.gender === 'female' ? 'а' : ''} ${c.firstName} ${c.lastName}`,
+          time: dayjs(c.createdAt).fromNow(),
+        })
+      })
+
+    return list.slice(0, 6)
+  }, [children])
 
   const hour = new Date().getHours()
   const greeting =
@@ -165,7 +190,9 @@ export default function Dashboard() {
               textOverflow: 'ellipsis',
             }}
           >
-            {dayjs().format('dddd, D MMMM')} · в саду {dashboard?.activeStudents ?? children.length} детей
+            {dayjs().format('dddd, D MMMM')} · {isSchool ? 'в школе' : 'в саду'}{' '}
+            {dashboard?.activeStudents ?? children.length}{' '}
+            {isSchool ? 'учеников' : 'детей'}
             {totalToday > 0 ? ` · ${attendancePct}% посещаемость` : ''}
           </div>
         </div>
@@ -283,43 +310,75 @@ export default function Dashboard() {
             style={{ width: '100%', height: 360, display: 'flex', flexDirection: 'column' }}
             delay={0.25}
           >
-            <div style={{ fontSize: 15, fontWeight: 700, color: SP.text, marginBottom: 12 }}>
-              Структура дохода
+            <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
+              Финансы за месяц
             </div>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              {incomeBreakdown.length > 0 ? (
-                <Pie
-                  data={incomeBreakdown}
-                  angleField="value"
-                  colorField="type"
-                  radius={0.9}
-                  innerRadius={0.62}
-                  height={280}
-                  legend={{ position: 'bottom' }}
-                  color={[SP.primary, SP.blueDeep, SP.yellowDeep]}
-                  statistic={{
-                    title: {
-                      content: 'Доход',
-                      style: { fontSize: '12px', color: SP.muted },
-                    },
-                    content: {
-                      content: formatMoney(global.totalIncome),
-                      style: {
-                        fontSize: '15px',
-                        fontWeight: '700',
-                        color: SP.text,
-                      },
-                    },
+            <div style={{ fontSize: 12, color: SP.muted, marginTop: 2, marginBottom: 16 }}>
+              Простыми словами
+            </div>
+
+            {global.totalIncome > 0 || global.totalExpenses > 0 ? (
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {([
+                  { label: 'Получили (доход)', value: global.totalIncome, color: SP.primary, emoji: '💰' },
+                  { label: 'Потратили (расход)', value: global.totalExpenses, color: SP.yellowDeep, emoji: '🧾' },
+                  { label: 'Осталось (прибыль)', value: global.netProfit, color: global.netProfit >= 0 ? SP.primaryDeep : SP.danger, emoji: global.netProfit >= 0 ? '✅' : '⚠️' },
+                ]).map((row) => {
+                  const max = Math.max(global.totalIncome, global.totalExpenses, 1)
+                  const pct = Math.max(4, Math.round((Math.abs(row.value) / max) * 100))
+                  return (
+                    <div key={row.label}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                        <span style={{ fontSize: 13, color: SP.textMid }}>
+                          {row.emoji} {row.label}
+                        </span>
+                        <span style={{ fontSize: 15, fontWeight: 800, color: row.color }}>
+                          {formatMoneyCompact(row.value)}
+                        </span>
+                      </div>
+                      <div style={{ height: 10, borderRadius: 6, background: SP.borderSoft, overflow: 'hidden' }}>
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.7, ease: 'easeOut' }}
+                          style={{ height: '100%', borderRadius: 6, background: row.color }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+
+                <div
+                  style={{
+                    marginTop: 'auto',
+                    padding: '10px 12px',
+                    borderRadius: 12,
+                    background: global.netProfit >= 0 ? SP.primaryGhost : 'rgba(239,68,68,0.08)',
+                    fontSize: 12.5,
+                    color: SP.text,
+                    lineHeight: 1.5,
                   }}
-                />
-              ) : (
-                <SproutEmpty
-                  title="Дохода ещё не было"
-                  description="Здесь появится разбивка после первых оплат"
-                  minHeight={240}
-                />
-              )}
-            </div>
+                >
+                  {global.totalIncome > 0 ? (
+                    <>
+                      Из каждых <b>100 сомони</b> дохода остаётся{' '}
+                      <b style={{ color: global.netProfit >= 0 ? SP.primaryDeep : SP.danger }}>
+                        {Math.round(global.margin * 100)} сомони
+                      </b>{' '}
+                      прибыли.
+                    </>
+                  ) : (
+                    'Дохода в этом месяце пока не было.'
+                  )}
+                </div>
+              </div>
+            ) : (
+              <SproutEmpty
+                title="Данных пока нет"
+                description="Здесь появится сводка после первых оплат и расходов"
+                minHeight={240}
+              />
+            )}
           </SproutCard>
         </Col>
       </Row>
@@ -338,31 +397,28 @@ export default function Dashboard() {
             >
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-                  Группы · доходность
+                  {L.groups} · доходность
                 </div>
                 <div style={{ fontSize: 12, color: SP.muted, marginTop: 2 }}>
-                  {groups.length} групп
+                  {groups.length} {isSchool ? 'классов' : 'групп'}
                 </div>
               </div>
-              <a
-                href="/admin/groups"
-                onClick={(e) => {
-                  e.preventDefault()
-                  window.history.pushState(null, '', '/admin/groups')
-                  window.dispatchEvent(new PopStateEvent('popstate'))
-                }}
+              <button
+                onClick={() => navigate('/admin/groups')}
                 style={{
                   fontSize: 12.5,
                   color: SP.primaryDeep,
                   fontWeight: 600,
-                  textDecoration: 'none',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
                 }}
               >
-                Все группы <ArrowRight size={13} />
-              </a>
+                Все {isSchool ? 'классы' : 'группы'} <ArrowRight size={13} />
+              </button>
             </div>
             {groups.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -527,7 +583,7 @@ export default function Dashboard() {
               <Bell size={14} /> События
             </div>
             <div style={{ fontSize: 12, color: SP.muted, marginBottom: 12 }}>
-              За последние 24 часа
+              Дни рождения и новые {isSchool ? 'ученики' : 'дети'}
             </div>
             {events.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
