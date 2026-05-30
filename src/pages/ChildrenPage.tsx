@@ -28,6 +28,7 @@ import {
   DeleteOutlined,
   SearchOutlined,
   UploadOutlined,
+  DownloadOutlined,
   PhoneOutlined,
   WomanOutlined,
   ManOutlined,
@@ -45,6 +46,7 @@ import { useAuthStore } from '../store/authStore'
 import { useLabels } from '../hooks/useLabels'
 import { cap } from '../lib/labels'
 import { calcAge, formatDate, formatMoney } from '../lib/format'
+import { exportRows } from '../lib/exportXlsx'
 import { refreshTenantData } from '../hooks/useTenantSync'
 import { http } from '../api'
 import type { Child, Gender } from '../types'
@@ -91,6 +93,29 @@ export default function ChildrenPage() {
     }
     return res
   }, [children, groupFilter, search, user])
+
+  const exportToExcel = () => {
+    if (visibleChildren.length === 0) {
+      message.warning('Нет данных для экспорта')
+      return
+    }
+    const rows = visibleChildren.map((c) => ({
+      Фамилия: c.lastName,
+      Имя: c.firstName,
+      Отчество: c.middleName || '',
+      'Дата рождения': c.birthDate || '',
+      Пол: c.gender === 'female' ? 'Ж' : 'М',
+      [isSchool ? 'Класс' : 'Группа']:
+        groups.find((g) => g.id === c.groupId)?.name || '',
+      'Мать (ФИО)': c.motherName || '',
+      'Телефон мамы': c.motherPhone || '',
+      'Отец (ФИО)': c.fatherName || '',
+      'Телефон папы': c.fatherPhone || '',
+      Адрес: c.address || '',
+    }))
+    exportRows(isSchool ? 'ucheniki' : 'deti', rows, 'Список')
+    message.success(`Экспортировано: ${rows.length}`)
+  }
 
   const openCreate = () => {
     setEditing(null)
@@ -374,6 +399,13 @@ export default function ChildrenPage() {
         }
         actions={
           <Space>
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={exportToExcel}
+              disabled={visibleChildren.length === 0}
+            >
+              Экспорт
+            </Button>
             <Button
               icon={<UploadOutlined />}
               onClick={() => setImportOpen(true)}
