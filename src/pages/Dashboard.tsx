@@ -23,6 +23,7 @@ import {
   SproutKPI,
   SproutEmpty,
 } from '../components/sprout'
+import OnboardingChecklist from '../components/OnboardingChecklist'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { useLabels } from '../hooks/useLabels'
@@ -136,6 +137,9 @@ export default function Dashboard() {
 
   return (
     <div>
+      {/* Чек-лист первичной настройки учреждения (для админа, пока не завершён) */}
+      <OnboardingChecklist />
+
       {/* Greeting bar */}
       <SproutCard
         accent="mint-yellow"
