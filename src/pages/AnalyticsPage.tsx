@@ -29,12 +29,16 @@ import { TrendingUp, LineChart as LineChartIcon, BarChart3, PieChart as PieChart
 import { SproutPageHeader, SproutEmpty } from "../components/sprout";
 import StatCard from "../components/ui/StatCard";
 import { useDataStore } from "../store/dataStore";
+import { useLabels } from "../hooks/useLabels";
+import { cap } from "../lib/labels";
 import { calcGlobalFinance, calcGroupFinances } from "../lib/finance";
 import { formatMoney, formatMoneyCompact, formatPercent } from "../lib/format";
 
 const { Text, Title } = Typography;
 
 export default function AnalyticsPage() {
+  const L = useLabels();
+  const isSchool = L.group === "класс";
   const groups = useDataStore((s) => s.groups);
   const children = useDataStore((s) => s.children);
   const payments = useDataStore((s) => s.payments);
@@ -266,7 +270,7 @@ export default function AnalyticsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <StatCard
-            title="Доход всех групп"
+            title={`Доход всех ${isSchool ? "классов" : "групп"}`}
             value={global.totalIncome}
             format="money"
             variant="success"
@@ -468,7 +472,7 @@ export default function AnalyticsPage() {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <Statistic
-                  title="Лучшая группа"
+                  title={isSchool ? "Лучший класс" : "Лучшая группа"}
                   value={global.bestGroup?.group.name || "—"}
                   valueStyle={{
                     color: "#10b981",
@@ -477,7 +481,7 @@ export default function AnalyticsPage() {
                   }}
                 />
                 <Statistic
-                  title="Худшая группа"
+                  title={isSchool ? "Худший класс" : "Худшая группа"}
                   value={global.worstGroup?.group.name || "—"}
                   valueStyle={{
                     color: "#f43f5e",
@@ -496,7 +500,7 @@ export default function AnalyticsPage() {
             transition={{ duration: 0.4, delay: 0.25 }}
           >
             <Card className="glass" bordered={false}>
-              <Title level={5}>Группы: рейтинг прибыли</Title>
+              <Title level={5}>{L.groups}: рейтинг прибыли</Title>
               <Table
                 rowKey={(r) => r.group.id}
                 dataSource={sortedByProfit}
@@ -518,7 +522,7 @@ export default function AnalyticsPage() {
                     ),
                   },
                   {
-                    title: "Группа",
+                    title: cap(L.group),
                     key: "name",
                     render: (_, r) => <Text strong>{r.group.name}</Text>,
                   },

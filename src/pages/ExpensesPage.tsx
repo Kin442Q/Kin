@@ -28,6 +28,8 @@ import dayjs from 'dayjs'
 import { SproutPageHeader, SproutEmpty } from '../components/sprout'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
+import { useLabels } from '../hooks/useLabels'
+import { cap } from '../lib/labels'
 import { formatMoney } from '../lib/format'
 import { http } from '../api'
 import {
@@ -66,6 +68,7 @@ export default function ExpensesPage() {
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
   const isMobile = !screens.md
+  const L = useLabels()
   const groups = useDataStore((s) => s.groups)
 
   const [expensesApi, setExpensesApi] = useState<ExpenseApi[]>([])
@@ -451,7 +454,7 @@ export default function ExpensesPage() {
             },
             { title: 'Описание', dataIndex: 'description' },
             {
-              title: 'Группа',
+              title: cap(L.group),
               dataIndex: 'groupId',
               render: (v?: string) => {
                 if (!v) return <Tag>Общий</Tag>
@@ -537,7 +540,7 @@ export default function ExpensesPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="groupId" label="Группа (если относится к одной группе)">
+          <Form.Item name="groupId" label={`${cap(L.group)} (если относится к одному)`}>
             <Select
               allowClear
               options={groups.map((g) => ({ value: g.id, label: g.name }))}
@@ -572,7 +575,7 @@ export default function ExpensesPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="groupId" label="Группа (если относится к одной)">
+          <Form.Item name="groupId" label={`${cap(L.group)} (если относится к одному)`}>
             <Select allowClear options={groups.map((g) => ({ value: g.id, label: g.name }))} />
           </Form.Item>
           <Form.Item name="comment" label="Комментарий">
