@@ -8,6 +8,7 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
 
 import App from './App'
+import ErrorBoundary from './components/ErrorBoundary'
 import './index.css'
 import { useThemeStore } from './store/themeStore'
 import { buildAntdTheme } from './theme/antdTheme'
@@ -31,11 +32,13 @@ function Root() {
   return (
     <ConfigProvider locale={ruRU} theme={buildAntdTheme(mode)}>
       <AntdApp>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter basename={import.meta.env.BASE_URL}>
-            <App />
-          </BrowserRouter>
-        </QueryClientProvider>
+        <ErrorBoundary>
+          <QueryClientProvider client={queryClient}>
+            <BrowserRouter basename={import.meta.env.BASE_URL}>
+              <App />
+            </BrowserRouter>
+          </QueryClientProvider>
+        </ErrorBoundary>
       </AntdApp>
     </ConfigProvider>
   )
