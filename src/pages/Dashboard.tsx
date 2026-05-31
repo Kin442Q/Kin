@@ -320,17 +320,32 @@ export default function Dashboard() {
             {global.totalIncome > 0 || global.totalExpenses > 0 ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {([
-                  { label: 'Получили (доход)', value: global.totalIncome, color: SP.primary, emoji: '💰' },
-                  { label: 'Потратили (расход)', value: global.totalExpenses, color: SP.yellowDeep, emoji: '🧾' },
-                  { label: 'Осталось (прибыль)', value: global.netProfit, color: global.netProfit >= 0 ? SP.primaryDeep : SP.danger, emoji: global.netProfit >= 0 ? '✅' : '⚠️' },
+                  { label: 'Получили (доход)', value: global.totalIncome, color: SP.primary, Icon: Wallet },
+                  { label: 'Потратили (расход)', value: global.totalExpenses, color: SP.yellowDeep, Icon: CreditCard },
+                  { label: 'Осталось (прибыль)', value: global.netProfit, color: global.netProfit >= 0 ? SP.primaryDeep : SP.danger, Icon: global.netProfit >= 0 ? CheckCircle2 : TrendingDown },
                 ]).map((row) => {
                   const max = Math.max(global.totalIncome, global.totalExpenses, 1)
                   const pct = Math.max(4, Math.round((Math.abs(row.value) / max) * 100))
                   return (
                     <div key={row.label}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-                        <span style={{ fontSize: 13, color: SP.textMid }}>
-                          {row.emoji} {row.label}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: SP.textMid }}>
+                          {/* Иконки из нового дизайна: цветной бейдж за иконкой */}
+                          <span
+                            style={{
+                              width: 26,
+                              height: 26,
+                              borderRadius: 8,
+                              background: `${row.color}1f`,
+                              color: row.color,
+                              display: 'grid',
+                              placeItems: 'center',
+                              flexShrink: 0,
+                            }}
+                          >
+                            <row.Icon size={15} strokeWidth={2} />
+                          </span>
+                          {row.label}
                         </span>
                         <span style={{ fontSize: 15, fontWeight: 800, color: row.color }}>
                           {formatMoneyCompact(row.value)}
@@ -341,7 +356,12 @@ export default function Dashboard() {
                           initial={{ width: 0 }}
                           animate={{ width: `${pct}%` }}
                           transition={{ duration: 0.7, ease: 'easeOut' }}
-                          style={{ height: '100%', borderRadius: 6, background: row.color }}
+                          style={{
+                            height: '100%',
+                            borderRadius: 6,
+                            // Стиль диаграмм из нового дизайна: градиентная заливка
+                            background: `linear-gradient(90deg, ${row.color}, ${row.color}bb)`,
+                          }}
                         />
                       </div>
                     </div>
@@ -479,7 +499,10 @@ export default function Dashboard() {
                           <Progress
                             percent={fillPct}
                             showInfo={false}
-                            strokeColor={g.color || SP.primary}
+                            strokeColor={{
+                              from: g.color || SP.primary,
+                              to: `${g.color || SP.primary}aa`,
+                            }}
                             size="small"
                             style={{ flex: 1, margin: 0 }}
                           />

@@ -295,7 +295,11 @@ export default function GroupsPage() {
           <Progress
             percent={Math.max(0, Math.min(100, v * 100))}
             size="small"
-            strokeColor={row.profit >= 0 ? SP.primary : SP.danger}
+            strokeColor={
+              row.profit >= 0
+                ? { from: SP.primary, to: `${SP.primary}aa` }
+                : { from: SP.danger, to: `${SP.danger}aa` }
+            }
             format={() => (
               <span style={{ fontSize: 11, color: SP.textMid }}>{formatPercent(v)}</span>
             )}
@@ -312,7 +316,7 @@ export default function GroupsPage() {
           <Progress
             percent={Math.round(v * 100)}
             size="small"
-            strokeColor={SP.primary}
+            strokeColor={{ from: SP.primary, to: `${SP.primary}aa` }}
             format={(p) => <span style={{ fontSize: 11, color: SP.textMid }}>{p}%</span>}
           />
         </div>
@@ -469,7 +473,10 @@ export default function GroupsPage() {
                 yField="value"
                 seriesField="type"
                 color={({ type }: { type: string }) =>
-                  type === 'Прибыль' ? SP.primary : SP.danger
+                  // Стиль диаграмм из нового дизайна: вертикальный градиент в столбцах
+                  type === 'Прибыль'
+                    ? 'l(270) 0:#7FD0AC 1:#2F8862'
+                    : 'l(270) 0:#E89B96 1:#C2453F'
                 }
                 columnStyle={{ radius: [10, 10, 0, 0] }}
                 height={280}
