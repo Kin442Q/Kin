@@ -13,7 +13,7 @@ import {
   Bell,
   Zap,
 } from 'lucide-react'
-import { Column } from '@ant-design/charts'
+import { Area } from '@ant-design/charts'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -268,37 +268,45 @@ export default function Dashboard() {
                   Последние 6 месяцев
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 12, fontSize: 12, color: SP.textMid }}>
+              <div style={{ display: 'flex', gap: 14, fontSize: 12, color: SP.textMid }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 10, height: 2, background: SP.primary, borderRadius: 2 }} />
+                  <span style={{ width: 9, height: 9, background: '#2E9E6B', borderRadius: '50%' }} />
                   Доход
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 10, height: 2, background: SP.yellowDeep, borderRadius: 2 }} />
+                  <span style={{ width: 9, height: 9, background: '#E5B43A', borderRadius: '50%' }} />
                   Расход
                 </span>
               </div>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               {trendData.length > 0 ? (
-                <Column
+                <Area
                   data={trendData}
                   xField="month"
                   yField="value"
                   seriesField="type"
-                  isGroup
+                  //@ts-ignore
+                  smooth
                   height={280}
-                  // Стиль диаграмм из нового дизайна: сгруппированные столбцы
-                  // с вертикальным градиентом и скруглённой верхушкой.
+                  // Стиль из нового дизайна: доход — зелёная линия с градиентной
+                  // заливкой вниз; расход — оранжевая пунктирная линия без заливки.
                   color={({ type }: { type: string }) =>
-                    type === 'Доход'
-                      ? 'l(270) 0:#5BD49B 1:#1F855A'
-                      : 'l(270) 0:#F1CB6A 1:#E5B43A'
+                    type === 'Доход' ? '#2E9E6B' : '#E5B43A'
                   }
-                  columnStyle={{ radius: [6, 6, 0, 0] }}
-                  maxColumnWidth={18}
+                  areaStyle={({ type }: { type: string }) =>
+                    type === 'Доход'
+                      ? { fill: 'l(270) 0:rgba(46,158,107,0.28) 1:rgba(46,158,107,0)' }
+                      : { fill: 'transparent' }
+                  }
+                  line={{
+                    style: ({ type }: { type: string }) =>
+                      type === 'Расход'
+                        ? { lineWidth: 2.5, lineDash: [1, 5], lineCap: 'round' }
+                        : { lineWidth: 3 },
+                  }}
                   legend={false}
-                  animation={{ appear: { animation: 'grow-in-y', duration: 900 } }}
+                  animation={{ appear: { animation: 'wave-in', duration: 1100 } }}
                 />
               ) : (
                 <SproutEmpty
