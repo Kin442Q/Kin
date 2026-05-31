@@ -44,13 +44,13 @@ export default function SproutCard({
     background: accent ? accentBg[accent] : SP.surface,
     border: `1px solid ${SP.borderSoft}`,
     boxShadow: shadow.md,
-    borderRadius: 18,
+    borderRadius: 20,
     padding,
     ...style,
   }
 
   const hoverStyle = hoverable
-    ? { y: -2, boxShadow: shadow.lg }
+    ? { y: -3, boxShadow: shadow.lg }
     : undefined
 
   return (

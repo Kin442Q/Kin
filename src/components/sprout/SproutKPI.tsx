@@ -41,7 +41,7 @@ export default function SproutKPI({
         background: SP.surface,
         border: `1px solid ${SP.borderSoft}`,
         boxShadow: shadow.md,
-        borderRadius: 18,
+        borderRadius: 20,
         padding: 18,
         minHeight: 130,
       }}

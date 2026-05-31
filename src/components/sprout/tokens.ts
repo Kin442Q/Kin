@@ -67,11 +67,13 @@ export const SPHex = {
   borderSoft: '#F0EDE4',
 } as const
 
+// Премиум-тени (полировка по новому дизайну): более «дорогой» многослойный
+// подъём с лёгким зелёным отливом. Усиливает ощущение глубины карточек/сайдбара.
 export const shadow = {
-  sm: '0 1px 2px rgba(31,45,39,0.04)',
-  md: '0 4px 16px -4px rgba(31,45,39,0.06)',
-  lg: '0 16px 48px -16px rgba(79,178,134,0.18), 0 4px 12px -2px rgba(31,45,39,0.04)',
-  glow: '0 0 0 4px rgba(79,178,134,0.12)',
+  sm: '0 1px 2px rgba(22,38,31,0.05)',
+  md: '0 2px 6px -2px rgba(22,38,31,0.06), 0 12px 30px -12px rgba(22,38,31,0.12)',
+  lg: '0 18px 50px -18px rgba(47,136,98,0.24), 0 6px 16px -8px rgba(22,38,31,0.08)',
+  glow: '0 0 0 4px rgba(79,178,134,0.13)',
 } as const
 
 export type SproutAccent =

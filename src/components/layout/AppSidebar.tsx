@@ -28,7 +28,7 @@ import type { ReactNode } from 'react'
 
 import { useAuthStore } from '../../store/authStore'
 import { useLabels } from '../../hooks/useLabels'
-import { SP, SproutLogo, SproutBalloons } from '../sprout'
+import { SP, SproutLogo, SproutBalloons, shadow } from '../sprout'
 import type { Role, InstitutionType } from '../../types'
 
 /**
@@ -510,8 +510,9 @@ export default function AppSidebar({ collapsed }: Props) {
         flexDirection: 'column',
         padding: collapsed ? '16px 8px' : 16,
         background: SP.surface,
-        borderRadius: 18,
+        borderRadius: 24,
         border: `1px solid ${SP.borderSoft}`,
+        boxShadow: shadow.md,
         overflow: 'hidden',
       }}
     >
