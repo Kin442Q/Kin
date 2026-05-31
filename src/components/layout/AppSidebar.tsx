@@ -1,6 +1,5 @@
 import { Menu, Tooltip } from 'antd'
 import {
-  LayoutDashboard,
   School,
   LayoutGrid,
   Baby,
@@ -147,7 +146,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/dashboard',
     label: 'Главная',
-    icon: <LayoutDashboard size={ICON_SIZE} strokeWidth={2} />,
+    icon: <HomeIcon size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin'],
     hiddenForGlobalOwner: true,

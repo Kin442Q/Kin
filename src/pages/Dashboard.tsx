@@ -13,7 +13,7 @@ import {
   Bell,
   Zap,
 } from 'lucide-react'
-import { Area } from '@ant-design/charts'
+import { Column } from '@ant-design/charts'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -281,18 +281,24 @@ export default function Dashboard() {
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               {trendData.length > 0 ? (
-                <Area
+                <Column
                   data={trendData}
                   xField="month"
                   yField="value"
                   seriesField="type"
-                  //@ts-ignore
-                  smooth
+                  isGroup
                   height={280}
-                  color={[SP.primary, SP.yellowDeep]}
-                  areaStyle={{ fillOpacity: 0.3 }}
+                  // Стиль диаграмм из нового дизайна: сгруппированные столбцы
+                  // с вертикальным градиентом и скруглённой верхушкой.
+                  color={({ type }: { type: string }) =>
+                    type === 'Доход'
+                      ? 'l(270) 0:#5BD49B 1:#1F855A'
+                      : 'l(270) 0:#F1CB6A 1:#E5B43A'
+                  }
+                  columnStyle={{ radius: [6, 6, 0, 0] }}
+                  maxColumnWidth={18}
                   legend={false}
-                  animation={{ appear: { animation: 'wave-in', duration: 1100 } }}
+                  animation={{ appear: { animation: 'grow-in-y', duration: 900 } }}
                 />
               ) : (
                 <SproutEmpty
