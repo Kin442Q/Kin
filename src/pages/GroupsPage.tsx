@@ -297,8 +297,8 @@ export default function GroupsPage() {
             size="small"
             strokeColor={
               row.profit >= 0
-                ? { from: SP.primary, to: `${SP.primary}aa` }
-                : { from: SP.danger, to: `${SP.danger}aa` }
+                ? { from: SP.primary, to: `color-mix(in srgb, ${SP.primary} 67%, transparent)` }
+                : { from: SP.danger, to: `color-mix(in srgb, ${SP.danger} 67%, transparent)` }
             }
             format={() => (
               <span style={{ fontSize: 11, color: SP.textMid }}>{formatPercent(v)}</span>
@@ -316,7 +316,7 @@ export default function GroupsPage() {
           <Progress
             percent={Math.round(v * 100)}
             size="small"
-            strokeColor={{ from: SP.primary, to: `${SP.primary}aa` }}
+            strokeColor={{ from: SP.primary, to: `color-mix(in srgb, ${SP.primary} 67%, transparent)` }}
             format={(p) => <span style={{ fontSize: 11, color: SP.textMid }}>{p}%</span>}
           />
         </div>

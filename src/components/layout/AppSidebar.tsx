@@ -26,6 +26,7 @@ import { motion } from 'framer-motion'
 import type { ReactNode } from 'react'
 
 import { useAuthStore } from '../../store/authStore'
+import { useThemeStore } from '../../store/themeStore'
 import { useLabels } from '../../hooks/useLabels'
 import { SP, SproutLogo, SproutBalloons } from '../sprout'
 import type { Role, InstitutionType } from '../../types'
@@ -432,6 +433,7 @@ export default function AppSidebar({ collapsed }: Props) {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
+  const design = useThemeStore((s) => s.design)
   const L = useLabels()
 
   const isGlobalOwner = !!user && !user.kindergartenId
@@ -499,6 +501,7 @@ export default function AppSidebar({ collapsed }: Props) {
 
   return (
     <motion.div
+      className="app-sidebar-card"
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
@@ -511,6 +514,7 @@ export default function AppSidebar({ collapsed }: Props) {
         background: SP.surface,
         borderRadius: 18,
         border: `1px solid ${SP.borderSoft}`,
+        boxShadow: 'var(--sp-shadow-md)',
         overflow: 'hidden',
       }}
     >
@@ -585,7 +589,9 @@ export default function AppSidebar({ collapsed }: Props) {
         </div>
       )}
 
-      {!collapsed && <SproutBalloons />}
+      {/* Шарики — только в классической теме. В премиуме сайдбар строгий,
+          как в редизайне (без декоративной анимации). */}
+      {!collapsed && design === 'classic' && <SproutBalloons />}
     </motion.div>
   )
 }

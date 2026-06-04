@@ -21,35 +21,39 @@ export const SP = {
   border: 'var(--sp-border)',
   borderSoft: 'var(--sp-border-soft)',
 
-  // ─── Акценты: одинаковые в обеих темах ───────────────────────────
-  primary: '#4FB286',
-  primaryDeep: '#2F8862',
-  primarySoft: '#D8EFE3',
-  primaryGhost: '#EEF7F2',
+  // ─── Акценты: теперь тоже CSS-переменные ─────────────────────────
+  // Раньше это были hex-константы, из-за чего инлайн-стили (логотип,
+  // аватар, кнопки, плашки иконок, Pro-карточка) НЕ реагировали на
+  // переключение classic ↔ premium. Теперь каждый акцент переключается
+  // вместе с дизайн-темой (значения см. в index.css).
+  primary: 'var(--sp-primary)',
+  primaryDeep: 'var(--sp-primary-deep)',
+  primarySoft: 'var(--sp-primary-soft)',
+  primaryGhost: 'var(--sp-primary-ghost)',
 
-  blue: '#A8D8F0',
-  blueDeep: '#5BA9D1',
-  blueSoft: '#E0EEF7',
+  blue: 'var(--sp-blue)',
+  blueDeep: 'var(--sp-blue-deep)',
+  blueSoft: 'var(--sp-blue-soft)',
 
-  yellow: '#FFE08A',
-  yellowDeep: '#E5B43A',
-  yellowSoft: '#FDF4D6',
+  yellow: 'var(--sp-yellow)',
+  yellowDeep: 'var(--sp-yellow-deep)',
+  yellowSoft: 'var(--sp-yellow-soft)',
 
-  rose: '#F4B5B5',
-  roseDeep: '#E48979',
-  roseSoft: '#FCEAE5',
+  rose: 'var(--sp-rose)',
+  roseDeep: 'var(--sp-rose-deep)',
+  roseSoft: 'var(--sp-rose-soft)',
 
-  pink: '#D88EAE',
-  pinkSoft: '#F8E8EF',
+  pink: 'var(--sp-pink)',
+  pinkSoft: 'var(--sp-pink-soft)',
 
-  lilac: '#C7B8E8',
-  lilacDeep: '#9B7BD4',
-  lilacSoft: '#EFE9F8',
+  lilac: 'var(--sp-lilac)',
+  lilacDeep: 'var(--sp-lilac-deep)',
+  lilacSoft: 'var(--sp-lilac-soft)',
 
-  cyan: '#3FA8B3',
-  cyanSoft: '#E0F1F2',
+  cyan: 'var(--sp-cyan)',
+  cyanSoft: 'var(--sp-cyan-soft)',
 
-  danger: '#D86464',
+  danger: 'var(--sp-danger)',
 } as const
 
 /**

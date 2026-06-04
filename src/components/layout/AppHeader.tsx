@@ -22,6 +22,7 @@ import {
   Search,
   Settings as SettingsIcon,
   Sun,
+  Sparkles,
   GraduationCap,
   User as UserIcon,
 } from 'lucide-react'
@@ -49,6 +50,8 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
   const navigate = useNavigate()
   const mode = useThemeStore((s) => s.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
+  const design = useThemeStore((s) => s.design)
+  const toggleDesign = useThemeStore((s) => s.toggleDesign)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const notifications = useDataStore((s) => s.notifications)
@@ -142,6 +145,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
       }}
     >
       <motion.div
+        className="app-header-bar"
         initial={{ y: -16, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.35 }}
@@ -154,6 +158,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
           alignItems: 'center',
           gap: 12,
           minHeight: 56,
+          boxShadow: 'var(--sp-shadow-sm)',
         }}
       >
         {/* Toggle */}
@@ -253,6 +258,32 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             </motion.button>
           </Dropdown>
         )}
+
+        {/* Дизайн: премиум-редизайн ↔ классический */}
+        <Tooltip
+          title={
+            design === 'premium'
+              ? 'Премиум-редизайн (нажмите для классического)'
+              : 'Классическое оформление (нажмите для премиума)'
+          }
+        >
+          <Button
+            type="text"
+            onClick={toggleDesign}
+            style={{
+              width: 38,
+              height: 38,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: 11,
+              background:
+                design === 'premium' ? SP.primaryGhost : SP.surfaceAlt,
+              color: design === 'premium' ? SP.primaryDeep : undefined,
+            }}
+            icon={<Sparkles size={17} />}
+          />
+        </Tooltip>
 
         {/* Theme */}
         <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>

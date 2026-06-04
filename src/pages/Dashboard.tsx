@@ -350,7 +350,7 @@ export default function Dashboard() {
                               width: 26,
                               height: 26,
                               borderRadius: 8,
-                              background: `${row.color}1f`,
+                              background: `color-mix(in srgb, ${row.color} 12%, transparent)`,
                               color: row.color,
                               display: 'grid',
                               placeItems: 'center',
@@ -374,7 +374,7 @@ export default function Dashboard() {
                             height: '100%',
                             borderRadius: 6,
                             // Стиль диаграмм из нового дизайна: градиентная заливка
-                            background: `linear-gradient(90deg, ${row.color}, ${row.color}bb)`,
+                            background: `linear-gradient(90deg, ${row.color}, color-mix(in srgb, ${row.color} 73%, transparent))`,
                           }}
                         />
                       </div>
@@ -515,7 +515,7 @@ export default function Dashboard() {
                             showInfo={false}
                             strokeColor={{
                               from: g.color || SP.primary,
-                              to: `${g.color || SP.primary}aa`,
+                              to: `color-mix(in srgb, ${g.color || SP.primary} 67%, transparent)`,
                             }}
                             size="small"
                             style={{ flex: 1, margin: 0 }}

@@ -26,14 +26,17 @@ const queryClient = new QueryClient({
 
 function Root() {
   const mode = useThemeStore((s) => s.mode)
+  const design = useThemeStore((s) => s.design)
 
-  // Применяем атрибут data-theme на html. Делаем сразу при инициализации.
+  // Применяем атрибуты data-theme (светлая/тёмная) и data-design
+  // (classic/premium) на html. Делаем сразу при инициализации.
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', mode)
-  }, [mode])
+    document.documentElement.setAttribute('data-design', design)
+  }, [mode, design])
 
   return (
-    <ConfigProvider locale={ruRU} theme={buildAntdTheme(mode)}>
+    <ConfigProvider locale={ruRU} theme={buildAntdTheme(mode, design)}>
       <AntdApp>
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>

@@ -40,6 +40,8 @@ export default function SettingsPage() {
   const { message } = AntdApp.useApp()
   const mode = useThemeStore((s) => s.mode)
   const setMode = useThemeStore((s) => s.setMode)
+  const design = useThemeStore((s) => s.design)
+  const setDesign = useThemeStore((s) => s.setDesign)
   const seed = useDataStore((s) => s.seedDemo)
   const reset = useDataStore((s) => s.resetAll)
   const user = useAuthStore((s) => s.user)
@@ -358,14 +360,33 @@ export default function SettingsPage() {
         <Col xs={24} md={12}>
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
             <Card className="glass" bordered={false} title={<><BulbOutlined /> Внешний вид</>}>
+              <Text type="secondary">Стиль оформления</Text>
+              <div className="mt-2">
+                <Segmented
+                  value={design}
+                  onChange={(v) => setDesign(v as 'classic' | 'premium')}
+                  options={[
+                    { value: 'classic', label: '🌿 Классика' },
+                    { value: 'premium', label: '✨ Премиум' },
+                  ]}
+                />
+                <div style={{ marginTop: 6 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {design === 'premium'
+                      ? 'Насыщенный зелёный, градиентные кнопки, многослойные тени.'
+                      : 'Мягкая мятная палитра — спокойное оформление.'}
+                  </Text>
+                </div>
+              </div>
+              <Divider style={{ margin: '16px 0' }} />
               <Text type="secondary">Тема оформления</Text>
               <div className="mt-2">
                 <Segmented
                   value={mode}
                   onChange={(v) => setMode(v as 'light' | 'dark')}
                   options={[
-                    { value: 'light', label: 'Светлая' },
-                    { value: 'dark', label: 'Тёмная' },
+                    { value: 'light', label: '☀️ Светлая' },
+                    { value: 'dark', label: '🌙 Тёмная' },
                   ]}
                 />
               </div>
