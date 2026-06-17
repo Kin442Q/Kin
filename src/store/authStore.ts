@@ -6,6 +6,8 @@ interface AuthState {
   user: User | null
   token: string | null
   login: (user: User, token?: string) => void
+  /** Обновить только access-токен (после авто-рефреша), не трогая пользователя. */
+  setToken: (token: string) => void
   /** Обновить данные пользователя НЕ трогая токен (профиль, учреждение и т.п.). */
   updateUser: (patch: Partial<User>) => void
   logout: () => void
@@ -36,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
         resetTenantData(prev?.id || null, user.id)
         set({ user, token })
       },
+      setToken: (token) => set({ token }),
       updateUser: (patch) => {
         const u = get().user
         if (!u) return

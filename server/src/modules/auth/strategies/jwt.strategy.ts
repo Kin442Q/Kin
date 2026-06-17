@@ -32,6 +32,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       kindergartenId: payload.kindergartenId ?? null,
       groupId: payload.groupId ?? null,
       childId: payload.childId ?? null,
+      isDemo: payload.isDemo ?? false,
     }
   }
 }

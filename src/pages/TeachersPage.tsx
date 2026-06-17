@@ -607,7 +607,7 @@ export default function TeachersPage() {
             onClick={() => {
               if (!credentialsModal) return
               const text =
-                `Логин для входа в Nihol\n\n` +
+                `Логин для входа в Maktab\n\n` +
                 `👨‍🏫 ${credentialsModal.fullName}\n` +
                 `📱 Телефон: ${credentialsModal.phone}\n` +
                 `🔑 Пароль: ${credentialsModal.password}\n\n` +

@@ -74,6 +74,8 @@ export default function ChildrenPage() {
   const [parentsModal, setParentsModal] = useState<Child | null>(null)
   const [importOpen, setImportOpen] = useState(false)
   const isAdmin = user?.role === 'admin' || user?.role === 'SUPER_ADMIN'
+  // Роль с бэкенда приходит в верхнем регистре (TEACHER); поддерживаем оба.
+  const isTeacher = user?.role === 'TEACHER' || user?.role === 'teacher'
   const L = useLabels()
   const isSchool = L.group === 'класс'
 
@@ -584,18 +586,23 @@ export default function ChildrenPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Text type="secondary" style={{ fontSize: 11 }}>
-                          Плата
-                        </Text>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>
-                          {formatMoney(fee)}{' '}
+                    <div
+                      className="flex items-center"
+                      style={{ justifyContent: isTeacher ? 'flex-end' : 'space-between' }}
+                    >
+                      {!isTeacher && (
+                        <div>
                           <Text type="secondary" style={{ fontSize: 11 }}>
-                            сомони
+                            Плата
                           </Text>
+                          <div style={{ fontWeight: 600, fontSize: 14 }}>
+                            {formatMoney(fee)}{' '}
+                            <Text type="secondary" style={{ fontSize: 11 }}>
+                              сомони
+                            </Text>
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <Space size={4}>
                         {isAdmin && (
                           <Button
@@ -634,7 +641,7 @@ export default function ChildrenPage() {
           <Table
             rowKey="id"
             dataSource={visibleChildren}
-            columns={columns}
+            columns={isTeacher ? columns.filter((c) => c.key !== 'fee') : columns}
             scroll={{ x: 800 }}
             pagination={{ pageSize: 10, showSizeChanger: false }}
             size="middle"

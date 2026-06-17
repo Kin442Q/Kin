@@ -53,8 +53,8 @@ describe('LoginPage', () => {
     expect(screen.queryByText(/Запросить демо/)).not.toBeInTheDocument()
   })
 
-  it('бренд Nihol присутствует', () => {
+  it('бренд Maktab присутствует', () => {
     renderLogin()
-    expect(screen.getAllByText(/Nihol/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Maktab/).length).toBeGreaterThan(0)
   })
 })

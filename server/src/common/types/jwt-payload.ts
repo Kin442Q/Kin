@@ -11,6 +11,8 @@ export interface JwtPayload {
   groupId?: string | null
   /** Для PARENT */
   childId?: string | null
+  /** Учреждение в режиме «живое демо» — мутации запрещены. */
+  isDemo?: boolean
 }
 
 /** Содержимое refresh-token (минимум для ротации). */

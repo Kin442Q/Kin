@@ -14,6 +14,9 @@ interface ConfigWithMetadata extends AxiosRequestConfig {
 export const http = axios.create({
   baseURL,
   timeout: 15_000,
+  // Нужно, чтобы браузер хранил/слал httpOnly refresh-cookie при логине
+  // и авто-рефреше токена (CORS с credentials).
+  withCredentials: true,
 })
 
 let requestCounter = 0
@@ -46,6 +49,31 @@ http.interceptors.request.use((config) => {
   return config
 })
 
+// ─── Авто-рефреш access-токена ────────────────────────────────────────
+// Access-токен живёт ~15 мин. Когда он истекает во время работы, запрос
+// получает 401 — мы один раз обновляем токен по refresh-cookie и повторяем
+// исходный запрос. Параллельные 401 ждут один общий refresh.
+let refreshPromise: Promise<string | null> | null = null
+
+async function refreshAccessToken(): Promise<string | null> {
+  try {
+    // Сырой axios (без наших интерсепторов) — чтобы не зациклиться.
+    const resp = await axios.post(
+      `${baseURL}/v1/auth/refresh`,
+      {},
+      { withCredentials: true, timeout: 15_000 },
+    )
+    const payload = (resp.data?.data ?? resp.data) as
+      | { accessToken?: string }
+      | undefined
+    const token = payload?.accessToken ?? null
+    if (token) useAuthStore.getState().setToken(token)
+    return token
+  } catch {
+    return null
+  }
+}
+
 http.interceptors.response.use(
   (response) => {
     const meta = (response.config as ConfigWithMetadata).metadata
@@ -67,8 +95,10 @@ http.interceptors.response.use(
     }
     return response
   },
-  (error) => {
-    const config = error.config as ConfigWithMetadata
+  async (error) => {
+    const config = error.config as
+      | (ConfigWithMetadata & { _retry?: boolean })
+      | undefined
     const meta = config?.metadata
     if (meta) {
       meta.logEntry.status = error.response?.status
@@ -77,7 +107,37 @@ http.interceptors.response.use(
       requestLog.push(meta.logEntry)
     }
 
-    if (error?.response?.status === 401) {
+    const status = error?.response?.status
+    const url = config?.url || ''
+    const isAuthCall =
+      url.includes('/auth/login') || url.includes('/auth/refresh')
+
+    // 401 во время работы → пробуем обновить токен и повторить запрос один раз.
+    if (
+      status === 401 &&
+      config &&
+      !config._retry &&
+      !isAuthCall &&
+      useAuthStore.getState().token
+    ) {
+      config._retry = true
+      if (!refreshPromise) {
+        refreshPromise = refreshAccessToken().finally(() => {
+          refreshPromise = null
+        })
+      }
+      const newToken = await refreshPromise
+      if (newToken) {
+        config.headers = config.headers || {}
+        ;(config.headers as Record<string, string>).Authorization = `Bearer ${newToken}`
+        return http(config)
+      }
+      // Обновить не удалось — выходим.
+      useAuthStore.getState().logout()
+      return Promise.reject(error)
+    }
+
+    if (status === 401) {
       useAuthStore.getState().logout()
     }
     return Promise.reject(error)

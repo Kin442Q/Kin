@@ -20,6 +20,8 @@ export interface Institution {
   id: string
   name: string
   type: InstitutionType
+  /** Учреждение «живого демо» — данные только для просмотра. */
+  isDemo?: boolean
   latitude: number | null
   longitude: number | null
   checkInRadiusMeters: number

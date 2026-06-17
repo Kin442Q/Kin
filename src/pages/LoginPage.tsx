@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Form, Input, App as AntdApp, Spin } from 'antd'
+import { Form, Input, App as AntdApp, Spin, Modal } from 'antd'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { BarChart3, MessageCircle, Smartphone } from 'lucide-react'
@@ -20,6 +20,45 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState<'admin' | 'teacher' | 'parent'>('admin')
   const [form] = Form.useForm()
+
+  // «Забыли пароль?» — доступ восстанавливает администратор. Отправляем ему
+  // запрос (in-app уведомление), сам сброс пароля он делает в карточке юзера.
+  const [forgotOpen, setForgotOpen] = useState(false)
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotValue, setForgotValue] = useState('')
+
+  const openForgot = () => {
+    const cur =
+      tab === 'teacher' ? form.getFieldValue('phone') : form.getFieldValue('email')
+    setForgotValue(cur || '')
+    setForgotOpen(true)
+  }
+
+  const submitForgot = async () => {
+    const v = forgotValue.trim()
+    if (!v) {
+      message.warning('Укажите email или телефон')
+      return
+    }
+    const payload = v.includes('@')
+      ? { email: v.toLowerCase() }
+      : { phone: v }
+    try {
+      setForgotLoading(true)
+      await http.post('/v1/auth/forgot-password', payload)
+      message.success(
+        'Запрос отправлен. Администратор сбросит пароль и сообщит вам новый.',
+      )
+      setForgotOpen(false)
+    } catch (error: any) {
+      message.error(
+        error?.response?.data?.message ||
+          'Не удалось отправить запрос. Попробуйте позже.',
+      )
+    } finally {
+      setForgotLoading(false)
+    }
+  }
 
   const onFinish = async (values: LoginValues) => {
     try {
@@ -311,7 +350,7 @@ export default function LoginPage() {
             {(
               [
                 ['admin', '👤 Админ'],
-                ['teacher', '👨‍🏫 Воспитатель'],
+                ['teacher', '👨‍🏫 Учитель'],
                 ['parent', '👪 Родитель'],
               ] as const
             ).map(([k, l]) => (
@@ -400,17 +439,22 @@ export default function LoginPage() {
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>
                       Пароль
                     </span>
-                    <a
-                      href="#"
+                    <button
+                      type="button"
+                      onClick={openForgot}
                       style={{
                         fontSize: 11.5,
                         color: SP.primaryDeep,
-                        textDecoration: 'none',
                         fontWeight: 600,
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
                       }}
                     >
                       Забыли?
-                    </a>
+                    </button>
                   </div>
                 }
                 name="password"
@@ -438,6 +482,31 @@ export default function LoginPage() {
               </button>
             </Form>
           </Spin>
+
+          <Modal
+            open={forgotOpen}
+            onCancel={() => setForgotOpen(false)}
+            onOk={submitForgot}
+            okText="Отправить запрос"
+            cancelText="Отмена"
+            confirmLoading={forgotLoading}
+            title="Восстановление доступа"
+            destroyOnClose
+          >
+            <p style={{ color: SP.textMid, fontSize: 13.5, marginTop: 0 }}>
+              Доступ восстанавливает администратор. Укажите email или телефон,
+              под которым вы входите — администратор получит запрос и сбросит
+              вам пароль.
+            </p>
+            <Input
+              placeholder="email или телефон"
+              value={forgotValue}
+              onChange={(e) => setForgotValue(e.target.value)}
+              onPressEnter={submitForgot}
+              disabled={forgotLoading}
+              style={{ height: 42 }}
+            />
+          </Modal>
 
         </motion.div>
       </div>

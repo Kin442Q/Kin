@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Layout, Grid, Drawer } from 'antd'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import AppSidebar from './AppSidebar'
 import AppHeader from './AppHeader'
 import { useTenantSync } from '../../hooks/useTenantSync'
+import { useAuthStore } from '../../store/authStore'
 import { SP } from '../sprout'
 
 const { Content, Sider } = Layout
@@ -20,6 +21,14 @@ export default function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const screens = useBreakpoint()
   const isMobile = !screens.md
+
+  const navigate = useNavigate()
+  const isDemo = useAuthStore((s) => !!s.user?.institution?.isDemo)
+  const logout = useAuthStore((s) => s.logout)
+  const exitDemo = () => {
+    logout()
+    navigate('/')
+  }
 
   useTenantSync()
 
@@ -70,6 +79,45 @@ export default function AppLayout() {
       )}
 
       <Layout>
+        {isDemo && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              flexWrap: 'wrap',
+              padding: '8px 14px',
+              background: SP.yellowSoft,
+              color: SP.yellowDeep,
+              fontSize: 13,
+              fontWeight: 600,
+              borderBottom: `1px solid ${SP.border}`,
+            }}
+          >
+            <span>
+              🔒 Демо-режим — данные доступны только для просмотра, изменения
+              отключены.
+            </span>
+            <button
+              type="button"
+              onClick={exitDemo}
+              style={{
+                border: 'none',
+                background: SP.yellowDeep,
+                color: '#fff',
+                fontWeight: 700,
+                fontSize: 12,
+                padding: '5px 12px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              Выйти из демо
+            </button>
+          </div>
+        )}
         <AppHeader
           collapsed={isMobile ? false : collapsed}
           onToggle={onToggle}

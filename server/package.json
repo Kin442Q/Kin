@@ -19,6 +19,7 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
+    "seed:demo": "tsx prisma/seed-demo.ts",
     "wipe": "tsx prisma/wipe-keep-owner.ts",
     "worker": "node dist/jobs/worker.js"
   },

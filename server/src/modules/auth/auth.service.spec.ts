@@ -8,6 +8,7 @@ import { createHash } from 'node:crypto'
 import { AuthService } from './auth.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
+import { NotificationsService } from '../notifications/notifications.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 
 describe('AuthService', () => {
@@ -15,6 +16,7 @@ describe('AuthService', () => {
   let prisma: PrismaMock
   let jwt: { signAsync: jest.Mock }
   let redis: { set: jest.Mock }
+  let notifications: { send: jest.Mock }
 
   const fakeUser = {
     id: 'u1',
@@ -39,6 +41,7 @@ describe('AuthService', () => {
       signAsync: jest.fn().mockResolvedValue('signed-token'),
     }
     redis = { set: jest.fn() }
+    notifications = { send: jest.fn() }
 
     const config = {
       get: (k: string) => {
@@ -59,6 +62,7 @@ describe('AuthService', () => {
         { provide: RedisService, useValue: redis },
         { provide: JwtService, useValue: jwt },
         { provide: ConfigService, useValue: config },
+        { provide: NotificationsService, useValue: notifications },
       ],
     }).compile()
 
@@ -299,6 +303,39 @@ describe('AuthService', () => {
 
     it('не падает если ничего не передано', async () => {
       await expect(service.logout('u1')).resolves.toBeUndefined()
+    })
+  })
+
+  describe('requestPasswordReset', () => {
+    it('уведомляет администраторов учреждения, когда пользователь найден', async () => {
+      prisma.user.findUnique.mockResolvedValue(fakeUser)
+      prisma.user.findMany.mockResolvedValue([{ id: 'a1' }, { id: 'a2' }])
+
+      const res = await service.requestPasswordReset({ email: 'admin@kg.tj' })
+
+      expect(res.ok).toBe(true)
+      expect(notifications.send).toHaveBeenCalledTimes(2)
+      expect(notifications.send).toHaveBeenCalledWith(
+        'a1',
+        expect.objectContaining({ title: 'Запрос на сброс пароля' }),
+      )
+    })
+
+    it('возвращает generic-ответ и не шлёт уведомлений, если аккаунт не найден', async () => {
+      prisma.user.findUnique.mockResolvedValue(null)
+
+      const res = await service.requestPasswordReset({ email: 'no@one.tj' })
+
+      expect(res.ok).toBe(true)
+      expect(notifications.send).not.toHaveBeenCalled()
+    })
+
+    it('не ходит в БД, если не указан ни email, ни телефон', async () => {
+      const res = await service.requestPasswordReset({})
+
+      expect(res.ok).toBe(true)
+      expect(prisma.user.findUnique).not.toHaveBeenCalled()
+      expect(notifications.send).not.toHaveBeenCalled()
     })
   })
 })

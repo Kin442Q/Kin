@@ -84,9 +84,9 @@ export default function MeetingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filterGroupId])
 
-  // Учитель видит только свою группу — фиксируем её в форме
-  const teacherGroupId = isTeacher ? user?.groupId : undefined
-  const formInitialGroupId = teacherGroupId ?? undefined
+  // У учителя в сторе уже только его классы (бэкенд отдаёт основной +
+  // teachingGroups). Если класс один — подставим его в форму автоматически.
+  const onlyGroupId = groups.length === 1 ? groups[0].id : undefined
 
   const sorted = useMemo(
     () =>
@@ -100,8 +100,8 @@ export default function MeetingsPage() {
 
   const openCreate = () => {
     form.resetFields()
-    if (formInitialGroupId) {
-      form.setFieldsValue({ groupId: formInitialGroupId })
+    if (onlyGroupId) {
+      form.setFieldsValue({ groupId: onlyGroupId })
     }
     setOpen(true)
   }
@@ -149,10 +149,6 @@ export default function MeetingsPage() {
     }
   }
 
-  const groupsForFilter = isTeacher
-    ? groups.filter((g) => g.id === teacherGroupId)
-    : groups
-
   return (
     <div>
       <SproutPageHeader
@@ -169,7 +165,7 @@ export default function MeetingsPage() {
                 placeholder="Все группы"
                 value={filterGroupId}
                 onChange={setFilterGroupId}
-                options={groupsForFilter.map((g) => ({
+                options={groups.map((g) => ({
                   value: g.id,
                   label: g.name,
                 }))}
@@ -421,12 +417,10 @@ export default function MeetingsPage() {
             rules={[{ required: true, message: 'Выберите группу' }]}
           >
             <Select
-              disabled={isTeacher}
+              showSearch
+              optionFilterProp="label"
               placeholder="Выберите группу"
-              options={(isTeacher ? groupsForFilter : groups).map((g) => ({
-                value: g.id,
-                label: g.name,
-              }))}
+              options={groups.map((g) => ({ value: g.id, label: g.name }))}
             />
           </Form.Item>
           <Form.Item

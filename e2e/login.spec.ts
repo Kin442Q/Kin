@@ -38,10 +38,10 @@ test.describe('Логин', () => {
     await expect(page.getByRole('button', { name: /Родитель/ })).toBeVisible()
   })
 
-  test('бренд Nihol на странице, нет «Запросить демо»', async ({ page }) => {
+  test('бренд Maktab на странице, нет «Запросить демо»', async ({ page }) => {
     await mockBackend(page)
     await page.goto('/', { waitUntil: 'domcontentloaded' })
-    await expect(page.getByText('Nihol').first()).toBeVisible()
+    await expect(page.getByText('Maktab').first()).toBeVisible()
     await expect(page.getByText(/Запросить демо/)).toHaveCount(0)
   })
 

@@ -44,7 +44,7 @@ export default function SproutLogo({ size = 18, showSubtitle = true }: Props) {
               lineHeight: 1,
             }}
           >
-            Nihol
+            Maktab
           </div>
           <div
             style={{

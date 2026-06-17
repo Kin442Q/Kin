@@ -37,15 +37,34 @@ export class MeetingsService {
     private readonly push: PushService,
   ) {}
 
+  /** Все классы учителя: основная группа + M:N teachingGroups. */
+  private async teacherGroupIds(user: AuthUser): Promise<string[]> {
+    const me = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { groupId: true, teachingGroups: { select: { id: true } } },
+    })
+    return Array.from(
+      new Set(
+        [me?.groupId, ...(me?.teachingGroups.map((g) => g.id) ?? [])].filter(
+          (x): x is string => !!x,
+        ),
+      ),
+    )
+  }
+
   /**
-   * Список собраний. TEACHER видит только свою группу.
+   * Список собраний. TEACHER видит собрания всех своих классов.
    */
   async list(user: AuthUser, params: { groupId?: string }) {
     const where: Prisma.MeetingWhereInput = {}
 
     if (user.role === 'TEACHER') {
-      if (!user.groupId) return []
-      where.groupId = user.groupId
+      const allowed = await this.teacherGroupIds(user)
+      if (allowed.length === 0) return []
+      where.groupId =
+        params.groupId && allowed.includes(params.groupId)
+          ? params.groupId
+          : { in: allowed }
     } else if (params.groupId) {
       where.groupId = params.groupId
     }
@@ -88,8 +107,13 @@ export class MeetingsService {
       throw new ForbiddenException('Группа из другого садика')
     }
 
-    if (user.role === 'TEACHER' && group.id !== user.groupId) {
-      throw new ForbiddenException('Можно создавать только в своей группе')
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(group.id)
+    ) {
+      throw new ForbiddenException(
+        'Можно создавать собрания только для своих классов',
+      )
     }
 
     const meeting = await this.prisma.meeting.create({
@@ -140,8 +164,11 @@ export class MeetingsService {
     ) {
       throw new ForbiddenException('Собрание из другого садика')
     }
-    if (user.role === 'TEACHER' && existing.groupId !== user.groupId) {
-      throw new ForbiddenException('Можно изменять только собрания своей группы')
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(existing.groupId)
+    ) {
+      throw new ForbiddenException('Можно изменять только собрания своих классов')
     }
 
     const data: Prisma.MeetingUpdateInput = {}
@@ -179,8 +206,11 @@ export class MeetingsService {
     ) {
       throw new ForbiddenException('Собрание из другого садика')
     }
-    if (user.role === 'TEACHER' && existing.groupId !== user.groupId) {
-      throw new ForbiddenException('Можно удалять только собрания своей группы')
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(existing.groupId)
+    ) {
+      throw new ForbiddenException('Можно удалять только собрания своих классов')
     }
 
     await this.prisma.meeting.delete({ where: { id } })

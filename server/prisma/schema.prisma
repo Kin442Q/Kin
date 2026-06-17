@@ -155,6 +155,11 @@ model Kindergarten {
   phone         String?
   isActive      Boolean  @default(true)
 
+  /// Демо-учреждение: «живое демо» для лендинга. Вход через
+  /// POST /auth/demo-login; данные доступны только для просмотра
+  /// (мутации блокируются DemoReadOnlyGuard).
+  isDemo        Boolean  @default(false)
+
   /// Тип учреждения: садик или школа.
   /// Влияет на лейблы в UI (группа↔класс, ребёнок↔ученик) и доступные фичи.
   type          InstitutionType @default(KINDERGARTEN)

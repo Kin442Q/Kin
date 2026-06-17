@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eMaktab — Система управления школой и детским садом</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary:#2EBD8B; --primary-deep:#168F62; --primary-press:#0F7350;
+  --primary-soft:#D6F5E7; --primary-ghost:#EBFBF3;
+  --grad:linear-gradient(135deg,#55CFA0 0%,#1FA379 100%);
+  --grad-bright:linear-gradient(135deg,#4DE6A4 0%,#10A668 100%);
+  --grad-hero:linear-gradient(140deg,#17926B 0%,#27AA81 48%,#43BFA0 100%);
+  --blue:#2E9FE0; --blue-deep:#1A78B8; --blue-soft:#E2F1FB;
+  --amber:#F5A623; --amber-deep:#D4860B; --amber-soft:#FDF0D8;
+  --rose:#FB6F92; --rose-deep:#E14B72; --rose-soft:#FDE4EC;
+  --lilac:#8B6FE8; --lilac-deep:#6A4FD0; --lilac-soft:#ECE6FB;
+  --cyan:#1AB7C4; --cyan-soft:#DCF5F7;
+  --ink:#0D1F18; --ink-2:#42554C; --ink-3:#7E9189;
+  --line:#E6EDE9; --line-soft:#F0F4F2;
+  --surface:#FFFFFF; --surface-alt:#F4F8F6; --bg:#FFFFFF;
+  --sh-sm:0 1px 2px rgba(13,31,24,0.05);
+  --sh-md:0 2px 8px -2px rgba(13,31,24,0.07),0 14px 34px -14px rgba(13,31,24,0.12);
+  --sh-lg:0 30px 70px -26px rgba(14,143,90,0.32),0 12px 28px -14px rgba(13,31,24,0.12);
+  --r-md:14px; --r-lg:20px; --r-xl:28px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;letter-spacing:-0.011em;overflow-x:clip}
+svg{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+a{text-decoration:none;color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding:0 40px}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font-size:14px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--primary-deep);background:var(--primary-ghost);padding:8px 16px;border-radius:30px}
+.eyebrow.light{color:#7FF0C0;background:rgba(255,255,255,0.12)}
+h2.sec{font-size:46px;font-weight:800;letter-spacing:-0.03em;line-height:1.05;margin-top:20px}
+.sec-lead{font-size:19px;color:var(--ink-2);font-weight:500;line-height:1.55;margin-top:16px;max-width:620px}
+.center{text-align:center}
+.center .sec-lead{margin-left:auto;margin-right:auto}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:9px;font-weight:700;font-size:16px;padding:14px 26px;border-radius:14px;cursor:pointer;border:none;transition:transform .16s ease,box-shadow .16s ease;white-space:nowrap}
+.btn svg{width:19px;height:19px;stroke-width:2.2}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 12px 26px -8px rgba(14,143,90,0.5)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 18px 34px -8px rgba(14,143,90,0.6)}
+.btn-ghost{background:var(--surface);color:var(--ink);border:1.5px solid var(--line)}
+.btn-ghost:hover{border-color:var(--primary);color:var(--primary-deep)}
+.btn-white{background:#fff;color:var(--primary-press)}
+.btn-white:hover{transform:translateY(-2px);box-shadow:0 18px 34px -10px rgba(0,0,0,0.25)}
+.btn-glass{background:rgba(255,255,255,0.14);color:#fff;border:1.5px solid rgba(255,255,255,0.28)}
+.btn-glass:hover{background:rgba(255,255,255,0.22)}
+
+/* ===== NAV ===== */
+nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.82);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft)}
+.nav-in{display:flex;align-items:center;gap:14px;height:74px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand-mark{width:44px;height:44px;border-radius:13px;background:var(--grad);display:grid;place-items:center;box-shadow:0 8px 18px -5px rgba(14,143,90,0.5)}
+.brand-mark svg{width:24px;height:24px;stroke:#fff;stroke-width:2}
+.brand-name{font-size:22px;font-weight:800;letter-spacing:-0.04em}
+.brand-name span{color:var(--primary)}
+.nav-links{display:flex;gap:6px;margin-left:30px}
+.nav-links a{font-size:15px;font-weight:600;color:var(--ink-2);padding:9px 15px;border-radius:10px;transition:.15s}
+.nav-links a:hover{background:var(--primary-ghost);color:var(--primary-deep)}
+.nav-cta{margin-left:auto;display:flex;gap:11px;align-items:center}
+
+/* ===== HERO ===== */
+.hero{position:relative;background:var(--grad-hero);color:#fff;overflow:hidden;padding:84px 0 96px}
+.hero .glow{position:absolute;border-radius:50%;filter:blur(8px);pointer-events:none}
+.hero-grid{display:grid;grid-template-columns:1.04fr 0.96fr;gap:54px;align-items:center;position:relative}
+.hero h1{font-size:62px;font-weight:800;letter-spacing:-0.04em;line-height:1.02}
+.hero p.lead{font-size:21px;color:rgba(255,255,255,0.88);font-weight:500;line-height:1.55;margin-top:24px;max-width:560px}
+.hero-cta{display:flex;gap:14px;margin-top:38px;flex-wrap:wrap}
+.hero-meta{display:flex;gap:30px;margin-top:42px;flex-wrap:wrap}
+.hero-meta .m .v{font-size:32px;font-weight:800;letter-spacing:-0.03em}
+.hero-meta .m .l{font-size:14px;color:rgba(255,255,255,0.72);font-weight:600;margin-top:2px}
+
+/* hero mockup */
+.mock{background:#fff;border-radius:22px;box-shadow:var(--sh-lg);overflow:hidden;border:1px solid rgba(255,255,255,0.4)}
+.mock-bar{display:flex;align-items:center;gap:13px;padding:13px 16px;background:#F1F4F2;border-bottom:1px solid var(--line)}
+.mock-bar .d{display:flex;gap:7px}.mock-bar .d i{width:11px;height:11px;border-radius:50%;display:block}
+.mock-url{flex:1;background:#fff;border:1px solid var(--line);border-radius:9px;padding:6px 13px;font-size:13px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:7px}
+.mock-url svg{width:13px;height:13px;stroke:var(--primary-deep);stroke-width:2.4}
+.mbody{padding:18px;display:flex;flex-direction:column;gap:14px;background:var(--surface-alt)}
+.mhead{background:var(--grad);border-radius:14px;padding:15px 18px;color:#fff;display:flex;align-items:center;gap:12px}
+.mhead .ic{width:38px;height:38px;border-radius:11px;background:rgba(255,255,255,0.2);display:grid;place-items:center}
+.mhead .ic svg{width:19px;height:19px;stroke:#fff;stroke-width:2}
+.mkpis{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.mkpi{background:#fff;border:1px solid var(--line-soft);border-radius:13px;padding:13px}
+.mkpi .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;margin-bottom:9px}
+.mkpi .ic svg{width:16px;height:16px;stroke:#fff;stroke-width:2.2}
+.mkpi .l{font-size:11.5px;color:var(--ink-2);font-weight:600}
+.mkpi .v{font-size:18px;font-weight:800;margin-top:1px}
+.mcard{background:#fff;border:1px solid var(--line-soft);border-radius:13px;padding:15px}
+.mtrack{height:8px;border-radius:20px;background:var(--surface-alt);overflow:hidden}
+.mtrack i{display:block;height:100%;border-radius:20px}
+
+/* trust strip */
+.trust{padding:34px 0;border-bottom:1px solid var(--line-soft)}
+.trust-in{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:center}
+.trust .t{font-size:14px;color:var(--ink-3);font-weight:700;text-transform:uppercase;letter-spacing:0.08em}
+.trust .items{display:flex;gap:38px;flex-wrap:wrap}
+.trust .it{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:700;color:var(--ink-2)}
+.trust .it svg{width:20px;height:20px;stroke:var(--primary);stroke-width:2.2}
+
+/* section base */
+section.block{padding:96px 0}
+.bg-soft{background:var(--surface-alt)}
+
+/* feature cards — bright */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:54px;perspective:1200px}
+.fcard{position:relative;background:#fff;border:1px solid var(--line-soft);border-radius:var(--r-xl);padding:32px;box-shadow:var(--sh-md);overflow:hidden;transition:transform .22s ease,box-shadow .22s ease;transform-style:preserve-3d}
+.fcard.visible:hover{transform:translateY(-6px);box-shadow:var(--sh-lg)}
+.fcard .glowdot{position:absolute;right:-30px;top:-30px;width:120px;height:120px;border-radius:50%;opacity:0.08;filter:blur(8px)}
+/* scroll entrance */
+/* old fcard entrance removed */
+.fico{width:62px;height:62px;border-radius:18px;display:grid;place-items:center;color:#fff;margin-bottom:22px;position:relative}
+.fico svg{width:30px;height:30px;stroke:#fff;stroke-width:2}
+.fcard h3{font-size:23px;font-weight:800;letter-spacing:-0.02em}
+.fcard p{font-size:16px;color:var(--ink-2);line-height:1.5;margin-top:9px}
+/* muted icon gradients */
+.g-green{background:linear-gradient(135deg,#7ED4AE,#3D9E78)}
+.g-blue{background:linear-gradient(135deg,#7DC2E4,#4490BA)}
+.g-amber{background:linear-gradient(135deg,#EEC27A,#C48B3A)}
+.g-rose{background:linear-gradient(135deg,#F0A7A0,#C76060)}
+.g-lilac{background:linear-gradient(135deg,#B9A6E8,#7E65BE)}
+.g-cyan{background:linear-gradient(135deg,#6EC8D2,#3A96A0)}
+
+/* audience */
+.aud-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:54px;perspective:1200px}
+.aud{border-radius:var(--r-xl);padding:34px;color:#fff;position:relative;overflow:hidden;min-height:320px;display:flex;flex-direction:column}
+.aud .glowdot{position:absolute;right:-40px;bottom:-40px;width:180px;height:180px;border-radius:50%;background:rgba(255,255,255,0.12)}
+.aud-ico{width:60px;height:60px;border-radius:17px;background:rgba(255,255,255,0.2);display:grid;place-items:center;margin-bottom:auto}
+.aud-ico svg{width:30px;height:30px;stroke:#fff;stroke-width:2}
+.aud h3{font-size:26px;font-weight:800;margin-top:24px}
+.aud ul{list-style:none;margin-top:16px;display:flex;flex-direction:column;gap:11px}
+.aud li{display:flex;align-items:center;gap:11px;font-size:16px;font-weight:600;color:rgba(255,255,255,0.94)}
+.aud li svg{width:18px;height:18px;stroke:#fff;stroke-width:2.6;flex-shrink:0}
+.aud-1{background:linear-gradient(140deg,#2A9E74,#3AADA0)}
+.aud-2{background:linear-gradient(140deg,#3480B0,#5BAFD4)}
+.aud-3{background:linear-gradient(140deg,#7860C0,#9E89D8)}
+
+/* people cards (teachers / students) */
+.people-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;margin-top:50px;perspective:1200px}
+.pcard{background:#fff;border:1px solid var(--line-soft);border-radius:var(--r-xl);padding:26px;box-shadow:var(--sh-md);text-align:center;position:relative;transition:transform .2s ease,box-shadow .2s ease}
+.pcard:hover{transform:translateY(-5px);box-shadow:var(--sh-lg)}
+.pcard .rank{position:absolute;top:18px;left:18px;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:14px;color:#fff}
+.pcard .medal{position:absolute;top:18px;right:18px}
+.pcard .medal svg{width:24px;height:24px;stroke-width:2}
+.pav{width:88px;height:88px;border-radius:26px;margin:6px auto 16px;display:grid;place-items:center;font-size:32px;font-weight:800;color:#fff;box-shadow:var(--sh-md)}
+.pcard h4{font-size:20px;font-weight:800;letter-spacing:-0.02em}
+.pcard .role{font-size:14px;color:var(--ink-3);font-weight:600;margin-top:3px}
+.pcard .stat{display:inline-flex;align-items:center;gap:7px;margin-top:16px;background:var(--primary-ghost);color:var(--primary-deep);font-weight:800;font-size:15px;padding:8px 16px;border-radius:30px}
+.pcard .stat svg{width:16px;height:16px;stroke-width:2.4}
+.pcard .stars{display:flex;gap:3px;justify-content:center;margin-top:14px}
+.pcard .stars svg{width:17px;height:17px;fill:var(--amber);stroke:var(--amber)}
+.seg-tabs{display:inline-flex;gap:6px;background:var(--surface-alt);padding:6px;border-radius:16px;margin:0 auto}
+.seg-tab{padding:11px 24px;border-radius:11px;border:none;background:none;font-family:inherit;font-size:16px;font-weight:700;color:var(--ink-2);cursor:pointer;transition:.16s}
+.seg-tab.on{background:#fff;color:var(--primary-deep);box-shadow:var(--sh-sm)}
+
+/* diary section */
+.diary{background:linear-gradient(140deg,#11402F 0%,#1A7E55 55%,#37B391 130%);color:#fff;position:relative;overflow:hidden}
+.diary .glow{position:absolute;border-radius:50%;filter:blur(10px);pointer-events:none}
+.diary-grid{display:grid;grid-template-columns:1fr 0.92fr;gap:60px;align-items:center;position:relative}
+.diary h2{font-size:46px;font-weight:800;letter-spacing:-0.03em;line-height:1.06}
+.diary .lead{font-size:19px;color:rgba(255,255,255,0.86);line-height:1.55;margin-top:18px}
+.diary-feats{display:flex;flex-direction:column;gap:18px;margin-top:32px}
+.dfeat{display:flex;align-items:flex-start;gap:15px}
+.dfeat .ic{width:48px;height:48px;border-radius:14px;background:rgba(255,255,255,0.14);display:grid;place-items:center;flex-shrink:0}
+.dfeat .ic svg{width:23px;height:23px;stroke:#7FF0C0;stroke-width:2.2}
+.dfeat h4{font-size:18px;font-weight:800}
+.dfeat p{font-size:15px;color:rgba(255,255,255,0.78);margin-top:3px;line-height:1.45}
+
+/* login card */
+.login{background:#fff;border-radius:24px;box-shadow:var(--sh-lg);padding:36px;color:var(--ink)}
+.login .ic{width:56px;height:56px;border-radius:16px;background:var(--grad);display:grid;place-items:center;margin-bottom:18px}
+.login .ic svg{width:28px;height:28px;stroke:#fff;stroke-width:2}
+.login h3{font-size:24px;font-weight:800}
+.login .sub{font-size:15px;color:var(--ink-3);margin-top:5px}
+.login label{font-size:13px;font-weight:700;color:var(--ink-2);display:block;margin:18px 0 7px}
+.login .inp{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:13px 15px;font-family:inherit;font-size:15px;color:var(--ink);outline:none;transition:.16s;background:var(--surface-alt)}
+.login .inp:focus{border-color:var(--primary);background:#fff;box-shadow:0 0 0 4px var(--primary-ghost)}
+.login .row{display:flex;align-items:center;justify-content:space-between;margin-top:14px;font-size:13.5px;color:var(--ink-3);font-weight:600}
+.login .full{width:100%;justify-content:center;margin-top:20px}
+
+/* CTA */
+.cta{padding:90px 0}
+.cta-box{background:var(--grad-hero);border-radius:36px;padding:64px;text-align:center;color:#fff;position:relative;overflow:hidden;box-shadow:var(--sh-lg)}
+.cta-box .glow{position:absolute;border-radius:50%;filter:blur(8px)}
+.cta-box h2{font-size:48px;font-weight:800;letter-spacing:-0.03em;position:relative}
+.cta-box p{font-size:20px;color:rgba(255,255,255,0.88);margin-top:16px;position:relative;max-width:600px;margin-left:auto;margin-right:auto}
+.cta-actions{display:flex;gap:14px;justify-content:center;margin-top:34px;position:relative;flex-wrap:wrap}
+
+/* footer */
+footer{background:#0A1F16;color:#fff;padding:64px 0 36px}
+.foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr;gap:40px}
+.foot-brand .brand-name{color:#fff}
+.foot p.about{font-size:15px;color:rgba(255,255,255,0.62);line-height:1.55;margin-top:16px;max-width:300px}
+.foot h5{font-size:14px;font-weight:800;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.5);margin-bottom:18px}
+.foot a.fl{display:block;font-size:15px;color:rgba(255,255,255,0.82);font-weight:600;padding:6px 0;transition:.15s}
+.foot a.fl:hover{color:#4DE6A4}
+.foot-contact{display:flex;align-items:center;gap:11px;font-size:15px;color:rgba(255,255,255,0.82);font-weight:600;padding:6px 0}
+.foot-contact svg{width:18px;height:18px;stroke:#4DE6A4;stroke-width:2.2;flex-shrink:0}
+.foot-bot{border-top:1px solid rgba(255,255,255,0.1);margin-top:46px;padding-top:26px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px;font-size:14px;color:rgba(255,255,255,0.5);font-weight:600}
+
+
+/* ===== HORIZON HERO (scroll-driven) ===== */
+.hz{position:relative;height:330vh}
+.hz-pin{position:sticky;top:0;height:100vh;overflow:hidden;background:#F4FBF7}
+#hzc{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hz-ui{position:absolute;inset:0;pointer-events:none}
+.hz-phase{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;opacity:0;padding:0 24px;will-change:transform,opacity}
+.hz-title{font-size:clamp(72px,12.5vw,190px);font-weight:800;letter-spacing:-0.055em;line-height:0.92;color:var(--ink)}
+.hz-title em{font-style:normal;background:linear-gradient(110deg,#2EBD8B,#1AA0A8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hz-sub{font-size:clamp(17px,2.1vw,24px);font-weight:600;color:var(--ink-2);margin-top:22px;letter-spacing:-0.01em}
+.hz-cue{display:flex;flex-direction:column;align-items:center;gap:9px;margin-top:44px;color:var(--ink-3);font-size:12.5px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase}
+.hz-cue .mouse{width:25px;height:40px;border:2px solid var(--ink-3);border-radius:14px;position:relative;opacity:0.8}
+.hz-cue .mouse i{position:absolute;left:50%;top:7px;width:4px;height:8px;border-radius:3px;background:var(--ink-3);transform:translateX(-50%);animation:hzwheel 1.7s ease-in-out infinite}
+@keyframes hzwheel{50%{transform:translate(-50%,10px);opacity:0.25}}
+.hz2-kicker{font-size:clamp(13px,1.4vw,16px);font-weight:800;letter-spacing:0.16em;text-transform:uppercase;color:var(--primary-deep)}
+.hz2-line{font-size:clamp(40px,6.6vw,92px);font-weight:800;letter-spacing:-0.045em;line-height:1.0;color:var(--ink);margin-top:18px}
+.hz2-line em{font-style:normal;background:linear-gradient(110deg,#2EBD8B,#1AA0A8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hz-phase h1{font-size:clamp(40px,5.6vw,76px);font-weight:800;letter-spacing:-0.04em;line-height:1.02;color:var(--ink)}
+.hz-lead3{font-size:clamp(16px,1.8vw,21px);font-weight:500;color:var(--ink-2);line-height:1.55;margin-top:20px;max-width:640px}
+.hz-cta{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap;justify-content:center;pointer-events:auto}
+.hz-meta{display:flex;gap:38px;margin-top:40px;flex-wrap:wrap;justify-content:center}
+.hz-meta .m .v{font-size:30px;font-weight:800;letter-spacing:-0.03em;color:var(--ink)}
+.hz-meta .m .l{font-size:13.5px;color:var(--ink-3);font-weight:700;margin-top:2px}
+.hz-prog{position:absolute;right:36px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:11px}
+.hz-prog i{width:8px;height:8px;border-radius:50%;background:rgba(13,31,24,0.15);transition:.3s}
+.hz-prog i.on{background:var(--primary);height:24px;border-radius:6px}
+@media(max-width:760px){.hz{height:280vh}.hz-prog{right:16px}.hz-meta{gap:22px}}
+
+
+/* ===== UNIVERSAL CARD ENTRANCE (3D flip) ===== */
+[data-flip]{
+  opacity:0;
+  transform:rotateY(-70deg) translateX(-20px);
+  transform-origin:left center;
+  transform-style:preserve-3d;
+}
+[data-flip].visible{
+  animation:flipCardIn .65s cubic-bezier(.22,1,.36,1) both;
+}
+@keyframes flipCardIn{
+  0%{opacity:0;transform:rotateY(-70deg) translateX(-20px)}
+  60%{opacity:1;transform:rotateY(8deg)}
+  80%{transform:rotateY(-3deg)}
+  100%{opacity:1;transform:none}
+}
+/* stagger delays */
+[data-flip].visible[data-d="0"]{animation-delay:0ms}
+[data-flip].visible[data-d="1"]{animation-delay:100ms}
+[data-flip].visible[data-d="2"]{animation-delay:200ms}
+[data-flip].visible[data-d="3"]{animation-delay:80ms}
+[data-flip].visible[data-d="4"]{animation-delay:180ms}
+[data-flip].visible[data-d="5"]{animation-delay:280ms}
+[data-flip].visible[data-d="6"]{animation-delay:60ms}
+[data-flip].visible[data-d="7"]{animation-delay:140ms}
+[data-flip].visible[data-d="8"]{animation-delay:220ms}
+@media(max-width:980px){
+  .hero-grid,.diary-grid{grid-template-columns:1fr;gap:40px}
+  .feat-grid,.aud-grid{grid-template-columns:1fr 1fr}
+  .people-grid{grid-template-columns:1fr 1fr}
+  .foot-grid{grid-template-columns:1fr 1fr}
+  .nav-links{display:none}
+  .hero h1{font-size:48px}
+  h2.sec,.diary h2,.cta-box h2{font-size:36px}
+}
+@media(max-width:620px){
+  .wrap{padding:0 22px}
+  .feat-grid,.aud-grid,.people-grid,.foot-grid{grid-template-columns:1fr}
+  .hero{padding:54px 0 64px}
+  .hero h1{font-size:38px}
+  section.block{padding:64px 0}
+  .cta-box{padding:40px 24px}
+  .hero-cta .btn,.cta-actions .btn{flex:1;justify-content:center}
+  .brand-name{font-size:19px}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== NAV ===== -->
+<nav>
+  <div class="wrap nav-in">
+    <a class="brand" href="#top">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div>
+      <div class="brand-name"><span>e</span>Maktab</div>
+    </a>
+    <div class="nav-links">
+      <a href="#features">Возможности</a>
+      <a href="#audience">Кому подходит</a>
+      <a href="#people">Рейтинг</a>
+      <a href="#diary">Дневник</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#diary" class="btn btn-ghost" style="padding:11px 18px;font-size:15px"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5M15 12H3"/></svg>Войти</a>
+      <a href="#cta" class="btn btn-primary" style="padding:11px 20px;font-size:15px">Демо</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ===== HORIZON HERO ===== -->
+<header class="hz" id="top">
+  <div class="hz-pin">
+    <canvas id="hzc"></canvas>
+    <div class="hz-ui">
+      <div class="hz-phase" id="hzp1">
+        <span class="eyebrow">Школа и детский сад · одна платформа</span>
+        <div class="hz-title" style="margin-top:26px"><em>e</em>Maktab</div>
+        <div class="hz-sub">Цифровая экосистема для вашей школы</div>
+        <div class="hz-cue">Листайте<div class="mouse"><i></i></div></div>
+      </div>
+      <div class="hz-phase" id="hzp2">
+        <div class="hz2-kicker">Журнал · Расписание · Финансы · Дневник</div>
+        <div class="hz2-line">Вся школа —<br><em>в одном окне</em></div>
+      </div>
+      <div class="hz-phase" id="hzp3">
+        <h1>Цифровая экосистема<br>для вашей школы</h1>
+        <p class="hz-lead3">eMaktab объединяет электронный журнал, расписание, финансы, посещаемость и связь с родителями в одном удобном окне.</p>
+        <div class="hz-cta">
+          <a href="#cta" class="btn btn-primary"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M5 3l14 9-14 9V3z"/></svg>Запросить демо</a>
+          <a href="#diary" class="btn btn-ghost">Электронный дневник</a>
+        </div>
+        <div class="hz-meta">
+          <div class="m"><div class="v num">12+</div><div class="l">модулей системы</div></div>
+          <div class="m"><div class="v num">100%</div><div class="l">данных в облаке</div></div>
+          <div class="m"><div class="v num">24/7</div><div class="l">доступ с телефона</div></div>
+        </div>
+      </div>
+      <div class="hz-prog"><i class="on"></i><i></i><i></i></div>
+    </div>
+  </div>
+</header>
+
+<!-- ===== TRUST STRIP ===== -->
+<div class="trust">
+  <div class="wrap trust-in">
+    <div class="t">Всё в одной системе</div>
+    <div class="items">
+      <div class="it"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Журнал</div>
+      <div class="it"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Расписание</div>
+      <div class="it"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Финансы</div>
+      <div class="it"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Дневник</div>
+      <div class="it"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Безопасность</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FEATURES ===== -->
+<section class="block" id="features">
+  <div class="wrap center">
+    <span class="eyebrow">Возможности</span>
+    <h2 class="sec">Всё, что нужно школе и саду</h2>
+    <p class="sec-lead">Шесть мощных модулей, которые превращают рутину в пару кликов.</p>
+  </div>
+  <div class="wrap">
+    <div class="feat-grid">
+      <div class="fcard" data-flip data-d="0"><div class="glowdot" style="background:var(--primary)"></div><div class="fico g-green"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h5"/></svg></div><h3>Электронный журнал</h3><p>Оценки, посещаемость и домашние задания в реальном времени.</p></div>
+      <div class="fcard" data-flip data-d="1"><div class="glowdot" style="background:var(--blue)"></div><div class="fico g-blue"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg></div><h3>Авто-расписание</h3><p>Генерация расписания без накладок по классам и кабинетам.</p></div>
+      <div class="fcard" data-flip data-d="2"><div class="glowdot" style="background:var(--amber)"></div><div class="fico g-amber"><svg viewBox="0 0 24 24"><path d="M20 7H4a1 1 0 0 0-1 1v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8a1 1 0 0 0-1-1z"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2M16 13h.01"/></svg></div><h3>Финансы</h3><p>Оплата обучения, расходы и прозрачная аналитика бюджета.</p></div>
+      <div class="fcard" data-flip data-d="3"><div class="glowdot" style="background:var(--rose)"></div><div class="fico g-rose"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg></div><h3>Посещаемость</h3><p>Отметки за минуту, авто-уведомления родителям о пропусках.</p></div>
+      <div class="fcard" data-flip data-d="4"><div class="glowdot" style="background:var(--lilac)"></div><div class="fico g-lilac"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></div><h3>Безопасность</h3><p>Контроль прихода и ухода, журнал check-in, права доступа.</p></div>
+      <div class="fcard" data-flip data-d="5"><div class="glowdot" style="background:var(--cyan)"></div><div class="fico g-cyan"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 9 9 0 0 1-4-.9L3 21l1.9-4.5A8.4 8.4 0 0 1 4 11.5 8.5 8.5 0 0 1 12.5 3 8.5 8.5 0 0 1 21 11.5z"/></svg></div><h3>Чат с родителями</h3><p>Объявления и личные сообщения родителям в один клик.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== AUDIENCE ===== -->
+<section class="block bg-soft" id="audience">
+  <div class="wrap center">
+    <span class="eyebrow">Кому подходит</span>
+    <h2 class="sec">Выгода для каждого</h2>
+    <p class="sec-lead">Одна система — три точки зрения, и всем удобно.</p>
+  </div>
+  <div class="wrap">
+    <div class="aud-grid">
+      <div class="aud aud-1" data-flip data-d="0"><div class="glowdot"></div><div class="aud-ico"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 3-3 3 3 5-6"/></svg></div><h3>Директору</h3><ul><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Аналитика в реальном времени</li><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Прозрачность всех процессов</li><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Контроль бюджета и прибыли</li></ul></div>
+      <div class="aud aud-2" data-flip data-d="1"><div class="glowdot"></div><div class="aud-ico"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div><h3>Учителю</h3><ul><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Экономия времени на уроке</li><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Авто-отчёты для администрации</li><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Быстрая связь с классом</li></ul></div>
+      <div class="aud aud-3" data-flip data-d="2"><div class="glowdot"></div><div class="aud-ico"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg></div><h3>Родителю</h3><ul><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Контроль оценок ребёнка</li><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Уведомления о посещаемости</li><li><svg viewBox="0 0 24 24" stroke="currentColor"><path d="m20 6-11 11-5-5"/></svg>Онлайн-оплата обучения</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== PEOPLE: best teachers & students ===== -->
+<section class="block" id="people">
+  <div class="wrap center">
+    <span class="eyebrow">Рейтинг месяца</span>
+    <h2 class="sec">Наши лучшие</h2>
+    <p class="sec-lead" style="margin-bottom:30px">Система автоматически выделяет лидеров — по успеваемости и результатам.</p>
+    <div class="seg-tabs">
+      <button class="seg-tab on" id="tab-t" onclick="showPeople('t')">🏆 Лучшие учителя</button>
+      <button class="seg-tab" id="tab-s" onclick="showPeople('s')">⭐ Лучшие ученики</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <!-- teachers -->
+    <div class="people-grid" id="grid-t">
+      <div class="pcard" data-flip data-d="0"><div class="rank" style="background:linear-gradient(135deg,#FCC152,#D4860B)">1</div><div class="medal"><svg viewBox="0 0 24 24" stroke="#D4860B"><circle cx="12" cy="8" r="6"/><path d="M8.2 13.5 7 22l5-3 5 3-1.2-8.5"/></svg></div><div class="pav" style="background:linear-gradient(135deg,#28C880,#0E8F5A)">ГК</div><h4>Гулнора Каримова</h4><div class="role">Воспитатель · 1А</div><div class="stat"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1-6.3-4.6L5.7 21 8 14 2 9.4h7.6z" fill="currentColor"/></svg>Рейтинг 4.9</div><div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg></div></div>
+      <div class="pcard" data-flip data-d="1"><div class="rank" style="background:linear-gradient(135deg,#B8C2CC,#8795A3)">2</div><div class="pav" style="background:linear-gradient(135deg,#8B6FE8,#6A4FD0)">МЮ</div><h4>Манижа Юсупова</h4><div class="role">Учитель · 6б</div><div class="stat"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1-6.3-4.6L5.7 21 8 14 2 9.4h7.6z" fill="currentColor"/></svg>Рейтинг 4.8</div><div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg></div></div>
+      <div class="pcard" data-flip data-d="2"><div class="rank" style="background:linear-gradient(135deg,#E6A87C,#C77B47)">3</div><div class="pav" style="background:linear-gradient(135deg,#FF8FAB,#E14B72)">ФН</div><h4>Фируза Назарова</h4><div class="role">Воспитатель · 1а</div><div class="stat"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1-6.3-4.6L5.7 21 8 14 2 9.4h7.6z" fill="currentColor"/></svg>Рейтинг 4.7</div><div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg></div></div>
+      <div class="pcard" data-flip data-d="3"><div class="rank" style="background:var(--surface-alt);color:var(--ink-3)">4</div><div class="pav" style="background:linear-gradient(135deg,#41D3DE,#0E919C)">ДС</div><h4>Дилшод Сафаров</h4><div class="role">Учитель физкультуры</div><div class="stat"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1-6.3-4.6L5.7 21 8 14 2 9.4h7.6z" fill="currentColor"/></svg>Рейтинг 4.6</div><div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg></div></div>
+    </div>
+    <!-- students -->
+    <div class="people-grid" id="grid-s" style="display:none">
+      <div class="pcard" data-flip data-d="0"><div class="rank" style="background:linear-gradient(135deg,#FCC152,#D4860B)">1</div><div class="medal"><svg viewBox="0 0 24 24" stroke="#D4860B"><circle cx="12" cy="8" r="6"/><path d="M8.2 13.5 7 22l5-3 5 3-1.2-8.5"/></svg></div><div class="pav" style="background:linear-gradient(135deg,#FF8FAB,#E14B72)">МИ</div><h4>Малика Исмоилова</h4><div class="role">Класс 1А</div><div class="stat"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>Балл 5.0</div><div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg></div></div>
+      <div class="pcard" data-flip data-d="1"><div class="rank" style="background:linear-gradient(135deg,#B8C2CC,#8795A3)">2</div><div class="pav" style="background:linear-gradient(135deg,#28C880,#0E8F5A)">АШ</div><h4>Амина Шарипова</h4><div class="role">Класс 1А</div><div class="stat"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>Балл 4.9</div><div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg></div></div>
+      <div class="pcard" data-flip data-d="2"><div class="rank" style="background:linear-gradient(135deg,#E6A87C,#C77B47)">3</div><div class="pav" style="background:linear-gradient(135deg,#4FB8EE,#1A78B8)">ФР</div><h4>Фаррух Рахимов</h4><div class="role">Класс 6б</div><div class="stat"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>Балл 4.8</div><div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg></div></div>
+      <div class="pcard" data-flip data-d="3"><div class="rank" style="background:var(--surface-alt);color:var(--ink-3)">4</div><div class="pav" style="background:linear-gradient(135deg,#8B6FE8,#6A4FD0)">ЗК</div><h4>Зухра Каримова</h4><div class="role">Класс 6б</div><div class="stat"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>Балл 4.7</div><div class="stars"><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg><svg viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6 4.5 2.3 7.1L12 16.4 5.7 21 8 13.9 2 9.4h7.6z"/></svg></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ELECTRONIC DIARY ===== -->
+<section class="block diary" id="diary">
+  <div class="glow" style="width:520px;height:520px;background:rgba(79,230,164,0.2);right:-150px;top:-120px"></div>
+  <div class="glow" style="width:400px;height:400px;background:rgba(26,120,184,0.18);left:-140px;bottom:-160px"></div>
+  <div class="wrap diary-grid">
+    <div>
+      <span class="eyebrow light">Электронный дневник</span>
+      <h2 style="margin-top:18px">Школа в кармане<br>каждого ученика</h2>
+      <p class="lead">Мы выдаём ученикам персональный доступ — они входят в дневник и видят оценки, расписание и домашние задания онлайн.</p>
+      <div class="diary-feats">
+        <div class="dfeat"><div class="ic"><svg viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><h4>Персональный доступ</h4><p>Каждый ученик получает свой логин и пароль для входа.</p></div></div>
+        <div class="dfeat"><div class="ic"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><div><h4>Оценки и средний балл</h4><p>Успеваемость по предметам обновляется в реальном времени.</p></div></div>
+        <div class="dfeat"><div class="ic"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div><div><h4>Домашние задания</h4><p>Список заданий и сроков сдачи всегда под рукой.</p></div></div>
+      </div>
+    </div>
+    <!-- login card -->
+    <div class="login">
+      <div class="ic"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5M15 12H3"/></svg></div>
+      <h3>Вход в дневник</h3>
+      <div class="sub">Для учеников и родителей</div>
+      <label>Логин ученика</label>
+      <input class="inp" type="text" placeholder="amina.sh" value="amina.sh">
+      <label>Пароль</label>
+      <input class="inp" type="password" placeholder="••••••••" value="12345678">
+      <div class="row"><span style="display:flex;align-items:center;gap:7px"><span style="width:18px;height:18px;border-radius:5px;background:var(--grad);display:inline-grid;place-items:center"><svg viewBox="0 0 24 24" width="12" height="12" stroke="#fff" stroke-width="3"><path d="m20 6-11 11-5-5"/></svg></span>Запомнить меня</span><a href="#" style="color:var(--primary-deep)">Забыли пароль?</a></div>
+      <button class="btn btn-primary full" onclick="event.preventDefault();this.innerHTML='Добро пожаловать! ✓'">Войти в дневник</button>
+      <div style="text-align:center;font-size:13px;color:var(--ink-3);font-weight:600;margin-top:16px">Доступ выдаёт администратор школы</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CTA ===== -->
+<section class="cta" id="cta">
+  <div class="wrap">
+    <div class="cta-box">
+      <div class="glow" style="width:480px;height:480px;background:rgba(79,230,164,0.22);right:-120px;top:-140px"></div>
+      <div class="glow" style="width:360px;height:360px;background:rgba(46,159,224,0.2);left:-120px;bottom:-140px"></div>
+      <h2>Переведите школу в цифру</h2>
+      <p>Покажем живую систему на вашем примере и подберём решение под задачи школы или детского сада.</p>
+      <div class="cta-actions">
+        <a href="tel:909878080" class="btn btn-white"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>909-87-80-80</a>
+        <a href="https://kin442q.github.io/Kin/teacher/dashboard" class="btn btn-glass">Открыть систему<svg viewBox="0 0 24 24" stroke="currentColor"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div class="foot-brand">
+        <div class="brand"><div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg></div><div class="brand-name"><span style="color:#4DE6A4">e</span>Maktab</div></div>
+        <p class="about">Система управления школой и детским садом. Журнал, расписание, финансы и электронный дневник в одном окне.</p>
+      </div>
+      <div>
+        <h5>Продукт</h5>
+        <a class="fl" href="#features">Возможности</a>
+        <a class="fl" href="#audience">Кому подходит</a>
+        <a class="fl" href="#people">Рейтинг</a>
+        <a class="fl" href="#diary">Электронный дневник</a>
+      </div>
+      <div>
+        <h5>Доступ</h5>
+        <a class="fl" href="#diary">Вход для учеников</a>
+        <a class="fl" href="#diary">Вход для родителей</a>
+        <a class="fl" href="https://kin442q.github.io/Kin/teacher/dashboard">Кабинет учителя</a>
+        <a class="fl" href="#cta">Запросить демо</a>
+      </div>
+      <div>
+        <h5>Контакты</h5>
+        <div class="foot-contact"><svg viewBox="0 0 24 24" stroke="currentColor"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3-8.6A2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.3 1.8.6 2.6a2 2 0 0 1-.5 2.1L8 9.6a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.8.3 1.7.5 2.6.6a2 2 0 0 1 1.7 2z"/></svg>909-87-80-80</div>
+        <div class="foot-contact"><svg viewBox="0 0 24 24" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>info@row.tj</div>
+        <div class="foot-contact"><svg viewBox="0 0 24 24" stroke="currentColor"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z"/></svg>kin442q.github.io/Kin</div>
+      </div>
+    </div>
+    <div class="foot-bot"><span>© 2026 eMaktab · Все права защищены</span><span>Сделано для современных школ и детских садов 🌿</span></div>
+  </div>
+</footer>
+
+<script>
+function showPeople(k){
+  document.getElementById('grid-t').style.display = k==='t'?'grid':'none';
+  document.getElementById('grid-s').style.display = k==='s'?'grid':'none';
+  document.getElementById('tab-t').classList.toggle('on',k==='t');
+  document.getElementById('tab-s').classList.toggle('on',k==='s');
+}
+</script>
+
+<script>
+(function(){
+  var hz=document.querySelector('.hz'); if(!hz) return;
+  var cv=document.getElementById('hzc'), ctx=cv.getContext('2d');
+  var W=0,H=0,DPR=Math.min(window.devicePixelRatio||1,2);
+  function resize(){W=cv.clientWidth;H=cv.clientHeight;cv.width=W*DPR;cv.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);}
+  window.addEventListener('resize',resize);resize();
+  var L=[
+    {d:0.16,c:'#DCF3E7',a1:13,a2:24,f1:0.0015,f2:0.0007,p1:0.5,p2:2.1,base:0.575},
+    {d:0.32,c:'#C2E9D6',a1:18,a2:32,f1:0.0020,f2:0.0009,p1:1.7,p2:0.4,base:0.615},
+    {d:0.54,c:'#9EDCC0',a1:25,a2:42,f1:0.0025,f2:0.0011,p1:3.4,p2:1.2,base:0.675},
+    {d:0.78,c:'#76CBA8',a1:32,a2:52,f1:0.0030,f2:0.0013,p1:5.2,p2:2.8,base:0.755},
+    {d:1.00,c:'#54B890',a1:38,a2:60,f1:0.0035,f2:0.0016,p1:0.9,p2:4.1,base:0.845}
+  ];
+  var parts=[],i;
+  for(i=0;i<46;i++){parts.push({x:Math.random(),y:Math.random(),r:1.4+Math.random()*3,s:0.05+Math.random()*0.12,d:0.25+Math.random()*0.75,o:0.18+Math.random()*0.34,w:Math.random()*6.28});}
+  var mx=0,my=0,tmx=0,tmy=0;
+  window.addEventListener('mousemove',function(e){tmx=(e.clientX/Math.max(W,1)-0.5)*2;tmy=(e.clientY/Math.max(H,1)-0.5)*2;});
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  var ph=[document.getElementById('hzp1'),document.getElementById('hzp2'),document.getElementById('hzp3')];
+  var dots=[].slice.call(document.querySelectorAll('.hz-prog i'));
+  var segs=[[0,0.36],[0.32,0.64],[0.60,1.01]];
+  function band(p,a,b,mode){
+    // mode: 0 normal, 1 hold at end (no fade-out), 2 lead (no fade-in)
+    if(p>=b)return mode===1?1:0;
+    if(p<=a)return mode===2?1:0;
+    var x=(p-a)/(b-a),f=0.28;
+    if(mode!==2&&x<f)return x/f;
+    if(mode!==1&&x>1-f)return (1-x)/f;
+    return 1;
+  }
+  var rm=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function render(ts){
+    var t=ts*0.001;
+    var total=hz.offsetHeight-window.innerHeight;
+    var p=clamp(-hz.getBoundingClientRect().top/Math.max(total,1),0,1);
+    mx+=(tmx-mx)*0.04; my+=(tmy-my)*0.04;
+    var g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#F1FAF5');g.addColorStop(0.55,'#FBFEFC');g.addColorStop(1,'#E9F7F0');
+    ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    var sx=W*0.5-mx*20, sy=H*(0.55-p*0.05);
+    var sr=Math.max(W,H)*0.36;
+    var sg=ctx.createRadialGradient(sx,sy,0,sx,sy,sr);
+    sg.addColorStop(0,'rgba(196,242,219,0.9)');sg.addColorStop(0.4,'rgba(196,242,219,0.34)');sg.addColorStop(1,'rgba(196,242,219,0)');
+    ctx.fillStyle=sg;ctx.fillRect(0,0,W,H);
+    for(i=0;i<parts.length;i++){
+      var q=parts[i];
+      var py=(q.y - t*q.s*0.05)%1; if(py<0)py+=1;
+      var px=q.x + Math.sin(t*0.4+q.w)*0.008*q.d + mx*0.012*q.d;
+      ctx.beginPath();
+      ctx.arc((((px%1)+1)%1)*W, py*H*0.78, q.r*(0.7+q.d*0.5), 0, 6.283);
+      ctx.fillStyle='rgba(46,189,139,'+(q.o*(1-p*0.4)).toFixed(3)+')';
+      ctx.fill();
+    }
+    for(i=0;i<L.length;i++){
+      var l=L[i];
+      var fly=p*l.d;
+      var baseY=H*l.base + fly*H*0.62 + my*7*l.d;
+      var grow=1+fly*0.7;
+      var xsh=mx*26*l.d + t*4*l.d;
+      ctx.beginPath();
+      ctx.moveTo(0,H+2);
+      for(var x=0;x<=W+8;x+=8){
+        var y=baseY
+          + Math.sin((x+xsh)*l.f1*6.283 + l.p1 + t*0.06)*l.a1*grow
+          + Math.sin((x-xsh*0.6)*l.f2*6.283 + l.p2)*l.a2*grow;
+        ctx.lineTo(x,y);
+      }
+      ctx.lineTo(W+8,H+2);ctx.closePath();
+      ctx.fillStyle=l.c;ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=1.4;ctx.stroke();
+    }
+    var act=0;
+    for(i=0;i<3;i++){
+      var mode=(i===2)?1:(i===0?2:0);
+      var v=band(p,segs[i][0],segs[i][1],mode);
+      ph[i].style.opacity=v;
+      var lift=(i===2)?(1-v)*46:((p-segs[i][0])/(segs[i][1]-segs[i][0]))*-70;
+      ph[i].style.transform='translateY('+lift+'px)';
+      if(v>0.5)act=i;
+    }
+    for(i=0;i<dots.length;i++)dots[i].classList.toggle('on',i===act);
+  }
+  function loop(ts){render(ts);requestAnimationFrame(loop);}
+  window.addEventListener('scroll',function(){render(performance.now());},{passive:true});
+  render(performance.now());
+  if(!rm)requestAnimationFrame(loop);
+})();
+// universal flip entrance — scroll-based (works in all environments)
+(function(){
+  var all=document.querySelectorAll('[data-flip]');
+  if(!all.length)return;
+  function settle(card){
+    card.style.opacity='1';
+    card.style.transform='none';
+    card.style.filter='none';
+  }
+  function check(){
+    all.forEach(function(card){
+      if(card.classList.contains('visible'))return;
+      var rect=card.getBoundingClientRect();
+      if(rect.top < window.innerHeight*1.05){
+        card.classList.add('visible');
+        card.addEventListener('animationend',function(){settle(card);},{once:true});
+        var delay=parseInt(card.getAttribute('data-d')||'0')*100;
+        setTimeout(function(){settle(card);},750+delay);
+      }
+    });
+  }
+  window.addEventListener('scroll',check,{passive:true});
+  check();
+})();
+</script>
+<script>
+/* Мост к React-приложению: CTA «Демо» открывает живое демо, «Войти» —
+   страницу входа. Сообщения ловит LandingPage.tsx (родительское окно). */
+(function () {
+  function send(action) {
+    try { window.parent.postMessage({ type: 'redi', action: action }, '*') } catch (e) {}
+  }
+  document.addEventListener('click', function (e) {
+    var el = e.target && e.target.closest ? e.target.closest('a,button') : null
+    if (!el) return
+    var href = el.getAttribute('href') || ''
+    var txt = (el.textContent || '').toLowerCase()
+    if (href === '#cta' || txt.indexOf('демо') > -1) {
+      e.preventDefault(); send('demo')
+    } else if (
+      txt.indexOf('войти') > -1 ||
+      txt.indexOf('открыть систему') > -1 ||
+      href.indexOf('/teacher/dashboard') > -1
+    ) {
+      e.preventDefault(); send('login')
+    }
+  }, true)
+})()
+</script>
+</body>
+</html>

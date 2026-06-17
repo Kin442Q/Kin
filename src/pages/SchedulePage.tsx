@@ -4,15 +4,13 @@ import {
   Card,
   Col,
   Form,
-  Grid,
   Input,
   Modal,
   Popconfirm,
   Row,
   Select,
   Space,
-  Table,
-  Tag,
+  Spin,
   TimePicker,
   App as AntdApp,
 } from 'antd'
@@ -60,12 +58,19 @@ const DAYS = [
   'Воскресенье',
 ]
 
-const { useBreakpoint } = Grid
+// Цвет дня недели для карточек расписания (мягкий фон + насыщенный акцент).
+const DAY_STYLE: Record<number, { soft: string; deep: string }> = {
+  1: { soft: SP.blueSoft, deep: SP.blueDeep },
+  2: { soft: SP.lilacSoft, deep: SP.lilacDeep },
+  3: { soft: SP.primaryGhost, deep: SP.primaryDeep },
+  4: { soft: SP.yellowSoft, deep: SP.yellowDeep },
+  5: { soft: SP.roseSoft, deep: SP.roseDeep },
+  6: { soft: SP.cyanSoft, deep: SP.cyan },
+  7: { soft: SP.pinkSoft, deep: SP.pink },
+}
 
 export default function SchedulePage() {
   const { message } = AntdApp.useApp()
-  const screens = useBreakpoint()
-  const isMobile = !screens.md
   const groups = useDataStore((s) => s.groups)
   const L = useLabels()
   const isSchool = L.group === 'класс'
@@ -117,15 +122,27 @@ export default function SchedulePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [groupId])
 
-  const sorted = useMemo(
-    () =>
-      [...items].sort(
-        (a, b) =>
-          a.dayOfWeek - b.dayOfWeek ||
-          a.startTime.localeCompare(b.startTime),
-      ),
-    [items],
-  )
+  // Группируем уроки по дню недели, внутри дня — по времени начала.
+  const byDay = useMemo(() => {
+    const map: Record<number, ScheduleApi[]> = {}
+    for (const it of items) {
+      ;(map[it.dayOfWeek] ||= []).push(it)
+    }
+    for (const k of Object.keys(map)) {
+      map[+k].sort((a, b) => a.startTime.localeCompare(b.startTime))
+    }
+    return map
+  }, [items])
+
+  // Дни-карточки: Пн→Сб всегда; Вс — только если на него есть уроки.
+  const visibleDays = useMemo(() => {
+    const base = [1, 2, 3, 4, 5, 6]
+    if (byDay[7]?.length) base.push(7)
+    return base
+  }, [byDay])
+
+  // Сегодняшний день недели (1=Пн..7=Вс) — для подсветки активной карточки.
+  const todayDow = ((new Date().getDay() + 6) % 7) + 1
 
   const submit = async () => {
     try {
@@ -214,205 +231,170 @@ export default function SchedulePage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <Card className="glass" bordered={false}>
-          {isMobile ? (
-            sorted.length === 0 ? (
-              <SproutEmpty
-                icon={<Calendar size={28} strokeWidth={1.8} />}
-                title="Расписание пустое"
-                description="Добавьте первое занятие кнопкой «Добавить»"
-                minHeight={180}
-              />
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {sorted.map((r) => {
-                  const g = groups.find((gr) => gr.id === r.groupId)
-                  return (
-                    <div key={r.id} className="sp-mcard">
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 10,
-                          marginBottom: 6,
-                        }}
-                      >
-                        <Tag
-                          style={{
-                            background: SP.lilacSoft,
-                            color: SP.lilacDeep,
-                            border: 'none',
-                            margin: 0,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {DAYS[r.dayOfWeek]}
-                        </Tag>
-                        <Tag
-                          style={{
-                            background: SP.blueSoft,
-                            color: SP.blueDeep,
-                            border: 'none',
-                            margin: 0,
-                          }}
-                        >
-                          {r.startTime} – {r.endTime}
-                        </Tag>
-                        <div style={{ marginLeft: 'auto' }}>
-                          <Popconfirm
-                            title="Удалить занятие?"
-                            okText="Удалить"
-                            cancelText="Отмена"
-                            okButtonProps={{ danger: true }}
-                            onConfirm={() => remove(r.id)}
-                          >
-                            <Button
-                              danger
-                              size="small"
-                              type="text"
-                              icon={<DeleteOutlined />}
-                            />
-                          </Popconfirm>
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 15,
-                          fontWeight: 600,
-                          color: r.subject?.color ?? SP.text,
-                          marginBottom: 4,
-                        }}
-                      >
-                        {r.subject?.name ?? r.activity}
-                      </div>
-                      <div style={{ fontSize: 12, color: SP.muted }}>
-                        {g && (
-                          <>
-                            {isSchool ? 'Класс' : 'Группа'}:{' '}
-                            <strong>{g.name}</strong>
-                          </>
-                        )}
-                        {isSchool && r.room && (
-                          <>
-                            {' · '}
-                            каб. <strong>{r.room}</strong>
-                          </>
-                        )}
-                        {isSchool && r.teacherId && (() => {
-                          const t = teachers.find((x) => x.id === r.teacherId)
-                          return t ? (
-                            <>
-                              {' · '}
-                              {t.lastName} {t.firstName[0]}.
-                            </>
-                          ) : null
-                        })()}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          ) : (
-          <Table
-            rowKey="id"
-            loading={loading}
-            dataSource={sorted}
-            pagination={false}
-            locale={{
-              emptyText: (
-                <SproutEmpty
-                  icon={<Calendar size={28} strokeWidth={1.8} />}
-                  title="Расписание пустое"
-                  description="Добавьте первое занятие"
-                  minHeight={180}
-                />
-              ),
-            }}
-            columns={[
-              {
-                title: 'День',
-                dataIndex: 'dayOfWeek',
-                render: (v: number) => <Tag color="purple">{DAYS[v]}</Tag>,
-                sorter: (a, b) => a.dayOfWeek - b.dayOfWeek,
-                defaultSortOrder: 'ascend',
-              },
-              {
-                title: 'Время',
-                key: 'time',
-                render: (_, r: ScheduleApi) => (
-                  <Tag color="geekblue">
-                    {r.startTime} – {r.endTime}
-                  </Tag>
-                ),
-              },
-              {
-                title: isSchool ? 'Предмет' : 'Активность',
-                key: 'activity',
-                render: (_, r: ScheduleApi) =>
-                  r.subject ? (
-                    <Tag
-                      style={{
-                        background: r.subject.color,
-                        color: '#fff',
-                        border: 'none',
-                        fontWeight: 700,
-                      }}
+        {groups.length === 0 ? (
+          <Card className="glass" bordered={false}>
+            <SproutEmpty
+              icon={<Calendar size={28} strokeWidth={1.8} />}
+              title={isSchool ? 'Классов пока нет' : 'Групп пока нет'}
+              description={
+                isSchool
+                  ? 'Сначала создайте класс в разделе «Классы»'
+                  : 'Сначала создайте группу'
+              }
+              minHeight={180}
+            />
+          </Card>
+        ) : (
+          <Spin spinning={loading}>
+            <Row gutter={[16, 16]} align="stretch">
+              {visibleDays.map((d) => {
+                const dayItems = byDay[d] ?? []
+                const st = DAY_STYLE[d]
+                const isToday = d === todayDow
+                return (
+                  <Col xs={24} sm={12} lg={8} key={d}>
+                    <div
+                      className={`sp-day-card${isToday ? ' sp-day-card--today' : ''}`}
+                      style={{ ['--day-accent' as any]: st.deep }}
                     >
-                      {r.subject.name}
-                    </Tag>
-                  ) : (
-                    <span>{r.activity}</span>
-                  ),
-              },
-              {
-                title: isSchool ? 'Класс' : 'Группа',
-                dataIndex: 'groupId',
-                render: (v: string) =>
-                  groups.find((g) => g.id === v)?.name || '—',
-              },
-              ...(isSchool
-                ? [
-                    {
-                      title: 'Учитель',
-                      key: 'teacher',
-                      render: (_: unknown, r: ScheduleApi) => {
-                        if (!r.teacherId) return '—'
-                        const t = teachers.find((x) => x.id === r.teacherId)
-                        return t ? `${t.lastName} ${t.firstName[0]}.` : '—'
-                      },
-                    },
-                    {
-                      title: 'Каб.',
-                      dataIndex: 'room',
-                      render: (v: string | null) => v || '—',
-                    },
-                  ]
-                : []),
-              {
-                title: '',
-                key: 'a',
-                render: (_: unknown, r: ScheduleApi) => (
-                  <Popconfirm
-                    title={isSchool ? 'Удалить урок?' : 'Удалить занятие?'}
-                    okText="Удалить"
-                    cancelText="Отмена"
-                    okButtonProps={{ danger: true }}
-                    onConfirm={() => remove(r.id)}
-                  >
-                    <Button
-                      danger
-                      size="small"
-                      type="text"
-                      icon={<DeleteOutlined />}
-                    />
-                  </Popconfirm>
-                ),
-              },
-            ]}
-          />
-          )}
-        </Card>
+                      {/* Шапка дня */}
+                      <div className="sp-day-head" style={{ background: st.soft }}>
+                        <span
+                          style={{
+                            width: 9,
+                            height: 9,
+                            borderRadius: 3,
+                            background: st.deep,
+                          }}
+                        />
+                        <span
+                          style={{ fontWeight: 800, fontSize: 14, color: st.deep }}
+                        >
+                          {DAYS[d]}
+                        </span>
+                        {isToday && (
+                          <span
+                            className="sp-today-badge"
+                            style={{ background: st.deep }}
+                          >
+                            Сегодня
+                          </span>
+                        )}
+                        <span className="sp-day-count" style={{ color: st.deep }}>
+                          {dayItems.length}
+                        </span>
+                      </div>
+
+                      {/* Уроки дня */}
+                      {dayItems.length === 0 ? (
+                        <div className="sp-day-empty">
+                          {isSchool ? 'Уроков нет' : 'Занятий нет'}
+                        </div>
+                      ) : (
+                        <div>
+                          {dayItems.map((r, idx) => {
+                            const t = r.teacherId
+                              ? teachers.find((x) => x.id === r.teacherId)
+                              : null
+                            const g = groups.find((gr) => gr.id === r.groupId)
+                            const meta = [
+                              isSchool && t
+                                ? `${t.lastName} ${t.firstName[0]}.`
+                                : null,
+                              isSchool && r.room ? `каб. ${r.room}` : null,
+                              !groupId && g ? g.name : null,
+                            ].filter(Boolean)
+                            return (
+                              <div
+                                key={r.id}
+                                className="sp-lesson"
+                                style={{
+                                  borderBottom:
+                                    idx < dayItems.length - 1
+                                      ? `1px solid ${SP.borderSoft}`
+                                      : 'none',
+                                }}
+                              >
+                                <div
+                                  className="sp-lesson-time"
+                                  style={{ background: st.soft, color: st.deep }}
+                                >
+                                  <span>{r.startTime}</span>
+                                  <span>{r.endTime}</span>
+                                </div>
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 6,
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: 4,
+                                        background: r.subject?.color ?? SP.muted,
+                                        flexShrink: 0,
+                                      }}
+                                    />
+                                    <span
+                                      style={{
+                                        fontWeight: 600,
+                                        fontSize: 14,
+                                        color: SP.text,
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      {r.subject?.name ?? r.activity}
+                                    </span>
+                                  </div>
+                                  {meta.length > 0 && (
+                                    <div
+                                      style={{
+                                        fontSize: 12,
+                                        color: SP.muted,
+                                        marginTop: 2,
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      {meta.join(' · ')}
+                                    </div>
+                                  )}
+                                </div>
+                                <Popconfirm
+                                  title={
+                                    isSchool ? 'Удалить урок?' : 'Удалить занятие?'
+                                  }
+                                  okText="Удалить"
+                                  cancelText="Отмена"
+                                  okButtonProps={{ danger: true }}
+                                  onConfirm={() => remove(r.id)}
+                                >
+                                  <Button
+                                    danger
+                                    size="small"
+                                    type="text"
+                                    icon={<DeleteOutlined />}
+                                  />
+                                </Popconfirm>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </Col>
+                )
+              })}
+            </Row>
+          </Spin>
+        )}
       </motion.div>
 
       <Modal

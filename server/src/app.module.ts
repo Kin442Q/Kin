@@ -39,6 +39,7 @@ import { TermsModule } from './modules/terms/terms.module'
 import { ChatModule } from './modules/chat/chat.module'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
+import { DemoReadOnlyGuard } from './common/guards/demo-readonly.guard'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
 
 @Module({
@@ -102,6 +103,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Демо read-only: после JWT блокирует мутации для демо-пользователей.
+    { provide: APP_GUARD, useClass: DemoReadOnlyGuard },
     // Глобальный rate-limiting.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     // Глобальный логгер запросов.

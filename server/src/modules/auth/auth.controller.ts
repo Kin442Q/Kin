@@ -15,6 +15,7 @@ import { AuthGuard } from '@nestjs/passport'
 import { AuthService } from './auth.service'
 import { LoginDto } from './dto/login.dto'
 import { RegisterDto } from './dto/register.dto'
+import { ForgotPasswordDto } from './dto/forgot-password.dto'
 import { Public } from '../../common/decorators/public.decorator'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
@@ -46,6 +47,32 @@ export class AuthController {
       user: result.user,
       accessToken: result.accessToken,
     }
+  }
+
+  // ---------------- Demo login (живое демо) --------------------
+  @Public()
+  @Post('demo-login')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Войти в живое демо (учреждение isDemo, read-only)' })
+  async demoLogin(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.demoLogin({
+      userAgent: req.headers['user-agent'],
+      ip: req.ip,
+    })
+    this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
+    return { user: result.user, accessToken: result.accessToken }
+  }
+
+  // ---------------- Forgot password (запрос админу) ------------
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Запросить сброс пароля — уведомление администратору' })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.requestPasswordReset(dto)
   }
 
   // ---------------- Refresh ------------------------------------
@@ -88,7 +115,7 @@ export class AuthController {
     }
 
     await this.auth.logout(user.sub, jti, accessJti)
-    res.clearCookie('refreshToken')
+    res.clearCookie('refreshToken', { path: '/api/v1/auth' })
   }
 
   // ---------------- Current user -------------------------------
@@ -112,10 +139,15 @@ export class AuthController {
 
   // ============================================================
   private setRefreshCookie(res: Response, token: string, expiresAt: Date) {
+    const isProd = process.env.NODE_ENV === 'production'
     res.cookie('refreshToken', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      // В проде фронт и бэкенд на разных доменах (GitHub Pages ↔ Railway),
+      // поэтому cookie должна быть SameSite=None; Secure — иначе браузер
+      // не отправит её на cross-site запрос /auth/refresh. В деве (один хост)
+      // — Lax, без Secure (http).
+      secure: isProd,
+      sameSite: isProd ? 'none' : 'lax',
       path: '/api/v1/auth',
       expires: expiresAt,
     })

@@ -49,15 +49,41 @@ class UpdateScheduleDto {
 class ScheduleService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Все классы учителя: основная группа + M:N teachingGroups. */
+  private async teacherGroupIds(user: AuthUser): Promise<string[]> {
+    const me = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: { groupId: true, teachingGroups: { select: { id: true } } },
+    })
+    return Array.from(
+      new Set(
+        [me?.groupId, ...(me?.teachingGroups.map((g) => g.id) ?? [])].filter(
+          (x): x is string => !!x,
+        ),
+      ),
+    )
+  }
+
   async list(user: AuthUser, groupId?: string) {
-    const gid = user.role === 'TEACHER' ? user.groupId! : groupId
+    const where: Record<string, unknown> = {
+      ...(user.kindergartenId
+        ? { group: { kindergartenId: user.kindergartenId } }
+        : {}),
+    }
+
+    if (user.role === 'TEACHER') {
+      // Учитель видит расписание ВСЕХ своих классов (основной + назначенные),
+      // а не только основной группы. Если запрошен конкретный свой класс — он.
+      const allowed = await this.teacherGroupIds(user)
+      if (allowed.length === 0) return []
+      where.groupId =
+        groupId && allowed.includes(groupId) ? groupId : { in: allowed }
+    } else if (groupId) {
+      where.groupId = groupId
+    }
+
     return this.prisma.scheduleItem.findMany({
-      where: {
-        ...(gid ? { groupId: gid } : {}),
-        ...(user.kindergartenId
-          ? { group: { kindergartenId: user.kindergartenId } }
-          : {}),
-      },
+      where,
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
       include: {
         subject: { select: { id: true, name: true, color: true } },
@@ -76,6 +102,14 @@ class ScheduleService {
     ) {
       throw new ForbiddenException('Группа из другого садика')
     }
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(dto.groupId)
+    ) {
+      throw new ForbiddenException(
+        'Можно добавлять расписание только своим классам',
+      )
+    }
     return this.prisma.scheduleItem.create({ data: dto })
   }
 
@@ -91,6 +125,12 @@ class ScheduleService {
     ) {
       throw new ForbiddenException('Запись из другого садика')
     }
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(existing.groupId)
+    ) {
+      throw new ForbiddenException('Можно менять расписание только своих классов')
+    }
     return this.prisma.scheduleItem.update({ where: { id }, data: dto })
   }
 
@@ -105,6 +145,14 @@ class ScheduleService {
       existing.group.kindergartenId !== user.kindergartenId
     ) {
       throw new ForbiddenException('Запись из другого садика')
+    }
+    if (
+      user.role === 'TEACHER' &&
+      !(await this.teacherGroupIds(user)).includes(existing.groupId)
+    ) {
+      throw new ForbiddenException(
+        'Можно удалять расписание только своих классов',
+      )
     }
     return this.prisma.scheduleItem.delete({ where: { id } })
   }
@@ -124,13 +172,13 @@ class ScheduleController {
   }
 
   @Post()
-  @Roles('SUPER_ADMIN', 'ADMIN')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateScheduleDto) {
     return this.service.create(user, dto)
   }
 
   @Patch(':id')
-  @Roles('SUPER_ADMIN', 'ADMIN')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')
   update(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -141,7 +189,7 @@ class ScheduleController {
 
   @Delete(':id')
   @HttpCode(204)
-  @Roles('SUPER_ADMIN', 'ADMIN')
+  @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.remove(user, id)
   }

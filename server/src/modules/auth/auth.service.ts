@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
@@ -15,6 +16,8 @@ import { RedisService } from '../../infrastructure/redis/redis.service'
 import type { JwtPayload, RefreshJwtPayload } from '../../common/types/jwt-payload'
 import { LoginDto } from './dto/login.dto'
 import { RegisterDto } from './dto/register.dto'
+import { ForgotPasswordDto } from './dto/forgot-password.dto'
+import { NotificationsService } from '../notifications/notifications.service'
 
 export interface TokenPair {
   accessToken: string
@@ -29,6 +32,7 @@ export class AuthService {
     private readonly redis: RedisService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   // -------------------------------------------------------------------
@@ -68,6 +72,34 @@ export class AuthService {
   }
 
   // -------------------------------------------------------------------
+  // Demo login — публичный вход в «живое демо» (read-only)
+  // -------------------------------------------------------------------
+  async demoLogin(meta: { userAgent?: string; ip?: string }) {
+    const kg = await this.prisma.kindergarten.findFirst({
+      where: { isDemo: true, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    })
+    if (!kg) {
+      throw new NotFoundException('Демо-учреждение не настроено')
+    }
+    // Предпочитаем демо-админа, иначе учителя, иначе любого активного.
+    const user =
+      (await this.prisma.user.findFirst({
+        where: { kindergartenId: kg.id, isActive: true, role: 'ADMIN' },
+      })) ??
+      (await this.prisma.user.findFirst({
+        where: { kindergartenId: kg.id, isActive: true, role: 'TEACHER' },
+      })) ??
+      (await this.prisma.user.findFirst({
+        where: { kindergartenId: kg.id, isActive: true },
+      }))
+    if (!user) {
+      throw new NotFoundException('В демо-учреждении нет пользователя')
+    }
+    return this.issueTokens(user, meta)
+  }
+
+  // -------------------------------------------------------------------
   // Register (только SUPER_ADMIN дёргает)
   // -------------------------------------------------------------------
   async register(actor: { role: Role }, dto: RegisterDto) {
@@ -88,6 +120,65 @@ export class AuthService {
       },
     })
     return this.serialize(u)
+  }
+
+  // -------------------------------------------------------------------
+  // Forgot password — восстановление доступа через администратора.
+  // Email/SMS-инфраструктуры нет, доступ выдаёт админ, поэтому здесь мы
+  // лишь шлём ему уведомление; сам сброс пароля делается в карточке
+  // пользователя. Ответ всегда одинаковый — не раскрываем, есть ли аккаунт.
+  // -------------------------------------------------------------------
+  async requestPasswordReset(dto: ForgotPasswordDto) {
+    const generic = {
+      ok: true,
+      message:
+        'Если аккаунт найден, администратор получит запрос и сбросит пароль.',
+    }
+    try {
+      const email = dto.email?.toLowerCase().trim()
+      const phone = dto.phone?.trim()
+      if (!email && !phone) return generic
+
+      const user = email
+        ? await this.prisma.user.findUnique({ where: { email } })
+        : await this.prisma.user.findFirst({ where: { phone } })
+      if (!user || !user.isActive) return generic
+
+      // Кому слать: админам того же учреждения (+ супер-админам); если у
+      // пользователя нет учреждения — всем супер-админам.
+      const where = user.kindergartenId
+        ? {
+            isActive: true,
+            id: { not: user.id },
+            OR: [
+              {
+                kindergartenId: user.kindergartenId,
+                role: { in: ['ADMIN', 'SUPER_ADMIN'] as Role[] },
+              },
+              { role: 'SUPER_ADMIN' as Role, kindergartenId: null },
+            ],
+          }
+        : { isActive: true, id: { not: user.id }, role: 'SUPER_ADMIN' as Role }
+
+      const admins = await this.prisma.user.findMany({
+        where,
+        select: { id: true },
+      })
+
+      const contact = user.email ?? user.phone ?? '—'
+      await Promise.all(
+        admins.map((a) =>
+          this.notifications.send(a.id, {
+            title: 'Запрос на сброс пароля',
+            description: `${user.fullName} (${contact}) запросил восстановление доступа. Сбросьте пароль в карточке пользователя.`,
+            channel: 'IN_APP',
+          }),
+        ),
+      )
+    } catch {
+      // Восстановление доступа не должно падать наружу — отдаём generic.
+    }
+    return generic
   }
 
   // -------------------------------------------------------------------
@@ -146,6 +237,17 @@ export class AuthService {
     const accessJti = randomUUID()
     const refreshJti = randomUUID()
 
+    // Флаг демо-учреждения кладём в токен — чтобы read-only guard не ходил
+    // в БД на каждый запрос.
+    let isDemo = false
+    if (user.kindergartenId) {
+      const kg = await this.prisma.kindergarten.findUnique({
+        where: { id: user.kindergartenId },
+        select: { isDemo: true },
+      })
+      isDemo = kg?.isDemo ?? false
+    }
+
     const accessPayload: JwtPayload & { jti: string } = {
       sub: user.id,
       email: user.email,
@@ -153,6 +255,7 @@ export class AuthService {
       kindergartenId: user.kindergartenId ?? null,
       groupId: user.groupId ?? null,
       childId: user.childId ?? null,
+      isDemo,
       jti: accessJti,
     }
     const refreshPayload: RefreshJwtPayload = { sub: user.id, jti: refreshJti }
@@ -209,6 +312,7 @@ export class AuthService {
             id: true,
             name: true,
             type: true,
+            isDemo: true,
             latitude: true,
             longitude: true,
             checkInRadiusMeters: true,

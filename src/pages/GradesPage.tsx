@@ -16,14 +16,10 @@ import {
   Select,
   Space,
   Tag,
-  Tooltip,
   Typography,
 } from 'antd'
-import {
-  PlusOutlined,
-  SearchOutlined,
-} from '@ant-design/icons'
-import { GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react'
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { GraduationCap } from 'lucide-react'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
@@ -71,8 +67,15 @@ const TYPE_LABELS: Record<GradeType, string> = {
   OTHER: 'Другое',
 }
 
+// Русские названия месяцев и коротких дней недели — без зависимости от
+// глобальной локали dayjs (она по умолчанию английская).
+const MONTHS_RU = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+]
+const WD_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'] // index = dayjs().day()
+
 // Отметки отсутствия в ячейке журнала (буква + цвет + подпись).
-// Статусы приходят из API посещаемости в верхнем регистре.
 const ABSENT_MARK: Record<string, { ch: string; color: string; label: string }> = {
   ABSENT: { ch: 'н', color: '#D2615B', label: 'Отсутствовал' },
   SICK: { ch: 'б', color: '#E5B43A', label: 'Болел' },
@@ -95,22 +98,20 @@ export default function GradesPage() {
   const [subjects, setSubjects] = useState<SubjectDto[]>([])
   const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null)
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null)
-  const [month, setMonth] = useState(dayjs().format('YYYY-MM'))
   const [grades, setGrades] = useState<GradeDto[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
 
-  // Учебные периоды (четверти) — нужны для расчёта среднего балла «за четверть».
+  // Учебные периоды (четверти) + выбранная четверть.
   const [terms, setTerms] = useState<TermDto[]>([])
+  const [activeTermId, setActiveTermId] = useState<string | null>(null)
 
-  // Расписание выбранного класса: из него берём дни недели, когда идёт
-  // выбранный предмет, чтобы в журнале показать ВСЕ уроки месяца (даже пустые).
+  // Расписание выбранного класса: дни недели уроков предмета (для колонок).
   const [scheduleItems, setScheduleItems] = useState<
     { dayOfWeek: number; subjectId?: string | null }[]
   >([])
 
-  // Посещаемость по урокам месяца: studentId → дата → статус (PRESENT/ABSENT/…).
-  // Если ученик отсутствовал — в этот день нельзя поставить оценку.
+  // Посещаемость по урокам: studentId → дата → статус.
   const [attendanceMap, setAttendanceMap] = useState<
     Record<string, Record<string, string>>
   >({})
@@ -122,13 +123,11 @@ export default function GradesPage() {
   const [editing, setEditing] = useState<{
     studentId: string
     studentName: string
-    /** Предзаполненная дата при клике по ячейке журнала */
     date?: string
   } | null>(null)
   const [form] = Form.useForm()
   const [saving, setSaving] = useState(false)
 
-  // Контейнер журнала — для авто-прокрутки к последним (свежим) урокам.
   const journalRef = useRef<HTMLDivElement>(null)
 
   // Загружаем предметы и четверти (предмет НЕ выбираем автоматически).
@@ -142,6 +141,20 @@ export default function GradesPage() {
     termsApi.list().then(setTerms).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Когда четверти загрузились — выбираем текущую (в которую попадает сегодня),
+  // иначе последнюю.
+  useEffect(() => {
+    if (terms.length === 0) return
+    if (activeTermId && terms.some((t) => t.id === activeTermId)) return
+    const today = dayjs()
+    const current = terms.find(
+      (t) =>
+        !today.isBefore(dayjs(t.startDate), 'day') &&
+        !today.isAfter(dayjs(t.endDate), 'day'),
+    )
+    setActiveTermId((current ?? terms[terms.length - 1]).id)
+  }, [terms, activeTermId])
 
   // Расписание выбранного класса (для колонок-уроков по предмету).
   useEffect(() => {
@@ -157,21 +170,31 @@ export default function GradesPage() {
       .catch(() => setScheduleItems([]))
   }, [activeGroupId])
 
-  // Границы выбранного месяца.
-  const monthStart = useMemo(() => dayjs(month + '-01'), [month])
-  const monthEnd = useMemo(() => monthStart.endOf('month'), [monthStart])
+  const activeTerm = useMemo(
+    () => terms.find((t) => t.id === activeTermId) ?? null,
+    [terms, activeTermId],
+  )
 
-  // Активная четверть = та, в диапазон которой попадает выбранный месяц.
-  // Средний балл считается за всю эту четверть.
-  const activeTerm = useMemo(() => {
-    return (
-      terms.find(
-        (t) =>
-          !monthStart.isBefore(dayjs(t.startDate), 'day') &&
-          !monthStart.isAfter(dayjs(t.endDate), 'day'),
-      ) ?? null
-    )
-  }, [terms, monthStart])
+  // Диапазон журнала: вся выбранная четверть; если четвертей нет — текущий месяц.
+  const fallbackMonth = useMemo(() => dayjs().format('YYYY-MM'), [])
+  const range = useMemo(() => {
+    if (activeTerm) {
+      return {
+        start: dayjs(activeTerm.startDate),
+        end: dayjs(activeTerm.endDate),
+      }
+    }
+    const s = dayjs(fallbackMonth + '-01')
+    return { start: s, end: s.endOf('month') }
+  }, [activeTerm, fallbackMonth])
+
+  const gradeRange = useMemo(
+    () => ({
+      from: range.start.format('YYYY-MM-DD'),
+      to: range.end.format('YYYY-MM-DD'),
+    }),
+    [range],
+  )
 
   // Дни недели (1..7), когда идёт выбранный предмет — по расписанию класса.
   const subjectWeekdays = useMemo(() => {
@@ -182,21 +205,7 @@ export default function GradesPage() {
     return set
   }, [scheduleItems, activeSubjectId])
 
-  // Диапазон загрузки оценок: вся четверть (для среднего балла), иначе месяц.
-  const gradeRange = useMemo(() => {
-    if (activeTerm) {
-      return {
-        from: dayjs(activeTerm.startDate).format('YYYY-MM-DD'),
-        to: dayjs(activeTerm.endDate).format('YYYY-MM-DD'),
-      }
-    }
-    return {
-      from: monthStart.format('YYYY-MM-DD'),
-      to: monthEnd.format('YYYY-MM-DD'),
-    }
-  }, [activeTerm, monthStart, monthEnd])
-
-  // Загружаем оценки за четверть/месяц
+  // Загружаем оценки за четверть
   const loadGrades = async () => {
     if (!activeSubjectId) return
     setLoading(true)
@@ -241,7 +250,7 @@ export default function GradesPage() {
     return map
   }, [grades])
 
-  // Среднее по ученику для активного предмета
+  // Средний балл ученика за четверть.
   const avgByStudent = useMemo(() => {
     const map: Record<string, number> = {}
     for (const [sid, list] of Object.entries(gradesByStudent)) {
@@ -251,40 +260,51 @@ export default function GradesPage() {
     return map
   }, [gradesByStudent])
 
-  // Колонки журнала = ВСЕ уроки выбранного месяца по предмету:
-  //  • даты по расписанию (дни недели предмета) в пределах месяца;
-  //  • плюс даты, где уже есть оценки (этого месяца);
-  //  • плюс вручную добавленные уроки (кнопка «+ урок»).
-  const inMonth = (d: dayjs.Dayjs) =>
-    !d.isBefore(monthStart, 'day') && !d.isAfter(monthEnd, 'day')
+  // Колонки журнала = ВСЕ уроки выбранной четверти по предмету:
+  //  • даты по расписанию (дни недели предмета) в пределах четверти;
+  //  • плюс даты, где уже есть оценки;
+  //  • плюс вручную добавленные уроки.
+  const inRange = (d: dayjs.Dayjs) =>
+    !d.isBefore(range.start, 'day') && !d.isAfter(range.end, 'day')
 
   const dateColumns = useMemo(() => {
     const set = new Set<string>()
-    // По расписанию — перебираем все дни месяца.
     if (subjectWeekdays.size) {
-      let d = monthStart
-      while (!d.isAfter(monthEnd, 'day')) {
-        const dow = d.day() === 0 ? 7 : d.day() // dayjs: 0=вс → 7
+      let d = range.start
+      while (!d.isAfter(range.end, 'day')) {
+        const dow = d.day() === 0 ? 7 : d.day()
         if (subjectWeekdays.has(dow)) set.add(d.format('YYYY-MM-DD'))
         d = d.add(1, 'day')
       }
     }
-    // Даты уже выставленных оценок в этом месяце.
     for (const g of grades) {
       const gd = dayjs(g.date)
-      if (inMonth(gd)) set.add(gd.format('YYYY-MM-DD'))
+      if (inRange(gd)) set.add(gd.format('YYYY-MM-DD'))
     }
-    // Вручную добавленные уроки этого месяца.
     for (const d of extraDates) {
       const dd = dayjs(d)
-      if (inMonth(dd)) set.add(d)
+      if (inRange(dd)) set.add(d)
     }
     return Array.from(set).sort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subjectWeekdays, grades, extraDates, monthStart, monthEnd])
+  }, [subjectWeekdays, grades, extraDates, range])
 
-  // Оценки в разрезе «ученик → дата → список оценок» (в ячейке может быть
-  // несколько оценок за один день).
+  // Группировка колонок-дат по месяцам — для верхней строки шапки.
+  const monthGroups = useMemo(() => {
+    const out: { key: string; label: string; dates: string[] }[] = []
+    for (const d of dateColumns) {
+      const key = d.slice(0, 7)
+      let g = out[out.length - 1]
+      if (!g || g.key !== key) {
+        g = { key, label: MONTHS_RU[dayjs(d).month()], dates: [] }
+        out.push(g)
+      }
+      g.dates.push(d)
+    }
+    return out
+  }, [dateColumns])
+
+  // Оценки «ученик → дата → список оценок».
   const gradesByStudentDate = useMemo(() => {
     const map: Record<string, Record<string, GradeDto[]>> = {}
     for (const g of grades) {
@@ -294,8 +314,7 @@ export default function GradesPage() {
     return map
   }, [grades])
 
-  // Посещаемость по датам-урокам выбранного месяца (для блокировки оценки
-  // отсутствующим). Грузим параллельно по каждой дате выбранного класса.
+  // Посещаемость по датам-урокам (для блокировки оценки отсутствующим).
   const colsKey = dateColumns.join('|')
   useEffect(() => {
     if (!activeGroupId || dateColumns.length === 0) {
@@ -328,25 +347,22 @@ export default function GradesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroupId, colsKey])
 
-  // Статус отсутствия ученика в дату (любой статус кроме PRESENT) — иначе null.
   const absentStatusOf = (studentId: string, date: string): string | null => {
     const s = attendanceMap[studentId]?.[date]
     return s && s !== 'PRESENT' ? s : null
   }
 
-  // Добавить пустую колонку-урок на выбранную дату.
   const addLessonDate = (d: string) => {
     setExtraDates((prev) => (prev.includes(d) ? prev : [...prev, d]))
   }
 
-  // Авто-прокрутка журнала к последним урокам (вправо), когда появились
-  // колонки — чтобы сразу были видны самые свежие оценки.
+  // Авто-прокрутка журнала к последним урокам (вправо).
   useLayoutEffect(() => {
     const el = journalRef.current
     if (el && dateColumns.length > 0) {
       el.scrollLeft = el.scrollWidth
     }
-  }, [dateColumns.length, activeSubjectId, activeGroupId])
+  }, [dateColumns.length, activeSubjectId, activeGroupId, activeTermId])
 
   const openAdd = (studentId: string, studentName: string, date?: string) => {
     setEditing({ studentId, studentName, date })
@@ -393,6 +409,7 @@ export default function GradesPage() {
   }
 
   const activeSubject = subjects.find((s) => s.id === activeSubjectId)
+  const ready = !!activeGroupId && !!activeSubjectId
 
   return (
     <div>
@@ -400,43 +417,7 @@ export default function GradesPage() {
         title="Журнал оценок"
         icon={<GraduationCap size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description="Все уроки месяца по предмету · средний балл за четверть"
-        actions={
-          <Space wrap>
-            {activeTerm && (
-              <Tooltip title="Средний балл считается за эту четверть">
-                <Tag
-                  color="green"
-                  style={{ borderRadius: 8, fontWeight: 700, margin: 0 }}
-                >
-                  {activeTerm.name}
-                </Tag>
-              </Tooltip>
-            )}
-            <Button
-              icon={<ChevronLeft size={16} />}
-              onClick={() =>
-                setMonth(monthStart.subtract(1, 'month').format('YYYY-MM'))
-              }
-              title="Предыдущий месяц"
-            />
-            <DatePicker
-              picker="month"
-              value={monthStart}
-              onChange={(d) => d && setMonth(d.format('YYYY-MM'))}
-              allowClear={false}
-              format="MMMM YYYY"
-              style={{ minWidth: 150 }}
-            />
-            <Button
-              icon={<ChevronRight size={16} />}
-              onClick={() =>
-                setMonth(monthStart.add(1, 'month').format('YYYY-MM'))
-              }
-              title="Следующий месяц"
-            />
-          </Space>
-        }
+        description="Все уроки четверти по предмету · средний балл и оценка за четверть"
       />
 
       {subjects.length === 0 ? (
@@ -450,7 +431,7 @@ export default function GradesPage() {
         </SproutCard>
       ) : (
         <>
-          {/* Фильтры */}
+          {/* Фильтры: класс · предмет · четверть · поиск */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -458,7 +439,7 @@ export default function GradesPage() {
           >
             <Card className="glass" bordered={false} style={{ marginBottom: 12 }}>
               <Row gutter={[12, 12]} align="middle">
-                <Col xs={24} md={8}>
+                <Col xs={24} sm={12} lg={6}>
                   <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
                     КЛАСС <span style={{ color: SP.danger }}>*</span>
                   </div>
@@ -473,7 +454,7 @@ export default function GradesPage() {
                     status={!activeGroupId ? 'warning' : undefined}
                   />
                 </Col>
-                <Col xs={24} md={8}>
+                <Col xs={24} sm={12} lg={6}>
                   <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
                     ПРЕДМЕТ <span style={{ color: SP.danger }}>*</span>
                   </div>
@@ -485,10 +466,7 @@ export default function GradesPage() {
                     value={activeSubjectId ?? undefined}
                     onChange={(v) => setActiveSubjectId(String(v))}
                     status={!activeSubjectId ? 'warning' : undefined}
-                    options={subjects.map((s) => ({
-                      value: s.id,
-                      label: s.name,
-                    }))}
+                    options={subjects.map((s) => ({ value: s.id, label: s.name }))}
                     optionRender={(opt) => {
                       const s = subjects.find((x) => x.id === opt.value)
                       return (
@@ -508,7 +486,20 @@ export default function GradesPage() {
                     }}
                   />
                 </Col>
-                <Col xs={24} md={8}>
+                <Col xs={24} sm={12} lg={6}>
+                  <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
+                    ЧЕТВЕРТЬ
+                  </div>
+                  <Select
+                    style={{ width: '100%' }}
+                    placeholder={terms.length ? 'Выберите четверть' : 'Четвертей нет'}
+                    value={activeTermId ?? undefined}
+                    onChange={(v) => setActiveTermId(v ?? null)}
+                    disabled={terms.length === 0}
+                    options={terms.map((t) => ({ value: t.id, label: t.name }))}
+                  />
+                </Col>
+                <Col xs={24} sm={12} lg={6}>
                   <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
                     ПОИСК
                   </div>
@@ -518,21 +509,21 @@ export default function GradesPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     allowClear
-                    disabled={!activeGroupId || !activeSubjectId}
+                    disabled={!ready}
                   />
                 </Col>
               </Row>
             </Card>
           </motion.div>
 
-          {/* Классический журнал: ученики в строках, даты уроков в колонках */}
+          {/* Журнал */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.05 }}
           >
             <Card className="glass" bordered={false} styles={{ body: { padding: 12 } }}>
-              {!activeGroupId || !activeSubjectId ? (
+              {!ready ? (
                 <SproutEmpty
                   icon={<GraduationCap size={32} strokeWidth={1.8} />}
                   title="Выберите класс и предмет"
@@ -547,225 +538,272 @@ export default function GradesPage() {
                 />
               ) : (
                 <>
-              {/* Тулбар журнала: предмет + добавление колонки-урока */}
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  gap: 8,
-                  marginBottom: 10,
-                  flexWrap: 'wrap',
-                }}
-              >
-                <Space size={8} wrap>
-                  {activeSubject && (
-                    <Tag
-                      style={{
-                        background: activeSubject.color + '22',
-                        color: activeSubject.color,
-                        border: 'none',
-                        fontWeight: 700,
-                        borderRadius: 8,
-                      }}
-                    >
-                      {activeSubject.name}
-                    </Tag>
-                  )}
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    {visibleChildren.length} уч. · {dateColumns.length} уроков
-                  </Text>
-                </Space>
-                <DatePicker
-                  size="small"
-                  placeholder="+ урок (дата)"
-                  format="DD.MM.YYYY"
-                  value={null}
-                  suffixIcon={<PlusOutlined />}
-                  onChange={(d: dayjs.Dayjs | null) =>
-                    d && addLessonDate(d.format('YYYY-MM-DD'))
-                  }
-                />
-              </div>
-
-              {visibleChildren.length === 0 ? (
-                <Empty
-                  description="Учеников не найдено"
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                />
-              ) : (
-                <div className="gj-wrap" ref={journalRef}>
-                  <table className="gj">
-                    <thead>
-                      <tr>
-                        <th className="gj-name gj-th">Ученик</th>
-                        {dateColumns.map((d) => (
-                          <th key={d} className="gj-date gj-th" title={dayjs(d).format('dddd, D MMMM YYYY')}>
-                            <span className="gj-date-d">{dayjs(d).format('DD')}</span>
-                            <span className="gj-date-m">{dayjs(d).format('MMM')}</span>
-                            <span className="gj-date-w">{dayjs(d).format('dd')}</span>
-                          </th>
-                        ))}
-                        {dateColumns.length === 0 && (
-                          <th className="gj-th" style={{ minWidth: 220, fontWeight: 500 }}>
-                            Уроков нет — добавьте дату справа сверху или кликните «+»
-                          </th>
-                        )}
-                        <th
-                          className="gj-avg gj-th"
-                          title="Средний балл за четверть"
+                  {/* Тулбар: предмет · четверть · счётчики · «+ урок» */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: 8,
+                      marginBottom: 10,
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <Space size={8} wrap>
+                      {activeSubject && (
+                        <Tag
+                          style={{
+                            background: activeSubject.color + '22',
+                            color: activeSubject.color,
+                            border: 'none',
+                            fontWeight: 700,
+                            borderRadius: 8,
+                          }}
                         >
-                          Сред.
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {visibleChildren.map((c, i) => {
-                        const fullName = `${c.firstName} ${c.lastName}`.trim()
-                        const avg = avgByStudent[c.id] ?? 0
-                        const byDate = gradesByStudentDate[c.id] ?? {}
-                        const cols =
-                          dateColumns.length > 0 ? dateColumns : ['__none__']
-                        return (
-                          <tr key={c.id}>
-                            <td className="gj-name">
-                              <div
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: 9,
-                                }}
-                              >
-                                <span className="gj-idx">{i + 1}</span>
-                                <Avatar
-                                  size={28}
-                                  style={{
-                                    background: SP.primaryGhost,
-                                    color: SP.primaryDeep,
-                                    fontWeight: 700,
-                                    fontSize: 12,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {c.firstName[0]}
-                                  {c.lastName[0]}
-                                </Avatar>
-                                <div style={{ minWidth: 0 }}>
-                                  <div
-                                    style={{
-                                      fontWeight: 600,
-                                      color: SP.text,
-                                      fontSize: 13,
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                    }}
-                                  >
-                                    {fullName}
-                                  </div>
-                                  <div style={{ fontSize: 11, color: SP.muted }}>
-                                    {groups.find((g) => g.id === c.groupId)?.name ?? '—'}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
+                          {activeSubject.name}
+                        </Tag>
+                      )}
+                      {activeTerm && (
+                        <Tag color="green" style={{ borderRadius: 8, fontWeight: 700, margin: 0 }}>
+                          {activeTerm.name}
+                        </Tag>
+                      )}
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {visibleChildren.length} уч. · {dateColumns.length} уроков
+                      </Text>
+                    </Space>
+                    <DatePicker
+                      size="small"
+                      placeholder="+ урок (дата)"
+                      format="DD.MM.YYYY"
+                      value={null}
+                      suffixIcon={<PlusOutlined />}
+                      onChange={(d: dayjs.Dayjs | null) =>
+                        d && addLessonDate(d.format('YYYY-MM-DD'))
+                      }
+                    />
+                  </div>
 
-                            {cols.map((d) => {
-                              if (d === '__none__') {
-                                return (
-                                  <td
-                                    key={d}
-                                    className="gj-cell"
-                                    onClick={() => openAdd(c.id, fullName)}
-                                  >
-                                    <span className="gj-add">+</span>
-                                  </td>
-                                )
-                              }
-                              const cell = byDate[d] ?? []
-                              // Отметка отсутствия — только если оценки ещё нет.
-                              const absent =
-                                cell.length === 0 ? absentStatusOf(c.id, d) : null
-                              const mark = absent
-                                ? ABSENT_MARK[absent] ?? ABSENT_MARK.ABSENT
-                                : null
-                              return (
-                                <td
-                                  key={d}
-                                  className="gj-cell"
-                                  style={mark ? { cursor: 'not-allowed' } : undefined}
-                                  onClick={() => {
-                                    if (mark) return // отсутствовал — оценку нельзя
-                                    openAdd(c.id, fullName, d)
-                                  }}
+                  {visibleChildren.length === 0 ? (
+                    <Empty
+                      description="Учеников не найдено"
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    />
+                  ) : (
+                    <div className="gj-wrap" ref={journalRef}>
+                      <table className="gj">
+                        <thead>
+                          <tr>
+                            <th rowSpan={2} className="gj-th gj-sticky gj-col-idx">
+                              №
+                            </th>
+                            <th rowSpan={2} className="gj-th gj-sticky gj-col-name">
+                              Ученик
+                            </th>
+                            <th
+                              rowSpan={2}
+                              className="gj-th gj-sticky gj-col-avg"
+                              title="Средний балл за четверть"
+                            >
+                              Сред.
+                            </th>
+                            <th
+                              rowSpan={2}
+                              className="gj-th gj-sticky gj-col-term"
+                              title="Оценка за четверть (округлённый средний балл)"
+                            >
+                              Чет.
+                            </th>
+                            {monthGroups.length > 0 ? (
+                              monthGroups.map((mg) => (
+                                <th
+                                  key={mg.key}
+                                  className="gj-th gj-month"
+                                  colSpan={mg.dates.length}
                                 >
-                                  {cell.length > 0 ? (
-                                    <div className="gj-cell-grades">
-                                      {cell.map((g) => (
-                                        <span
-                                          key={g.id}
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <Popconfirm
-                                            title={`Удалить оценку ${g.value}?`}
-                                            description={
-                                              <div style={{ fontSize: 12 }}>
-                                                <div>
-                                                  {TYPE_LABELS[g.type]} ·{' '}
-                                                  {dayjs(g.date).format('D MMM')}
-                                                </div>
-                                                {g.comment && <div>«{g.comment}»</div>}
-                                              </div>
-                                            }
-                                            okText="Удалить"
-                                            cancelText="Отмена"
-                                            okButtonProps={{ danger: true }}
-                                            onConfirm={() => removeGrade(g)}
-                                          >
-                                            <span
-                                              className="gj-grade"
-                                              style={{ background: gradeColor(g.value) }}
-                                              title={`${TYPE_LABELS[g.type]} · ${dayjs(g.date).format('D MMM')}${g.comment ? ' · ' + g.comment : ''}`}
-                                            >
-                                              {g.value}
-                                            </span>
-                                          </Popconfirm>
-                                        </span>
-                                      ))}
-                                    </div>
-                                  ) : mark ? (
-                                    <span
-                                      className="gj-absent"
-                                      style={{ color: mark.color }}
-                                      title={`${mark.label} — оценку поставить нельзя`}
-                                    >
-                                      {mark.ch}
-                                    </span>
-                                  ) : (
-                                    <span className="gj-add">+</span>
-                                  )}
-                                </td>
+                                  {mg.label}
+                                </th>
+                              ))
+                            ) : (
+                              <th
+                                rowSpan={2}
+                                className="gj-th"
+                                style={{ minWidth: 240, fontWeight: 500, textTransform: 'none' }}
+                              >
+                                Уроков нет — добавьте дату справа сверху или кликните «+»
+                              </th>
+                            )}
+                          </tr>
+                          <tr>
+                            {dateColumns.map((d) => {
+                              const dj = dayjs(d)
+                              return (
+                                <th
+                                  key={d}
+                                  className="gj-th gj-th--day gj-date"
+                                  title={`${dj.date()} ${MONTHS_RU[dj.month()].toLowerCase()} ${dj.year()}`}
+                                >
+                                  <span className="gj-date-d">{dj.format('DD')}</span>
+                                  <span className="gj-date-w">{WD_SHORT[dj.day()]}</span>
+                                </th>
                               )
                             })}
-
-                            <td
-                              className="gj-avg"
-                              style={{ color: avg > 0 ? gradeColor(avg) : SP.muted }}
-                            >
-                              {avg > 0 ? avg.toFixed(1) : '—'}
-                            </td>
                           </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {loading && (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Загружаю...
-                </Text>
-              )}
+                        </thead>
+                        <tbody>
+                          {visibleChildren.map((c, i) => {
+                            const fullName = `${c.firstName} ${c.lastName}`.trim()
+                            const avg = avgByStudent[c.id] ?? 0
+                            const termGrade = avg > 0 ? Math.round(avg) : null
+                            const byDate = gradesByStudentDate[c.id] ?? {}
+                            const cols =
+                              dateColumns.length > 0 ? dateColumns : ['__none__']
+                            return (
+                              <tr key={c.id}>
+                                <td className="gj-sticky gj-col-idx">{i + 1}</td>
+                                <td className="gj-sticky gj-col-name">
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 9,
+                                    }}
+                                  >
+                                    <Avatar
+                                      size={28}
+                                      style={{
+                                        background: SP.primaryGhost,
+                                        color: SP.primaryDeep,
+                                        fontWeight: 700,
+                                        fontSize: 12,
+                                        flexShrink: 0,
+                                      }}
+                                    >
+                                      {c.firstName[0]}
+                                      {c.lastName[0]}
+                                    </Avatar>
+                                    <div style={{ minWidth: 0 }}>
+                                      <div
+                                        style={{
+                                          fontWeight: 600,
+                                          color: SP.text,
+                                          fontSize: 13,
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                        }}
+                                      >
+                                        {fullName}
+                                      </div>
+                                      <div style={{ fontSize: 11, color: SP.muted }}>
+                                        {groups.find((g) => g.id === c.groupId)?.name ?? '—'}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td
+                                  className="gj-sticky gj-col-avg"
+                                  style={{ color: avg > 0 ? gradeColor(avg) : SP.muted }}
+                                >
+                                  {avg > 0 ? avg.toFixed(1) : '—'}
+                                </td>
+                                <td
+                                  className="gj-sticky gj-col-term"
+                                  style={{
+                                    color: termGrade ? gradeColor(termGrade) : SP.muted,
+                                  }}
+                                >
+                                  {termGrade ?? '—'}
+                                </td>
+
+                                {cols.map((d) => {
+                                  if (d === '__none__') {
+                                    return (
+                                      <td
+                                        key={d}
+                                        className="gj-cell"
+                                        onClick={() => openAdd(c.id, fullName)}
+                                      >
+                                        <span className="gj-add">+</span>
+                                      </td>
+                                    )
+                                  }
+                                  const cell = byDate[d] ?? []
+                                  const absent =
+                                    cell.length === 0 ? absentStatusOf(c.id, d) : null
+                                  const mark = absent
+                                    ? ABSENT_MARK[absent] ?? ABSENT_MARK.ABSENT
+                                    : null
+                                  return (
+                                    <td
+                                      key={d}
+                                      className="gj-cell"
+                                      style={mark ? { cursor: 'not-allowed' } : undefined}
+                                      onClick={() => {
+                                        if (mark) return
+                                        openAdd(c.id, fullName, d)
+                                      }}
+                                    >
+                                      {cell.length > 0 ? (
+                                        <div className="gj-cell-grades">
+                                          {cell.map((g) => (
+                                            <span
+                                              key={g.id}
+                                              onClick={(e) => e.stopPropagation()}
+                                            >
+                                              <Popconfirm
+                                                title={`Удалить оценку ${g.value}?`}
+                                                description={
+                                                  <div style={{ fontSize: 12 }}>
+                                                    <div>
+                                                      {TYPE_LABELS[g.type]} ·{' '}
+                                                      {dayjs(g.date).format('D MMM')}
+                                                    </div>
+                                                    {g.comment && <div>«{g.comment}»</div>}
+                                                  </div>
+                                                }
+                                                okText="Удалить"
+                                                cancelText="Отмена"
+                                                okButtonProps={{ danger: true }}
+                                                onConfirm={() => removeGrade(g)}
+                                              >
+                                                <span
+                                                  className="gj-grade"
+                                                  style={{ background: gradeColor(g.value) }}
+                                                  title={`${TYPE_LABELS[g.type]} · ${dayjs(g.date).format('D MMM')}${g.comment ? ' · ' + g.comment : ''}`}
+                                                >
+                                                  {g.value}
+                                                </span>
+                                              </Popconfirm>
+                                            </span>
+                                          ))}
+                                        </div>
+                                      ) : mark ? (
+                                        <span
+                                          className="gj-absent"
+                                          style={{ color: mark.color }}
+                                          title={`${mark.label} — оценку поставить нельзя`}
+                                        >
+                                          {mark.ch}
+                                        </span>
+                                      ) : (
+                                        <span className="gj-add">+</span>
+                                      )}
+                                    </td>
+                                  )
+                                })}
+                              </tr>
+                            )
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {loading && (
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                      Загружаю...
+                    </Text>
+                  )}
                 </>
               )}
             </Card>
@@ -806,11 +844,7 @@ export default function GradesPage() {
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item
-                name="type"
-                label="Тип"
-                rules={[{ required: true }]}
-              >
+              <Form.Item name="type" label="Тип" rules={[{ required: true }]}>
                 <Select
                   options={Object.entries(TYPE_LABELS).map(([v, l]) => ({
                     value: v,

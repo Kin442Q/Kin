@@ -3,6 +3,7 @@ import { AnimatePresence } from "framer-motion";
 
 import AppLayout from "./components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
+import LandingPage from "./pages/LandingPage";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireRole from "./components/auth/RequireRole";
 import { useAuthStore } from "./store/authStore";
@@ -56,17 +57,18 @@ export default function App() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<LoginPage />} />
-
         <Route
           path="/"
+          element={user ? <Navigate to={homePath} replace /> : <LandingPage />}
+        />
+
+        <Route
           element={
             <RequireAuth>
               <AppLayout />
             </RequireAuth>
           }
         >
-          <Route index element={<Navigate to={homePath} replace />} />
-
           <Route path="teacher">
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route

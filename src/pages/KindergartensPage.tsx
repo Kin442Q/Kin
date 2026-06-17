@@ -516,7 +516,7 @@ export default function KindergartensPage() {
             onClick={() => {
               if (!credentialsModal) return
               const text =
-                `Nihol — Доступ к учреждению "${credentialsModal.kindergartenName}"\n\n` +
+                `Maktab — Доступ к учреждению "${credentialsModal.kindergartenName}"\n\n` +
                 `👤 ${credentialsModal.ownerName}\n` +
                 `📧 Email: ${credentialsModal.email}\n` +
                 `🔑 Пароль: ${credentialsModal.password}\n\n` +
