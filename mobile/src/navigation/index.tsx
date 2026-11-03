@@ -17,6 +17,7 @@ import {
   BarChart3,
   BookOpen,
   GraduationCap,
+  Library,
   type LucideIcon,
 } from 'lucide-react-native'
 
@@ -44,6 +45,18 @@ import TeacherHomeworkScreen from '../screens/TeacherHomeworkScreen'
 import ParentGradesScreen from '../screens/ParentGradesScreen'
 import ParentChatScreen from '../screens/ParentChatScreen'
 import TeacherChatScreen from '../screens/TeacherChatScreen'
+import TeacherHomeroomScreen from '../screens/TeacherHomeroomScreen'
+import TeacherHomeworkRosterScreen from '../screens/TeacherHomeworkRosterScreen'
+import StudentHomeScreen from '../screens/StudentHomeScreen'
+import StudentHomeworkScreen from '../screens/StudentHomeworkScreen'
+import StudentGradesScreen from '../screens/StudentGradesScreen'
+import StudentLearnScreen from '../screens/StudentLearnScreen'
+import StudentLibraryScreen from '../screens/StudentLibraryScreen'
+import StudentQuizzesScreen from '../screens/StudentQuizzesScreen'
+import StudentQuizPlayScreen from '../screens/StudentQuizPlayScreen'
+import StudentExamScreen from '../screens/StudentExamScreen'
+import StudentGamesScreen from '../screens/StudentGamesScreen'
+import StudentGameScreen from '../screens/StudentGameScreen'
 
 const navTheme = {
   ...DefaultTheme,
@@ -75,10 +88,30 @@ interface TabConfig {
   component: React.ComponentType
   /** Раздел платформы: вкладка скрыта, если он выключен для учреждения */
   feature?: FeatureKey
+  /** Вкладка видна, если включён хотя бы один из разделов */
+  anyFeature?: FeatureKey[]
 }
 
-function buildTabs(role: 'admin' | 'teacher' | 'parent'): TabConfig[] {
+type TabRole = 'admin' | 'teacher' | 'parent' | 'student'
+
+function buildTabs(role: TabRole): TabConfig[] {
   const L = labels()
+  if (role === 'student') {
+    // Ученик: Главная / ДЗ / Оценки / Учёба / Я (5)
+    return [
+      { name: 'StudentHome', label: 'Главная', icon: Home, component: StudentHomeScreen },
+      { name: 'StudentHomework', label: 'ДЗ', icon: BookOpen, component: StudentHomeworkScreen, feature: 'homework' },
+      { name: 'StudentGrades', label: 'Оценки', icon: GraduationCap, component: StudentGradesScreen, feature: 'grades' },
+      {
+        name: 'StudentLearn',
+        label: 'Учёба',
+        icon: Library,
+        component: StudentLearnScreen,
+        anyFeature: ['library', 'quiz', 'exam_prep', 'games'],
+      },
+      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+    ]
+  }
   if (role === 'admin') {
     return [
       // «Сводка» целиком про деньги (доходы/расходы) — это раздел «Аналитика».
@@ -111,16 +144,20 @@ function buildTabs(role: 'admin' | 'teacher' | 'parent'): TabConfig[] {
 function MainTabs() {
   const user = useAuthStore((s) => s.user)
   const r = String(user?.role ?? '').toUpperCase()
-  const role: 'admin' | 'teacher' | 'parent' =
+  const role: TabRole =
     r === 'SUPER_ADMIN' || r === 'ADMIN'
       ? 'admin'
       : r === 'TEACHER'
         ? 'teacher'
-        : 'parent'
+        : r === 'STUDENT'
+          ? 'student'
+          : 'parent'
 
   // Вкладки выключенных для учреждения разделов не показываем.
   const tabs = buildTabs(role).filter(
-    (t) => !t.feature || hasFeature(user, t.feature),
+    (t) =>
+      (!t.feature || hasFeature(user, t.feature)) &&
+      (!t.anyFeature || t.anyFeature.some((f) => hasFeature(user, f))),
   )
 
   return (
@@ -199,6 +236,14 @@ function MainNavigator() {
         component={TeacherChatScreen}
         options={{ presentation: 'card' }}
       />
+      <RootStack.Screen name="TeacherHomeroom" component={TeacherHomeroomScreen} />
+      <RootStack.Screen name="TeacherHomeworkRoster" component={TeacherHomeworkRosterScreen} />
+      <RootStack.Screen name="StudentLibrary" component={StudentLibraryScreen} />
+      <RootStack.Screen name="StudentQuizzes" component={StudentQuizzesScreen} />
+      <RootStack.Screen name="StudentQuizPlay" component={StudentQuizPlayScreen} />
+      <RootStack.Screen name="StudentExam" component={StudentExamScreen} />
+      <RootStack.Screen name="StudentGames" component={StudentGamesScreen} />
+      <RootStack.Screen name="StudentGame" component={StudentGameScreen} />
     </RootStack.Navigator>
   )
 }

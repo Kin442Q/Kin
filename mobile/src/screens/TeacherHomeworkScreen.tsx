@@ -11,7 +11,7 @@ import {
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
-import { ChevronLeft, Plus, Trash2, BookOpen } from 'lucide-react-native'
+import { ChevronLeft, ClipboardList, Plus, Trash2, BookOpen } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
@@ -23,7 +23,7 @@ import { useAuthStore } from '../store/authStore'
 import { schoolApi, type HomeworkDto, type SubjectDto } from '../api/school'
 
 export default function TeacherHomeworkScreen() {
-  const navigation = useNavigation()
+  const navigation = useNavigation<any>()
   const user = useAuthStore((s) => s.user)
   const groupId = user?.groupId
 
@@ -208,6 +208,17 @@ export default function TeacherHomeworkScreen() {
                     <Trash2 size={16} color={colors.muted} />
                   </Pressable>
                 </View>
+                <Btn
+                  size="sm"
+                  variant="secondary"
+                  icon={<ClipboardList size={14} color={colors.primaryDeep} />}
+                  onPress={() =>
+                    navigation.navigate('TeacherHomeworkRoster', { homeworkId: item.id })
+                  }
+                  style={{ marginTop: 10, alignSelf: 'flex-start' }}
+                >
+                  Кто сделал
+                </Btn>
               </Card>
             </View>
           )

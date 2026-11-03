@@ -20,6 +20,7 @@ import {
   CalendarHeart,
   ChevronRight,
   MessageCircle,
+  Users,
 } from 'lucide-react-native'
 import Constants from 'expo-constants'
 import Screen from '../components/Screen'
@@ -103,7 +104,9 @@ export default function ProfileScreen() {
         ? 'Администратор'
         : r === 'TEACHER'
           ? cap(L.teacher)
-          : cap(L.parent)
+          : r === 'STUDENT'
+            ? cap(L.student)
+            : cap(L.parent)
 
   return (
     <Screen>
@@ -147,6 +150,23 @@ export default function ProfileScreen() {
             </View>
           </>
         )}
+
+        {isTeacher &&
+          hasFeature(user, 'homeroom') &&
+          (user?.homeroomGroups?.length ?? 0) > 0 && (
+            <>
+              <Text style={styles.section}>Классное руководство</Text>
+              <View style={styles.list}>
+                <ListRow
+                  icon={<Users size={18} color={colors.primaryDeep} />}
+                  bg={colors.primarySoft}
+                  title={`Мой класс · ${user!.homeroomGroups!.map((g) => g.name).join(', ')}`}
+                  onPress={() => navigation.navigate('TeacherHomeroom')}
+                  last
+                />
+              </View>
+            </>
+          )}
 
         {(isParent || isTeacher) && (
           <>
