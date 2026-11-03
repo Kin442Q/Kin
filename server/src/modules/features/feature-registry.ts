@@ -29,6 +29,10 @@ export type FeatureKey =
   | 'homework'
   | 'diary'
   | 'portal'
+  | 'library'
+  | 'quiz'
+  | 'exam_prep'
+  | 'games'
   // Финансы
   | 'payments'
   | 'expenses'
@@ -136,6 +140,31 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
   portal: {
     label: 'Кабинет ученика',
     description: 'Свой вход для учеников: домашние задания, оценки, расписание',
+    group: 'studying',
+    defaultEnabled: true,
+  },
+
+  library: {
+    label: 'Библиотека',
+    description: 'Книги, статьи, видео и ссылки для учеников: учителя добавляют, ученики читают',
+    group: 'studying',
+    defaultEnabled: true,
+  },
+  quiz: {
+    label: 'Квизы',
+    description: 'Тесты с автоматической проверкой: учителя создают, ученики проходят',
+    group: 'studying',
+    defaultEnabled: true,
+  },
+  exam_prep: {
+    label: 'Подготовка к экзаменам',
+    description: 'Направления подготовки (название задаёт школа) и квизы по ним с прогрессом ученика',
+    group: 'studying',
+    defaultEnabled: true,
+  },
+  games: {
+    label: 'Игры для развития мозга',
+    description: 'Память, устный счёт, внимание: мини-игры и рейтинг класса',
     group: 'studying',
     defaultEnabled: true,
   },

@@ -192,6 +192,9 @@ model Kindergarten {
   subjects      Subject[]
   terms         Term[]
   features      KindergartenFeature[]
+  libraryItems  LibraryItem[]
+  examTracks    ExamTrack[]
+  quizzes       Quiz[]
 
   @@index([isActive])
 }
@@ -315,6 +318,10 @@ model User {
   homeroomGroups Group[] @relation("Homeroom")
   /// Статусы ДЗ, выставленные этим пользователем (учитель или сам ученик).
   homeworkMarks HomeworkSubmission[] @relation("SubmissionMarker")
+  /// Материалы библиотеки, квизы и направления подготовки, созданные пользователем.
+  libraryItems  LibraryItem[] @relation("LibraryAuthor")
+  quizzesAuthored Quiz[]      @relation("QuizAuthor")
+  examTracksAuthored ExamTrack[] @relation("ExamTrackAuthor")
 
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
@@ -524,6 +531,8 @@ model Student {
   kidNotes      KidNote[]
   grades        Grade[]
   homeworkSubmissions HomeworkSubmission[]
+  quizAttempts  QuizAttempt[]
+  gameScores    GameScore[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -860,6 +869,8 @@ model Subject {
   lessons         ScheduleItem[]
   grades          Grade[]
   homework        Homework[]
+  libraryItems    LibraryItem[]
+  quizzes         Quiz[]
 
   @@unique([kindergartenId, name])
   @@index([kindergartenId])
@@ -1017,3 +1028,137 @@ model Message {
   @@index([conversationId, createdAt])
 }
 
+// ---------------------------------------------------------------------------
+// LEARNING: библиотека, квизы, подготовка к экзаменам, игры (этап 3)
+// ---------------------------------------------------------------------------
+
+enum LibraryItemType {
+  BOOK
+  ARTICLE
+  VIDEO
+  AUDIO
+  LINK
+}
+
+/// Материал библиотеки школы. Файлы не храним — только ссылка на материал.
+model LibraryItem {
+  id             String   @id @default(cuid())
+  kindergartenId String
+  title          String
+  description    String?
+  type           LibraryItemType @default(LINK)
+  url            String
+  subjectId      String?
+  /// Параллель (5, 6…), если материал для конкретных классов; null — для всех.
+  gradeNumber    Int?
+  /// Автор. При удалении учителя материал остаётся (authorId → null).
+  authorId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+  subject        Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  author         User?        @relation("LibraryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([kindergartenId, createdAt])
+  @@index([subjectId])
+}
+
+/// Направление подготовки к экзамену. Название задаёт школа («ЕГЭ», «Вступительные»…).
+model ExamTrack {
+  id             String   @id @default(cuid())
+  kindergartenId String
+  name           String
+  description    String?
+  authorId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+  author         User?        @relation("ExamTrackAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  quizzes        Quiz[]
+
+  @@unique([kindergartenId, name])
+}
+
+enum QuestionKind {
+  SINGLE    // один правильный ответ
+  MULTIPLE  // несколько правильных: верно только при точном совпадении набора
+}
+
+model Quiz {
+  id             String   @id @default(cuid())
+  kindergartenId String
+  title          String
+  description    String?
+  subjectId      String?
+  /// Если квиз относится к подготовке к экзамену — направление.
+  examTrackId    String?
+  /// Лимит времени на прохождение, секунды (null — без лимита).
+  timeLimitSec   Int?
+  /// Ученики видят только опубликованные.
+  isPublished    Boolean  @default(false)
+  authorId       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+  subject        Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  examTrack      ExamTrack?   @relation(fields: [examTrackId], references: [id], onDelete: SetNull)
+  author         User?        @relation("QuizAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  questions      QuizQuestion[]
+  attempts       QuizAttempt[]
+
+  @@index([kindergartenId, isPublished])
+  @@index([examTrackId])
+}
+
+model QuizQuestion {
+  id          String       @id @default(cuid())
+  quizId      String
+  position    Int
+  text        String
+  kind        QuestionKind @default(SINGLE)
+  /// [{ "text": "Вариант", "correct": true }, ...] — правильные ответы ученику не отдаются.
+  options     Json
+  explanation String?
+
+  quiz        Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, position])
+}
+
+/// Одна попытка ученика. Результат считает сервер и сохраняет как есть:
+/// правка квиза позже не меняет прошлые оценки.
+model QuizAttempt {
+  id          String   @id @default(cuid())
+  quizId      String
+  studentId   String
+  score       Int
+  total       Int
+  /// [{ "questionId": "...", "selected": [0, 2] }, ...]
+  answers     Json
+  durationSec Int?
+  createdAt   DateTime @default(now())
+
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([quizId, studentId])
+  @@index([studentId, createdAt])
+}
+
+/// Результат мини-игры. Игры описаны в коде (server/src/modules/games/game-registry.ts).
+model GameScore {
+  id        String   @id @default(cuid())
+  studentId String
+  gameKey   String
+  score     Int
+  level     Int?
+  createdAt DateTime @default(now())
+
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([gameKey, score])
+  @@index([studentId, gameKey])
+}

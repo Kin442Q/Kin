@@ -19,6 +19,10 @@ import {
   Home as HomeIcon,
   MapPin,
   CalendarRange,
+  Library,
+  ListChecks,
+  Target,
+  Gamepad2,
   MessageCircle,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -54,7 +58,9 @@ import type { Role } from '../../types'
  *   ▸ Общение: Собрания, Чат
  *
  * Родитель (PARENT): Мой ребёнок — главная, расписание, оценки и ДЗ, оплаты, чат
- * Ученик (STUDENT): Мой кабинет — главная, домашние задания, оценки
+ * Ученик (STUDENT): Мой кабинет — главная, домашние задания, оценки, библиотека, квизы,
+ *   подготовка к экзаменам, игры для мозга
+ * Учитель и директор: «Библиотека» и «Квизы» (с направлениями подготовки) в разделе «Учебный процесс»
  *
  * Пункты прячутся по разделам платформы (feature): владелец включает и
  * выключает их для каждой школы.
@@ -302,6 +308,27 @@ const NAV: NavEntry[] = [
     section: 'studying',
   },
 
+  {
+    key: '/admin/library',
+    feature: 'library',
+    label: 'Библиотека',
+    icon: <Library size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
+    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    hiddenForGlobalOwner: true,
+    section: 'studying',
+  },
+  {
+    key: '/admin/quizzes',
+    feature: 'quiz',
+    label: 'Квизы',
+    icon: <ListChecks size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    hiddenForGlobalOwner: true,
+    section: 'studying',
+  },
+
   // ─── Финансы (только админ) ──────────────────────────────────────
   {
     key: '/admin/payments',
@@ -469,6 +496,42 @@ const NAV: NavEntry[] = [
     label: 'Мои оценки',
     icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
+    roles: ['STUDENT'],
+    section: 'student',
+  },
+  {
+    key: '/student/library',
+    feature: 'library',
+    label: 'Библиотека',
+    icon: <Library size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-cyan',
+    roles: ['STUDENT'],
+    section: 'student',
+  },
+  {
+    key: '/student/quizzes',
+    feature: 'quiz',
+    label: 'Квизы',
+    icon: <ListChecks size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-mint',
+    roles: ['STUDENT'],
+    section: 'student',
+  },
+  {
+    key: '/student/exam',
+    feature: 'exam_prep',
+    label: 'Подготовка к экзаменам',
+    icon: <Target size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-rose',
+    roles: ['STUDENT'],
+    section: 'student',
+  },
+  {
+    key: '/student/games',
+    feature: 'games',
+    label: 'Игры для мозга',
+    icon: <Gamepad2 size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-lilac',
     roles: ['STUDENT'],
     section: 'student',
   },

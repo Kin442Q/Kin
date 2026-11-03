@@ -41,6 +41,10 @@ import { FeaturesModule } from './modules/features/features.module'
 import { HomeworkStatusModule } from './modules/homework-status/homework-status.module'
 import { StudentPortalModule } from './modules/student-portal/student-portal.module'
 import { HomeroomModule } from './modules/homeroom/homeroom.module'
+import { LibraryModule } from './modules/library/library.module'
+import { QuizzesModule } from './modules/quizzes/quizzes.module'
+import { ExamPrepModule } from './modules/exam-prep/exam-prep.module'
+import { GamesModule } from './modules/games/games.module'
 import { FeatureGuard } from './modules/features/feature.guard'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
@@ -108,6 +112,10 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     HomeworkStatusModule,
     StudentPortalModule,
     HomeroomModule,
+    LibraryModule,
+    QuizzesModule,
+    ExamPrepModule,
+    GamesModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.
