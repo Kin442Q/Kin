@@ -6,7 +6,7 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "sh -c 'npx prisma migrate deploy && node dist/main.js'"
+startCommand = "sh -c 'npx prisma migrate deploy && node prisma/ensure-owner.js && node dist/main.js'"
 healthcheckPath = "/api/v1/health/liveness"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"

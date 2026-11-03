@@ -43,4 +43,4 @@ COPY --from=build /app/dist ./dist
 EXPOSE 4000
 
 # При первом старте применяем миграции, затем стартуем API.
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/ensure-owner.js && node dist/main.js"]
