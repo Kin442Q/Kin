@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
@@ -7,6 +8,7 @@ import {
 import { Prisma } from '@prisma/client'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
+import { FeaturesService } from '../features/features.service'
 import { CreateGroupDto, UpdateGroupDto } from './dto/group.dto'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
@@ -17,6 +19,7 @@ export class GroupsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly features: FeaturesService,
   ) {}
 
   /**
@@ -43,7 +46,10 @@ export class GroupsService {
       return this.prisma.group.findMany({
         where: { id: { in: ids } },
         orderBy: { createdAt: 'asc' },
-        include: { _count: { select: { students: true, teachers: true } } },
+        include: {
+          _count: { select: { students: true, teachers: true } },
+          homeroomTeacher: { select: { id: true, fullName: true } },
+        },
       })
     }
     return this.prisma.group.findMany({
@@ -51,7 +57,10 @@ export class GroupsService {
         ? { kindergartenId: user.kindergartenId }
         : {},
       orderBy: { createdAt: 'asc' },
-      include: { _count: { select: { students: true, teachers: true } } },
+      include: {
+          _count: { select: { students: true, teachers: true } },
+          homeroomTeacher: { select: { id: true, fullName: true } },
+        },
     })
   }
 
@@ -63,6 +72,7 @@ export class GroupsService {
           select: { id: true, fullName: true, email: true, phone: true },
         },
         _count: { select: { students: true } },
+        homeroomTeacher: { select: { id: true, fullName: true } },
       },
     })
     if (!g) throw new NotFoundException('Группа не найдена')
@@ -78,11 +88,17 @@ export class GroupsService {
         'Глобальный супер-админ не может создавать группы без указания садика',
       )
     }
+    const { homeroomTeacherId, ...rest } = dto
+    if (homeroomTeacherId) await this.assertHomeroomTeacher(user, homeroomTeacherId)
+
     const data: Prisma.GroupUncheckedCreateInput = {
-      ...(dto as Prisma.GroupUncheckedCreateInput),
+      ...(rest as Prisma.GroupUncheckedCreateInput),
+      ageRange: dto.ageRange ?? '',
       kindergartenId: user.kindergartenId,
+      homeroomTeacherId: homeroomTeacherId ?? null,
     }
     const g = await this.prisma.group.create({ data })
+    if (homeroomTeacherId) await this.giveClassAccess(homeroomTeacherId, g.id)
     await this.invalidateCache()
     return g
   }
@@ -112,6 +128,14 @@ export class GroupsService {
     if (dto.fixedMonthlyExpense !== undefined) {
       data.fixedMonthlyExpense = Number(dto.fixedMonthlyExpense) as any
     }
+    if (dto.homeroomTeacherId !== undefined) {
+      if (dto.homeroomTeacherId) {
+        await this.assertHomeroomTeacher(user, dto.homeroomTeacherId)
+        data.homeroomTeacher = { connect: { id: dto.homeroomTeacherId } }
+      } else {
+        data.homeroomTeacher = { disconnect: true }
+      }
+    }
 
     this.logger.log(
       `[groups] update ${id}: ${JSON.stringify({
@@ -121,6 +145,7 @@ export class GroupsService {
     )
 
     const g = await this.prisma.group.update({ where: { id }, data })
+    if (dto.homeroomTeacherId) await this.giveClassAccess(dto.homeroomTeacherId, id)
     await this.invalidateCache(id)
     return g
   }
@@ -136,6 +161,38 @@ export class GroupsService {
     }
     await this.prisma.group.delete({ where: { id } })
     await this.invalidateCache(id)
+  }
+
+  /**
+   * Классным руководителем может быть только активный учитель этой же школы,
+   * и только если раздел «Классный руководитель» включён. Чужой учитель — 404.
+   */
+  private async assertHomeroomTeacher(user: AuthUser, teacherId: string) {
+    if (!(await this.features.isEnabled(user.kindergartenId, 'homeroom'))) {
+      throw new ForbiddenException('Раздел «Классный руководитель» отключён для вашей школы')
+    }
+    const teacher = await this.prisma.user.findUnique({
+      where: { id: teacherId },
+      select: { role: true, isActive: true, kindergartenId: true },
+    })
+    if (
+      !teacher ||
+      teacher.role !== 'TEACHER' ||
+      (user.kindergartenId && teacher.kindergartenId !== user.kindergartenId)
+    ) {
+      throw new NotFoundException('Учитель не найден')
+    }
+    if (!teacher.isActive) {
+      throw new BadRequestException('Учитель отключён')
+    }
+  }
+
+  /** Классный руководитель обязан вести свой класс — иначе у него не будет доступа к нему. */
+  private async giveClassAccess(teacherId: string, groupId: string) {
+    await this.prisma.user.update({
+      where: { id: teacherId },
+      data: { teachingGroups: { connect: { id: groupId } } },
+    })
   }
 
   // -------------------------------------------------------

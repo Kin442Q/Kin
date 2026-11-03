@@ -23,9 +23,19 @@ describe('CreateGroupDto', () => {
     expect(await check({ ...base, fixedMonthlyExpense: 'много' })).not.toHaveLength(0)
   })
 
-  it('name, ageRange и color остаются обязательными', async () => {
-    expect(await check({ ageRange: '3–4 года', color: '#fff' })).not.toHaveLength(0)
-    expect(await check({ name: 'Солнышко', color: '#fff' })).not.toHaveLength(0)
-    expect(await check({ name: 'Солнышко', ageRange: '3–4 года' })).not.toHaveLength(0)
+  it('name и color остаются обязательными', async () => {
+    expect(await check({ ageRange: '5–6 лет', color: '#fff' })).not.toHaveLength(0)
+    expect(await check({ name: '5А', ageRange: '5–6 лет' })).not.toHaveLength(0)
+  })
+
+  it('возрастная категория необязательна (школа), но если задана — строка', async () => {
+    expect(await check({ name: '5А', color: '#fff' })).toHaveLength(0)
+    expect(await check({ name: '5А', color: '#fff', ageRange: 11 })).not.toHaveLength(0)
+  })
+
+  it('homeroomTeacherId: строка или null', async () => {
+    expect(await check({ ...base, homeroomTeacherId: 't1' })).toHaveLength(0)
+    expect(await check({ ...base, homeroomTeacherId: null })).toHaveLength(0)
+    expect(await check({ ...base, homeroomTeacherId: 5 })).not.toHaveLength(0)
   })
 })

@@ -8,9 +8,20 @@ import { http } from '../api'
 import { SP, SproutLogo } from '../components/sprout'
 
 interface LoginValues {
-  email?: string
-  phone?: string
+  /** Email или телефон — тип определяем по наличию «@». */
+  login: string
   password: string
+}
+
+/**
+ * Одна форма для всех ролей: систему не интересует, кто входит —
+ * роль берётся из аккаунта. Есть «@» — это email, иначе телефон.
+ */
+export function buildLoginPayload(login: string, password: string) {
+  const v = login.trim()
+  return v.includes('@')
+    ? { email: v.toLowerCase(), password }
+    : { phone: v, password }
 }
 
 export default function LoginPage() {
@@ -18,7 +29,6 @@ export default function LoginPage() {
   const login = useAuthStore((s) => s.login)
   const { message } = AntdApp.useApp()
   const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState<'admin' | 'teacher' | 'parent'>('admin')
   const [form] = Form.useForm()
 
   // «Забыли пароль?» — доступ восстанавливает администратор. Отправляем ему
@@ -28,9 +38,7 @@ export default function LoginPage() {
   const [forgotValue, setForgotValue] = useState('')
 
   const openForgot = () => {
-    const cur =
-      tab === 'teacher' ? form.getFieldValue('phone') : form.getFieldValue('email')
-    setForgotValue(cur || '')
+    setForgotValue(form.getFieldValue('login') || '')
     setForgotOpen(true)
   }
 
@@ -63,12 +71,7 @@ export default function LoginPage() {
   const onFinish = async (values: LoginValues) => {
     try {
       setLoading(true)
-      const loginData = values.phone
-        ? { phone: values.phone.trim(), password: values.password }
-        : {
-            email: values.email?.trim().toLowerCase(),
-            password: values.password,
-          }
+      const loginData = buildLoginPayload(values.login, values.password)
 
       const response = await http.post('/v1/auth/login', loginData)
       const { user, accessToken } = response.data
@@ -81,13 +84,15 @@ export default function LoginPage() {
       // Сохраняем токен и тут же запрашиваем /me — чтобы получить institution.type
       // и сразу корректно показать UI-лейблы.
       let institution = null
+      let homeroomGroups: Array<{ id: string; name: string }> = []
       try {
         const meResp = await http.get('/v1/auth/me', {
           headers: { Authorization: `Bearer ${accessToken}` },
         })
         institution = meResp.data?.institution ?? null
+        homeroomGroups = meResp.data?.homeroomGroups ?? []
       } catch {
-        // некритично, лейблы будут «садиковыми» по умолчанию
+        // некритично: подписи интерфейса от учреждения не зависят
       }
 
       login(
@@ -99,7 +104,9 @@ export default function LoginPage() {
           kindergartenId: user.kindergartenId ?? null,
           groupId: user.groupId ?? undefined,
           childId: user.childId ?? undefined,
+          studentId: user.studentId ?? undefined,
           institution,
+          homeroomGroups,
           features: user.features,
         },
         accessToken,
@@ -112,8 +119,11 @@ export default function LoginPage() {
       //   ADMIN/SUPER_ADMIN → дашборд админа
       const isTeacher = user.role === 'TEACHER' || user.role === 'teacher'
       const isParent = user.role === 'PARENT'
-      const path = isParent
-        ? '/parent/home'
+      const isStudent = user.role === 'STUDENT'
+      const path = isStudent
+        ? '/student/home'
+        : isParent
+          ? '/parent/home'
         : isTeacher
           ? '/teacher/dashboard'
           : '/admin/dashboard'
@@ -196,7 +206,7 @@ export default function LoginPage() {
                 background: SP.primary,
               }}
             />
-            Сад и школа · одна платформа
+            Школа · одна платформа
           </div>
           <h1
             style={{
@@ -208,7 +218,7 @@ export default function LoginPage() {
               color: SP.text,
             }}
           >
-            Управляйте садом и школой
+            Управляйте школой
             <br />
             в{' '}
             <span style={{ color: SP.primaryDeep, fontStyle: 'italic' }}>
@@ -224,15 +234,15 @@ export default function LoginPage() {
               marginBottom: 0,
             }}
           >
-            Дети, оплаты, посещаемость, расписание и оценки — всё в одном
-            месте. Аналитика прибыли по группам и уведомления родителям.
+            Ученики, оценки, домашние задания, посещаемость и расписание — всё в одном
+            месте. Кабинет для каждого ученика и уведомления родителям.
           </p>
           <div style={{ display: 'flex', gap: 26, marginTop: 36, flexWrap: 'wrap' }}>
             {[
               {
                 Icon: BarChart3,
-                title: 'Аналитика',
-                sub: 'прибыль по группам',
+                title: 'Журнал',
+                sub: 'оценки и ДЗ',
                 bg: SP.primarySoft,
                 fg: SP.primaryDeep,
               },
@@ -337,51 +347,6 @@ export default function LoginPage() {
             Войдите в свой аккаунт, чтобы продолжить
           </p>
 
-          {/* Tabs */}
-          <div
-            style={{
-              display: 'flex',
-              gap: 4,
-              padding: 4,
-              background: SP.surfaceAlt,
-              borderRadius: 12,
-              marginBottom: 22,
-            }}
-          >
-            {(
-              [
-                ['admin', '👤 Админ'],
-                ['teacher', '👨‍🏫 Учитель'],
-                ['parent', '👪 Родитель'],
-              ] as const
-            ).map(([k, l]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => {
-                  setTab(k)
-                  form.resetFields()
-                }}
-                style={{
-                  flex: 1,
-                  padding: '9px 8px',
-                  background: tab === k ? SP.surface : 'transparent',
-                  color: tab === k ? SP.text : SP.muted,
-                  fontSize: 12.5,
-                  fontWeight: 600,
-                  border: 'none',
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                  boxShadow: tab === k ? '0 1px 2px rgba(31,45,39,0.04)' : 'none',
-                  fontFamily: 'inherit',
-                }}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-
           <Spin spinning={loading}>
             <Form
               form={form}
@@ -389,43 +354,22 @@ export default function LoginPage() {
               onFinish={onFinish}
               requiredMark={false}
             >
-              {tab !== 'teacher' ? (
-                <Form.Item
-                  label={
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>
-                      Email
-                    </span>
-                  }
-                  name="email"
-                  rules={[{ required: true, message: 'Введите email' }]}
-                >
-                  <Input
-                    placeholder={
-                      tab === 'parent'
-                        ? 'parent@kindergarten.tj'
-                        : 'admin@kindergarten.tj'
-                    }
-                    disabled={loading}
-                    style={{ height: 44 }}
-                  />
-                </Form.Item>
-              ) : (
-                <Form.Item
-                  label={
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>
-                      Номер телефона
-                    </span>
-                  }
-                  name="phone"
-                  rules={[{ required: true, message: 'Введите номер телефона' }]}
-                >
-                  <Input
-                    placeholder="+992 90 123 45 67"
-                    disabled={loading}
-                    style={{ height: 44 }}
-                  />
-                </Form.Item>
-              )}
+              <Form.Item
+                label={
+                  <span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>
+                    Email или телефон
+                  </span>
+                }
+                name="login"
+                rules={[{ required: true, message: "Введите email или номер телефона" }]}
+              >
+                <Input
+                  placeholder="email или +992 90 123 45 67"
+                  autoComplete="username"
+                  disabled={loading}
+                  style={{ height: 44 }}
+                />
+              </Form.Item>
 
               <Form.Item
                 label={

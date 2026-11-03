@@ -13,6 +13,7 @@ export type Role =
   | 'teacher'
   | 'PARENT'
   | 'parent'
+  | 'STUDENT'
 
 export type InstitutionType = 'KINDERGARTEN' | 'SCHOOL'
 
@@ -39,6 +40,10 @@ export interface User {
   groupId?: string
   /** Для роли parent — id ребёнка */
   childId?: string
+  /** Для роли STUDENT — id ученика, чей это аккаунт */
+  studentId?: string
+  /** Классы, где пользователь — классный руководитель (приходит с /auth/me). */
+  homeroomGroups?: Array<{ id: string; name: string }>
   /** Заполняется в ответе /auth/me — тип учреждения для лейблов UI. */
   institution?: Institution | null
   /**
@@ -76,6 +81,8 @@ export interface Group {
   monthlyFee: number
   /** id воспитателя (Staff) */
   teacherId?: string
+  /** Классный руководитель класса (учитель школы) */
+  homeroomTeacher?: { id: string; fullName: string } | null
   /** Месячные «локальные» расходы группы, помимо зарплаты воспитателя
    *  (питание, материалы, доля от аренды и т.п.) */
   fixedMonthlyExpense: number

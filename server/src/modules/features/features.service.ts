@@ -1,6 +1,4 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common'
-import type { InstitutionType } from '@prisma/client'
-
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import {
   FEATURES,
@@ -17,17 +15,14 @@ export interface FeatureView {
   label: string
   description: string
   group: FeatureGroup
-  /** Раздел вообще существует для типа этого учреждения. */
-  applicable: boolean
   defaultEnabled: boolean
-  /** Итоговое значение (с учётом типа, значения по умолчанию и переопределения). */
+  /** Итоговое значение (переопределение школы или значение по умолчанию). */
   enabled: boolean
   /** Владелец явно переопределил значение по умолчанию. */
   overridden: boolean
 }
 
 interface SchoolState {
-  type: InstitutionType
   overrides: Map<string, boolean>
 }
 
@@ -46,7 +41,7 @@ export class FeaturesService {
     if (!kindergartenId) return [...FEATURE_KEYS]
     const state = await this.getState(kindergartenId)
     if (!state) return []
-    return FEATURE_KEYS.filter((k) => resolveFeature(k, state.type, state.overrides.get(k)))
+    return FEATURE_KEYS.filter((k) => resolveFeature(k, state.overrides.get(k)))
   }
 
   async isEnabled(kindergartenId: string | null | undefined, key: FeatureKey): Promise<boolean> {
@@ -58,7 +53,7 @@ export class FeaturesService {
     }
     const state = await this.getState(kindergartenId)
     if (!state) return false
-    return resolveFeature(key, state.type, state.overrides.get(key))
+    return resolveFeature(key, state.overrides.get(key))
   }
 
   /** Все разделы с состоянием для учреждения (экран владельца). */
@@ -73,9 +68,8 @@ export class FeaturesService {
         label: def.label,
         description: def.description,
         group: def.group,
-        applicable: def.types.includes(state.type),
         defaultEnabled: def.defaultEnabled,
-        enabled: resolveFeature(key, state.type, override),
+        enabled: resolveFeature(key, override),
         overridden: override !== undefined,
       }
     })
@@ -99,11 +93,6 @@ export class FeaturesService {
       }
       if (value !== null && typeof value !== 'boolean') {
         throw new BadRequestException(`Раздел ${key}: ожидается true, false или null`)
-      }
-      if (value !== null && !FEATURES[key].types.includes(state.type)) {
-        throw new BadRequestException(
-          `Раздел «${FEATURES[key].label}» недоступен для этого типа учреждения`,
-        )
       }
     }
 
@@ -138,12 +127,9 @@ export class FeaturesService {
   private async loadState(kindergartenId: string): Promise<SchoolState | null> {
     const kg = await this.prisma.kindergarten.findUnique({
       where: { id: kindergartenId },
-      select: { type: true, features: { select: { key: true, enabled: true } } },
+      select: { features: { select: { key: true, enabled: true } } },
     })
     if (!kg) return null
-    return {
-      type: kg.type,
-      overrides: new Map(kg.features.map((f) => [f.key, f.enabled])),
-    }
+    return { overrides: new Map(kg.features.map((f) => [f.key, f.enabled])) }
   }
 }

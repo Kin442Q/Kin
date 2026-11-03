@@ -80,3 +80,36 @@ describe('FeatureGuard', () => {
     expect(features.isEnabled).toHaveBeenCalledWith('k1', 'payments')
   })
 })
+
+@Feature('portal', 'homework')
+class StudentLikeController {
+  list() {
+    return 4
+  }
+}
+
+describe('FeatureGuard — несколько разделов', () => {
+  let features: { isEnabled: jest.Mock }
+  let guard: FeatureGuard
+
+  beforeEach(() => {
+    features = { isEnabled: jest.fn() }
+    guard = new FeatureGuard(new Reflector(), features as unknown as FeaturesService)
+  })
+
+  it('пускает, только если включены ВСЕ разделы', async () => {
+    features.isEnabled.mockResolvedValue(true)
+    await expect(guard.canActivate(ctx(StudentLikeController, 'list', { kindergartenId: 'k1' }))).resolves.toBe(true)
+    expect(features.isEnabled).toHaveBeenCalledWith('k1', 'portal')
+    expect(features.isEnabled).toHaveBeenCalledWith('k1', 'homework')
+  })
+
+  it('403 на первом выключенном разделе (в ответе его ключ)', async () => {
+    features.isEnabled.mockImplementation(async (_k: string, key: string) => key !== 'homework')
+    const err = await guard
+      .canActivate(ctx(StudentLikeController, 'list', { kindergartenId: 'k1' }))
+      .catch((e) => e)
+    expect(err).toBeInstanceOf(ForbiddenException)
+    expect(err.getResponse()).toMatchObject({ code: 'FEATURE_DISABLED', feature: 'homework' })
+  })
+})

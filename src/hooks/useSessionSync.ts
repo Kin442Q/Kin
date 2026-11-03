@@ -26,6 +26,7 @@ export function useSessionSync() {
         updateUser({
           features: me?.features,
           institution: me?.institution ?? null,
+          homeroomGroups: me?.homeroomGroups ?? [],
         })
       })
       .catch(() => {

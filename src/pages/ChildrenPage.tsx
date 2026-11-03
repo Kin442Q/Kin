@@ -33,9 +33,11 @@ import {
   WomanOutlined,
   ManOutlined,
   TeamOutlined,
+  KeyOutlined,
 } from '@ant-design/icons'
 import { Baby } from 'lucide-react'
 import ChildParentsModal from '../components/ChildParentsModal'
+import StudentAccountModal from '../components/StudentAccountModal'
 import ImportStudentsModal from '../components/ImportStudentsModal'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
@@ -73,6 +75,12 @@ export default function ChildrenPage() {
   const [photoList, setPhotoList] = useState<UploadFile[]>([])
   const [form] = Form.useForm()
   const [parentsModal, setParentsModal] = useState<Child | null>(null)
+  // Вход ученика в свой кабинет: выдаёт админ или классный руководитель его класса
+  const [accountFor, setAccountFor] = useState<Child | null>(null)
+  const portalOn = useFeature('portal')
+  const canGiveAccess = (c: Child) =>
+    portalOn &&
+    (isAdmin || (isTeacher && !!user?.homeroomGroups?.some((g) => g.id === c.groupId)))
   const [importOpen, setImportOpen] = useState(false)
   const isAdmin = user?.role === 'admin' || user?.role === 'SUPER_ADMIN'
   // Роль с бэкенда приходит в верхнем регистре (TEACHER); поддерживаем оба.
@@ -110,7 +118,7 @@ export default function ChildrenPage() {
       Отчество: c.middleName || '',
       'Дата рождения': c.birthDate || '',
       Пол: c.gender === 'female' ? 'Ж' : 'М',
-      [isSchool ? 'Класс' : 'Группа']:
+      ['Класс']:
         groups.find((g) => g.id === c.groupId)?.name || '',
       'Мать (ФИО)': c.motherName || '',
       'Телефон мамы': c.motherPhone || '',
@@ -118,7 +126,7 @@ export default function ChildrenPage() {
       'Телефон папы': c.fatherPhone || '',
       Адрес: c.address || '',
     }))
-    exportRows(isSchool ? 'ucheniki' : 'deti', rows, 'Список')
+    exportRows('ucheniki', rows, 'Список')
     message.success(`Экспортировано: ${rows.length}`)
   }
 
@@ -343,6 +351,16 @@ export default function ChildrenPage() {
                 />
               </Tooltip>
             )}
+            {canGiveAccess(c) && (
+              <Tooltip title="Доступ ученика в кабинет">
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<KeyOutlined />}
+                  onClick={() => setAccountFor(c)}
+                />
+              </Tooltip>
+            )}
             <Tooltip title={canModify ? 'Редактировать' : 'Нет прав'}>
               <Button
                 size="small"
@@ -353,7 +371,7 @@ export default function ChildrenPage() {
               />
             </Tooltip>
             <Popconfirm
-              title={isSchool ? 'Удалить ученика?' : 'Удалить ребёнка?'}
+              title={'Удалить ученика?'}
               okText="Удалить"
               cancelText="Отмена"
               disabled={!canModify}
@@ -381,12 +399,8 @@ export default function ChildrenPage() {
         iconAccent="blue"
         description={
           user?.role === 'teacher'
-            ? isSchool
-              ? 'Ученики вашего класса.'
-              : 'Дети вашей группы.'
-            : isSchool
-              ? 'Список всех учеников школы'
-              : 'Список всех воспитанников детского сада'
+            ? 'Ученики вашего класса.'
+            : 'Список всех учеников школы'
         }
         chip={
           <Tag
@@ -423,7 +437,7 @@ export default function ChildrenPage() {
               onClick={openCreate}
               disabled={user?.role === 'teacher' && !user.groupId}
             >
-              {isSchool ? 'Добавить ученика' : 'Добавить ребёнка'}
+              {'Добавить ученика'}
             </Button>
           </Space>
         }
@@ -466,11 +480,9 @@ export default function ChildrenPage() {
               {visibleChildren.length === 0 && (
                 <SproutEmpty
                   icon={<Baby size={28} strokeWidth={1.8} />}
-                  title={isSchool ? 'Учеников пока нет' : 'Детей пока нет'}
+                  title={'Учеников пока нет'}
                   description={
-                    isSchool
-                      ? 'Добавьте первого ученика кнопкой выше'
-                      : 'Добавьте первого воспитанника кнопкой выше'
+                    'Добавьте первого ученика кнопкой выше'
                   }
                   minHeight={160}
                 />
@@ -614,6 +626,13 @@ export default function ChildrenPage() {
                             onClick={() => setParentsModal(c)}
                           />
                         )}
+                        {canGiveAccess(c) && (
+                          <Button
+                            size="middle"
+                            icon={<KeyOutlined />}
+                            onClick={() => setAccountFor(c)}
+                          />
+                        )}
                         <Button
                           size="middle"
                           icon={<EditOutlined />}
@@ -621,7 +640,7 @@ export default function ChildrenPage() {
                           onClick={() => openEdit(c)}
                         />
                         <Popconfirm
-                          title={isSchool ? 'Удалить ученика?' : 'Удалить ребёнка?'}
+                          title={'Удалить ученика?'}
                           okText="Удалить"
                           cancelText="Отмена"
                           disabled={!canModify}
@@ -678,12 +697,8 @@ export default function ChildrenPage() {
       <Drawer
         title={
           editing
-            ? isSchool
-              ? 'Редактировать ученика'
-              : 'Редактировать ребёнка'
-            : isSchool
-              ? 'Новый ученик'
-              : 'Новый ребёнок'
+            ? 'Редактировать ученика'
+            : 'Новый ученик'
         }
         open={drawerOpen}
         width={isMobile ? '100%' : 520}
@@ -818,6 +833,8 @@ export default function ChildrenPage() {
           )}
         </Form>
       </Drawer>
+
+      <StudentAccountModal student={accountFor} onClose={() => setAccountFor(null)} />
 
       <ChildParentsModal
         open={!!parentsModal}

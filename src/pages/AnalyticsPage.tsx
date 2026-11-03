@@ -270,7 +270,7 @@ export default function AnalyticsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <StatCard
-            title={`Доход всех ${isSchool ? "классов" : "групп"}`}
+            title={`Доход всех классов`}
             value={global.totalIncome}
             format="money"
             variant="success"
@@ -472,7 +472,7 @@ export default function AnalyticsPage() {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <Statistic
-                  title={isSchool ? "Лучший класс" : "Лучшая группа"}
+                  title={"Лучший класс"}
                   value={global.bestGroup?.group.name || "—"}
                   valueStyle={{
                     color: "#10b981",
@@ -481,7 +481,7 @@ export default function AnalyticsPage() {
                   }}
                 />
                 <Statistic
-                  title={isSchool ? "Худший класс" : "Худшая группа"}
+                  title={"Худший класс"}
                   value={global.worstGroup?.group.name || "—"}
                   valueStyle={{
                     color: "#f43f5e",

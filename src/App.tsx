@@ -19,7 +19,11 @@ import ExpensesPage from "./pages/ExpensesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import StaffPage from "./pages/StaffPage";
 import TeachersPage from "./pages/TeachersPage";
-import KindergartensPage from "./pages/KindergartensPage";
+import SchoolsPage from "./pages/SchoolsPage";
+import HomeroomPage from "./pages/HomeroomPage";
+import StudentHomePage from "./pages/student/StudentHomePage";
+import StudentHomeworkPage from "./pages/student/StudentHomeworkPage";
+import StudentGradesPage from "./pages/student/StudentGradesPage";
 import SchedulePage from "./pages/SchedulePage";
 import MeetingsPage from "./pages/MeetingsPage";
 import TeacherDashboard from "./pages/TeacherDashboard";
@@ -43,6 +47,7 @@ export default function App() {
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "TEACHER" || user?.role === "teacher";
   const isParent = user?.role === "PARENT";
+  const isStudent = user?.role === "STUDENT";
 
   useSessionSync();
 
@@ -50,7 +55,9 @@ export default function App() {
   //   PARENT → личный кабинет родителя
   //   TEACHER → свой кабинет
   //   остальные → admin/dashboard
-  const homePath = isParent
+  const homePath = isStudent
+    ? "/student/home"
+    : isParent
     ? "/parent/home"
     : isTeacher
       ? "/teacher/dashboard"
@@ -79,6 +86,34 @@ export default function App() {
               element={
                 <RequireRole roles={["TEACHER", "SUPER_ADMIN", "admin"]}>
                   <TeacherDashboard />
+                </RequireRole>
+              }
+            />
+          </Route>
+
+          <Route path="student">
+            <Route index element={<Navigate to="home" replace />} />
+            <Route
+              path="home"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="portal">
+                  <StudentHomePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="homework"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="homework">
+                  <StudentHomeworkPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="grades"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="grades">
+                  <StudentGradesPage />
                 </RequireRole>
               }
             />
@@ -211,10 +246,20 @@ export default function App() {
               }
             />
             <Route
-              path="kindergartens"
+              path="schools"
               element={
                 <RequireRole roles={["SUPER_ADMIN"]}>
-                  <KindergartensPage />
+                  <SchoolsPage />
+                </RequireRole>
+              }
+            />
+            {/* Старый адрес: закладки и ссылки продолжают работать */}
+            <Route path="kindergartens" element={<Navigate to="/admin/schools" replace />} />
+            <Route
+              path="homeroom"
+              element={
+                <RequireRole roles={["TEACHER", "SUPER_ADMIN", "admin"]} feature="homeroom">
+                  <HomeroomPage />
                 </RequireRole>
               }
             />

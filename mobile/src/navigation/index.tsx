@@ -77,11 +77,8 @@ interface TabConfig {
   feature?: FeatureKey
 }
 
-function buildTabs(
-  role: 'admin' | 'teacher' | 'parent',
-  type?: 'KINDERGARTEN' | 'SCHOOL' | null,
-): TabConfig[] {
-  const L = labels(type)
+function buildTabs(role: 'admin' | 'teacher' | 'parent'): TabConfig[] {
+  const L = labels()
   if (role === 'admin') {
     return [
       // «Сводка» целиком про деньги (доходы/расходы) — это раздел «Аналитика».
@@ -92,38 +89,20 @@ function buildTabs(
     ]
   }
   if (role === 'teacher') {
-    // Учитель школы: Кабинет / Отметить / Журнал / ДЗ / Я (5)
-    if (type === 'SCHOOL') {
-      return [
-        { name: 'TeacherHome', label: 'Кабинет', icon: LayoutGrid, component: TeacherHomeScreen },
-        { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen, feature: 'attendance' },
-        { name: 'TeacherGrades', label: 'Журнал', icon: GraduationCap, component: TeacherGradesScreen, feature: 'grades' },
-        { name: 'TeacherHomework', label: 'ДЗ', icon: BookOpen, component: TeacherHomeworkScreen, feature: 'homework' },
-        { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
-      ]
-    }
-    // Воспитатель садика: Группа / Отметить / Дневник / Я (4)
+    // Учитель: Кабинет / Отметить / Журнал / ДЗ / Я (5)
     return [
-      { name: 'TeacherHome', label: L.group[0].toUpperCase() + L.group.slice(1), icon: LayoutGrid, component: TeacherHomeScreen },
+      { name: 'TeacherHome', label: 'Кабинет', icon: LayoutGrid, component: TeacherHomeScreen },
       { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen, feature: 'attendance' },
-      { name: 'TeacherDiary', label: 'Дневник', icon: BookOpen, component: TeacherDiaryScreen, feature: 'diary' },
+      { name: 'TeacherGrades', label: 'Журнал', icon: GraduationCap, component: TeacherGradesScreen, feature: 'grades' },
+      { name: 'TeacherHomework', label: 'ДЗ', icon: BookOpen, component: TeacherHomeworkScreen, feature: 'homework' },
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
     ]
   }
-  // Родитель школы: Главная / Расписание / Оценки / Оплата / Я (5)
-  if (type === 'SCHOOL') {
-    return [
-      { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
-      { name: 'ParentSchedule', label: 'Расписание', icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
-      { name: 'ParentGrades', label: 'Оценки', icon: GraduationCap, component: ParentGradesScreen, feature: 'grades' },
-      { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder, feature: 'payments' },
-      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
-    ]
-  }
-  // Родитель садика: Главная / Сегодня / Оплата / Я (4)
+  // Родитель: Главная / Расписание / Оценки / Оплата / Я (5)
   return [
     { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
-    { name: 'ParentSchedule', label: 'Сегодня', icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
+    { name: 'ParentSchedule', label: 'Расписание', icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
+    { name: 'ParentGrades', label: 'Оценки', icon: GraduationCap, component: ParentGradesScreen, feature: 'grades' },
     { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder, feature: 'payments' },
     { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
   ]
@@ -140,7 +119,7 @@ function MainTabs() {
         : 'parent'
 
   // Вкладки выключенных для учреждения разделов не показываем.
-  const tabs = buildTabs(role, user?.institution?.type ?? null).filter(
+  const tabs = buildTabs(role).filter(
     (t) => !t.feature || hasFeature(user, t.feature),
   )
 

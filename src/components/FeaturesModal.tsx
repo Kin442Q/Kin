@@ -9,8 +9,6 @@ interface FeatureView {
   label: string
   description: string
   group: string
-  /** Раздел существует для типа этого учреждения (меню питания — только для садика). */
-  applicable: boolean
   defaultEnabled: boolean
   enabled: boolean
   /** Владелец явно переопределил значение по умолчанию. */
@@ -32,7 +30,7 @@ interface Props {
 }
 
 /**
- * Разделы учреждения (только владелец платформы). Каждый переключатель
+ * Разделы школы (только владелец платформы). Каждый переключатель
  * применяется сразу: бэкенд обновляет раздел, а у пользователей учреждения
  * меню обновится при следующей загрузке приложения.
  */
@@ -111,23 +109,19 @@ export default function FeaturesModal({ school, onClose }: Props) {
                   gap: 12,
                   padding: '10px 0',
                   borderBottom: '1px solid rgba(0,0,0,0.06)',
-                  opacity: f.applicable ? 1 : 0.5,
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 500 }}>
                     {f.label}{' '}
-                    {!f.applicable && <Tag>не для этого типа</Tag>}
-                    {f.applicable && f.overridden && <Tag color="blue">изменено</Tag>}
-                    {f.applicable && !f.overridden && !f.defaultEnabled && (
-                      <Tag>выключено по умолчанию</Tag>
-                    )}
+                    {f.overridden && <Tag color="blue">изменено</Tag>}
+                    {!f.overridden && !f.defaultEnabled && <Tag>выключено по умолчанию</Tag>}
                   </div>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     {f.description}
                   </Text>
                 </div>
-                {f.applicable && f.overridden && (
+                {f.overridden && (
                   <Button
                     size="small"
                     type="link"
@@ -139,7 +133,6 @@ export default function FeaturesModal({ school, onClose }: Props) {
                 )}
                 <Switch
                   checked={f.enabled}
-                  disabled={!f.applicable}
                   loading={pendingKey === f.key}
                   onChange={(checked) => apply(f.key, checked)}
                   aria-label={f.label}

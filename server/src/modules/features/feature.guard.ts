@@ -19,21 +19,24 @@ export class FeatureGuard implements CanActivate {
   ) {}
 
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
-    const key = this.reflector.getAllAndOverride<FeatureKey | undefined>(FEATURE_KEY, [
+    const keys = this.reflector.getAllAndOverride<FeatureKey[] | undefined>(FEATURE_KEY, [
       ctx.getHandler(),
       ctx.getClass(),
     ])
-    if (!key) return true
+    if (!keys?.length) return true
 
     const user = ctx.switchToHttp().getRequest().user
     if (!user?.kindergartenId) return true
 
-    if (await this.features.isEnabled(user.kindergartenId, key)) return true
-
-    throw new ForbiddenException({
-      message: `Раздел «${FEATURES[key]?.label ?? key}» отключён для вашего учреждения`,
-      code: 'FEATURE_DISABLED',
-      feature: key,
-    })
+    // Нужны все перечисленные разделы; сообщаем о первом выключенном.
+    for (const key of keys) {
+      if (await this.features.isEnabled(user.kindergartenId, key)) continue
+      throw new ForbiddenException({
+        message: `Раздел «${FEATURES[key]?.label ?? key}» отключён для вашего учреждения`,
+        code: 'FEATURE_DISABLED',
+        feature: key,
+      })
+    }
+    return true
   }
 }

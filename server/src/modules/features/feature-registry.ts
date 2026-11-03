@@ -1,5 +1,3 @@
-import type { InstitutionType } from '@prisma/client'
-
 /**
  * Реестр разделов (feature flags) платформы.
  *
@@ -22,6 +20,7 @@ export type FeatureKey =
   | 'teachers'
   | 'subjects'
   | 'terms'
+  | 'homeroom'
   // Учебный процесс
   | 'attendance'
   | 'schedule'
@@ -29,6 +28,7 @@ export type FeatureKey =
   | 'grades'
   | 'homework'
   | 'diary'
+  | 'portal'
   // Финансы
   | 'payments'
   | 'expenses'
@@ -51,51 +51,47 @@ export interface FeatureDef {
   label: string
   description: string
   group: FeatureGroup
-  /** Для каких типов учреждения раздел существует вообще. */
-  types: InstitutionType[]
   /** Значение, пока владелец не переопределил его для учреждения. */
   defaultEnabled: boolean
 }
 
-const BOTH: InstitutionType[] = ['KINDERGARTEN', 'SCHOOL']
-const SCHOOL: InstitutionType[] = ['SCHOOL']
-const KINDERGARTEN: InstitutionType[] = ['KINDERGARTEN']
 
 export const FEATURES: Record<FeatureKey, FeatureDef> = {
   // ─── Состав ──────────────────────────────────────────────────────
   groups: {
-    label: 'Группы и классы',
-    description: 'Список групп/классов, состав и назначение учителей',
+    label: 'Классы',
+    description: 'Список классов, состав, классные руководители и учителя',
     group: 'composition',
-    types: BOTH,
     defaultEnabled: true,
   },
   students: {
-    label: 'Дети и ученики',
-    description: 'Карточки детей/учеников, родители, импорт',
+    label: 'Ученики',
+    description: 'Карточки учеников, родители, доступ учеников, импорт',
     group: 'composition',
-    types: BOTH,
     defaultEnabled: true,
   },
   teachers: {
     label: 'Учителя',
-    description: 'Учётные записи учителей и воспитателей',
+    description: 'Учётные записи учителей',
     group: 'composition',
-    types: BOTH,
     defaultEnabled: true,
   },
   subjects: {
     label: 'Предметы',
     description: 'Учебные предметы школы',
     group: 'composition',
-    types: SCHOOL,
+    defaultEnabled: true,
+  },
+  homeroom: {
+    label: 'Классный руководитель',
+    description: 'Классный руководитель: сводка по своему классу и связь с родителями',
+    group: 'composition',
     defaultEnabled: true,
   },
   terms: {
     label: 'Учебные периоды',
     description: 'Четверти, триместры, полугодия',
     group: 'composition',
-    types: SCHOOL,
     defaultEnabled: true,
   },
 
@@ -104,42 +100,43 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
     label: 'Посещаемость',
     description: 'Ежедневная отметка присутствия',
     group: 'studying',
-    types: BOTH,
     defaultEnabled: true,
   },
   schedule: {
     label: 'Расписание',
-    description: 'Расписание уроков / занятий',
+    description: 'Расписание уроков',
     group: 'studying',
-    types: BOTH,
     defaultEnabled: true,
   },
   menu: {
     label: 'Меню питания',
-    description: 'Меню питания детского сада',
+    description: 'Меню школьной столовой',
     group: 'studying',
-    types: KINDERGARTEN,
-    defaultEnabled: true,
+    defaultEnabled: false,
   },
   grades: {
     label: 'Журнал оценок',
     description: 'Электронный журнал: оценки учеников',
     group: 'studying',
-    types: SCHOOL,
     defaultEnabled: true,
   },
   homework: {
     label: 'Домашние задания',
     description: 'Домашние задания по предметам',
     group: 'studying',
-    types: SCHOOL,
     defaultEnabled: true,
   },
   diary: {
     label: 'Дневник',
-    description: 'Дневник учителя: заметки о ребёнке для родителей',
+    description: 'Дневник учителя: заметки об ученике для родителей',
     group: 'studying',
-    types: BOTH,
+    defaultEnabled: true,
+  },
+
+  portal: {
+    label: 'Кабинет ученика',
+    description: 'Свой вход для учеников: домашние задания, оценки, расписание',
+    group: 'studying',
     defaultEnabled: true,
   },
 
@@ -148,21 +145,18 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
     label: 'Оплата',
     description: 'Платежи родителей, долги, напоминания об оплате',
     group: 'finance',
-    types: BOTH,
     defaultEnabled: false,
   },
   expenses: {
     label: 'Расходы и доп. доходы',
     description: 'Учёт расходов и дополнительных доходов учреждения',
     group: 'finance',
-    types: BOTH,
     defaultEnabled: false,
   },
   analytics: {
     label: 'Аналитика',
     description: 'Финансовые KPI, прибыльность групп, тренды',
     group: 'finance',
-    types: BOTH,
     defaultEnabled: false,
   },
 
@@ -171,14 +165,12 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
     label: 'Сотрудники',
     description: 'Карточки сотрудников и ФОТ',
     group: 'hr',
-    types: BOTH,
     defaultEnabled: true,
   },
   timesheet: {
     label: 'Табель и check-in',
     description: 'Учёт рабочего времени учителей, отметка по геозоне, зарплата',
     group: 'hr',
-    types: BOTH,
     defaultEnabled: true,
   },
 
@@ -187,14 +179,12 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
     label: 'Собрания',
     description: 'Родительские собрания',
     group: 'communication',
-    types: BOTH,
     defaultEnabled: true,
   },
   chat: {
     label: 'Чат с родителями',
     description: 'Переписка родителей с учителями и администрацией',
     group: 'communication',
-    types: BOTH,
     defaultEnabled: true,
   },
 }
@@ -205,13 +195,7 @@ export function isFeatureKey(key: string): key is FeatureKey {
   return Object.prototype.hasOwnProperty.call(FEATURES, key)
 }
 
-/** Значение раздела при заданных типе учреждения и переопределении. */
-export function resolveFeature(
-  key: FeatureKey,
-  type: InstitutionType,
-  override: boolean | undefined,
-): boolean {
-  const def = FEATURES[key]
-  if (!def.types.includes(type)) return false
-  return override ?? def.defaultEnabled
+/** Значение раздела: переопределение школы, а если его нет — значение по умолчанию. */
+export function resolveFeature(key: FeatureKey, override: boolean | undefined): boolean {
+  return override ?? FEATURES[key].defaultEnabled
 }

@@ -103,7 +103,7 @@ export default function ParentSchedulePage() {
   return (
     <div>
       <SproutPageHeader
-        title={isSchool ? 'Расписание уроков' : 'Расписание'}
+        title={'Расписание уроков'}
         icon={<Calendar size={22} strokeWidth={2} />}
         iconAccent="blue"
       />
@@ -148,7 +148,7 @@ export default function ParentSchedulePage() {
       ) : dayItems.length === 0 ? (
         <Card className="glass" bordered={false} style={{ marginTop: 12 }}>
           <Empty
-            description={`На ${DAYS_FULL[day].toLowerCase()} ${isSchool ? 'уроков' : 'занятий'} нет`}
+            description={`На ${DAYS_FULL[day].toLowerCase()} уроков нет`}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </Card>

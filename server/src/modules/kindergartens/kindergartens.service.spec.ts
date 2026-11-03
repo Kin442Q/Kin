@@ -186,5 +186,34 @@ describe('KindergartensService', () => {
       const res = await service.remove(globalOwner, 'k1')
       expect(res.success).toBe(true)
     })
+
+    it('remove: сначала убирает данные без каскада (ДЗ, оценки, дневник, сообщения), потом школу', async () => {
+      prisma.kindergarten.findUnique.mockResolvedValue({ id: 'k1' })
+      const order: string[] = []
+      const track = (mock: unknown, name: string) =>
+        (mock as jest.Mock).mockImplementation(() => {
+          order.push(name)
+          return name
+        })
+      track(prisma.message.deleteMany, 'message')
+      track(prisma.homework.deleteMany, 'homework')
+      track(prisma.grade.deleteMany, 'grade')
+      track(prisma.diaryEntry.deleteMany, 'diaryEntry')
+      track(prisma.kidNote.deleteMany, 'kidNote')
+      track(prisma.kindergarten.delete, 'kindergarten')
+      prisma.$transaction.mockImplementation(async (ops: unknown[]) => ops)
+
+      await service.remove(globalOwner, 'k1')
+
+      expect(order).toEqual(['message', 'homework', 'grade', 'diaryEntry', 'kidNote', 'kindergarten'])
+      expect(prisma.homework.deleteMany).toHaveBeenCalledWith({ where: { group: { kindergartenId: 'k1' } } })
+      expect(prisma.grade.deleteMany).toHaveBeenCalledWith({ where: { student: { kindergartenId: 'k1' } } })
+    })
+
+    it('remove 404 если школы нет, ничего не удаляется', async () => {
+      prisma.kindergarten.findUnique.mockResolvedValue(null)
+      await expect(service.remove(globalOwner, 'nope')).rejects.toThrow(NotFoundException)
+      expect(prisma.$transaction).not.toHaveBeenCalled()
+    })
   })
 })

@@ -111,6 +111,12 @@ export interface ParentHomework {
   dueDate: string
   attachments: string[]
   subject?: { id: string; name: string; color: string }
+  /** Как ребёнок выполнил ДЗ; null — учитель ещё не отметил. */
+  submission?: {
+    status: 'SUBMITTED' | 'DONE' | 'PARTIAL' | 'NOT_DONE'
+    comment: string | null
+    updatedAt: string
+  } | null
 }
 
 export const parentApi = {

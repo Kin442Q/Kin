@@ -111,6 +111,48 @@ export class StudentsController {
     return this.service.addParent(id, dto, user)
   }
 
+  // ─── Аккаунт ученика ───────────────────────────────────────────
+  // Выдают админ школы или классный руководитель класса (проверяет сервис).
+
+  @Get(':id/account')
+  @Feature('students', 'portal')
+  @ApiOperation({ summary: 'Аккаунт ученика (вход в кабинет ученика) или null' })
+  getAccount(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.getAccount(id, user)
+  }
+
+  @Post(':id/account')
+  @Feature('students', 'portal')
+  @ApiOperation({
+    summary: 'Создать вход ученику. Пароль возвращается один раз (если не задан — генерируется).',
+  })
+  createAccount(
+    @Param('id') id: string,
+    @Body() dto: { login?: string; password?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.createAccount(id, dto ?? {}, user)
+  }
+
+  @Post(':id/account/reset-password')
+  @Feature('students', 'portal')
+  @ApiOperation({ summary: 'Сбросить пароль ученика (новый возвращается один раз)' })
+  resetAccountPassword(
+    @Param('id') id: string,
+    @Body() dto: { password?: string },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.resetAccountPassword(id, dto ?? {}, user)
+  }
+
+  @Delete(':id/account')
+  @HttpCode(204)
+  @Feature('students', 'portal')
+  @ApiOperation({ summary: 'Отобрать доступ: аккаунт удаляется, ученик остаётся' })
+  removeAccount(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.removeAccount(id, user)
+  }
+
   @Delete(':id/parents/:parentId')
   @HttpCode(204)
   @Roles('SUPER_ADMIN', 'ADMIN')

@@ -6,7 +6,7 @@ interface Props {
 }
 
 /**
- * Логотип «redi · kindergarten OS» с зелёным градиентным значком-листом.
+ * Логотип «Maktab · school OS» с зелёным градиентным значком-листом.
  */
 export default function SproutLogo({ size = 18, showSubtitle = true }: Props) {
   return (
@@ -54,7 +54,7 @@ export default function SproutLogo({ size = 18, showSubtitle = true }: Props) {
               marginTop: 2,
             }}
           >
-            school & kindergarten OS
+            school OS
           </div>
         </div>
       )}

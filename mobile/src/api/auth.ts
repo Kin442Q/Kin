@@ -1,6 +1,14 @@
 import { http } from './http'
 
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'PARENT' | 'teacher' | 'admin' | 'parent'
+export type Role =
+  | 'SUPER_ADMIN'
+  | 'ADMIN'
+  | 'TEACHER'
+  | 'PARENT'
+  | 'STUDENT'
+  | 'teacher'
+  | 'admin'
+  | 'parent'
 
 export type InstitutionType = 'KINDERGARTEN' | 'SCHOOL'
 

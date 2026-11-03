@@ -78,15 +78,15 @@ export default function OnboardingChecklist() {
       {
         key: 'groups',
         icon: <Users2 size={18} />,
-        title: `Создать ${isSchool ? 'классы' : 'группы'}`,
-        hint: `Хотя бы один ${isSchool ? 'класс' : 'группа'}`,
+        title: `Создать классы`,
+        hint: `Хотя бы один класс`,
         done: groups.length > 0,
         to: '/admin/groups',
       },
       {
         key: 'students',
         icon: <Baby size={18} />,
-        title: `Добавить ${isSchool ? 'учеников' : 'детей'}`,
+        title: `Добавить учеников`,
         hint: 'Вручную или импортом из Excel/фото',
         done: children.length > 0,
         to: '/admin/children',
@@ -94,7 +94,7 @@ export default function OnboardingChecklist() {
       {
         key: 'teachers',
         icon: <GraduationCap size={18} />,
-        title: `Добавить ${isSchool ? 'учителей' : 'воспитателей'}`,
+        title: `Добавить учителей`,
         hint: 'Создать аккаунты сотрудников',
         done: (teacherCount ?? 0) > 0,
         to: '/admin/teachers',

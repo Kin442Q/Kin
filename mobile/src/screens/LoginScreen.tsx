@@ -3,7 +3,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,14 +15,11 @@ import Btn from '../components/Btn'
 import { colors, radius, font, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 
-type Tab = 'admin' | 'teacher'
-
 export default function LoginScreen() {
   const login = useAuthStore((s) => s.login)
   const loading = useAuthStore((s) => s.loading)
 
-  const [tab, setTab] = useState<Tab>('teacher')
-  const [emailOrPhone, setEmailOrPhone] = useState('+992 ')
+  const [emailOrPhone, setEmailOrPhone] = useState('')
   const [password, setPassword] = useState('')
 
   const onSubmit = async () => {
@@ -32,10 +28,11 @@ export default function LoginScreen() {
       return
     }
     try {
-      const creds =
-        tab === 'teacher'
-          ? { phone: emailOrPhone.trim(), password }
-          : { email: emailOrPhone.trim().toLowerCase(), password }
+      // Одна форма для всех ролей: роль берётся из аккаунта. Есть «@» — email, иначе телефон.
+      const v = emailOrPhone.trim()
+      const creds = v.includes('@')
+        ? { email: v.toLowerCase(), password }
+        : { phone: v, password }
       await login(creds)
     } catch (e: any) {
       Alert.alert(
@@ -62,65 +59,26 @@ export default function LoginScreen() {
             </View>
             <View>
               <Text style={styles.logoTitle}>Maktab</Text>
-              <Text style={styles.logoSub}>school & kindergarten OS</Text>
+              <Text style={styles.logoSub}>school OS</Text>
             </View>
           </View>
 
           {/* Hero */}
           <Text style={styles.heroTitle}>
-            Управляйте садиком{'\n'}
-            как <Text style={{ color: colors.primaryDeep, fontStyle: 'italic' }}>растущим садом</Text>
+            Управляйте школой{'\n'}
+            в <Text style={{ color: colors.primaryDeep, fontStyle: 'italic' }}>одном месте</Text>
           </Text>
           <Text style={styles.heroSub}>
             Войдите чтобы продолжить
           </Text>
 
-          {/* Tabs */}
-          <View style={styles.tabBar}>
-            {(
-              [
-                ['teacher', '👨‍🏫 Воспитатель'],
-                ['admin', '👤 Администратор'],
-              ] as const
-            ).map(([k, label]) => {
-              const active = tab === k
-              return (
-                <Pressable
-                  key={k}
-                  onPress={() => {
-                    setTab(k)
-                    // Для входа учителя сразу подставляем код страны +992
-                    setEmailOrPhone(k === 'teacher' ? '+992 ' : '')
-                  }}
-                  style={[
-                    styles.tabBtn,
-                    active && styles.tabBtnActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.tabText,
-                      { color: active ? colors.text : colors.muted },
-                    ]}
-                  >
-                    {label}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-
           {/* Form */}
-          <Text style={styles.label}>
-            {tab === 'teacher' ? 'Номер телефона' : 'Email'}
-          </Text>
+          <Text style={styles.label}>Email или телефон</Text>
           <TextInput
             value={emailOrPhone}
             onChangeText={setEmailOrPhone}
-            placeholder={
-              tab === 'teacher' ? '+992 90 123 45 67' : 'admin@kindergarten.tj'
-            }
-            keyboardType={tab === 'teacher' ? 'phone-pad' : 'email-address'}
+            placeholder="email или +992 90 123 45 67"
+            keyboardType="email-address"
             autoCapitalize="none"
             placeholderTextColor={colors.muted}
             style={styles.input}
@@ -148,8 +106,8 @@ export default function LoginScreen() {
           </Btn>
 
           <Text style={styles.hint}>
-            Учитель входит по номеру телефона.{'\n'}
-            Администратор — по email.
+            Войдите по email или номеру телефона.{'\n'}
+            Роль определится автоматически.
           </Text>
         </ScrollView>
       </KeyboardAvoidingView>

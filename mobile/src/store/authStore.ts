@@ -64,6 +64,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true })
     try {
       const res = await authApi.login(creds)
+      // Кабинет ученика пока только на сайте — в приложении ученика не пускаем,
+      // иначе он попал бы в экраны родителя и увидел бы одни ошибки.
+      if (String(res.user.role).toUpperCase() === 'STUDENT') {
+        throw { response: { data: { message: 'Кабинет ученика пока доступен на сайте' } } }
+      }
       await AsyncStorage.setItem('kg_token', res.accessToken)
       // Сразу после логина дотягиваем /me чтобы получить institution.type
       let user: User = res.user

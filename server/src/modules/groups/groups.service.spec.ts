@@ -4,6 +4,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common'
 import { GroupsService } from './groups.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
+import { FeaturesService } from '../features/features.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
@@ -37,9 +38,11 @@ const globalOwner: AuthUser = {
 describe('GroupsService', () => {
   let service: GroupsService
   let prisma: PrismaMock
+  let features: { isEnabled: jest.Mock }
 
   beforeEach(async () => {
     prisma = createPrismaMock()
+    features = { isEnabled: jest.fn().mockResolvedValue(true) }
     const ref = await Test.createTestingModule({
       providers: [
         GroupsService,
@@ -52,6 +55,7 @@ describe('GroupsService', () => {
             wrap: jest.fn((_k, _ttl, fn) => fn()),
           },
         },
+        { provide: FeaturesService, useValue: features },
       ],
     }).compile()
     service = ref.get(GroupsService)
@@ -219,6 +223,70 @@ describe('GroupsService', () => {
       prisma.group.delete.mockResolvedValue({})
       await service.remove(adminUser, 'g1')
       expect(prisma.group.delete).toHaveBeenCalled()
+    })
+  })
+  describe('классный руководитель', () => {
+    const dto = { name: '5А', color: '#6366f1' }
+
+    it('create: назначает классного руководителя и открывает ему доступ к классу', async () => {
+      prisma.user.findUnique.mockResolvedValue({ role: 'TEACHER', isActive: true, kindergartenId: 'k1' })
+      prisma.group.create.mockResolvedValue({ id: 'g9' })
+      prisma.user.update.mockResolvedValue({})
+
+      await service.create(adminUser, { ...dto, homeroomTeacherId: 't1' })
+
+      expect(prisma.group.create.mock.calls[0][0].data).toMatchObject({
+        name: '5А',
+        ageRange: '', // необязателен для школы
+        kindergartenId: 'k1',
+        homeroomTeacherId: 't1',
+      })
+      expect(prisma.user.update).toHaveBeenCalledWith({
+        where: { id: 't1' },
+        data: { teachingGroups: { connect: { id: 'g9' } } },
+      })
+    })
+
+    it('create без руководителя не трогает учителей', async () => {
+      prisma.group.create.mockResolvedValue({ id: 'g9' })
+      await service.create(adminUser, dto)
+      expect(prisma.user.update).not.toHaveBeenCalled()
+      expect(prisma.group.create.mock.calls[0][0].data.homeroomTeacherId).toBeNull()
+    })
+
+    it('update: чужой учитель → 404, класс не меняется', async () => {
+      prisma.group.findUnique.mockResolvedValue({ id: 'g1', kindergartenId: 'k1' })
+      prisma.user.findUnique.mockResolvedValue({ role: 'TEACHER', isActive: true, kindergartenId: 'OTHER' })
+      await expect(service.update(adminUser, 'g1', { homeroomTeacherId: 't9' })).rejects.toThrow(NotFoundException)
+      expect(prisma.group.update).not.toHaveBeenCalled()
+    })
+
+    it('update: не-учитель (родитель) нельзя сделать классным руководителем', async () => {
+      prisma.group.findUnique.mockResolvedValue({ id: 'g1', kindergartenId: 'k1' })
+      prisma.user.findUnique.mockResolvedValue({ role: 'PARENT', isActive: true, kindergartenId: 'k1' })
+      await expect(service.update(adminUser, 'g1', { homeroomTeacherId: 'p1' })).rejects.toThrow(NotFoundException)
+    })
+
+    it('update: раздел «Классный руководитель» выключен → 403', async () => {
+      features.isEnabled.mockResolvedValue(false)
+      prisma.group.findUnique.mockResolvedValue({ id: 'g1', kindergartenId: 'k1' })
+      await expect(service.update(adminUser, 'g1', { homeroomTeacherId: 't1' })).rejects.toThrow(ForbiddenException)
+      expect(prisma.group.update).not.toHaveBeenCalled()
+    })
+
+    it('update: null снимает руководителя', async () => {
+      prisma.group.findUnique.mockResolvedValue({ id: 'g1', kindergartenId: 'k1' })
+      prisma.group.update.mockResolvedValue({ id: 'g1' })
+      await service.update(adminUser, 'g1', { homeroomTeacherId: null })
+      expect(prisma.group.update.mock.calls[0][0].data.homeroomTeacher).toEqual({ disconnect: true })
+      expect(features.isEnabled).not.toHaveBeenCalled() // снятие не требует раздела
+    })
+
+    it('update без поля homeroomTeacherId не трогает руководителя', async () => {
+      prisma.group.findUnique.mockResolvedValue({ id: 'g1', kindergartenId: 'k1' })
+      prisma.group.update.mockResolvedValue({ id: 'g1' })
+      await service.update(adminUser, 'g1', { name: '5Б' })
+      expect(prisma.group.update.mock.calls[0][0].data.homeroomTeacher).toBeUndefined()
     })
   })
 })

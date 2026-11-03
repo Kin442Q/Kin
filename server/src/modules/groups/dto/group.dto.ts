@@ -6,9 +6,11 @@ export class CreateGroupDto {
   @IsString()
   name!: string
 
-  @ApiProperty()
+  // Для школы необязательна: класс определяется названием («5А»).
+  @ApiProperty({ required: false, default: '' })
+  @IsOptional()
   @IsString()
-  ageRange!: string
+  ageRange?: string
 
   @ApiProperty({ default: 20, required: false })
   @IsOptional()
@@ -38,6 +40,12 @@ export class CreateGroupDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean
+
+  /** Классный руководитель (id учителя этой школы) или null, чтобы снять. */
+  @ApiProperty({ required: false, nullable: true })
+  @IsOptional()
+  @IsString()
+  homeroomTeacherId?: string | null
 }
 
 export class UpdateGroupDto extends PartialType(CreateGroupDto) {}

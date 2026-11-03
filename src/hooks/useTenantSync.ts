@@ -15,6 +15,7 @@ interface GroupApi {
   color: string
   isActive: boolean
   createdAt: string
+  homeroomTeacher?: { id: string; fullName: string } | null
 }
 
 interface StudentApi {
@@ -50,6 +51,7 @@ function normalizeGroups(arr: GroupApi[]): Group[] {
     fixedMonthlyExpense: Number(g.fixedMonthlyExpense) || 0,
     color: g.color,
     teacherId: undefined,
+    homeroomTeacher: g.homeroomTeacher ?? null,
     createdAt: g.createdAt,
   }))
 }

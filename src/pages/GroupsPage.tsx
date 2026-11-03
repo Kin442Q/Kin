@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Col,
@@ -72,6 +72,9 @@ export default function GroupsPage() {
   const showFinance = useFeature('analytics')
   const showPayments = useFeature('payments')
   const showExpenses = useFeature('expenses')
+  const showHomeroom = useFeature('homeroom')
+  // Учителя школы — кандидаты в классные руководители
+  const [teachers, setTeachers] = useState<Array<{ id: string; fullName: string }>>([])
   const isSchool = L.group === 'класс'
 
   const groups = useDataStore((s) => s.groups)
@@ -124,6 +127,14 @@ export default function GroupsPage() {
     .filter((g) => g.income > 0)
     .map((g) => ({ type: g.group.name, value: g.income }))
 
+  useEffect(() => {
+    if (!showHomeroom) return
+    http
+      .get<Array<{ id: string; fullName: string; isActive: boolean }>>('/v1/teachers')
+      .then((r) => setTeachers(r.data.filter((t) => t.isActive)))
+      .catch(() => setTeachers([]))
+  }, [showHomeroom])
+
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
@@ -137,7 +148,7 @@ export default function GroupsPage() {
 
   const openEdit = (g: Group) => {
     setEditing(g)
-    form.setFieldsValue(g)
+    form.setFieldsValue({ ...g, homeroomTeacherId: g.homeroomTeacher?.id })
     setModalOpen(true)
   }
 
@@ -156,6 +167,8 @@ export default function GroupsPage() {
           ? { fixedMonthlyExpense: Number(values.fixedMonthlyExpense || 0) }
           : {}),
         color: values.color || GROUP_COLORS[0],
+        // null снимает руководителя; поле не отправляем, если раздел выключен
+        ...(showHomeroom ? { homeroomTeacherId: values.homeroomTeacherId ?? null } : {}),
       }
 
       if (editing) {
@@ -211,14 +224,23 @@ export default function GroupsPage() {
           </Avatar>
           <div>
             <div style={{ fontWeight: 600, color: SP.text }}>{row.group.name}</div>
-            <span style={{ color: SP.muted, fontSize: 12 }}>{row.group.ageRange}</span>
+            <span style={{ color: SP.muted, fontSize: 12 }}>
+              {[
+                row.group.ageRange,
+                showHomeroom && row.group.homeroomTeacher
+                  ? `Классный руководитель: ${row.group.homeroomTeacher.fullName}`
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
           </div>
         </Space>
       ),
       fixed: 'left' as const,
     },
     {
-      title: isSchool ? 'Учеников' : 'Детей',
+      title: 'Учеников',
       dataIndex: 'childrenCount',
       key: 'childrenCount',
       sorter: (a: GroupFinance, b: GroupFinance) => a.childrenCount - b.childrenCount,
@@ -356,9 +378,7 @@ export default function GroupsPage() {
           <Popconfirm
             title={`Удалить ${L.group}?`}
             description={
-              isSchool
-                ? 'Ученики останутся, но будут без класса'
-                : 'Дети останутся, но будут без группы'
+              'Ученики останутся, но будут без класса'
             }
             okText="Удалить"
             cancelText="Отмена"
@@ -387,12 +407,8 @@ export default function GroupsPage() {
         iconAccent="yellow"
         description={
           !showFinance
-            ? isSchool
-              ? 'Классы школы, учителя и состав'
-              : 'Группы сада, воспитатели и состав'
-            : isSchool
-              ? 'Классы школы и финансовая статистика по каждому'
-              : 'Финансовая статистика по каждой группе — сразу видно, какая прибыльная'
+            ? 'Классы школы, учителя и состав'
+            : 'Классы школы и финансовая статистика по каждому'
         }
         actions={
           <Space>
@@ -403,7 +419,7 @@ export default function GroupsPage() {
               allowClear={false}
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              {isSchool ? 'Новый класс' : 'Новая группа'}
+              {'Новый класс'}
             </Button>
           </Space>
         }
@@ -413,7 +429,7 @@ export default function GroupsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <SproutKPI
-            label={`Всего ${isSchool ? 'классов' : 'групп'}`}
+            label={`Всего классов`}
             value={String(total.count)}
             accent="mint"
             icon={<LayoutGrid size={18} strokeWidth={2} />}
@@ -424,7 +440,7 @@ export default function GroupsPage() {
           <>
         <Col xs={12} md={6}>
           <SproutKPI
-            label={`Доход всех ${isSchool ? 'классов' : 'групп'}`}
+            label={`Доход всех классов`}
             value={formatMoneyCompact(total.income)}
             accent="mint"
             icon={<Wallet size={18} strokeWidth={2} />}
@@ -433,7 +449,7 @@ export default function GroupsPage() {
         </Col>
         <Col xs={12} md={6}>
           <SproutKPI
-            label={`Расходы всех ${isSchool ? 'классов' : 'групп'}`}
+            label={`Расходы всех классов`}
             value={formatMoneyCompact(total.exp)}
             accent="yellow"
             icon={<TrendingUp size={18} strokeWidth={2} />}
@@ -472,7 +488,7 @@ export default function GroupsPage() {
               }}
             >
               <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-                Прибыль по {isSchool ? 'классам' : 'группам'}
+                Прибыль по {'классам'}
               </div>
               <Tag
                 style={{
@@ -515,7 +531,7 @@ export default function GroupsPage() {
             ) : (
               <SproutEmpty
                 title="Пока нет финансовых данных"
-                description={`Прибыль по ${isSchool ? 'классам' : 'группам'} появится после первых оплат и расходов за месяц`}
+                description={`Прибыль по классам появится после первых оплат и расходов за месяц`}
                 minHeight={240}
               />
             )}
@@ -559,7 +575,7 @@ export default function GroupsPage() {
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-            Подробно по {isSchool ? 'классам' : 'группам'}
+            Подробно по {'классам'}
           </div>
           <Tag style={{ background: SP.surfaceAlt, color: SP.textMid, border: 'none' }}>
             {dayjs(month + '-01').format('MMMM YYYY')}
@@ -588,11 +604,9 @@ export default function GroupsPage() {
         {finances.length === 0 ? (
           <SproutEmpty
             icon={<LayoutGrid size={28} strokeWidth={1.8} />}
-            title={isSchool ? 'Классов пока нет' : 'Групп пока нет'}
+            title={'Классов пока нет'}
             description={
-              isSchool
-                ? 'Создайте первый класс — 1А, 5Б или 11А'
-                : 'Создайте первую группу — Солнышко, Радуга или Звёздочка'
+              'Создайте первый класс — 1А, 5Б или 11А'
             }
             minHeight={220}
           />
@@ -646,7 +660,7 @@ export default function GroupsPage() {
                   >
                     <div>
                       <div style={{ fontSize: 11, color: SP.muted }}>
-                        {isSchool ? 'Учеников' : 'Детей'}
+                        {'Учеников'}
                       </div>
                       <div
                         className="sp-num"
@@ -760,9 +774,7 @@ export default function GroupsPage() {
         title={
           editing
             ? `Редактировать ${L.group}`
-            : isSchool
-              ? 'Новый класс'
-              : 'Новая группа'
+            : 'Новый класс'
         }
         open={modalOpen}
         onOk={submit}
@@ -774,18 +786,18 @@ export default function GroupsPage() {
       >
         <Form layout="vertical" form={form}>
           <Form.Item
-            label={isSchool ? 'Название класса' : 'Название группы'}
+            label={'Название класса'}
             name="name"
             rules={[{ required: true, message: 'Введите название' }]}
           >
-            <Input placeholder={isSchool ? 'Например, 5А' : 'Например, Солнышко'} />
+            <Input placeholder={'Например, 5А'} />
           </Form.Item>
           <Form.Item
-            label={isSchool ? 'Возрастная категория (опц.)' : 'Возрастная категория'}
+            label={'Возрастная категория (опц.)'}
             name="ageRange"
             rules={isSchool ? [] : [{ required: true, message: 'Укажите возраст' }]}
           >
-            <Input placeholder={isSchool ? '10–11 лет' : '3–4 года'} />
+            <Input placeholder={'10–11 лет'} />
           </Form.Item>
           {(showPayments || showExpenses) && (
           <Row gutter={12}>
@@ -812,18 +824,21 @@ export default function GroupsPage() {
             )}
           </Row>
           )}
-          <Form.Item label={cap(L.teacher)} name="teacherId">
-            <Select
-              allowClear
-              placeholder={`Выберите ${L.teacher}`}
-              options={staff
-                .filter((s) => s.position === 'Воспитатель')
-                .map((s) => ({
-                  value: s.id,
-                  label: `${s.lastName} ${s.firstName}`,
-                }))}
-            />
-          </Form.Item>
+          {showHomeroom && (
+            <Form.Item
+              label="Классный руководитель"
+              name="homeroomTeacherId"
+              tooltip="Видит сводку по классу, пишет родителям и выдаёт ученикам доступ в кабинет"
+            >
+              <Select
+                allowClear
+                showSearch
+                optionFilterProp="label"
+                placeholder="Выберите учителя"
+                options={teachers.map((t) => ({ value: t.id, label: t.fullName }))}
+              />
+            </Form.Item>
+          )}
           <Form.Item label="Цвет" name="color">
             <Select
               options={GROUP_COLORS.map((c) => ({

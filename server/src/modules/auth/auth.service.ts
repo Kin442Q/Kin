@@ -78,6 +78,11 @@ export class AuthService {
       user = matched[0]
     }
 
+    // Кабинет ученика можно выключить для школы — тогда ученики не входят.
+    if (user.role === 'STUDENT' && !(await this.features.isEnabled(user.kindergartenId, 'portal'))) {
+      throw new UnauthorizedException('Кабинет ученика отключён для вашей школы')
+    }
+
     const tokens = await this.issueTokens(user, meta)
 
     await this.prisma.user.update({
@@ -277,6 +282,7 @@ export class AuthService {
       kindergartenId: user.kindergartenId ?? null,
       groupId: user.groupId ?? null,
       childId: user.childId ?? null,
+      studentId: user.studentId ?? null,
       isDemo,
       jti: accessJti,
     }
@@ -324,6 +330,7 @@ export class AuthService {
       kindergartenId: user.kindergartenId,
       groupId: user.groupId,
       childId: user.childId,
+      studentId: user.studentId,
       avatarUrl: user.avatarUrl,
       phone: user.phone,
     }
@@ -348,12 +355,15 @@ export class AuthService {
             checkInRadiusMeters: true,
           },
         },
+        // Классы, где пользователь — классный руководитель (меню «Мой класс»).
+        homeroomGroups: { select: { id: true, name: true } },
       },
     })
     if (!user) throw new UnauthorizedException('Пользователь не найден')
     return {
       ...this.serialize(user),
       institution: user.kindergarten ?? null,
+      homeroomGroups: user.homeroomGroups,
       features: await this.features.enabledKeys(user.kindergartenId),
     }
   }

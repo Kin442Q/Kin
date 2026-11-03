@@ -38,6 +38,9 @@ import { PushModule } from './modules/push/push.module'
 import { TermsModule } from './modules/terms/terms.module'
 import { ChatModule } from './modules/chat/chat.module'
 import { FeaturesModule } from './modules/features/features.module'
+import { HomeworkStatusModule } from './modules/homework-status/homework-status.module'
+import { StudentPortalModule } from './modules/student-portal/student-portal.module'
+import { HomeroomModule } from './modules/homeroom/homeroom.module'
 import { FeatureGuard } from './modules/features/feature.guard'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
@@ -102,6 +105,9 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     TermsModule,
     ChatModule,
     FeaturesModule,
+    HomeworkStatusModule,
+    StudentPortalModule,
+    HomeroomModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.

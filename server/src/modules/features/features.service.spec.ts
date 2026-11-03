@@ -8,18 +8,14 @@ import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 
 describe('resolveFeature', () => {
   it('значение по умолчанию, если переопределения нет', () => {
-    expect(resolveFeature('chat', 'SCHOOL', undefined)).toBe(true)
-    expect(resolveFeature('payments', 'SCHOOL', undefined)).toBe(false)
+    expect(resolveFeature('chat', undefined)).toBe(true)
+    expect(resolveFeature('payments', undefined)).toBe(false)
+    expect(resolveFeature('menu', undefined)).toBe(false)
   })
 
   it('переопределение сильнее значения по умолчанию', () => {
-    expect(resolveFeature('payments', 'SCHOOL', true)).toBe(true)
-    expect(resolveFeature('chat', 'SCHOOL', false)).toBe(false)
-  })
-
-  it('раздел чужого типа выключен даже при явном true', () => {
-    expect(resolveFeature('grades', 'KINDERGARTEN', true)).toBe(false)
-    expect(resolveFeature('menu', 'SCHOOL', true)).toBe(false)
+    expect(resolveFeature('payments', true)).toBe(true)
+    expect(resolveFeature('chat', false)).toBe(false)
   })
 })
 
@@ -28,7 +24,6 @@ describe('FeaturesService', () => {
   let prisma: PrismaMock
 
   const school = (overrides: Array<{ key: string; enabled: boolean }> = []) => ({
-    type: 'SCHOOL' as const,
     features: overrides,
   })
 
@@ -47,14 +42,16 @@ describe('FeaturesService', () => {
       expect(prisma.kindergarten.findUnique).not.toHaveBeenCalled()
     })
 
-    it('финансовые разделы выключены по умолчанию, школьные включены', async () => {
+    it('финансовые разделы и меню выключены по умолчанию, школьные включены', async () => {
       prisma.kindergarten.findUnique.mockResolvedValue(school())
       const keys = await service.enabledKeys('k1')
-      expect(keys).toEqual(expect.arrayContaining(['grades', 'homework', 'chat', 'attendance']))
+      expect(keys).toEqual(
+        expect.arrayContaining(['grades', 'homework', 'chat', 'attendance', 'groups']),
+      )
       expect(keys).not.toContain('payments')
       expect(keys).not.toContain('expenses')
       expect(keys).not.toContain('analytics')
-      expect(keys).not.toContain('menu') // только для садика
+      expect(keys).not.toContain('menu')
     })
 
     it('включённое владельцем переопределение попадает в список', async () => {
@@ -86,16 +83,13 @@ describe('FeaturesService', () => {
   })
 
   describe('listForSchool', () => {
-    it('отдаёт все разделы с признаками applicable/overridden', async () => {
+    it('отдаёт все разделы с признаком overridden', async () => {
       prisma.kindergarten.findUnique.mockResolvedValue(school([{ key: 'payments', enabled: true }]))
       const list = await service.listForSchool('k1')
       expect(list).toHaveLength(FEATURE_KEYS.length)
 
       const payments = list.find((f) => f.key === 'payments')!
       expect(payments).toMatchObject({ enabled: true, defaultEnabled: false, overridden: true })
-
-      const menu = list.find((f) => f.key === 'menu')!
-      expect(menu).toMatchObject({ applicable: false, enabled: false })
 
       const chat = list.find((f) => f.key === 'chat')!
       expect(chat).toMatchObject({ enabled: true, overridden: false, label: FEATURES.chat.label })
@@ -143,14 +137,6 @@ describe('FeaturesService', () => {
       await expect(service.setOverrides('k1', { chat: 'yes' as never })).rejects.toThrow(
         BadRequestException,
       )
-    })
-
-    it('400 при включении раздела чужого типа (меню в школе)', async () => {
-      await expect(service.setOverrides('k1', { menu: true })).rejects.toThrow(BadRequestException)
-    })
-
-    it('сброс (null) раздела чужого типа разрешён', async () => {
-      await expect(service.setOverrides('k1', { menu: null })).resolves.toBeDefined()
     })
 
     it('после изменения кэш сбрасывается — следующий запрос идёт в БД', async () => {

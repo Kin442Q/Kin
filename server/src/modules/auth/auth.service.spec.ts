@@ -18,7 +18,7 @@ describe('AuthService', () => {
   let jwt: { signAsync: jest.Mock }
   let redis: { set: jest.Mock }
   let notifications: { send: jest.Mock }
-  let features: { enabledKeys: jest.Mock }
+  let features: { enabledKeys: jest.Mock; isEnabled: jest.Mock }
 
   const fakeUser = {
     id: 'u1',
@@ -44,7 +44,10 @@ describe('AuthService', () => {
     }
     redis = { set: jest.fn() }
     notifications = { send: jest.fn() }
-    features = { enabledKeys: jest.fn().mockResolvedValue(['groups', 'chat']) }
+    features = {
+      enabledKeys: jest.fn().mockResolvedValue(['groups', 'chat']),
+      isEnabled: jest.fn().mockResolvedValue(true),
+    }
 
     const config = {
       get: (k: string) => {
@@ -150,6 +153,46 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException)
     })
 
+    it('ученик входит, если кабинет ученика включён; studentId попадает в токен и ответ', async () => {
+      const hash = await bcrypt.hash('pw1234', 4)
+      prisma.user.findUnique.mockResolvedValue({
+        ...fakeUser,
+        role: 'STUDENT',
+        studentId: 'st1',
+        email: 'st1@students.local',
+        passwordHash: hash,
+      })
+      prisma.user.update.mockResolvedValue(fakeUser)
+      prisma.refreshToken.create.mockResolvedValue({})
+
+      const res = await service.login({ email: 'st1@students.local', password: 'pw1234' }, {})
+
+      expect(features.isEnabled).toHaveBeenCalledWith('k1', 'portal')
+      expect(res.user.studentId).toBe('st1')
+      expect(jwt.signAsync.mock.calls[0][0]).toMatchObject({ role: 'STUDENT', studentId: 'st1' })
+    })
+
+    it('ученик не входит, если кабинет ученика выключен для школы → 401, токены не выдаются', async () => {
+      const hash = await bcrypt.hash('pw1234', 4)
+      prisma.user.findUnique.mockResolvedValue({ ...fakeUser, role: 'STUDENT', studentId: 'st1', passwordHash: hash })
+      features.isEnabled = jest.fn().mockResolvedValue(false)
+
+      await expect(service.login({ email: 'admin@kg.tj', password: 'pw1234' }, {})).rejects.toThrow(
+        UnauthorizedException,
+      )
+      expect(jwt.signAsync).not.toHaveBeenCalled()
+      expect(prisma.user.update).not.toHaveBeenCalled()
+    })
+
+    it('выключенный кабинет ученика не мешает входить учителям и админам', async () => {
+      const hash = await bcrypt.hash('pw1234', 4)
+      prisma.user.findUnique.mockResolvedValue({ ...fakeUser, passwordHash: hash })
+      prisma.user.update.mockResolvedValue(fakeUser)
+      prisma.refreshToken.create.mockResolvedValue({})
+      features.isEnabled = jest.fn().mockResolvedValue(false)
+
+      await expect(service.login({ email: 'admin@kg.tj', password: 'pw1234' }, {})).resolves.toBeDefined()
+    })
     it('401 если пользователь не найден', async () => {
       prisma.user.findUnique.mockResolvedValue(null)
       await expect(

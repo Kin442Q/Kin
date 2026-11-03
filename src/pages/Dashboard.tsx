@@ -196,9 +196,9 @@ export default function Dashboard() {
               textOverflow: 'ellipsis',
             }}
           >
-            {dayjs().format('dddd, D MMMM')} · {isSchool ? 'в школе' : 'в саду'}{' '}
+            {dayjs().format('dddd, D MMMM')} · {'в школе'}{' '}
             {dashboard?.activeStudents ?? children.length}{' '}
-            {isSchool ? 'учеников' : 'детей'}
+            {'учеников'}
             {totalToday > 0 ? ` · ${attendancePct}% посещаемость` : ''}
           </div>
         </div>
@@ -245,7 +245,7 @@ export default function Dashboard() {
         )}
         <Col xs={12} sm={12} lg={showAnalytics ? 6 : 12}>
           <SproutKPI
-            label={isSchool ? 'Учеников в школе' : 'Детей в саду'}
+            label={'Учеников в школе'}
             value={String(dashboard?.activeStudents ?? children.length)}
             accent="mint"
             hint={`Сотрудников: ${staff.length}`}
@@ -256,7 +256,7 @@ export default function Dashboard() {
         {!showAnalytics && (
           <Col xs={12} sm={12} lg={12}>
             <SproutKPI
-              label={isSchool ? 'Классов' : 'Групп'}
+              label={'Классов'}
               value={String(groups.length)}
               accent="blue"
               hint={`Присутствуют сегодня: ${presentToday}`}
@@ -458,7 +458,7 @@ export default function Dashboard() {
                   {L.groups}{showAnalytics ? ' · доходность' : ''}
                 </div>
                 <div style={{ fontSize: 12, color: SP.muted, marginTop: 2 }}>
-                  {groups.length} {isSchool ? 'классов' : 'групп'}
+                  {groups.length} {'классов'}
                 </div>
               </div>
               <button
@@ -475,7 +475,7 @@ export default function Dashboard() {
                   gap: 4,
                 }}
               >
-                Все {isSchool ? 'классы' : 'группы'} <ArrowRight size={13} />
+                Все {'классы'} <ArrowRight size={13} />
               </button>
             </div>
             {groups.length > 0 ? (
@@ -571,11 +571,9 @@ export default function Dashboard() {
               </div>
             ) : (
               <SproutEmpty
-                title={isSchool ? 'Классы ещё не созданы' : 'Группы ещё не созданы'}
+                title={'Классы ещё не созданы'}
                 description={
-                  isSchool
-                    ? 'Добавьте первый класс — 1А, 5Б или 11А'
-                    : 'Добавьте первую группу — Солнышко, Радуга или Звёздочка'
+                  'Добавьте первый класс — 1А, 5Б или 11А'
                 }
                 minHeight={200}
               />
@@ -648,7 +646,7 @@ export default function Dashboard() {
               <Bell size={14} /> События
             </div>
             <div style={{ fontSize: 12, color: SP.muted, marginBottom: 12 }}>
-              Дни рождения и новые {isSchool ? 'ученики' : 'дети'}
+              Дни рождения и новые {'ученики'}
             </div>
             {events.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

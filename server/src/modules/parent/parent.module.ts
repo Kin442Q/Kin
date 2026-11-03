@@ -185,13 +185,19 @@ class ParentService {
 
   async kidHomework(user: AuthUser, kidId: string) {
     const kid = await this.ensureKidAccess(user, kidId)
-    return this.prisma.homework.findMany({
+    const list = await this.prisma.homework.findMany({
       where: { groupId: kid.groupId },
       orderBy: { dueDate: 'asc' },
       include: {
         subject: { select: { id: true, name: true, color: true } },
+        // Как мой ребёнок выполнил это ДЗ (нет записи — ещё не отмечено).
+        submissions: {
+          where: { studentId: kidId },
+          select: { status: true, comment: true, updatedAt: true },
+        },
       },
     })
+    return list.map(({ submissions, ...hw }) => ({ ...hw, submission: submissions[0] ?? null }))
   }
 
   /** Сводка для главного экрана: ребёнок + статус на сегодня + следующее занятие + дневник. */

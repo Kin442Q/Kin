@@ -25,6 +25,8 @@ enum Role {
   ADMIN
   TEACHER
   PARENT
+  /// Ученик школы со своим входом (кабинет ученика). Привязан к Student через User.studentId.
+  STUDENT
 }
 
 enum Gender {
@@ -139,9 +141,11 @@ enum AuditAction {
 // KINDERGARTEN (мульти-тенант: каждый садик = отдельный изолированный аккаунт)
 // ---------------------------------------------------------------------------
 
-/// Тип учреждения. По умолчанию KINDERGARTEN (для обратной совместимости
-/// с существующими записями). SCHOOL включает школьные фичи: предметы,
-/// уроки, оценки, домашние задания, журнал.
+/// Тип учреждения. Платформа только для школ: все учреждения — SCHOOL.
+/// KINDERGARTEN оставлен в enum лишь для обратной совместимости (убирать
+/// значение из enum в Postgres больно); в коде не используется.
+/// Модель называется Kindergarten по историческим причинам — это ШКОЛА
+/// (тенант платформы); переименование в School — отдельная большая миграция.
 enum InstitutionType {
   KINDERGARTEN
   SCHOOL
@@ -162,7 +166,7 @@ model Kindergarten {
 
   /// Тип учреждения: садик или школа.
   /// Влияет на лейблы в UI (группа↔класс, ребёнок↔ученик) и доступные фичи.
-  type          InstitutionType @default(KINDERGARTEN)
+  type          InstitutionType @default(SCHOOL)
 
   /// API-ключ для внешнего терминала контроля доступа.
   /// Если задан — webhook /v1/time/webhook принимает события от устройства.
@@ -303,6 +307,15 @@ model User {
   childId       String?
   child         Student? @relation(fields: [childId], references: [id])
 
+  /// Для STUDENT — ученик, чей это аккаунт (один аккаунт на ученика).
+  studentId     String?  @unique
+  student       Student? @relation("StudentAccount", fields: [studentId], references: [id], onDelete: SetNull)
+
+  /// Классы, где пользователь — классный руководитель.
+  homeroomGroups Group[] @relation("Homeroom")
+  /// Статусы ДЗ, выставленные этим пользователем (учитель или сам ученик).
+  homeworkMarks HomeworkSubmission[] @relation("SubmissionMarker")
+
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
 
@@ -439,6 +452,11 @@ model Group {
   kindergartenId       String?
   kindergarten         Kindergarten? @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
 
+  /// Классный руководитель (учитель этого класса с расширенными правами:
+  /// сводка по классу, связь с родителями). Не больше одного на класс.
+  homeroomTeacherId    String?
+  homeroomTeacher      User?    @relation("Homeroom", fields: [homeroomTeacherId], references: [id], onDelete: SetNull)
+
   students             Student[]
   teachers             User[]          @relation("GroupTeachers")
   /// Учителя, ведущие этот класс (many-to-many, помимо основного teacher).
@@ -456,6 +474,7 @@ model Group {
 
   @@index([isActive])
   @@index([kindergartenId])
+  @@index([homeroomTeacherId])
 }
 
 // ---------------------------------------------------------------------------
@@ -500,8 +519,11 @@ model Student {
   attendance    Attendance[]
   payments      Payment[]
   parents       User[]        // PARENT-аккаунты, привязанные к ребёнку
+  /// Собственный вход ученика (роль STUDENT). Не больше одного.
+  account       User?         @relation("StudentAccount")
   kidNotes      KidNote[]
   grades        Grade[]
+  homeworkSubmissions HomeworkSubmission[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -888,9 +910,39 @@ model Homework {
   subject     Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   group       Group   @relation(fields: [groupId], references: [id], onDelete: Cascade)
   author      User    @relation("HomeworkAuthor", fields: [authorId], references: [id])
+  submissions HomeworkSubmission[]
 
   @@index([groupId, dueDate])
   @@index([subjectId])
+}
+
+/// Как ученик выполнил конкретное ДЗ. Нет записи = ещё не отмечено.
+enum SubmissionStatus {
+  SUBMITTED  // ученик сам отметил «сделал», учитель ещё не проверил
+  DONE       // учитель подтвердил: выполнено
+  PARTIAL    // выполнено частично
+  NOT_DONE   // не выполнено
+}
+
+model HomeworkSubmission {
+  id          String   @id @default(cuid())
+  homeworkId  String
+  studentId   String
+  status      SubmissionStatus
+  /// Комментарий учителя («нет второй задачи», «молодец»).
+  comment     String?
+  /// Кто выставил последний статус: сам ученик или учитель.
+  markedById  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  homework    Homework @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  markedBy    User?    @relation("SubmissionMarker", fields: [markedById], references: [id], onDelete: SetNull)
+
+  @@unique([homeworkId, studentId])
+  @@index([studentId])
+  @@index([homeworkId, status])
 }
 
 /// Учебный период школы (четверть / триместр / полугодие).

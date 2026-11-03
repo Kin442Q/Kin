@@ -17,7 +17,7 @@ import {
   Tag,
   Typography,
 } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { CheckSquareOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { BookOpen } from 'lucide-react'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
@@ -25,6 +25,7 @@ import dayjs from 'dayjs'
 import { SP, SproutPageHeader, SproutEmpty } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { http } from '../api'
+import HomeworkStatusModal from '../components/HomeworkStatusModal'
 
 const { Text } = Typography
 
@@ -60,6 +61,9 @@ export default function HomeworkPage() {
   const [filter, setFilter] = useState<Filter>('upcoming')
   const [groupFilter, setGroupFilter] = useState<string | null>(null)
   const [subjectFilter, setSubjectFilter] = useState<string | null>(null)
+
+  // Статусы выполнения (кто сделал / не сделал) и сообщение родителям
+  const [statusFor, setStatusFor] = useState<string | null>(null)
 
   // Modal
   const [editing, setEditing] = useState<HomeworkDto | null>(null)
@@ -351,6 +355,13 @@ export default function HomeworkPage() {
                     <Space>
                       <Button
                         size="small"
+                        icon={<CheckSquareOutlined />}
+                        onClick={() => setStatusFor(h.id)}
+                      >
+                        Кто сделал
+                      </Button>
+                      <Button
+                        size="small"
                         type="text"
                         icon={<EditOutlined />}
                         onClick={() => openEdit(h)}
@@ -382,6 +393,8 @@ export default function HomeworkPage() {
           </Text>
         )}
       </motion.div>
+
+      <HomeworkStatusModal homeworkId={statusFor} onClose={() => setStatusFor(null)} />
 
       {/* Modal */}
       <Modal

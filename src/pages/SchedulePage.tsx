@@ -166,7 +166,7 @@ export default function SchedulePage() {
       })
       setOpen(false)
       form.resetFields()
-      message.success(isSchool ? 'Урок добавлен' : 'Занятие добавлено')
+      message.success('Урок добавлен')
       await load()
     } catch (err: any) {
       if (err?.errorFields) return
@@ -197,20 +197,18 @@ export default function SchedulePage() {
   return (
     <div>
       <SproutPageHeader
-        title={isSchool ? 'Расписание уроков' : 'Расписание'}
+        title={'Расписание уроков'}
         icon={<Calendar size={22} strokeWidth={2} />}
         iconAccent="blue"
         description={
-          isSchool
-            ? 'Уроки по классам: предмет, учитель, кабинет'
-            : 'Расписание занятий по группам'
+          'Уроки по классам: предмет, учитель, кабинет'
         }
         actions={
           <Space>
             <Select
               style={{ minWidth: 200 }}
               allowClear
-              placeholder={isSchool ? 'Все классы' : 'Все группы'}
+              placeholder={'Все классы'}
               value={groupId}
               onChange={setGroupId}
               options={groups.map((g) => ({ value: g.id, label: g.name }))}
@@ -220,7 +218,7 @@ export default function SchedulePage() {
               icon={<PlusOutlined />}
               onClick={() => setOpen(true)}
             >
-              {isSchool ? 'Добавить урок' : 'Добавить'}
+              {'Добавить урок'}
             </Button>
           </Space>
         }
@@ -235,11 +233,9 @@ export default function SchedulePage() {
           <Card className="glass" bordered={false}>
             <SproutEmpty
               icon={<Calendar size={28} strokeWidth={1.8} />}
-              title={isSchool ? 'Классов пока нет' : 'Групп пока нет'}
+              title={'Классов пока нет'}
               description={
-                isSchool
-                  ? 'Сначала создайте класс в разделе «Классы»'
-                  : 'Сначала создайте группу'
+                'Сначала создайте класс в разделе «Классы»'
               }
               minHeight={180}
             />
@@ -288,7 +284,7 @@ export default function SchedulePage() {
                       {/* Уроки дня */}
                       {dayItems.length === 0 ? (
                         <div className="sp-day-empty">
-                          {isSchool ? 'Уроков нет' : 'Занятий нет'}
+                          {'Уроков нет'}
                         </div>
                       ) : (
                         <div>
@@ -369,7 +365,7 @@ export default function SchedulePage() {
                                 </div>
                                 <Popconfirm
                                   title={
-                                    isSchool ? 'Удалить урок?' : 'Удалить занятие?'
+                                    'Удалить урок?'
                                   }
                                   okText="Удалить"
                                   cancelText="Отмена"
@@ -398,7 +394,7 @@ export default function SchedulePage() {
       </motion.div>
 
       <Modal
-        title={isSchool ? 'Добавить урок' : 'Добавить занятие'}
+        title={'Добавить урок'}
         open={open}
         onOk={submit}
         onCancel={() => setOpen(false)}
@@ -410,7 +406,7 @@ export default function SchedulePage() {
         <Form layout="vertical" form={form}>
           <Form.Item
             name="groupId"
-            label={isSchool ? 'Класс' : 'Группа'}
+            label={'Класс'}
             rules={[{ required: true }]}
           >
             <Select
