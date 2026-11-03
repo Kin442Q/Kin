@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { SetMetadata } from '@nestjs/common'
+import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 
 export const GROUP_PARAM_KEY = 'groupParam'
 
@@ -11,8 +12,9 @@ export const GROUP_PARAM_KEY = 'groupParam'
 export const GroupScope = (paramName = 'id') => SetMetadata(GROUP_PARAM_KEY, paramName)
 
 /**
- * Гарантирует, что TEACHER читает/пишет только свою группу.
- * SUPER_ADMIN/ADMIN не ограничиваются.
+ * Гарантирует, что TEACHER читает/пишет только свои классы:
+ * основную группу (User.groupId) ИЛИ любой из классов, которые он ведёт
+ * (User.teachingGroups). SUPER_ADMIN/ADMIN не ограничиваются.
  *
  * Использование:
  *   @UseGuards(JwtAuthGuard, RolesGuard, GroupScopeGuard)
@@ -22,9 +24,12 @@ export const GroupScope = (paramName = 'id') => SetMetadata(GROUP_PARAM_KEY, par
  */
 @Injectable()
 export class GroupScopeGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly prisma: PrismaService,
+  ) {}
 
-  canActivate(ctx: ExecutionContext): boolean {
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const req = ctx.switchToHttp().getRequest()
     const user = req.user
     if (!user) throw new ForbiddenException('Не авторизован')
@@ -37,8 +42,15 @@ export class GroupScopeGuard implements CanActivate {
     if (!groupId) {
       throw new ForbiddenException(`Не передан ${paramName}`)
     }
-    if (user.role === 'TEACHER' && user.groupId !== groupId) {
-      throw new ForbiddenException('Доступ только к своей группе')
+    if (user.role === 'TEACHER') {
+      // Основной класс есть в токене — это быстрый путь без запроса в БД.
+      if (user.groupId === groupId) return true
+      // Остальные классы учителя (M:N) в токен не кладём — они меняются
+      // админом, токен живёт до 15 минут. Проверяем по БД.
+      const teaches = await this.prisma.user.count({
+        where: { id: user.sub, teachingGroups: { some: { id: groupId } } },
+      })
+      if (teaches === 0) throw new ForbiddenException('Доступ только к своему классу')
     }
     return true
   }

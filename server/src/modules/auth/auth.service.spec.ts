@@ -9,6 +9,7 @@ import { AuthService } from './auth.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
 import { NotificationsService } from '../notifications/notifications.service'
+import { FeaturesService } from '../features/features.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 
 describe('AuthService', () => {
@@ -17,6 +18,7 @@ describe('AuthService', () => {
   let jwt: { signAsync: jest.Mock }
   let redis: { set: jest.Mock }
   let notifications: { send: jest.Mock }
+  let features: { enabledKeys: jest.Mock }
 
   const fakeUser = {
     id: 'u1',
@@ -42,6 +44,7 @@ describe('AuthService', () => {
     }
     redis = { set: jest.fn() }
     notifications = { send: jest.fn() }
+    features = { enabledKeys: jest.fn().mockResolvedValue(['groups', 'chat']) }
 
     const config = {
       get: (k: string) => {
@@ -63,6 +66,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: jwt },
         { provide: ConfigService, useValue: config },
         { provide: NotificationsService, useValue: notifications },
+        { provide: FeaturesService, useValue: features },
       ],
     }).compile()
 
@@ -91,10 +95,9 @@ describe('AuthService', () => {
 
     it('успешный вход по телефону', async () => {
       const hash = await bcrypt.hash('secret123', 4)
-      prisma.user.findFirst.mockResolvedValue({
-        ...fakeUser,
-        passwordHash: hash,
-      })
+      prisma.user.findMany.mockResolvedValue([
+        { ...fakeUser, passwordHash: hash },
+      ])
       prisma.user.update.mockResolvedValue(fakeUser)
       prisma.refreshToken.create.mockResolvedValue({})
 
@@ -104,9 +107,47 @@ describe('AuthService', () => {
       )
 
       expect(res.accessToken).toBeTruthy()
-      expect(prisma.user.findFirst).toHaveBeenCalledWith({
-        where: { phone: '+992901112233' },
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: { phone: '+992901112233', isActive: true },
       })
+    })
+
+    it('вход по телефону: один номер в двух школах — выбирается тот, чей пароль подошёл', async () => {
+      const hashA = await bcrypt.hash('passwordA', 4)
+      const hashB = await bcrypt.hash('passwordB', 4)
+      prisma.user.findMany.mockResolvedValue([
+        { ...fakeUser, id: 'uA', kindergartenId: 'kA', passwordHash: hashA },
+        { ...fakeUser, id: 'uB', kindergartenId: 'kB', passwordHash: hashB },
+      ])
+      prisma.user.update.mockResolvedValue(fakeUser)
+      prisma.refreshToken.create.mockResolvedValue({})
+
+      const res = await service.login(
+        { phone: '+992901112233', password: 'passwordB' },
+        {},
+      )
+
+      expect(res.user.id).toBe('uB')
+      expect(res.user.kindergartenId).toBe('kB')
+    })
+
+    it('вход по телефону: 401, если пароль подошёл нескольким аккаунтам', async () => {
+      const hash = await bcrypt.hash('same-pass', 4)
+      prisma.user.findMany.mockResolvedValue([
+        { ...fakeUser, id: 'uA', passwordHash: hash },
+        { ...fakeUser, id: 'uB', passwordHash: hash },
+      ])
+      await expect(
+        service.login({ phone: '+992901112233', password: 'same-pass' }, {}),
+      ).rejects.toThrow(UnauthorizedException)
+    })
+
+    it('вход по телефону: 401 при неверном пароле', async () => {
+      const hash = await bcrypt.hash('right', 4)
+      prisma.user.findMany.mockResolvedValue([{ ...fakeUser, passwordHash: hash }])
+      await expect(
+        service.login({ phone: '+992901112233', password: 'wrong' }, {}),
+      ).rejects.toThrow(UnauthorizedException)
     })
 
     it('401 если пользователь не найден', async () => {

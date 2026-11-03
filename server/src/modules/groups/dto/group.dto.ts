@@ -16,15 +16,19 @@ export class CreateGroupDto {
   @Min(1)
   capacity?: number
 
-  @ApiProperty()
+  // Необязательны: если разделы «Оплата»/«Расходы» выключены для учреждения,
+  // клиент их не отправляет, и в БД берётся default(0) из схемы.
+  @ApiProperty({ default: 0, required: false })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  monthlyFee!: number
+  monthlyFee?: number
 
-  @ApiProperty()
+  @ApiProperty({ default: 0, required: false })
+  @IsOptional()
   @IsNumber()
   @Min(0)
-  fixedMonthlyExpense!: number
+  fixedMonthlyExpense?: number
 
   @ApiProperty({ default: '#6366f1' })
   @IsString()

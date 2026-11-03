@@ -28,6 +28,7 @@ import Screen from '../components/Screen'
 import Card from '../components/Card'
 import { colors, radius, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
+import { hasFeature } from '../lib/features'
 import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
 import { adminApi, type DashboardDto } from '../api/admin'
@@ -144,18 +145,22 @@ export default function AdminDashboardScreen() {
             label={L.students}
             onPress={() => navigation.navigate('AdminStudents')}
           />
-          <QuickAction
-            icon={<Receipt size={20} color={colors.roseDeep} />}
-            bg={colors.roseSoft}
-            label="Расходы"
-            onPress={() => navigation.navigate('AdminExpenses')}
-          />
-          <QuickAction
-            icon={<CalendarHeart size={20} color={colors.lilacDeep} />}
-            bg={colors.lilacSoft}
-            label="Собрания"
-            onPress={() => navigation.navigate('AdminMeetings')}
-          />
+          {hasFeature(user, 'expenses') && (
+            <QuickAction
+              icon={<Receipt size={20} color={colors.roseDeep} />}
+              bg={colors.roseSoft}
+              label="Расходы"
+              onPress={() => navigation.navigate('AdminExpenses')}
+            />
+          )}
+          {hasFeature(user, 'meetings') && (
+            <QuickAction
+              icon={<CalendarHeart size={20} color={colors.lilacDeep} />}
+              bg={colors.lilacSoft}
+              label="Собрания"
+              onPress={() => navigation.navigate('AdminMeetings')}
+            />
+          )}
         </View>
 
         <Text style={styles.section}>Доходы и расходы</Text>

@@ -187,8 +187,27 @@ model Kindergarten {
   menuItems     MenuItem[]
   subjects      Subject[]
   terms         Term[]
+  features      KindergartenFeature[]
 
   @@index([isActive])
+}
+
+/// Переопределение раздела (feature) для конкретного учреждения.
+/// Нет записи → действует значение по умолчанию из реестра разделов
+/// (server/src/modules/features/feature-registry.ts). Управляет владелец платформы.
+model KindergartenFeature {
+  id             String   @id @default(cuid())
+  kindergartenId String
+  /// Ключ раздела из реестра: 'grades', 'payments', 'analytics', ...
+  key            String
+  enabled        Boolean
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+
+  @@unique([kindergartenId, key])
+  @@index([kindergartenId])
 }
 
 // ---------------------------------------------------------------------------

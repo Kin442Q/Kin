@@ -66,4 +66,56 @@ describe('<RequireRole>', () => {
     expect(screen.queryByText('Secret')).not.toBeInTheDocument()
     expect(screen.getByText(/Нет доступа/)).toBeInTheDocument()
   })
+
+  describe('раздел платформы (feature)', () => {
+    const admin = (features?: string[], kindergartenId: string | null = 'k1') => ({
+      id: 'u1',
+      fullName: 'A',
+      email: 'a@b.c',
+      role: 'ADMIN' as const,
+      kindergartenId,
+      features,
+    })
+
+    it('пускает, если раздел включён для учреждения', () => {
+      useAuthStore.setState({ user: admin(['payments']), token: 'jwt' })
+      wrap(
+        <RequireRole roles={['ADMIN']} feature="payments">
+          <div>Secret</div>
+        </RequireRole>,
+      )
+      expect(screen.getByText('Secret')).toBeInTheDocument()
+    })
+
+    it('закрывает страницу, если раздел выключен', () => {
+      useAuthStore.setState({ user: admin(['chat']), token: 'jwt' })
+      wrap(
+        <RequireRole roles={['ADMIN']} feature="payments">
+          <div>Secret</div>
+        </RequireRole>,
+      )
+      expect(screen.queryByText('Secret')).not.toBeInTheDocument()
+      expect(screen.getByText(/Раздел отключён/)).toBeInTheDocument()
+    })
+
+    it('роль проверяется раньше раздела: чужая роль видит «Нет доступа»', () => {
+      useAuthStore.setState({ user: { ...admin(['payments']), role: 'TEACHER' }, token: 'jwt' })
+      wrap(
+        <RequireRole roles={['ADMIN']} feature="payments">
+          <div>Secret</div>
+        </RequireRole>,
+      )
+      expect(screen.getByText(/Нет доступа/)).toBeInTheDocument()
+    })
+
+    it('владелец платформы проходит в любой раздел', () => {
+      useAuthStore.setState({ user: admin([], null), token: 'jwt' })
+      wrap(
+        <RequireRole roles={['ADMIN']} feature="payments">
+          <div>Secret</div>
+        </RequireRole>,
+      )
+      expect(screen.getByText('Secret')).toBeInTheDocument()
+    })
+  })
 })

@@ -72,6 +72,7 @@ export function createPrismaMock() {
     monthlyReport: model(),
     conversation: model(),
     message: model(),
+    kindergartenFeature: model(),
     $transaction,
     $queryRaw: jest.fn(),
     $disconnect: jest.fn(),

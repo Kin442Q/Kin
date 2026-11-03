@@ -41,6 +41,7 @@ import {
 import { useDataStore } from '../store/dataStore'
 import { refreshTenantData } from '../hooks/useTenantSync'
 import { useLabels } from '../hooks/useLabels'
+import { useFeature } from '../hooks/useFeature'
 import { cap } from '../lib/labels'
 import { http } from '../api'
 import type { Group, GroupFinance } from '../types'
@@ -67,6 +68,10 @@ export default function GroupsPage() {
   const screens = useBreakpoint()
   const isMobile = !screens.md
   const L = useLabels()
+  // Финансовые части страницы зависят от разделов, включённых для учреждения.
+  const showFinance = useFeature('analytics')
+  const showPayments = useFeature('payments')
+  const showExpenses = useFeature('expenses')
   const isSchool = L.group === 'класс'
 
   const groups = useDataStore((s) => s.groups)
@@ -141,11 +146,15 @@ export default function GroupsPage() {
       const values = await form.validateFields()
       setSubmitting(true)
 
+      // Поля скрытых разделов не отправляем: иначе при редактировании
+      // существующая плата/расходы группы затёрлись бы нулём.
       const body = {
         name: values.name,
         ageRange: values.ageRange,
-        monthlyFee: Number(values.monthlyFee || 0),
-        fixedMonthlyExpense: Number(values.fixedMonthlyExpense || 0),
+        ...(showPayments ? { monthlyFee: Number(values.monthlyFee || 0) } : {}),
+        ...(showExpenses
+          ? { fixedMonthlyExpense: Number(values.fixedMonthlyExpense || 0) }
+          : {}),
         color: values.color || GROUP_COLORS[0],
       }
 
@@ -363,6 +372,13 @@ export default function GroupsPage() {
     },
   ]
 
+  // Колонки выключенных разделов не показываем.
+  const hiddenColumnKeys = new Set<string>([
+    ...(showPayments ? [] : ['paidCount', 'debtorsCount']),
+    ...(showFinance ? [] : ['income', 'expenses', 'profit', 'margin']),
+  ])
+  const visibleColumns = columns.filter((c) => !hiddenColumnKeys.has(c.key as string))
+
   return (
     <div>
       <SproutPageHeader
@@ -370,9 +386,13 @@ export default function GroupsPage() {
         icon={<LayoutGrid size={22} strokeWidth={2} />}
         iconAccent="yellow"
         description={
-          isSchool
-            ? 'Классы школы и финансовая статистика по каждому'
-            : 'Финансовая статистика по каждой группе — сразу видно, какая прибыльная'
+          !showFinance
+            ? isSchool
+              ? 'Классы школы, учителя и состав'
+              : 'Группы сада, воспитатели и состав'
+            : isSchool
+              ? 'Классы школы и финансовая статистика по каждому'
+              : 'Финансовая статистика по каждой группе — сразу видно, какая прибыльная'
         }
         actions={
           <Space>
@@ -400,6 +420,8 @@ export default function GroupsPage() {
             delay={0}
           />
         </Col>
+        {showFinance && (
+          <>
         <Col xs={12} md={6}>
           <SproutKPI
             label={`Доход всех ${isSchool ? 'классов' : 'групп'}`}
@@ -432,9 +454,12 @@ export default function GroupsPage() {
             delay={0.15}
           />
         </Col>
+          </>
+        )}
       </Row>
 
       {/* Charts */}
+      {showFinance && (
       <Row gutter={[16, 16]} style={{ marginTop: 16 }} align="stretch">
         <Col xs={24} lg={16} style={{ display: 'flex' }}>
           <SproutCard style={{ width: '100%' }} delay={0.2}>
@@ -519,6 +544,7 @@ export default function GroupsPage() {
           </SproutCard>
         </Col>
       </Row>
+      )}
 
       {/* Table */}
       <SproutCard style={{ marginTop: 16 }} delay={0.3}>
@@ -541,7 +567,7 @@ export default function GroupsPage() {
         </div>
 
         {/* Поясняем нули: есть классы, но за месяц нет оплат/расходов */}
-        {finances.length > 0 && total.withDataCount === 0 && (
+        {showFinance && finances.length > 0 && total.withDataCount === 0 && (
           <div
             style={{
               marginBottom: 14,
@@ -594,6 +620,7 @@ export default function GroupsPage() {
                       <div className="sp-mcard-title">{g.name}</div>
                       <div className="sp-mcard-sub">{g.ageRange}</div>
                     </div>
+                    {showFinance && (
                     <Tag
                       style={{
                         background: row.profit >= 0 ? SP.primaryGhost : '#FCEAE5',
@@ -606,12 +633,13 @@ export default function GroupsPage() {
                       {row.profit >= 0 ? '+' : ''}
                       {formatMoneyCompact(row.profit)}
                     </Tag>
+                    )}
                   </div>
 
                   <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: '1fr 1fr 1fr',
+                      gridTemplateColumns: showPayments ? '1fr 1fr 1fr' : '1fr',
                       gap: 8,
                       padding: '6px 0',
                     }}
@@ -627,6 +655,8 @@ export default function GroupsPage() {
                         {row.childrenCount}
                       </div>
                     </div>
+                    {showPayments && (
+                      <>
                     <div>
                       <div style={{ fontSize: 11, color: SP.muted }}>Оплатили</div>
                       <div
@@ -653,8 +683,12 @@ export default function GroupsPage() {
                         {row.debtorsCount}
                       </div>
                     </div>
+                      </>
+                    )}
                   </div>
 
+                  {showFinance && (
+                    <>
                   <div className="sp-mcard-row">
                     <span className="label">Доход</span>
                     <span className="value sp-num">{formatMoneyCompact(row.income)}</span>
@@ -676,6 +710,8 @@ export default function GroupsPage() {
                       showInfo={false}
                     />
                   </div>
+                    </>
+                  )}
 
                   <div className="sp-mcard-actions">
                     <Button
@@ -710,9 +746,9 @@ export default function GroupsPage() {
           <Table
             rowKey={(r) => r.group.id}
             dataSource={finances}
-            columns={columns}
+            columns={visibleColumns}
             pagination={false}
-            scroll={{ x: 1100 }}
+            scroll={{ x: showFinance ? 1100 : undefined }}
             size="middle"
             sticky
           />
@@ -751,8 +787,10 @@ export default function GroupsPage() {
           >
             <Input placeholder={isSchool ? '10–11 лет' : '3–4 года'} />
           </Form.Item>
+          {(showPayments || showExpenses) && (
           <Row gutter={12}>
-            <Col span={12}>
+            {showPayments && (
+            <Col span={showExpenses ? 12 : 24}>
               <Form.Item
                 label={`Ежемесячная плата за ${L.student}`}
                 name="monthlyFee"
@@ -760,7 +798,9 @@ export default function GroupsPage() {
                 <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            )}
+            {showExpenses && (
+            <Col span={showPayments ? 12 : 24}>
               <Form.Item
                 label="Фикс. месячные расходы"
                 name="fixedMonthlyExpense"
@@ -769,7 +809,9 @@ export default function GroupsPage() {
                 <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
               </Form.Item>
             </Col>
+            )}
           </Row>
+          )}
           <Form.Item label={cap(L.teacher)} name="teacherId">
             <Select
               allowClear

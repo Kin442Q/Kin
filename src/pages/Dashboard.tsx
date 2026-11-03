@@ -28,6 +28,7 @@ import OnboardingChecklist from '../components/OnboardingChecklist'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { useLabels } from '../hooks/useLabels'
+import { useFeature } from '../hooks/useFeature'
 import { http } from '../api'
 import { formatMoneyCompact, formatPercent } from '../lib/format'
 
@@ -64,11 +65,16 @@ export default function Dashboard() {
   const L = useLabels()
   const isSchool = L.group === 'класс'
 
+  // Финансовые блоки показываем только если разделы включены для учреждения.
+  const showAnalytics = useFeature('analytics')
+  const showPayments = useFeature('payments')
+
   const [dashboard, setDashboard] = useState<DashboardApi | null>(null)
   const [trend, setTrend] = useState<TrendItem[]>([])
 
   useEffect(() => {
-    if (!user || !user.kindergartenId) return
+    // Без раздела «Аналитика» эндпоинты вернут 403 — не ходим за данными.
+    if (!user || !user.kindergartenId || !showAnalytics) return
 
     let cancelled = false
     const load = async () => {
@@ -93,7 +99,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true
     }
-  }, [user, month])
+  }, [user, month, showAnalytics])
 
   const global = {
     totalIncome: dashboard?.totalIncome ?? 0,
@@ -200,6 +206,8 @@ export default function Dashboard() {
 
       {/* KPIs */}
       <Row gutter={[16, 16]}>
+        {showAnalytics && (
+          <>
         <Col xs={12} sm={12} lg={6}>
           <SproutKPI
             label="Доход за месяц"
@@ -233,7 +241,9 @@ export default function Dashboard() {
             delay={0.1}
           />
         </Col>
-        <Col xs={12} sm={12} lg={6}>
+          </>
+        )}
+        <Col xs={12} sm={12} lg={showAnalytics ? 6 : 12}>
           <SproutKPI
             label={isSchool ? 'Учеников в школе' : 'Детей в саду'}
             value={String(dashboard?.activeStudents ?? children.length)}
@@ -243,9 +253,22 @@ export default function Dashboard() {
             delay={0.15}
           />
         </Col>
+        {!showAnalytics && (
+          <Col xs={12} sm={12} lg={12}>
+            <SproutKPI
+              label={isSchool ? 'Классов' : 'Групп'}
+              value={String(groups.length)}
+              accent="blue"
+              hint={`Присутствуют сегодня: ${presentToday}`}
+              icon={<CheckCircle2 size={18} strokeWidth={2} />}
+              delay={0.2}
+            />
+          </Col>
+        )}
       </Row>
 
-      {/* Charts row */}
+      {/* Charts row (финансы — только при включённой «Аналитике») */}
+      {showAnalytics && (
       <Row gutter={[16, 16]} style={{ marginTop: 16 }} align="stretch">
         <Col xs={24} lg={16} style={{ display: 'flex' }}>
           <SproutCard
@@ -416,6 +439,7 @@ export default function Dashboard() {
           </SproutCard>
         </Col>
       </Row>
+      )}
 
       {/* Groups + sidebar widgets */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }} align="stretch">
@@ -431,7 +455,7 @@ export default function Dashboard() {
             >
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-                  {L.groups} · доходность
+                  {L.groups}{showAnalytics ? ' · доходность' : ''}
                 </div>
                 <div style={{ fontSize: 12, color: SP.muted, marginTop: 2 }}>
                   {groups.length} {isSchool ? 'классов' : 'групп'}
@@ -528,17 +552,19 @@ export default function Dashboard() {
                           </span>
                         </div>
                       </div>
-                      <Tag
-                        style={{
-                          background: SP.primaryGhost,
-                          color: SP.primaryDeep,
-                          border: 'none',
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      >
-                        {formatMoneyCompact(g.monthlyFee * groupChildren)}
-                      </Tag>
+                      {showAnalytics && (
+                        <Tag
+                          style={{
+                            background: SP.primaryGhost,
+                            color: SP.primaryDeep,
+                            border: 'none',
+                            fontSize: 11,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatMoneyCompact(g.monthlyFee * groupChildren)}
+                        </Tag>
+                      )}
                     </motion.div>
                   )
                 })}
@@ -569,7 +595,7 @@ export default function Dashboard() {
                 justifyContent: 'space-between',
                 alignItems: 'center',
                 padding: '10px 0',
-                borderBottom: `1px solid ${SP.borderSoft}`,
+                borderBottom: showPayments ? `1px solid ${SP.borderSoft}` : 'none',
               }}
             >
               <div>
@@ -583,25 +609,27 @@ export default function Dashboard() {
               </div>
               <CheckCircle2 size={28} color={SP.primary} strokeWidth={1.8} />
             </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '10px 0',
-              }}
-            >
-              <div>
-                <div style={{ fontSize: 12, color: SP.muted }}>Должники</div>
-                <div
-                  className="sp-num"
-                  style={{ fontSize: 22, fontWeight: 700, color: SP.danger }}
-                >
-                  —
+            {showPayments && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '10px 0',
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: 12, color: SP.muted }}>Должники</div>
+                  <div
+                    className="sp-num"
+                    style={{ fontSize: 22, fontWeight: 700, color: SP.danger }}
+                  >
+                    —
+                  </div>
                 </div>
+                <CreditCard size={28} color={SP.danger} strokeWidth={1.8} />
               </div>
-              <CreditCard size={28} color={SP.danger} strokeWidth={1.8} />
-            </div>
+            )}
           </SproutCard>
 
           {/* События */}

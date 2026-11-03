@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native'
 
 import { useAuthStore } from '../store/authStore'
+import { hasFeature, type FeatureKey } from '../lib/features'
 import { colors } from '../theme/colors'
 import { labels } from '../theme/labels'
 
@@ -72,6 +73,8 @@ interface TabConfig {
   label: string
   icon: LucideIcon
   component: React.ComponentType
+  /** Раздел платформы: вкладка скрыта, если он выключен для учреждения */
+  feature?: FeatureKey
 }
 
 function buildTabs(
@@ -81,9 +84,10 @@ function buildTabs(
   const L = labels(type)
   if (role === 'admin') {
     return [
-      { name: 'AdminDashboard', label: 'Сводка', icon: BarChart3, component: AdminDashboardScreen },
-      { name: 'AdminGroups', label: L.groups, icon: LayoutGrid, component: AdminGroupsScreen },
-      { name: 'AdminPayments', label: 'Оплаты', icon: CreditCard, component: AdminPaymentsScreen },
+      // «Сводка» целиком про деньги (доходы/расходы) — это раздел «Аналитика».
+      { name: 'AdminDashboard', label: 'Сводка', icon: BarChart3, component: AdminDashboardScreen, feature: 'analytics' },
+      { name: 'AdminGroups', label: L.groups, icon: LayoutGrid, component: AdminGroupsScreen, feature: 'groups' },
+      { name: 'AdminPayments', label: 'Оплаты', icon: CreditCard, component: AdminPaymentsScreen, feature: 'payments' },
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
     ]
   }
@@ -92,17 +96,17 @@ function buildTabs(
     if (type === 'SCHOOL') {
       return [
         { name: 'TeacherHome', label: 'Кабинет', icon: LayoutGrid, component: TeacherHomeScreen },
-        { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen },
-        { name: 'TeacherGrades', label: 'Журнал', icon: GraduationCap, component: TeacherGradesScreen },
-        { name: 'TeacherHomework', label: 'ДЗ', icon: BookOpen, component: TeacherHomeworkScreen },
+        { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen, feature: 'attendance' },
+        { name: 'TeacherGrades', label: 'Журнал', icon: GraduationCap, component: TeacherGradesScreen, feature: 'grades' },
+        { name: 'TeacherHomework', label: 'ДЗ', icon: BookOpen, component: TeacherHomeworkScreen, feature: 'homework' },
         { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
       ]
     }
     // Воспитатель садика: Группа / Отметить / Дневник / Я (4)
     return [
       { name: 'TeacherHome', label: L.group[0].toUpperCase() + L.group.slice(1), icon: LayoutGrid, component: TeacherHomeScreen },
-      { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen },
-      { name: 'TeacherDiary', label: 'Дневник', icon: BookOpen, component: TeacherDiaryScreen },
+      { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen, feature: 'attendance' },
+      { name: 'TeacherDiary', label: 'Дневник', icon: BookOpen, component: TeacherDiaryScreen, feature: 'diary' },
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
     ]
   }
@@ -110,17 +114,17 @@ function buildTabs(
   if (type === 'SCHOOL') {
     return [
       { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
-      { name: 'ParentSchedule', label: 'Расписание', icon: Calendar, component: ParentSchedulePlaceholder },
-      { name: 'ParentGrades', label: 'Оценки', icon: GraduationCap, component: ParentGradesScreen },
-      { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder },
+      { name: 'ParentSchedule', label: 'Расписание', icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
+      { name: 'ParentGrades', label: 'Оценки', icon: GraduationCap, component: ParentGradesScreen, feature: 'grades' },
+      { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder, feature: 'payments' },
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
     ]
   }
   // Родитель садика: Главная / Сегодня / Оплата / Я (4)
   return [
     { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
-    { name: 'ParentSchedule', label: 'Сегодня', icon: Calendar, component: ParentSchedulePlaceholder },
-    { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder },
+    { name: 'ParentSchedule', label: 'Сегодня', icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
+    { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder, feature: 'payments' },
     { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
   ]
 }
@@ -135,7 +139,10 @@ function MainTabs() {
         ? 'teacher'
         : 'parent'
 
-  const tabs = buildTabs(role, user?.institution?.type ?? null)
+  // Вкладки выключенных для учреждения разделов не показываем.
+  const tabs = buildTabs(role, user?.institution?.type ?? null).filter(
+    (t) => !t.feature || hasFeature(user, t.feature),
+  )
 
   return (
     <Tab.Navigator

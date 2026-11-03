@@ -54,6 +54,7 @@ export default function LandingPage() {
           groupId: user.groupId ?? undefined,
           childId: user.childId ?? undefined,
           institution,
+          features: user.features,
         },
         accessToken,
       )

@@ -18,6 +18,8 @@ import { LoginDto } from './dto/login.dto'
 import { RegisterDto } from './dto/register.dto'
 import { ForgotPasswordDto } from './dto/forgot-password.dto'
 import { NotificationsService } from '../notifications/notifications.service'
+import { FeaturesService } from '../features/features.service'
+import type { FeatureKey } from '../features/feature-registry'
 
 export interface TokenPair {
   accessToken: string
@@ -33,6 +35,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly features: FeaturesService,
   ) {}
 
   // -------------------------------------------------------------------
@@ -43,23 +46,37 @@ export class AuthService {
       throw new UnauthorizedException('Введите email или телефон')
     }
 
-    let user: User | null = null
+    let user: User
     if (dto.email) {
-      user = await this.prisma.user.findUnique({
+      const found = await this.prisma.user.findUnique({
         where: { email: dto.email.toLowerCase().trim() },
       })
-    } else if (dto.phone) {
-      user = await this.prisma.user.findFirst({
-        where: { phone: dto.phone.trim() },
+      if (!found || !found.isActive) {
+        throw new UnauthorizedException('Неверный логин или пароль')
+      }
+      const ok = await bcrypt.compare(dto.password, found.passwordHash)
+      if (!ok) throw new UnauthorizedException('Неверный логин или пароль')
+      user = found
+    } else {
+      // Телефон не уникален между школами (у User нет unique на phone), поэтому
+      // берём всех активных с этим номером и выбираем того, чей пароль подошёл.
+      const candidates = await this.prisma.user.findMany({
+        where: { phone: dto.phone!.trim(), isActive: true },
       })
+      const matched: User[] = []
+      for (const c of candidates) {
+        if (await bcrypt.compare(dto.password, c.passwordHash)) matched.push(c)
+      }
+      if (matched.length === 0) {
+        throw new UnauthorizedException('Неверный логин или пароль')
+      }
+      if (matched.length > 1) {
+        throw new UnauthorizedException(
+          'Этот номер привязан к нескольким аккаунтам — войдите по email',
+        )
+      }
+      user = matched[0]
     }
-
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('Неверный логин или пароль')
-    }
-
-    const ok = await bcrypt.compare(dto.password, user.passwordHash)
-    if (!ok) throw new UnauthorizedException('Неверный логин или пароль')
 
     const tokens = await this.issueTokens(user, meta)
 
@@ -233,7 +250,12 @@ export class AuthService {
   // Helpers
   // ===================================================================
 
-  private async issueTokens(user: User, meta: { userAgent?: string; ip?: string }): Promise<TokenPair & { user: ReturnType<AuthService['serialize']> }> {
+  private async issueTokens(
+    user: User,
+    meta: { userAgent?: string; ip?: string },
+  ): Promise<
+    TokenPair & { user: ReturnType<AuthService['serialize']> & { features: FeatureKey[] } }
+  > {
     const accessJti = randomUUID()
     const refreshJti = randomUUID()
 
@@ -282,7 +304,15 @@ export class AuthService {
       },
     })
 
-    return { user: this.serialize(user), accessToken, refreshToken, refreshTokenExpiresAt }
+    // Включённые разделы учреждения — фронт и мобилка строят меню по ним.
+    const features = await this.features.enabledKeys(user.kindergartenId)
+
+    return {
+      user: { ...this.serialize(user), features },
+      accessToken,
+      refreshToken,
+      refreshTokenExpiresAt,
+    }
   }
 
   private serialize(user: User) {
@@ -324,6 +354,7 @@ export class AuthService {
     return {
       ...this.serialize(user),
       institution: user.kindergarten ?? null,
+      features: await this.features.enabledKeys(user.kindergartenId),
     }
   }
 

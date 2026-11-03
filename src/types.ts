@@ -41,6 +41,11 @@ export interface User {
   childId?: string
   /** Заполняется в ответе /auth/me — тип учреждения для лейблов UI. */
   institution?: Institution | null
+  /**
+   * Включённые разделы учреждения (ключи из lib/features.ts). Приходят с
+   * логином и /auth/me. undefined — ещё не загружены (старая сессия).
+   */
+  features?: string[]
 }
 
 /**

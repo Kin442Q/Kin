@@ -44,6 +44,7 @@ import { SP, SproutPageHeader, SproutEmpty } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { useLabels } from '../hooks/useLabels'
+import { useFeature } from '../hooks/useFeature'
 import { cap } from '../lib/labels'
 import { calcAge, formatDate, formatMoney } from '../lib/format'
 import { exportRows } from '../lib/exportXlsx'
@@ -78,6 +79,8 @@ export default function ChildrenPage() {
   const isTeacher = user?.role === 'TEACHER' || user?.role === 'teacher'
   const L = useLabels()
   const isSchool = L.group === 'класс'
+  // Плата за обучение — часть раздела «Оплата»: выключен — нигде не показываем.
+  const showFees = useFeature('payments') && !isTeacher
 
   const visibleChildren = useMemo(() => {
     let res = children
@@ -588,9 +591,9 @@ export default function ChildrenPage() {
 
                     <div
                       className="flex items-center"
-                      style={{ justifyContent: isTeacher ? 'flex-end' : 'space-between' }}
+                      style={{ justifyContent: showFees ? 'space-between' : 'flex-end' }}
                     >
-                      {!isTeacher && (
+                      {showFees && (
                         <div>
                           <Text type="secondary" style={{ fontSize: 11 }}>
                             Плата
@@ -641,7 +644,7 @@ export default function ChildrenPage() {
           <Table
             rowKey="id"
             dataSource={visibleChildren}
-            columns={isTeacher ? columns.filter((c) => c.key !== 'fee') : columns}
+            columns={showFees ? columns : columns.filter((c) => c.key !== 'fee')}
             scroll={{ x: 800 }}
             pagination={{ pageSize: 10, showSizeChanger: false }}
             size="middle"
@@ -798,19 +801,21 @@ export default function ChildrenPage() {
           <Form.Item name="extraContact" label="Доп. контакт">
             <Input />
           </Form.Item>
-          <Form.Item
-            name="monthlyFee"
-            label="Индивидуальная плата (опц.)"
-            tooltip="Если задано — будет использоваться вместо платы группы/класса"
-          >
-            <InputNumber
-              min={0}
-              step={50}
-              style={{ width: '100%' }}
-              addonAfter="сомони"
-              placeholder="например, 500"
-            />
-          </Form.Item>
+          {showFees && (
+            <Form.Item
+              name="monthlyFee"
+              label="Индивидуальная плата (опц.)"
+              tooltip="Если задано — будет использоваться вместо платы группы/класса"
+            >
+              <InputNumber
+                min={0}
+                step={50}
+                style={{ width: '100%' }}
+                addonAfter="сомони"
+                placeholder="например, 500"
+              />
+            </Form.Item>
+          )}
         </Form>
       </Drawer>
 

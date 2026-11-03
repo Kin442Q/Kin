@@ -37,6 +37,8 @@ import { SchoolModule } from './modules/school/school.module'
 import { PushModule } from './modules/push/push.module'
 import { TermsModule } from './modules/terms/terms.module'
 import { ChatModule } from './modules/chat/chat.module'
+import { FeaturesModule } from './modules/features/features.module'
+import { FeatureGuard } from './modules/features/feature.guard'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
 import { DemoReadOnlyGuard } from './common/guards/demo-readonly.guard'
@@ -99,10 +101,14 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     PushModule,
     TermsModule,
     ChatModule,
+    FeaturesModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // Разделы платформы: ручки с @Feature('x') закрыты, если раздел
+    // выключен для учреждения. Идёт после JWT — нужен req.user.
+    { provide: APP_GUARD, useClass: FeatureGuard },
     // Демо read-only: после JWT блокирует мутации для демо-пользователей.
     { provide: APP_GUARD, useClass: DemoReadOnlyGuard },
     // Глобальный rate-limiting.

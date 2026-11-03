@@ -14,6 +14,7 @@ import { UsersService } from './users.service'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 interface RequestWithUser {
   user: AuthUser
@@ -21,6 +22,7 @@ interface RequestWithUser {
 
 @ApiTags('users')
 @ApiBearerAuth()
+@Feature('teachers')
 @Controller({ path: 'users', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN')

@@ -100,6 +100,7 @@ export default function LoginPage() {
           groupId: user.groupId ?? undefined,
           childId: user.childId ?? undefined,
           institution,
+          features: user.features,
         },
         accessToken,
       )

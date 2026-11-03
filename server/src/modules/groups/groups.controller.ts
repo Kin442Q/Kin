@@ -8,9 +8,11 @@ import { RolesGuard } from '../../common/guards/roles.guard'
 import { GroupScope, GroupScopeGuard } from '../../common/guards/group-scope.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 @ApiTags('groups')
 @ApiBearerAuth()
+@Feature('groups')
 @Controller({ path: 'groups', version: '1' })
 @UseGuards(RolesGuard)
 export class GroupsController {

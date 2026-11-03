@@ -25,6 +25,8 @@ export interface User {
   phone?: string | null
   /** Заполняется только в ответе /auth/me, не в login (для обратной совместимости) */
   institution?: InstitutionDto | null
+  /** Включённые разделы учреждения (ключи из lib/features.ts). Есть в /auth/me. */
+  features?: string[]
 }
 
 export interface LoginResponse {

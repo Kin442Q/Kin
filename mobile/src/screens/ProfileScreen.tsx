@@ -30,6 +30,7 @@ import BottomModal from '../components/BottomModal'
 import { colors, radius } from '../theme/colors'
 import { http } from '../api/http'
 import { useAuthStore } from '../store/authStore'
+import { hasFeature } from '../lib/features'
 import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
 
@@ -125,19 +126,24 @@ export default function ProfileScreen() {
                 title={L.students}
                 onPress={() => navigation.navigate('AdminStudents')}
               />
-              <ListRow
-                icon={<Receipt size={18} color={colors.roseDeep} />}
-                bg={colors.roseSoft}
-                title="Расходы"
-                onPress={() => navigation.navigate('AdminExpenses')}
-              />
-              <ListRow
-                icon={<CalendarHeart size={18} color={colors.lilacDeep} />}
-                bg={colors.lilacSoft}
-                title="Собрания"
-                onPress={() => navigation.navigate('AdminMeetings')}
-                last
-              />
+              {hasFeature(user, 'expenses') && (
+                <ListRow
+                  icon={<Receipt size={18} color={colors.roseDeep} />}
+                  bg={colors.roseSoft}
+                  title="Расходы"
+                  onPress={() => navigation.navigate('AdminExpenses')}
+                  last={!hasFeature(user, 'meetings')}
+                />
+              )}
+              {hasFeature(user, 'meetings') && (
+                <ListRow
+                  icon={<CalendarHeart size={18} color={colors.lilacDeep} />}
+                  bg={colors.lilacSoft}
+                  title="Собрания"
+                  onPress={() => navigation.navigate('AdminMeetings')}
+                  last
+                />
+              )}
             </View>
           </>
         )}

@@ -31,6 +31,7 @@ import { motion } from "framer-motion";
 import dayjs from "dayjs";
 
 import { useDataStore } from "../store/dataStore";
+import { useFeature } from "../hooks/useFeature";
 import { LayoutGrid } from "lucide-react";
 import { SP, SproutPageHeader } from "../components/sprout";
 import StatCard from "../components/ui/StatCard";
@@ -51,6 +52,11 @@ export default function GroupDetailPage() {
   const attendance = useDataStore((s) => s.attendance);
   const staff = useDataStore((s) => s.staff);
   const extraIncome = useDataStore((s) => s.extraIncome);
+
+  // Финансовые блоки зависят от разделов, включённых для учреждения.
+  const showAnalytics = useFeature("analytics");
+  const showPayments = useFeature("payments");
+  const showExpenses = useFeature("expenses");
 
   const [month, setMonth] = useState(dayjs().format("YYYY-MM"));
 
@@ -213,6 +219,8 @@ export default function GroupDetailPage() {
             variant="primary"
           />
         </Col>
+        {showPayments && (
+          <>
         <Col xs={12} md={6}>
           <StatCard
             title="Оплатили"
@@ -229,6 +237,8 @@ export default function GroupDetailPage() {
             variant="danger"
           />
         </Col>
+          </>
+        )}
         <Col xs={12} md={6}>
           <StatCard
             title="Посещаемость"
@@ -239,6 +249,8 @@ export default function GroupDetailPage() {
         </Col>
       </Row>
 
+      {showAnalytics && (
+      <>
       <Row gutter={[16, 16]} className="mt-4">
         <Col xs={24} md={8}>
           <motion.div
@@ -341,6 +353,8 @@ export default function GroupDetailPage() {
           </Card>
         </Col>
       </Row>
+      </>
+      )}
 
       <Card className="glass mt-4" bordered={false}>
         <Tabs
@@ -561,7 +575,12 @@ export default function GroupDetailPage() {
                 </Row>
               ),
             },
-          ]}
+          ].filter(
+            (tab) =>
+              (tab.key !== "payments" || showPayments) &&
+              (tab.key !== "expenses" || showExpenses) &&
+              (tab.key !== "finance" || showAnalytics),
+          )}
         />
       </Card>
     </div>

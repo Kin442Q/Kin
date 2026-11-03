@@ -26,6 +26,7 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 class SendMessageDto {
   @IsString() @MinLength(1) @MaxLength(2000) text!: string
@@ -478,6 +479,7 @@ export class ChatService {
 
 @ApiTags('chat')
 @ApiBearerAuth()
+@Feature('chat')
 @Controller({ path: 'chat', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT')
@@ -518,6 +520,9 @@ class ChatController {
     )
   }
 
+  // Handler-level @Feature перекрывает class-level 'chat': напоминания об
+  // оплате закрываются вместе с разделом «Оплата», а не с чатом целиком.
+  @Feature('payments')
   @Post('payment-reminder')
   @Roles('SUPER_ADMIN', 'ADMIN')
   @ApiOperation({

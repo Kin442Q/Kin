@@ -22,6 +22,7 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 class CreateScheduleDto {
   @IsString() groupId!: string
@@ -160,6 +161,7 @@ class ScheduleService {
 
 @ApiTags('schedule')
 @ApiBearerAuth()
+@Feature('schedule')
 @Controller({ path: 'schedule', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')

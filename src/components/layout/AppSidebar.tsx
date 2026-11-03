@@ -28,6 +28,7 @@ import type { ReactNode } from 'react'
 import { useAuthStore } from '../../store/authStore'
 import { useThemeStore } from '../../store/themeStore'
 import { useLabels } from '../../hooks/useLabels'
+import { hasFeature, type FeatureKey } from '../../lib/features'
 import { SP, SproutLogo, SproutBalloons } from '../sprout'
 import type { Role, InstitutionType } from '../../types'
 
@@ -85,6 +86,8 @@ interface NavEntry {
   /** Класс из index.css: sp-icon-mint / sp-icon-blue / ... */
   accentClass: string
   roles: Role[]
+  /** Раздел платформы: пункт скрыт, если раздел выключен для учреждения */
+  feature?: FeatureKey
   /** Если true — показывается только глобальному владельцу платформы */
   globalOnly?: boolean
   /** Если false — НЕ показывается глобальному владельцу (он не в одном из учреждений) */
@@ -157,6 +160,7 @@ const NAV: NavEntry[] = [
   // ─── Состав (админ) ──────────────────────────────────────────────
   {
     key: '/admin/groups',
+    feature: 'groups',
     label: (l) => l.groups,
     icon: <LayoutGrid size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
@@ -166,6 +170,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/children',
+    feature: 'students',
     label: (l) => l.students,
     icon: <Baby size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -175,6 +180,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/subjects',
+    feature: 'subjects',
     label: 'Предметы',
     icon: <BookMarked size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
@@ -185,6 +191,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/terms',
+    feature: 'terms',
     label: 'Учебные периоды',
     icon: <CalendarRange size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
@@ -197,6 +204,7 @@ const NAV: NavEntry[] = [
   // ─── Моя группа/класс (учитель) ──────────────────────────────────
   {
     key: '/admin/children',
+    feature: 'students',
     label: (l) => l.students,
     icon: <Baby size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -205,6 +213,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/attendance',
+    feature: 'attendance',
     label: 'Посещаемость',
     icon: <ClipboardCheck size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
@@ -213,6 +222,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/schedule',
+    feature: 'schedule',
     label: 'Расписание',
     icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -222,6 +232,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/menu',
+    feature: 'menu',
     label: 'Меню питания',
     icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
@@ -234,6 +245,7 @@ const NAV: NavEntry[] = [
   // Школа — для админа и учителя:
   {
     key: '/admin/grades',
+    feature: 'grades',
     label: 'Журнал оценок',
     icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
@@ -244,6 +256,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/homework',
+    feature: 'homework',
     label: 'Домашние задания',
     icon: <BookOpen size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
@@ -254,6 +267,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/schedule',
+    feature: 'schedule',
     label: 'Расписание уроков',
     icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -265,6 +279,7 @@ const NAV: NavEntry[] = [
   // Админ садика — учебный блок:
   {
     key: '/admin/schedule',
+    feature: 'schedule',
     label: 'Расписание занятий',
     icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -275,6 +290,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/menu',
+    feature: 'menu',
     label: 'Меню питания',
     icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
@@ -285,6 +301,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/attendance',
+    feature: 'attendance',
     label: 'Посещаемость',
     icon: <ClipboardCheck size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
@@ -296,6 +313,7 @@ const NAV: NavEntry[] = [
   // ─── Финансы (только админ) ──────────────────────────────────────
   {
     key: '/admin/payments',
+    feature: 'payments',
     label: 'Оплата',
     icon: <Wallet size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-rose',
@@ -305,6 +323,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/expenses',
+    feature: 'expenses',
     label: 'Расходы',
     icon: <PieChart size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-pink',
@@ -314,6 +333,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/analytics',
+    feature: 'analytics',
     label: 'Аналитика',
     icon: <TrendingUp size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
@@ -325,6 +345,7 @@ const NAV: NavEntry[] = [
   // ─── Персонал (только админ) ─────────────────────────────────────
   {
     key: '/admin/staff',
+    feature: 'staff',
     label: 'Сотрудники',
     icon: <Users size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
@@ -334,6 +355,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/timesheet',
+    feature: 'timesheet',
     label: 'Табель',
     icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
@@ -343,6 +365,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/checkin-audit',
+    feature: 'timesheet',
     label: 'Журнал check-in',
     icon: <MapPin size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -354,6 +377,7 @@ const NAV: NavEntry[] = [
   // ─── Общение (родительские собрания) ─────────────────────────────
   {
     key: '/admin/meetings',
+    feature: 'meetings',
     label: 'Собрания',
     icon: <Megaphone size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
@@ -363,6 +387,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/chat',
+    feature: 'chat',
     label: 'Чат с родителями',
     icon: <MessageCircle size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -392,6 +417,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/parent/schedule',
+    feature: 'schedule',
     label: 'Расписание',
     icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -400,6 +426,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/parent/grades',
+    feature: 'grades',
     label: 'Оценки и ДЗ',
     icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
@@ -409,6 +436,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/parent/payments',
+    feature: 'payments',
     label: 'Оплаты',
     icon: <Wallet size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-rose',
@@ -417,6 +445,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/parent/chat',
+    feature: 'chat',
     label: 'Чат с учителем',
     icon: <MessageCircle size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
@@ -447,6 +476,7 @@ export default function AppSidebar({ collapsed }: Props) {
     if (n.globalOnly && !isGlobalOwner) return false
     if (n.hiddenForGlobalOwner && isGlobalOwner) return false
     if (n.institutionType && institutionType !== n.institutionType) return false
+    if (n.feature && !hasFeature(user, n.feature)) return false
     return true
   })
 

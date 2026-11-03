@@ -41,6 +41,7 @@ import { motion } from 'framer-motion'
 import { School } from 'lucide-react'
 import { SproutPageHeader } from '../components/sprout'
 import { http } from '../api'
+import FeaturesModal from '../components/FeaturesModal'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
@@ -84,6 +85,9 @@ export default function KindergartensPage() {
   } | null>(null)
 
   const [createType, setCreateType] = useState<InstitutionType>('KINDERGARTEN')
+
+  // Учреждение, чьи разделы редактируются в модалке
+  const [featuresFor, setFeaturesFor] = useState<KindergartenApi | null>(null)
 
   const load = async () => {
     try {
@@ -324,6 +328,14 @@ export default function KindergartensPage() {
                 key: 'actions',
                 render: (_, k) => (
                   <Space>
+                    <Tooltip title="Разделы">
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<AppstoreOutlined />}
+                        onClick={() => setFeaturesFor(k)}
+                      />
+                    </Tooltip>
                     <Tooltip title="Редактировать">
                       <Button
                         size="small"
@@ -640,6 +652,8 @@ export default function KindergartensPage() {
           </div>
         )}
       </Modal>
+
+      <FeaturesModal school={featuresFor} onClose={() => setFeaturesFor(null)} />
     </div>
   )
 }
