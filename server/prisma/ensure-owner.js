@@ -13,9 +13,12 @@ const bcrypt = require('bcryptjs')
 
 async function main() {
   const password = process.env.OWNER_PASSWORD
-  if (!password) return
+  if (!password) {
+    console.warn('[ensure-owner] OWNER_PASSWORD не задан в переменных сервиса — владелец не создаётся')
+    return
+  }
   if (password.length < 8) {
-    console.warn('[ensure-owner] OWNER_PASSWORD короче 8 символов — пропуск')
+    console.warn(`[ensure-owner] OWNER_PASSWORD короче 8 символов (длина ${password.length}) — владелец не создаётся`)
     return
   }
   const email = (process.env.OWNER_EMAIL || 'owner@kindergarten.tj').toLowerCase()
