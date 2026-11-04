@@ -6,9 +6,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Target } from 'lucide-react-native'
 

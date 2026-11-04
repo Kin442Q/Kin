@@ -6,9 +6,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { Check, MessageCircle, Users } from 'lucide-react-native'
 
 import Screen from '../components/Screen'

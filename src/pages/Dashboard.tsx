@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Row, Col, Progress, Tag, Button } from 'antd'
+import { Row, Col, Tag, Button } from 'antd'
 import {
   Wallet,
   TrendingUp,
@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Bell,
   Zap,
+  AlertTriangle,
 } from 'lucide-react'
 import { Area } from '@ant-design/charts'
 import { motion } from 'framer-motion'
@@ -32,6 +33,7 @@ import { useLabels } from '../hooks/useLabels'
 import { useFeature } from '../hooks/useFeature'
 import { http } from '../api'
 import { formatMoneyCompact, formatPercent } from '../lib/format'
+import { classLetterOf, groupByGrade, plural } from '../lib/classes'
 import { useChartTheme } from '../theme/chartTheme'
 
 interface DashboardApi {
@@ -72,6 +74,7 @@ export default function Dashboard() {
   const showAnalytics = useFeature('analytics')
   const showPayments = useFeature('payments')
   const showAttendance = useFeature('attendance')
+  const showHomeroom = useFeature('homeroom')
 
   const [dashboard, setDashboard] = useState<DashboardApi | null>(null)
   const [trend, setTrend] = useState<TrendItem[]>([])
@@ -164,6 +167,47 @@ export default function Dashboard() {
 
     return list.slice(0, 6)
   }, [children])
+
+  // Параллели: 1 класс → А, Б, В — компактные плитки вместо длинного списка классов
+  const gradeTiles = useMemo(
+    () =>
+      groupByGrade(groups, (g) => g.name).map((gr) => {
+        const counts = gr.items.map((g) => children.filter((c) => c.groupId === g.id).length)
+        const total = counts.reduce((a, b) => a + b, 0)
+        const capacity = gr.items.length * 20
+        return { gr, counts, total, fillPct: Math.min(100, Math.round((total / capacity) * 100)) }
+      }),
+    [groups, children],
+  )
+
+  // Что требует внимания директора (считается из имеющихся данных)
+  const attention = useMemo(() => {
+    const list: { title: string; text: string; tone: 'rose' | 'yellow' }[] = []
+    const noClass = children.filter((c) => !c.groupId).length
+    if (noClass > 0)
+      list.push({
+        title: `${noClass} ${plural(noClass, ['ученик', 'ученика', 'учеников'])} без класса`,
+        text: 'Назначьте класс на странице «Ученики», иначе они не попадут в журнал и посещаемость.',
+        tone: 'rose',
+      })
+    const empty = groups.filter((g) => !children.some((c) => c.groupId === g.id)).length
+    if (empty > 0)
+      list.push({
+        title: `${empty} ${plural(empty, ['класс', 'класса', 'классов'])} без учеников`,
+        text: 'Добавьте учеников вручную или импортом из Excel.',
+        tone: 'yellow',
+      })
+    if (showHomeroom) {
+      const noTeacher = groups.filter((g) => !g.homeroomTeacher).length
+      if (noTeacher > 0)
+        list.push({
+          title: `${noTeacher} ${plural(noTeacher, ['класс', 'класса', 'классов'])} без классного руководителя`,
+          text: 'Назначьте руководителя в карточке класса: он увидит «Сводку класса».',
+          tone: 'yellow',
+        })
+    }
+    return list
+  }, [children, groups, showHomeroom])
 
   const hour = new Date().getHours()
   const greeting =
@@ -441,7 +485,8 @@ export default function Dashboard() {
                   {L.groups}{showAnalytics ? ' · доходность' : ''}
                 </div>
                 <div style={{ fontSize: 12, color: SP.muted, marginTop: 2 }}>
-                  {groups.length} {'классов'}
+                  {groups.length} {plural(groups.length, ['класс', 'класса', 'классов'])} в {gradeTiles.length}{' '}
+                  {plural(gradeTiles.length, ['параллели', 'параллелях', 'параллелях'])}
                 </div>
               </div>
               <button
@@ -462,95 +507,45 @@ export default function Dashboard() {
               </button>
             </div>
             {groups.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {groups.map((g, idx) => {
-                  const groupChildren = children.filter((c) => c.groupId === g.id).length
-                  const fillPct = Math.min(100, Math.round((groupChildren / 20) * 100))
-                  return (
-                    <motion.div
-                      key={g.id}
-                      initial={{ opacity: 0, x: -8 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.35 + idx * 0.05, duration: 0.3 }}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 14,
-                        padding: '10px 12px',
-                        borderRadius: 12,
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = SP.primaryGhost
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'transparent'
-                      }}
-                    >
-                      <div
-                        style={{
-                          fontSize: 18,
-                          width: 36,
-                          height: 36,
-                          borderRadius: 11,
-                          background: g.color ? `${g.color}22` : SP.primarySoft,
-                          color: g.color || SP.primaryDeep,
-                          display: 'grid',
-                          placeItems: 'center',
-                          fontWeight: 700,
-                        }}
-                      >
-                        {g.name.slice(0, 1).toUpperCase()}
+              <div className="sp-parallels">
+                {gradeTiles.map(({ gr, counts, total, fillPct }, idx) => (
+                  <motion.div
+                    key={String(gr.key)}
+                    className="sp-parallel"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 + idx * 0.04, duration: 0.3 }}
+                  >
+                    <div className="sp-parallel-top">
+                      <span className="sp-grade-badge">{gr.grade ?? '•'}</span>
+                      <div className="sp-parallel-title">
+                        <b>{gr.label}</b>
+                        <span>
+                          {gr.items.length} {plural(gr.items.length, ['класс', 'класса', 'классов'])}
+                        </span>
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 14, fontWeight: 600, color: SP.text }}>
-                          {g.name}{' '}
-                          <span style={{ color: SP.muted, fontWeight: 400, fontSize: 12 }}>
-                            · {g.ageRange}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 8,
-                            marginTop: 4,
-                          }}
+                      <span className="sp-parallel-total sp-num">{total}</span>
+                    </div>
+                    <div className="sp-parallel-letters">
+                      {gr.items.map((g, i) => (
+                        <button
+                          key={g.id}
+                          type="button"
+                          className="sp-parallel-chip"
+                          title={`${g.name}: ${counts[i]}`}
+                          onClick={() => navigate(`/admin/groups/${g.id}`)}
                         >
-                          <Progress
-                            percent={fillPct}
-                            showInfo={false}
-                            strokeColor={{
-                              from: g.color || SP.primary,
-                              to: `color-mix(in srgb, ${g.color || SP.primary} 67%, transparent)`,
-                            }}
-                            size="small"
-                            style={{ flex: 1, margin: 0 }}
-                          />
-                          <span
-                            className="sp-num"
-                            style={{ fontSize: 11, color: SP.muted, minWidth: 36 }}
-                          >
-                            {groupChildren}/20
-                          </span>
-                        </div>
-                      </div>
-                      {showAnalytics && (
-                        <Tag
-                          style={{
-                            background: SP.primaryGhost,
-                            color: SP.primaryDeep,
-                            border: 'none',
-                            fontSize: 11,
-                            fontWeight: 600,
-                          }}
-                        >
-                          {formatMoneyCompact(g.monthlyFee * groupChildren)}
-                        </Tag>
-                      )}
-                    </motion.div>
-                  )
-                })}
+                          <i style={{ background: g.color }} />
+                          {classLetterOf(g.name).slice(0, 3)}
+                          <small>{counts[i]}</small>
+                        </button>
+                      ))}
+                    </div>
+                    <div className="sp-parallel-bar" aria-hidden="true">
+                      <span style={{ width: `${fillPct}%` }} />
+                    </div>
+                  </motion.div>
+                ))}
               </div>
             ) : (
               <SproutEmpty
@@ -565,6 +560,68 @@ export default function Dashboard() {
         </Col>
 
         <Col xs={24} lg={8} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Требует внимания */}
+          <SproutCard padding={18} delay={0.3}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: SP.text }}>Требует внимания</div>
+              {attention.length > 0 && (
+                <span
+                  className="sp-chip"
+                  style={{ background: SP.roseSoft, color: SP.roseDeep, padding: '2px 9px' }}
+                >
+                  {attention.length}
+                </span>
+              )}
+            </div>
+            {attention.length === 0 ? (
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: SP.textMid, fontSize: 13 }}>
+                <CheckCircle2 size={20} color={SP.primary} strokeWidth={1.8} />
+                Всё в порядке: замечаний нет.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {attention.map((a) => (
+                  <div
+                    key={a.title}
+                    style={{
+                      display: 'flex',
+                      gap: 10,
+                      padding: 12,
+                      borderRadius: 14,
+                      background: a.tone === 'rose' ? SP.roseSoft : SP.yellowSoft,
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: 32,
+                        height: 32,
+                        flex: 'none',
+                        borderRadius: 10,
+                        background: SP.solid,
+                        color: a.tone === 'rose' ? SP.roseDeep : SP.yellowDeep,
+                        display: 'grid',
+                        placeItems: 'center',
+                      }}
+                    >
+                      <AlertTriangle size={16} strokeWidth={2} />
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: SP.text }}>{a.title}</div>
+                      <div style={{ fontSize: 12, color: SP.textMid, lineHeight: 1.45, marginTop: 2 }}>{a.text}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </SproutCard>
+
           {/* Сегодня */}
           <SproutCard padding={18} delay={0.35}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: SP.text, marginBottom: 12 }}>

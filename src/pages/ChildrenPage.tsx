@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Avatar,
   Button,
@@ -39,6 +39,12 @@ import { Baby } from 'lucide-react'
 import ChildParentsModal from '../components/ChildParentsModal'
 import StudentAccountModal from '../components/StudentAccountModal'
 import ImportStudentsModal from '../components/ImportStudentsModal'
+import ClassFilter, {
+  EMPTY_SELECTION,
+  defaultSelection,
+  selectedGroupIds,
+  type ClassSelection,
+} from '../components/ClassFilter'
 import { motion } from 'framer-motion'
 import dayjs from 'dayjs'
 
@@ -50,6 +56,7 @@ import { useFeature } from '../hooks/useFeature'
 import { cap } from '../lib/labels'
 import { calcAge, formatDate, formatMoney } from '../lib/format'
 import { exportRows } from '../lib/exportXlsx'
+import { plural } from '../lib/classes'
 import { refreshTenantData } from '../hooks/useTenantSync'
 import { http } from '../api'
 import type { Child, Gender } from '../types'
@@ -67,9 +74,13 @@ export default function ChildrenPage() {
   const [submitting, setSubmitting] = useState(false)
 
   const [search, setSearch] = useState('')
-  const [groupFilter, setGroupFilter] = useState<string | undefined>(
-    user?.role === 'teacher' ? user.groupId : undefined,
-  )
+  // Фильтр класса: параллель → буква. Пока он не задан и нет поиска, список пуст.
+  const [sel, setSel] = useState<ClassSelection>(EMPTY_SELECTION)
+  const selTouched = useRef(false)
+  const changeSel = (n: ClassSelection) => {
+    selTouched.current = true
+    setSel(n)
+  }
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Child | null>(null)
   const [photoList, setPhotoList] = useState<UploadFile[]>([])
@@ -90,29 +101,63 @@ export default function ChildrenPage() {
   // Плата за обучение — часть раздела «Оплата»: выключен — нигде не показываем.
   const showFees = useFeature('payments') && !isTeacher
 
+  // Класс по умолчанию: у учителя — его класс, если класс в школе один — он.
+  useEffect(() => {
+    if (selTouched.current || groups.length === 0) return
+    const d = defaultSelection(groups, isTeacher ? user?.groupId : null)
+    if (d.grade !== null) setSel(d)
+  }, [groups, isTeacher, user?.groupId])
+
+  const selectedIds = useMemo(() => selectedGroupIds(groups, sel), [groups, sel])
+  const query = search.trim().toLowerCase()
+  const hasFilter = query.length > 0 || selectedIds.length > 0
+
+  // Сколько учеников в каждом классе — мелкие числа на плашках фильтра
+  const counts = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const c of children) if (c.groupId) m[c.groupId] = (m[c.groupId] ?? 0) + 1
+    return m
+  }, [children])
+
+  const scopedChildren = useMemo(
+    () => (user?.role === 'teacher' ? children.filter((c) => c.groupId === user.groupId) : children),
+    [children, user],
+  )
+
+  // Таблица показывает только то, что попало под фильтр: имя и/или класс.
   const visibleChildren = useMemo(() => {
-    let res = children
-    if (user?.role === 'teacher') res = res.filter((c) => c.groupId === user.groupId)
-    if (groupFilter) res = res.filter((c) => c.groupId === groupFilter)
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
+    if (!hasFilter) return []
+    let res = scopedChildren
+    if (selectedIds.length > 0) {
+      const set = new Set(selectedIds)
+      res = res.filter((c) => !!c.groupId && set.has(c.groupId))
+    }
+    if (query) {
       res = res.filter(
         (c) =>
-          c.firstName.toLowerCase().includes(q) ||
-          c.lastName.toLowerCase().includes(q) ||
-          (c.motherName || '').toLowerCase().includes(q) ||
-          (c.fatherName || '').toLowerCase().includes(q),
+          c.firstName.toLowerCase().includes(query) ||
+          c.lastName.toLowerCase().includes(query) ||
+          `${c.lastName} ${c.firstName}`.toLowerCase().includes(query) ||
+          (c.motherName || '').toLowerCase().includes(query) ||
+          (c.fatherName || '').toLowerCase().includes(query),
       )
     }
     return res
-  }, [children, groupFilter, search, user])
+  }, [scopedChildren, hasFilter, selectedIds, query])
+
+  const resetFilters = () => {
+    selTouched.current = true
+    setSearch('')
+    setSel(EMPTY_SELECTION)
+  }
 
   const exportToExcel = () => {
-    if (visibleChildren.length === 0) {
+    const list = hasFilter ? visibleChildren : scopedChildren
+    if (list.length === 0) {
       message.warning('Нет данных для экспорта')
       return
     }
-    const rows = visibleChildren.map((c) => ({
+    const rows = list.map((c) => ({
       Фамилия: c.lastName,
       Имя: c.firstName,
       Отчество: c.middleName || '',
@@ -412,8 +457,8 @@ export default function ChildrenPage() {
               fontSize: 11,
             }}
           >
-            {visibleChildren.length}{' '}
-            {pluralizeStudent(visibleChildren.length, isSchool)}
+            {hasFilter ? visibleChildren.length : scopedChildren.length}{' '}
+            {pluralizeStudent(hasFilter ? visibleChildren.length : scopedChildren.length, isSchool)}
           </Tag>
         }
         actions={
@@ -421,7 +466,7 @@ export default function ChildrenPage() {
             <Button
               icon={<DownloadOutlined />}
               onClick={exportToExcel}
-              disabled={visibleChildren.length === 0}
+              disabled={scopedChildren.length === 0}
             >
               Экспорт
             </Button>
@@ -449,41 +494,47 @@ export default function ChildrenPage() {
         transition={{ duration: 0.3 }}
       >
         <Card className="glass" bordered={false}>
-          <Row gutter={[12, 12]} className="mb-3">
-            <Col xs={24} md={10}>
-              <Input
-                allowClear
-                prefix={<SearchOutlined />}
-                placeholder={`Поиск по имени ${L.student} или родителю`}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </Col>
-            <Col xs={24} md={8}>
-              <Select
-                allowClear
-                style={{ width: '100%' }}
-                placeholder={`Все ${L.groups.toLowerCase()}`}
-                value={groupFilter}
-                onChange={setGroupFilter}
-                disabled={user?.role === 'teacher'}
-                options={groups.map((g) => ({ value: g.id, label: g.name }))}
-              />
-            </Col>
-            <Col xs={24} md={6} className="flex items-center">
-              <Tag color="purple">Найдено: {visibleChildren.length}</Tag>
-            </Col>
-          </Row>
+          <div className="flex flex-col gap-3 mb-3">
+            <Row gutter={[12, 12]}>
+              <Col xs={24} md={12}>
+                <Input
+                  allowClear
+                  prefix={<SearchOutlined />}
+                  placeholder={`Поиск по имени ${L.student} или родителю`}
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+              </Col>
+              <Col xs={24} md={12} className="flex items-center gap-2">
+                {hasFilter && <Tag color="purple">Найдено: {visibleChildren.length}</Tag>}
+                {hasFilter && (
+                  <Button size="small" type="link" onClick={resetFilters}>
+                    Сбросить
+                  </Button>
+                )}
+              </Col>
+            </Row>
+            <ClassFilter groups={groups} value={sel} onChange={changeSel} allowAllLetters counts={counts} />
+          </div>
 
-          {isMobile ? (
+          {!hasFilter ? (
+            <SproutEmpty
+              icon={<Baby size={28} strokeWidth={1.8} />}
+              title="Выберите класс или начните поиск"
+              description={
+                scopedChildren.length > 0
+                  ? `Список появится, когда вы выберете параллель и класс или введёте имя. Всего в школе: ${scopedChildren.length} ${plural(scopedChildren.length, ['ученик', 'ученика', 'учеников'])}.`
+                  : 'Учеников пока нет — добавьте первого кнопкой «Добавить ученика».'
+              }
+              minHeight={200}
+            />
+          ) : isMobile ? (
             <div className="flex flex-col gap-3">
               {visibleChildren.length === 0 && (
                 <SproutEmpty
                   icon={<Baby size={28} strokeWidth={1.8} />}
-                  title={'Учеников пока нет'}
-                  description={
-                    'Добавьте первого ученика кнопкой выше'
-                  }
+                  title="Никого не нашли"
+                  description="Измените имя или выберите другой класс"
                   minHeight={160}
                 />
               )}

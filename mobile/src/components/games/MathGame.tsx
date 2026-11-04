@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import {
+  StyleSheet,
+  View,
+} from 'react-native'
+import { Text, TextInput } from '../Text'
 
 import { colors, radius } from '../../theme/colors'
 import { MAX_SCORE, makeProblem, parseAnswer } from '../../lib/games'
@@ -100,7 +104,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '700',

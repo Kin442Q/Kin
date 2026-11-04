@@ -6,9 +6,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import dayjs from 'dayjs'
 import { CheckCircle2, AlertCircle, Wallet } from 'lucide-react-native'
 
@@ -121,7 +121,7 @@ export default function AdminPaymentsScreen() {
               <Card padding={16} style={[
                 {
                   flex: 1,
-                  backgroundColor: stats.due > 0 ? colors.roseSoft : colors.surface,
+                  backgroundColor: stats.due > 0 ? colors.roseSoft : colors.surfaceSolid,
                 },
                 shadow.sm,
               ]}>

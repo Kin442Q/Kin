@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Col,
+  Collapse,
   Form,
   Grid,
   Input,
@@ -48,6 +49,7 @@ import type { Group, GroupFinance } from '../types'
 import { calcGroupFinances } from '../lib/finance'
 import { formatMoney, formatMoneyCompact, formatPercent } from '../lib/format'
 import { useChartTheme } from '../theme/chartTheme'
+import { classLetterOf, groupByGrade, plural, type GradeGroup } from '../lib/classes'
 
 // Sprout-палитра для группы
 const GROUP_COLORS = [
@@ -222,7 +224,7 @@ export default function GroupsPage() {
               fontWeight: 700,
             }}
           >
-            {row.group.name.slice(0, 1).toUpperCase()}
+            {classLetterOf(row.group.name).slice(0, 2)}
           </Avatar>
           <div>
             <div style={{ fontWeight: 600, color: SP.text }}>{row.group.name}</div>
@@ -400,6 +402,194 @@ export default function GroupsPage() {
     ...(showFinance ? [] : ['income', 'expenses', 'profit', 'margin']),
   ])
   const visibleColumns = columns.filter((c) => !hiddenColumnKeys.has(c.key as string))
+
+  // Классы по параллелям: 1 класс → А, Б, В; вместо одной длинной таблицы.
+  const gradeGroups = useMemo(() => groupByGrade(finances, (r) => r.group.name), [finances])
+  const [openGrades, setOpenGrades] = useState<string[] | null>(null)
+  // Пока пользователь ничего не раскрывал: единственная параллель открыта сразу, остальные свёрнуты.
+  const activeGrades =
+    openGrades ?? (gradeGroups.length === 1 ? [String(gradeGroups[0].key)] : [])
+
+  const gradeHeader = (gr: GradeGroup<GroupFinance>) => {
+    const students = gr.items.reduce((sum, r) => sum + r.childrenCount, 0)
+    return (
+      <div className="sp-grade-head">
+        <span className="sp-grade-badge">{gr.grade ?? '•'}</span>
+        <div className="sp-grade-title">
+          <b>{gr.label}</b>
+          <span className="sp-grade-letters">
+            {gr.items.map((r) => (
+              <i key={r.group.id} style={{ background: r.group.color }}>
+                {classLetterOf(r.group.name).slice(0, 2)}
+              </i>
+            ))}
+          </span>
+        </div>
+        <span className="sp-grade-meta">
+          {gr.items.length} {plural(gr.items.length, ['класс', 'класса', 'классов'])} · {students}{' '}
+          {plural(students, ['ученик', 'ученика', 'учеников'])}
+        </span>
+      </div>
+    )
+  }
+
+  const renderRows = (rows: GroupFinance[]) =>
+    isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {rows.map((row) => {
+                const g = row.group
+                const margin = Math.max(0, Math.min(100, row.margin * 100))
+                return (
+                  <div key={g.id} className="sp-mcard">
+                    <div className="sp-mcard-header">
+                      <Avatar
+                        size={44}
+                        style={{
+                          background: g.color,
+                          color: 'white',
+                          fontWeight: 700,
+                          fontSize: 16,
+                        }}
+                      >
+                        {classLetterOf(g.name).slice(0, 2)}
+                      </Avatar>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="sp-mcard-title">{g.name}</div>
+                        <div className="sp-mcard-sub">{g.ageRange}</div>
+                      </div>
+                      {showFinance && (
+                      <Tag
+                        style={{
+                          background: row.profit >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
+                          color: row.profit >= 0 ? SP.primaryDeep : SP.danger,
+                          border: 'none',
+                          fontWeight: 700,
+                          margin: 0,
+                        }}
+                      >
+                        {row.profit >= 0 ? '+' : ''}
+                        {formatMoneyCompact(row.profit)}
+                      </Tag>
+                      )}
+                    </div>
+  
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: showPayments ? '1fr 1fr 1fr' : '1fr',
+                        gap: 8,
+                        padding: '6px 0',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 11, color: SP.muted }}>
+                          {'Учеников'}
+                        </div>
+                        <div
+                          className="sp-num"
+                          style={{ fontWeight: 700, fontSize: 15, color: SP.text }}
+                        >
+                          {row.childrenCount}
+                        </div>
+                      </div>
+                      {showPayments && (
+                        <>
+                      <div>
+                        <div style={{ fontSize: 11, color: SP.muted }}>Оплатили</div>
+                        <div
+                          className="sp-num"
+                          style={{
+                            fontWeight: 700,
+                            fontSize: 15,
+                            color: SP.primaryDeep,
+                          }}
+                        >
+                          {row.paidCount}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: SP.muted }}>Должники</div>
+                        <div
+                          className="sp-num"
+                          style={{
+                            fontWeight: 700,
+                            fontSize: 15,
+                            color: row.debtorsCount > 0 ? SP.danger : SP.muted,
+                          }}
+                        >
+                          {row.debtorsCount}
+                        </div>
+                      </div>
+                        </>
+                      )}
+                    </div>
+  
+                    {showFinance && (
+                      <>
+                    <div className="sp-mcard-row">
+                      <span className="label">Доход</span>
+                      <span className="value sp-num">{formatMoneyCompact(row.income)}</span>
+                    </div>
+                    <div className="sp-mcard-row">
+                      <span className="label">Расход</span>
+                      <span className="value sp-num" style={{ color: SP.muted }}>
+                        {formatMoneyCompact(row.expenses)}
+                      </span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: SP.muted, marginBottom: 4 }}>
+                        Маржа · {formatPercent(row.margin)}
+                      </div>
+                      <Progress
+                        percent={margin}
+                        size="small"
+                        strokeColor={row.profit >= 0 ? SP.primary : SP.danger}
+                        showInfo={false}
+                      />
+                    </div>
+                      </>
+                    )}
+  
+                    <div className="sp-mcard-actions">
+                      <Button
+                        size="small"
+                        icon={<EyeOutlined />}
+                        onClick={() => navigate(`/admin/groups/${g.id}`)}
+                      >
+                        Открыть
+                      </Button>
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => openEdit(g)}
+                      >
+                        Изменить
+                      </Button>
+                      <Popconfirm
+                        title={`Удалить ${L.group}?`}
+                        okText="Удалить"
+                        cancelText="Отмена"
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => remove(g)}
+                      >
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+    ) : (
+      <Table
+              rowKey={(r) => r.group.id}
+              dataSource={rows}
+              columns={visibleColumns}
+              pagination={false}
+              scroll={{ x: showFinance ? 1100 : undefined }}
+              size="middle"
+              sticky
+            />
+    )
 
   return (
     <div>
@@ -614,162 +804,30 @@ export default function GroupsPage() {
             }
             minHeight={220}
           />
-        ) : isMobile ? (
-          // === Мобильные карточки ===
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {finances.map((row) => {
-              const g = row.group
-              const margin = Math.max(0, Math.min(100, row.margin * 100))
-              return (
-                <div key={g.id} className="sp-mcard">
-                  <div className="sp-mcard-header">
-                    <Avatar
-                      size={44}
-                      style={{
-                        background: g.color,
-                        color: 'white',
-                        fontWeight: 700,
-                        fontSize: 16,
-                      }}
-                    >
-                      {g.name.slice(0, 1).toUpperCase()}
-                    </Avatar>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="sp-mcard-title">{g.name}</div>
-                      <div className="sp-mcard-sub">{g.ageRange}</div>
-                    </div>
-                    {showFinance && (
-                    <Tag
-                      style={{
-                        background: row.profit >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
-                        color: row.profit >= 0 ? SP.primaryDeep : SP.danger,
-                        border: 'none',
-                        fontWeight: 700,
-                        margin: 0,
-                      }}
-                    >
-                      {row.profit >= 0 ? '+' : ''}
-                      {formatMoneyCompact(row.profit)}
-                    </Tag>
-                    )}
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: showPayments ? '1fr 1fr 1fr' : '1fr',
-                      gap: 8,
-                      padding: '6px 0',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 11, color: SP.muted }}>
-                        {'Учеников'}
-                      </div>
-                      <div
-                        className="sp-num"
-                        style={{ fontWeight: 700, fontSize: 15, color: SP.text }}
-                      >
-                        {row.childrenCount}
-                      </div>
-                    </div>
-                    {showPayments && (
-                      <>
-                    <div>
-                      <div style={{ fontSize: 11, color: SP.muted }}>Оплатили</div>
-                      <div
-                        className="sp-num"
-                        style={{
-                          fontWeight: 700,
-                          fontSize: 15,
-                          color: SP.primaryDeep,
-                        }}
-                      >
-                        {row.paidCount}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 11, color: SP.muted }}>Должники</div>
-                      <div
-                        className="sp-num"
-                        style={{
-                          fontWeight: 700,
-                          fontSize: 15,
-                          color: row.debtorsCount > 0 ? SP.danger : SP.muted,
-                        }}
-                      >
-                        {row.debtorsCount}
-                      </div>
-                    </div>
-                      </>
-                    )}
-                  </div>
-
-                  {showFinance && (
-                    <>
-                  <div className="sp-mcard-row">
-                    <span className="label">Доход</span>
-                    <span className="value sp-num">{formatMoneyCompact(row.income)}</span>
-                  </div>
-                  <div className="sp-mcard-row">
-                    <span className="label">Расход</span>
-                    <span className="value sp-num" style={{ color: SP.muted }}>
-                      {formatMoneyCompact(row.expenses)}
-                    </span>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: SP.muted, marginBottom: 4 }}>
-                      Маржа · {formatPercent(row.margin)}
-                    </div>
-                    <Progress
-                      percent={margin}
-                      size="small"
-                      strokeColor={row.profit >= 0 ? SP.primary : SP.danger}
-                      showInfo={false}
-                    />
-                  </div>
-                    </>
-                  )}
-
-                  <div className="sp-mcard-actions">
-                    <Button
-                      size="small"
-                      icon={<EyeOutlined />}
-                      onClick={() => navigate(`/admin/groups/${g.id}`)}
-                    >
-                      Открыть
-                    </Button>
-                    <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => openEdit(g)}
-                    >
-                      Изменить
-                    </Button>
-                    <Popconfirm
-                      title={`Удалить ${L.group}?`}
-                      okText="Удалить"
-                      cancelText="Отмена"
-                      okButtonProps={{ danger: true }}
-                      onConfirm={() => remove(g)}
-                    >
-                      <Button size="small" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
         ) : (
-          <Table
-            rowKey={(r) => r.group.id}
-            dataSource={finances}
-            columns={visibleColumns}
-            pagination={false}
-            scroll={{ x: showFinance ? 1100 : undefined }}
-            size="middle"
-            sticky
-          />
+          <>
+            {gradeGroups.length > 1 && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <Button size="small" onClick={() => setOpenGrades(gradeGroups.map((g) => String(g.key)))}>
+                  Развернуть все
+                </Button>
+                <Button size="small" onClick={() => setOpenGrades([])}>
+                  Свернуть все
+                </Button>
+              </div>
+            )}
+            <Collapse
+              ghost
+              className="sp-grade-collapse"
+              activeKey={activeGrades}
+              onChange={(k) => setOpenGrades(Array.isArray(k) ? (k as string[]) : [k as string])}
+              items={gradeGroups.map((gr) => ({
+                key: String(gr.key),
+                label: gradeHeader(gr),
+                children: renderRows(gr.items),
+              }))}
+            />
+          </>
         )}
       </SproutCard>
 

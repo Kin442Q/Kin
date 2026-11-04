@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native'
+import { Text } from '../Text'
 
 import { colors, radius } from '../../theme/colors'
 import { createMemoryDeck, memoryScore } from '../../lib/games'
@@ -70,7 +75,7 @@ export default function MemoryGame({ onFinish }: GameProps) {
               style={[
                 styles.card,
                 {
-                  backgroundColor: faceUp ? colors.surface : colors.primary,
+                  backgroundColor: faceUp ? colors.surfaceSolid : colors.primary,
                   borderColor: isMatched ? colors.primary : colors.borderSoft,
                 },
               ]}

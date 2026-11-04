@@ -6,15 +6,16 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text, TextInput } from '../components/Text'
 import { useNavigation } from '@react-navigation/native'
 import { ChevronLeft, Phone, Users } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Avatar from '../components/Avatar'
+import ClassFilter, { EMPTY_SELECTION, selectedGroupIds, type ClassSelection } from '../components/ClassFilter'
 import { colors, radius } from '../theme/colors'
 import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
@@ -29,29 +30,31 @@ export default function AdminStudentsScreen() {
   const L = useLabels()
   const [students, setStudents] = useState<AdminStudentDto[]>([])
   const [groups, setGroups] = useState<GroupDto[]>([])
-  const [activeGroup, setActiveGroup] = useState<string | null>(null)
+  // Класс выбирается двумя шагами (параллель → буква); пока нет фильтра или поиска, список пуст
+  const [sel, setSel] = useState<ClassSelection>(EMPTY_SELECTION)
+  const [query, setQuery] = useState('')
+  const activeGroup = sel.groupId
   const [status, setStatus] = useState<'ACTIVE' | 'ARCHIVED'>('ACTIVE')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const reload = useCallback(async () => {
     try {
-      const [list, gs] = await Promise.all([
-        adminApi.students({
-          groupId: activeGroup ?? undefined,
-          status,
-        }),
-        adminApi.groups(),
-      ])
-      setStudents(list)
+      const gs = await adminApi.groups()
       setGroups(gs)
+      // Учеников грузим, только когда выбран класс/параллель или введено имя
+      if (activeGroup || sel.grade !== null || query.trim()) {
+        setStudents(await adminApi.students({ groupId: activeGroup ?? undefined, status }))
+      } else {
+        setStudents([])
+      }
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || String(e))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeGroup, status])
+  }, [activeGroup, sel.grade, query, status])
 
   useEffect(() => {
     reload()
@@ -60,6 +63,24 @@ export default function AdminStudentsScreen() {
   const groupsById = useMemo(() => {
     const m: Record<string, GroupDto> = {}
     for (const g of groups) m[g.id] = g
+    return m
+  }, [groups])
+
+  const hasFilter = sel.grade !== null || query.trim().length > 0
+  const visible = useMemo(() => {
+    if (!hasFilter) return []
+    const ids = new Set(selectedGroupIds(groups, sel))
+    const q = query.trim().toLowerCase()
+    return students.filter((st) => {
+      if (ids.size > 0 && !ids.has(st.groupId)) return false
+      if (q && !`${st.lastName} ${st.firstName}`.toLowerCase().includes(q)) return false
+      return true
+    })
+  }, [students, groups, sel, query, hasFilter])
+
+  const counts = useMemo(() => {
+    const m: Record<string, number> = {}
+    for (const g of groups) m[g.id] = g._count?.students ?? 0
     return m
   }, [groups])
 
@@ -88,7 +109,7 @@ export default function AdminStudentsScreen() {
       </View>
 
       <FlatList
-        data={students}
+        data={visible}
         keyExtractor={(s) => s.id}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -131,63 +152,23 @@ export default function AdminStudentsScreen() {
               })}
             </View>
 
-            <View style={styles.groupChips}>
-              <Pressable
-                onPress={() => setActiveGroup(null)}
-                style={[
-                  styles.groupChip,
-                  {
-                    backgroundColor: !activeGroup
-                      ? colors.primaryDeep
-                      : colors.surface,
-                    borderColor: !activeGroup
-                      ? colors.primaryDeep
-                      : colors.borderSoft,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: !activeGroup ? '#fff' : colors.text,
-                    fontSize: 12,
-                    fontWeight: '700',
-                  }}
-                >
-                  Все {L.groups.toLowerCase()}
-                </Text>
-              </Pressable>
-              {groups.map((g) => {
-                const on = activeGroup === g.id
-                return (
-                  <Pressable
-                    key={g.id}
-                    onPress={() => setActiveGroup(on ? null : g.id)}
-                    style={[
-                      styles.groupChip,
-                      {
-                        backgroundColor: on ? g.color : colors.surface,
-                        borderColor: on ? g.color : colors.borderSoft,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={{
-                        color: on ? '#fff' : colors.text,
-                        fontSize: 12,
-                        fontWeight: '700',
-                      }}
-                    >
-                      {g.name}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={`Поиск по имени ${L.student}`}
+              placeholderTextColor={colors.muted}
+              autoCorrect={false}
+              style={styles.search}
+            />
+            <ClassFilter groups={groups} value={sel} onChange={setSel} allowAllLetters counts={counts} />
+            <View style={{ height: 10 }} />
 
             <View style={styles.summary}>
               <Users size={14} color={colors.muted} />
               <Text style={styles.summaryText}>
-                {students.length} {pluralizeStudent(students.length, L.student)}
+                {hasFilter
+                  ? `${visible.length} ${pluralizeStudent(visible.length, L.student)}`
+                  : 'Выберите класс или введите имя'}
               </Text>
             </View>
           </View>
@@ -244,9 +225,11 @@ export default function AdminStudentsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
-              {status === 'ARCHIVED'
-                ? 'В архиве пусто'
-                : `Здесь пока никого нет. Добавьте ${L.students.toLowerCase()} в веб-версии.`}
+              {!hasFilter
+                ? 'Список появится после выбора класса или поиска'
+                : status === 'ARCHIVED'
+                  ? 'В архиве пусто'
+                  : 'Никого не нашли. Измените имя или класс.'}
             </Text>
           </View>
         }
@@ -296,6 +279,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
     borderRadius: radius.md,
+  },
+  search: {
+    backgroundColor: colors.surfaceSolid,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    minHeight: 48,
+    fontSize: 15,
+    color: colors.text,
+    marginBottom: 12,
   },
   groupChips: {
     flexDirection: 'row',

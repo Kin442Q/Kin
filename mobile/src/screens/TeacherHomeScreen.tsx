@@ -4,9 +4,9 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import * as LocalAuthentication from 'expo-local-authentication'
 import * as Location from 'expo-location'
 import { Clock, LogIn, LogOut, Wallet, TrendingUp, MapPin } from 'lucide-react-native'
@@ -262,7 +262,7 @@ export default function TeacherHomeScreen() {
           style={[
             styles.mainCard,
             {
-              backgroundColor: isWorking ? colors.primarySoft : colors.surface,
+              backgroundColor: isWorking ? colors.primarySoft : colors.surfaceSolid,
             },
           ]}
         >

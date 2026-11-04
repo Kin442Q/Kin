@@ -1,8 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native'
+import { Text } from './Text'
 import { useNavigation } from '@react-navigation/native'
 import { ChevronLeft } from 'lucide-react-native'
 
-import { colors } from '../theme/colors'
+import { colors, shadow } from '../theme/colors'
 
 interface Props {
   title: string
@@ -47,7 +52,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surfaceSolid,
+    ...shadow.sm,
   },
   title: { flex: 1, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' },
   right: { minWidth: 36, alignItems: 'flex-end' },

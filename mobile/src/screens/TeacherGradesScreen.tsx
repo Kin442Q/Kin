@@ -6,9 +6,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import { ChevronLeft, Plus, BookMarked } from 'lucide-react-native'
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.borderSoft,

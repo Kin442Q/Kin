@@ -2,17 +2,18 @@ import { useState } from 'react'
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native'
-import { Leaf } from 'lucide-react-native'
+import { ArrowRight, Eye, EyeOff, Info, Lock, User } from 'lucide-react-native'
+import { Text, TextInput } from '../components/Text'
 import Screen from '../components/Screen'
 import Btn from '../components/Btn'
-import { colors, radius, font, shadow } from '../theme/colors'
+import Card from '../components/Card'
+import Logo from '../components/Logo'
+import { colors, radius, font } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 
 export default function LoginScreen() {
@@ -21,6 +22,8 @@ export default function LoginScreen() {
 
   const [emailOrPhone, setEmailOrPhone] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [focused, setFocused] = useState<'login' | 'password' | null>(null)
 
   const onSubmit = async () => {
     if (!emailOrPhone.trim() || !password) {
@@ -44,71 +47,98 @@ export default function LoginScreen() {
 
   return (
     <Screen>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      {/* На обеих платформах «padding»: при сквозном режиме Android (edge-to-edge) окно само не сжимается */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {/* Логотип */}
           <View style={styles.logoBlock}>
-            <View style={styles.logoIcon}>
-              <Leaf size={26} color="#fff" strokeWidth={2.2} />
-            </View>
-            <View>
-              <Text style={styles.logoTitle}>Maktab</Text>
-              <Text style={styles.logoSub}>school OS</Text>
-            </View>
+            <Logo size={22} />
           </View>
 
-          {/* Hero */}
           <Text style={styles.heroTitle}>
-            Управляйте школой{'\n'}
-            в <Text style={{ color: colors.primaryDeep, fontStyle: 'italic' }}>одном месте</Text>
+            Хуш омадед!{'\n'}
+            <Text style={{ color: colors.primaryDeep }}>Рады видеть вас снова</Text>
           </Text>
           <Text style={styles.heroSub}>
-            Войдите чтобы продолжить
+            Один вход для директора, учителей, родителей и учеников — система сама откроет нужный кабинет.
           </Text>
 
-          {/* Form */}
-          <Text style={styles.label}>Email или телефон</Text>
-          <TextInput
-            value={emailOrPhone}
-            onChangeText={setEmailOrPhone}
-            placeholder="email или +992 90 123 45 67"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-          />
+          <Card padding={22} style={styles.card}>
+            <Text style={styles.cardTitle}>Вход в систему</Text>
+            <Text style={styles.cardSub}>Директор, учитель, родитель или ученик</Text>
 
-          <Text style={[styles.label, { marginTop: 14 }]}>Пароль</Text>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder="••••••••"
-            secureTextEntry
-            autoCapitalize="none"
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-          />
+            <Text style={styles.label}>Email или телефон</Text>
+            <View style={[styles.inputWrap, focused === 'login' && styles.inputWrapFocus]}>
+              <User size={18} color={colors.muted} />
+              <TextInput
+                value={emailOrPhone}
+                onChangeText={setEmailOrPhone}
+                placeholder="email или +992 90 123 45 67"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="username"
+                textContentType="username"
+                placeholderTextColor={colors.muted}
+                onFocus={() => setFocused('login')}
+                onBlur={() => setFocused(null)}
+                style={styles.input}
+              />
+            </View>
 
-          <Btn
-            block
-            size="lg"
-            loading={loading}
-            onPress={onSubmit}
-            style={{ marginTop: 22 }}
-          >
-            Войти →
-          </Btn>
+            <Text style={[styles.label, { marginTop: 14 }]}>Пароль</Text>
+            <View style={[styles.inputWrap, focused === 'password' && styles.inputWrapFocus]}>
+              <Lock size={18} color={colors.muted} />
+              <TextInput
+                value={password}
+                onChangeText={setPassword}
+                placeholder="••••••••"
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="current-password"
+                textContentType="password"
+                placeholderTextColor={colors.muted}
+                onFocus={() => setFocused('password')}
+                onBlur={() => setFocused(null)}
+                onSubmitEditing={onSubmit}
+                returnKeyType="go"
+                style={styles.input}
+              />
+              <Pressable
+                onPress={() => setShowPassword((v) => !v)}
+                hitSlop={10}
+                accessibilityLabel={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color={colors.muted} />
+                ) : (
+                  <Eye size={20} color={colors.muted} />
+                )}
+              </Pressable>
+            </View>
 
-          <Text style={styles.hint}>
-            Войдите по email или номеру телефона.{'\n'}
-            Роль определится автоматически.
-          </Text>
+            <Btn
+              block
+              size="lg"
+              loading={loading}
+              onPress={onSubmit}
+              icon={<ArrowRight size={18} color="#fff" strokeWidth={2.2} />}
+              style={{ marginTop: 22 }}
+            >
+              Войти
+            </Btn>
+
+            <View style={styles.hint}>
+              <Info size={18} color={colors.roseDeep} />
+              <Text style={styles.hintText}>
+                Логин и пароль выдаёт администратор школы. Родители входят по номеру телефона, указанному в школе.
+              </Text>
+            </View>
+          </Card>
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -117,95 +147,80 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    padding: 24,
-    paddingTop: 16,
+    padding: 22,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
   logoBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 28,
-  },
-  logoIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadow.md,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.35,
-  },
-  logoTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-    lineHeight: 24,
-  },
-  logoSub: {
-    fontSize: 11,
-    color: colors.muted,
-    fontWeight: '500',
+    marginBottom: 26,
   },
   heroTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: colors.text,
-    lineHeight: 34,
+    lineHeight: 38,
     letterSpacing: -0.6,
   },
   heroSub: {
-    fontSize: 14,
-    color: colors.muted,
-    marginTop: 6,
+    fontSize: 15,
+    color: colors.textMid,
+    lineHeight: 22,
+    marginTop: 10,
     marginBottom: 22,
   },
-  tabBar: {
-    flexDirection: 'row',
-    gap: 4,
-    padding: 4,
-    backgroundColor: colors.surfaceAlt,
-    borderRadius: radius.md,
-    marginBottom: 20,
+  card: {
+    borderRadius: radius.xl,
   },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: radius.sm,
+  cardTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.text,
   },
-  tabBtnActive: {
-    backgroundColor: colors.surface,
-    ...shadow.sm,
-  },
-  tabText: {
-    fontSize: 13,
-    fontWeight: '600',
+  cardSub: {
+    fontSize: 14,
+    color: colors.textMid,
+    marginTop: 4,
+    marginBottom: 18,
   },
   label: {
     fontSize: 13,
-    color: colors.textMid,
+    color: colors.text,
     fontWeight: '600',
     marginBottom: 6,
   },
-  input: {
-    backgroundColor: colors.surface,
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.surfaceSolid,
     borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radius.md,
     paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: font.size.base,
+    minHeight: 52,
+  },
+  inputWrapFocus: {
+    borderColor: colors.primary,
+  },
+  input: {
+    flex: 1,
+    fontSize: font.size.md,
     color: colors.text,
-    minHeight: 48,
+    paddingVertical: 12,
   },
   hint: {
-    fontSize: 12,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: 24,
-    lineHeight: 18,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+    backgroundColor: colors.roseSoft,
+    borderRadius: radius.md,
+    padding: 14,
+    marginTop: 18,
+  },
+  hintText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: colors.roseDeep,
   },
 })

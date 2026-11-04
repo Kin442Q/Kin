@@ -52,10 +52,10 @@ export async function registerForPushNotificationsAsync(): Promise<
     // Android требует канал, чтобы уведомления отображались.
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
-        name: 'Maktab',
+        name: 'Мактаби ман',
         importance: Notifications.AndroidImportance.DEFAULT,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#4FB286',
+        lightColor: '#0D7A7C',
       })
     }
 
