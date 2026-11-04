@@ -4,9 +4,9 @@ import {
   Modal,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from './Text'
 import { ChevronDown, Check } from 'lucide-react-native'
 import { colors, radius, shadow } from '../theme/colors'
 
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.borderSoft,
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
     padding: 28,
   },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     borderRadius: radius.lg,
     overflow: 'hidden',
   },

@@ -5,9 +5,9 @@ import {
   RefreshControl,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import dayjs from 'dayjs'
 import { GraduationCap } from 'lucide-react-native'
 

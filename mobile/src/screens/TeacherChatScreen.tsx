@@ -7,10 +7,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native'
+import { Text, TextInput } from '../components/Text'
 import { useFocusEffect } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import { Send, ChevronLeft, MessageCircle } from 'lucide-react-native'
@@ -281,7 +280,7 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '80%', borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 8 },
   bubbleMine: { backgroundColor: colors.primary, borderBottomRightRadius: 4 },
   bubbleOther: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     borderBottomLeftRadius: 4,
@@ -298,7 +297,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
   },
   input: {
     flex: 1,

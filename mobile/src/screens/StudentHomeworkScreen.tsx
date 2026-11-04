@@ -6,9 +6,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import dayjs from 'dayjs'
 import { BookOpen, Check } from 'lucide-react-native'
 

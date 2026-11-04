@@ -21,6 +21,8 @@ import {
   type LucideIcon,
 } from 'lucide-react-native'
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+
 import { useAuthStore } from '../store/authStore'
 import { hasFeature, type FeatureKey } from '../lib/features'
 import { colors } from '../theme/colors'
@@ -63,7 +65,7 @@ const navTheme = {
   colors: {
     ...DefaultTheme.colors,
     background: colors.bg,
-    card: colors.surface,
+    card: colors.surfaceSolid,
     text: colors.text,
     primary: colors.primary,
     border: colors.borderSoft,
@@ -143,6 +145,10 @@ function buildTabs(role: TabRole): TabConfig[] {
 
 function MainTabs() {
   const user = useAuthStore((s) => s.user)
+  // Нижний отступ под системную панель: кнопки Android (3 кнопки / жесты) и «домик» iOS.
+  // Высота панели вкладок НЕ фиксирована: 56 + отступ, иначе вкладки уезжают под системные кнопки.
+  const insets = useSafeAreaInsets()
+  const bottomInset = Math.max(insets.bottom, 8)
   const r = String(user?.role ?? '').toUpperCase()
   const role: TabRole =
     r === 'SUPER_ADMIN' || r === 'ADMIN'
@@ -171,17 +177,24 @@ function MainTabs() {
           tabBarActiveTintColor: colors.primaryDeep,
           tabBarInactiveTintColor: colors.muted,
           tabBarLabelStyle: {
-            fontSize: 10.5,
-            fontWeight: '600',
+            fontSize: 11,
+            fontFamily: 'Inter_600SemiBold',
             marginTop: -2,
           },
           tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.borderSoft,
+            backgroundColor: colors.surfaceSolid,
+            borderTopColor: colors.glassBorder,
             borderTopWidth: 1,
-            height: 64,
-            paddingTop: 6,
-            paddingBottom: 8,
+            borderTopLeftRadius: 22,
+            borderTopRightRadius: 22,
+            height: 56 + bottomInset,
+            paddingTop: 8,
+            paddingBottom: bottomInset,
+            shadowColor: '#10282A',
+            shadowOffset: { width: 0, height: -6 },
+            shadowOpacity: 0.08,
+            shadowRadius: 14,
+            elevation: 12,
           },
           tabBarIcon: ({ color, focused }) => (
             <Icon

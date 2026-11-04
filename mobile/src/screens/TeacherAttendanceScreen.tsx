@@ -6,9 +6,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import dayjs from 'dayjs'
 import { Check, Heart, MinusCircle, Sun, StickyNote } from 'lucide-react-native'
 
@@ -377,7 +377,7 @@ function StudentRow({
               style={({ pressed }) => [
                 styles.chip,
                 {
-                  backgroundColor: active ? s.bg : colors.surface,
+                  backgroundColor: active ? s.bg : colors.surfaceSolid,
                   borderColor: active ? s.fg : colors.border,
                   opacity: saving ? 0.6 : 1,
                 },

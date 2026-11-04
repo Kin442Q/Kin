@@ -1,12 +1,11 @@
-import { ReactNode } from 'react'
+import { ReactNode, useState } from 'react'
 import {
   Pressable,
   StyleSheet,
-  Text,
-  TextInput,
   TextInputProps,
   View,
 } from 'react-native'
+import { Text, TextInput } from './Text'
 import { colors, radius } from '../theme/colors'
 
 interface InputProps extends TextInputProps {
@@ -14,13 +13,22 @@ interface InputProps extends TextInputProps {
   hint?: string
 }
 
-export function Field({ label, hint, style, ...rest }: InputProps) {
+export function Field({ label, hint, style, onFocus, onBlur, ...rest }: InputProps) {
+  const [focus, setFocus] = useState(false)
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
       <TextInput
         placeholderTextColor={colors.muted}
-        style={[styles.input, style]}
+        style={[styles.input, focus && styles.inputFocus, style]}
+        onFocus={(e) => {
+          setFocus(true)
+          onFocus?.(e)
+        }}
+        onBlur={(e) => {
+          setFocus(false)
+          onBlur?.(e)
+        }}
         {...rest}
       />
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}
@@ -90,15 +98,17 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   input: {
-    backgroundColor: colors.surfaceAlt,
+    backgroundColor: colors.surfaceSolid,
     borderRadius: radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    minHeight: 48,
     fontSize: 15,
     color: colors.text,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
+  inputFocus: { borderColor: colors.primary },
   hint: { fontSize: 11, color: colors.muted, marginTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {

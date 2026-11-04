@@ -6,9 +6,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { Calendar } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
@@ -169,7 +169,7 @@ export default function ParentScheduleScreen() {
                       {
                         backgroundColor: on
                           ? colors.primaryDeep
-                          : colors.surface,
+                          : colors.surfaceSolid,
                         borderColor: on
                           ? colors.primaryDeep
                           : colors.borderSoft,

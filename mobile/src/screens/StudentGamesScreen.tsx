@@ -5,9 +5,9 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Gamepad2 } from 'lucide-react-native'
 

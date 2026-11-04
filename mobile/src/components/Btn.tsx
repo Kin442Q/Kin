@@ -4,10 +4,10 @@ import {
   Pressable,
   StyleProp,
   StyleSheet,
-  Text,
   View,
   ViewStyle,
 } from 'react-native'
+import { Text } from './Text'
 import { colors, radius, font } from '../theme/colors'
 
 interface Props {
@@ -63,6 +63,7 @@ export default function Btn({
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.btn,
+        variant === 'primary' && !isDisabled && styles.primaryShadow,
         {
           backgroundColor: bg,
           paddingVertical: sizes.padV,
@@ -101,6 +102,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  primaryShadow: {
+    shadowColor: '#0D7A7C',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+    elevation: 4,
   },
   row: {
     flexDirection: 'row',

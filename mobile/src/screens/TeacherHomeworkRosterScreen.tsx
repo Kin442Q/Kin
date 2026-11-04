@@ -5,9 +5,9 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { useRoute } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import { Check, MessageCircle } from 'lucide-react-native'

@@ -5,9 +5,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { useNavigation, useRoute } from '@react-navigation/native'
 
 import Screen from '../components/Screen'
@@ -175,7 +175,7 @@ export default function StudentQuizPlayScreen() {
                     styles.option,
                     {
                       borderColor: on ? colors.primary : colors.borderSoft,
-                      backgroundColor: on ? colors.primaryGhost : colors.surface,
+                      backgroundColor: on ? colors.primaryGhost : colors.surfaceSolid,
                     },
                   ]}
                 >

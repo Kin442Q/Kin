@@ -1,19 +1,21 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
   View,
 } from 'react-native'
-import { Users, GraduationCap } from 'lucide-react-native'
+import { Text } from '../components/Text'
+import { ChevronDown, ChevronRight, Users, GraduationCap } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import { colors, radius } from '../theme/colors'
 import { useLabels } from '../theme/useLabels'
+import { classLetterOf, groupByGrade, plural } from '../lib/classes'
 import { adminApi, type GroupDto } from '../api/admin'
 
 export default function AdminGroupsScreen() {
@@ -21,6 +23,8 @@ export default function AdminGroupsScreen() {
   const [groups, setGroups] = useState<GroupDto[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  // Раскрытые параллели: по умолчанию все свёрнуты (если параллель одна — раскрыта)
+  const [open, setOpen] = useState<string[] | null>(null)
 
   const reload = useCallback(async () => {
     try {
@@ -37,6 +41,34 @@ export default function AdminGroupsScreen() {
   useEffect(() => {
     reload()
   }, [reload])
+
+  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups])
+  const openKeys = open ?? (grades.length === 1 ? [String(grades[0].key)] : [])
+  type Row =
+    | { kind: 'head'; key: string; label: string; grade: number | null; classes: GroupDto[]; kids: number }
+    | { kind: 'item'; key: string; item: GroupDto }
+  const rows = useMemo<Row[]>(() => {
+    const list: Row[] = []
+    for (const gr of grades) {
+      const k = String(gr.key)
+      list.push({
+        kind: 'head',
+        key: 'h' + k,
+        label: gr.label,
+        grade: gr.grade,
+        classes: gr.items,
+        kids: gr.items.reduce((sum, g) => sum + (g._count?.students ?? 0), 0),
+      })
+      if (openKeys.includes(k)) for (const g of gr.items) list.push({ kind: 'item', key: g.id, item: g })
+    }
+    return list
+  }, [grades, openKeys.join(',')])
+
+  const toggle = (k: string) =>
+    setOpen((cur) => {
+      const base = cur ?? openKeys
+      return base.includes(k) ? base.filter((x) => x !== k) : [...base, k]
+    })
 
   if (loading) {
     return (
@@ -56,8 +88,8 @@ export default function AdminGroupsScreen() {
   return (
     <Screen>
       <FlatList
-        data={groups}
-        keyExtractor={(g) => g.id}
+        data={rows}
+        keyExtractor={(r) => r.key}
         contentContainerStyle={styles.list}
         refreshControl={
           <RefreshControl
@@ -78,7 +110,32 @@ export default function AdminGroupsScreen() {
           </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={({ item }) => {
+        renderItem={({ item: row }) => {
+          if (row.kind === 'head') {
+            const k = row.key.slice(1)
+            const on = openKeys.includes(k)
+            return (
+              <Pressable onPress={() => toggle(k)} accessibilityRole="button" accessibilityState={{ expanded: on }}>
+                <Card padding={12} style={{ backgroundColor: colors.surfaceAlt }}>
+                  <View style={styles.headerRow}>
+                    <View style={styles.gradeBadge}>
+                      <Text style={styles.gradeBadgeText}>{row.grade ?? '•'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.name}>{row.label}</Text>
+                      <Text style={styles.meta}>
+                        {row.classes.map((c) => classLetterOf(c.name)).join(' · ')} ·{' '}
+                        {row.classes.length} {plural(row.classes.length, ['класс', 'класса', 'классов'])},{' '}
+                        {row.kids} {plural(row.kids, ['ученик', 'ученика', 'учеников'])}
+                      </Text>
+                    </View>
+                    {on ? <ChevronDown size={20} color={colors.muted} /> : <ChevronRight size={20} color={colors.muted} />}
+                  </View>
+                </Card>
+              </Pressable>
+            )
+          }
+          const item = row.item
           const kids = item._count?.students ?? 0
           const teachers = item._count?.teachers ?? 0
           const fill = item.capacity > 0
@@ -166,6 +223,16 @@ function pluralizeTeacher(n: number, base: string): string {
 }
 
 const styles = StyleSheet.create({
+  gradeBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  gradeBadgeText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 20, paddingBottom: 40 },
   title: {

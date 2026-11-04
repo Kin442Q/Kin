@@ -7,10 +7,9 @@ import {
   Pressable,
   RefreshControl,
   StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native'
+import { Text, TextInput } from '../components/Text'
 import { ExternalLink, Library } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
@@ -166,7 +165,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     paddingHorizontal: 14,
     fontSize: 14,
     color: colors.text,

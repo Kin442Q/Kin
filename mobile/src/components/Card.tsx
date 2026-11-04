@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.glassBorder,
   },
 })
