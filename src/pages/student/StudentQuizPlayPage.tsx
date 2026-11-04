@@ -1,16 +1,88 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { App as AntdApp, Button, Progress, Result, Spin, Tag } from 'antd'
-import { CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons'
+import { App as AntdApp, Button, Result, Spin, Tag } from 'antd'
+import { AnimatePresence, motion } from 'framer-motion'
+import { Flame, Gamepad2, Star, Timer, X, Zap } from 'lucide-react'
 
 import { SP, SproutCard } from '../../components/sprout'
 import { quizApi, type AttemptResult, type PlayQuiz } from '../../api/learningApi'
+import { SPEED_SECONDS, scoreGame, type GameSummary } from '../../lib/quizGame'
 
 type Stage = 'intro' | 'run' | 'result'
 
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
+const LETTERS = ['А', 'Б', 'В', 'Г', 'Д', 'Е', 'Ж', 'З']
+const TILE_COLORS = ['#0D7A7C', '#FF8A65', '#FFB020', '#8B7BD4', '#3B8FBF', '#D9709B', '#1BA6A0', '#075B5D']
 
-/** Прохождение квиза: вопросы по одному, таймер (если есть лимит), разбор после сдачи. */
+/** Круговой таймер: дуга уменьшается по мере того, как уходит время на вопрос. */
+function TimerRing({ left, total }: { left: number; total: number }) {
+  const R = 18
+  const C = 2 * Math.PI * R
+  const frac = Math.max(0, Math.min(1, left / total))
+  const urgent = left <= 5
+  return (
+    <div className="qg-timer" role="timer" aria-label={`Осталось ${Math.ceil(left)} секунд`}>
+      <svg width="48" height="48" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r={R} fill="none" stroke="var(--sp-border-soft)" strokeWidth="5" />
+        <circle
+          cx="24"
+          cy="24"
+          r={R}
+          fill="none"
+          stroke={urgent ? 'var(--sp-rose)' : 'var(--sp-primary)'}
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={C * (1 - frac)}
+          transform="rotate(-90 24 24)"
+        />
+      </svg>
+      <span style={{ color: urgent ? SP.roseDeep : SP.text }}>{Math.ceil(left)}</span>
+    </div>
+  )
+}
+
+/** Число плавно «набегает» от 0 до значения — для очков на итоговом экране. */
+function useCountUp(target: number, run: boolean, ms = 1100) {
+  const [v, setV] = useState(0)
+  useEffect(() => {
+    if (!run) return
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setV(target)
+      return
+    }
+    let raf = 0
+    const t0 = performance.now()
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / ms)
+      setV(Math.round(target * (1 - Math.pow(1 - k, 3))))
+      if (k < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, run, ms])
+  return v
+}
+
+function Stars({ count }: { count: 0 | 1 | 2 | 3 }) {
+  return (
+    <div className="qg-stars" aria-label={`Звёзд: ${count} из 3`}>
+      {[0, 1, 2].map((i) => (
+        <motion.span
+          key={i}
+          initial={{ scale: 0, rotate: -40, opacity: 0 }}
+          animate={{ scale: 1, rotate: 0, opacity: 1 }}
+          transition={{ delay: 0.25 + i * 0.22, type: 'spring', stiffness: 260, damping: 14 }}
+          className={i < count ? 'qg-star on' : 'qg-star'}
+        >
+          <Star size={44} strokeWidth={2} fill={i < count ? 'currentColor' : 'none'} />
+        </motion.span>
+      ))}
+    </div>
+  )
+}
+
+/** Игровое прохождение квиза: по одному вопросу, плитки-ответы, таймер, очки, серия и звёзды. */
 export default function StudentQuizPlayPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -19,13 +91,19 @@ export default function StudentQuizPlayPage() {
   const [quiz, setQuiz] = useState<PlayQuiz | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [stage, setStage] = useState<Stage>('intro')
+  const [speedMode, setSpeedMode] = useState(false)
   const [idx, setIdx] = useState(0)
   const [answers, setAnswers] = useState<Record<string, number[]>>({})
+  const [times, setTimes] = useState<number[]>([])
   const [startedAt, setStartedAt] = useState(0)
   const [left, setLeft] = useState<number | null>(null)
+  const [qLeft, setQLeft] = useState(SPEED_SECONDS)
   const [result, setResult] = useState<AttemptResult | null>(null)
+  const [game, setGame] = useState<GameSummary | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const sent = useRef(false)
+  const qStart = useRef(0)
+  const advancing = useRef(false)
 
   useEffect(() => {
     if (!id) return
@@ -35,47 +113,97 @@ export default function StudentQuizPlayPage() {
       .catch((e) => setError(e?.response?.data?.message || 'Квиз недоступен'))
   }, [id])
 
-  const submit = useCallback(async () => {
-    if (!quiz || !id || sent.current) return
-    sent.current = true
-    setSubmitting(true)
-    try {
-      const r = await quizApi.submit(id, {
-        answers: quiz.questions.map((q) => ({ questionId: q.id, selected: answers[q.id] ?? [] })),
-        durationSec: Math.round((Date.now() - startedAt) / 1000),
-      })
-      setResult(r)
-      setStage('result')
-    } catch (e: any) {
-      sent.current = false
-      message.error(e?.response?.data?.message || 'Не удалось отправить ответы')
-    } finally {
-      setSubmitting(false)
-    }
-  }, [quiz, id, answers, startedAt, message])
+  const submitWith = useCallback(
+    async (finalAnswers: Record<string, number[]>, finalTimes: number[]) => {
+      if (!quiz || !id || sent.current) return
+      sent.current = true
+      setSubmitting(true)
+      try {
+        const r = await quizApi.submit(id, {
+          answers: quiz.questions.map((q) => ({ questionId: q.id, selected: finalAnswers[q.id] ?? [] })),
+          durationSec: Math.round((Date.now() - startedAt) / 1000),
+        })
+        const flags = quiz.questions.map((q) => r.review.find((x) => x.questionId === q.id)?.correct ?? false)
+        setGame(scoreGame(flags, finalTimes, speedMode))
+        setResult(r)
+        setStage('result')
+      } catch (e: any) {
+        sent.current = false
+        advancing.current = false
+        message.error(e?.response?.data?.message || 'Не удалось отправить ответы')
+      } finally {
+        setSubmitting(false)
+      }
+    },
+    [quiz, id, startedAt, speedMode, message],
+  )
 
-  // Таймер: время вышло — отправляем то, что успели ответить.
+  /** Фиксируем ответ на текущий вопрос и идём дальше (или сдаём квиз на последнем). */
+  const lockIn = useCallback(
+    (override?: Record<string, number[]>) => {
+      if (!quiz || advancing.current) return
+      advancing.current = true
+      const used = Math.max(0, (Date.now() - qStart.current) / 1000)
+      const nextTimes = [...times]
+      nextTimes[idx] = used
+      setTimes(nextTimes)
+      const finalAnswers = override ?? answers
+      if (idx >= quiz.questions.length - 1) {
+        submitWith(finalAnswers, nextTimes)
+        return
+      }
+      window.setTimeout(() => {
+        setIdx((i) => i + 1)
+        qStart.current = Date.now()
+        setQLeft(SPEED_SECONDS)
+        advancing.current = false
+      }, 260)
+    },
+    [quiz, idx, times, answers, submitWith],
+  )
+
+  // Общий лимит на квиз (если задал учитель): время вышло — отправляем то, что успели.
   useEffect(() => {
     if (stage !== 'run' || !quiz?.timeLimitSec) return
     const limit = quiz.timeLimitSec
     const tick = () => {
       const remaining = limit - Math.floor((Date.now() - startedAt) / 1000)
       setLeft(Math.max(remaining, 0))
-      if (remaining <= 0) submit()
+      if (remaining <= 0) submitWith(answers, times)
     }
     tick()
     const t = setInterval(tick, 1000)
     return () => clearInterval(t)
-  }, [stage, quiz, startedAt, submit])
+  }, [stage, quiz, startedAt, submitWith, answers, times])
 
-  const start = () => {
+  // Таймер вопроса (режим «на скорость»): время вышло — фиксируем то, что выбрано.
+  useEffect(() => {
+    if (stage !== 'run' || !speedMode) return
+    const t = setInterval(() => {
+      const elapsed = (Date.now() - qStart.current) / 1000
+      const remaining = SPEED_SECONDS - elapsed
+      setQLeft(Math.max(remaining, 0))
+      if (remaining <= 0) lockIn()
+    }, 200)
+    return () => clearInterval(t)
+  }, [stage, speedMode, lockIn])
+
+  const start = (speed: boolean) => {
     sent.current = false
+    advancing.current = false
+    setSpeedMode(speed)
     setAnswers({})
+    setTimes([])
     setIdx(0)
     setResult(null)
+    setGame(null)
+    setQLeft(SPEED_SECONDS)
     setStartedAt(Date.now())
+    qStart.current = Date.now()
     setStage('run')
   }
+
+  const xpShown = useCountUp(game?.xp ?? 0, stage === 'result')
 
   if (error) {
     return (
@@ -98,138 +226,216 @@ export default function StudentQuizPlayPage() {
   // ─── Вступление ───────────────────────────────────────────────
   if (stage === 'intro') {
     return (
-      <SproutCard padding={28} style={{ maxWidth: 620, margin: '0 auto', textAlign: 'center' }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: SP.text }}>{quiz.title}</div>
-        {quiz.description && <div style={{ color: SP.textMid, marginTop: 6 }}>{quiz.description}</div>}
-        <div style={{ margin: '18px 0', color: SP.muted }}>
-          Вопросов: {quiz.questions.length}
-          {quiz.timeLimitSec ? ` · время: ${Math.round(quiz.timeLimitSec / 60)} мин` : ' · без ограничения по времени'}
-        </div>
-        <Button type="primary" size="large" onClick={start}>
-          Начать
-        </Button>{' '}
-        <Button size="large" onClick={() => navigate('/student/quizzes')}>
-          Назад
-        </Button>
-      </SproutCard>
+      <div className="qg-wrap">
+        <SproutCard padding={28} style={{ textAlign: 'center' }}>
+          <div className="qg-hero-icon" aria-hidden="true">
+            <Gamepad2 size={34} strokeWidth={2} />
+          </div>
+          <h1 className="qg-title">{quiz.title}</h1>
+          {quiz.description && <p style={{ color: SP.textMid, margin: '6px 0 0' }}>{quiz.description}</p>}
+          <div className="qg-chips">
+            <span className="sp-chip" style={{ background: SP.primarySoft, color: SP.primaryDeep }}>
+              {quiz.questions.length} вопросов
+            </span>
+            <span className="sp-chip" style={{ background: SP.blueSoft, color: SP.blueDeep }}>
+              {quiz.timeLimitSec ? `Лимит: ${Math.round(quiz.timeLimitSec / 60)} мин` : 'Без общего лимита'}
+            </span>
+          </div>
+          <ul className="qg-rules">
+            <li>
+              <Zap size={18} /> Режим «на скорость»: {SPEED_SECONDS} секунд на вопрос, быстрее — больше очков
+            </li>
+            <li>
+              <Flame size={18} /> Верные ответы подряд — серия: каждое звено добавляет 10% к очкам
+            </li>
+            <li>
+              <Star size={18} /> Звёзды за результат: 50% — одна, 80% — две, 100% — три
+            </li>
+          </ul>
+          <div className="qg-actions">
+            <Button type="primary" size="large" onClick={() => start(false)} disabled={quiz.questions.length === 0}>
+              Играть
+            </Button>
+            <Button size="large" icon={<Zap size={16} />} onClick={() => start(true)} disabled={quiz.questions.length === 0}>
+              На скорость
+            </Button>
+            <Button size="large" type="text" onClick={() => navigate('/student/quizzes')}>
+              Назад
+            </Button>
+          </div>
+        </SproutCard>
+      </div>
     )
   }
 
-  // ─── Прохождение ──────────────────────────────────────────────
+  // ─── Прохождение: один вопрос на экране ───────────────────────
   if (stage === 'run') {
     const q = quiz.questions[idx]
     const picked = answers[q.id] ?? []
-    const last = idx === quiz.questions.length - 1
+    const total = quiz.questions.length
 
-    const choose = (i: number) =>
+    const choose = (i: number) => {
+      if (advancing.current) return
+      if (q.kind === 'SINGLE') {
+        const next = { ...answers, [q.id]: [i] }
+        setAnswers(next)
+        // короткая пауза, чтобы плитка успела «нажаться», затем следующий вопрос
+        window.setTimeout(() => lockIn(next), 320)
+        return
+      }
       setAnswers((a) => {
         const cur = a[q.id] ?? []
-        if (q.kind === 'SINGLE') return { ...a, [q.id]: [i] }
         return { ...a, [q.id]: cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i] }
       })
+    }
 
     return (
-      <SproutCard padding={24} style={{ maxWidth: 700, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', color: SP.muted, fontSize: 13, marginBottom: 6 }}>
-          <span>
-            Вопрос {idx + 1} из {quiz.questions.length}
-          </span>
-          {left !== null && (
-            <span style={{ color: left <= 30 ? SP.danger : SP.muted, fontWeight: 700 }}>⏱ {mmss(left)}</span>
-          )}
-        </div>
-        <Progress percent={Math.round((idx / quiz.questions.length) * 100)} showInfo={false} size="small" strokeColor={SP.primary} />
-
-        <div style={{ fontSize: 19, fontWeight: 700, margin: '16px 0 4px', color: SP.text }}>{q.text}</div>
-        {q.kind === 'MULTIPLE' && <Tag color="blue">Выберите все верные ответы</Tag>}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
-          {q.options.map((o, i) => {
-            const on = picked.includes(i)
-            return (
-              <button
-                key={i}
-                type="button"
-                onClick={() => choose(i)}
-                aria-pressed={on}
-                style={{
-                  textAlign: 'left',
-                  padding: '12px 14px',
-                  borderRadius: 12,
-                  border: `2px solid ${on ? SP.primary : SP.borderSoft}`,
-                  background: on ? SP.primaryGhost : SP.surface,
-                  fontSize: 15,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <span style={{ marginRight: 8 }}>{q.kind === 'MULTIPLE' ? (on ? '☑' : '☐') : on ? '●' : '○'}</span>
-                {o.text}
-              </button>
-            )
-          })}
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
-          <Button disabled={idx === 0} onClick={() => setIdx((i) => i - 1)}>
-            ← Назад
-          </Button>
-          {last ? (
-            <Button type="primary" loading={submitting} onClick={submit}>
-              Завершить
-            </Button>
+      <div className="qg-wrap">
+        <div className="qg-top">
+          <button
+            type="button"
+            className="qg-close"
+            aria-label="Выйти из квиза"
+            onClick={() => {
+              if (window.confirm('Выйти из квиза? Ответы не сохранятся.')) navigate('/student/quizzes')
+            }}
+          >
+            <X size={18} />
+          </button>
+          <div className="qg-segs" aria-label={`Вопрос ${idx + 1} из ${total}`}>
+            {quiz.questions.map((qq, n) => (
+              <span key={qq.id} className={n < idx ? 'qg-seg done' : n === idx ? 'qg-seg now' : 'qg-seg'} />
+            ))}
+          </div>
+          {speedMode ? (
+            <TimerRing left={qLeft} total={SPEED_SECONDS} />
           ) : (
-            <Button type="primary" onClick={() => setIdx((i) => i + 1)}>
-              Дальше →
-            </Button>
+            left !== null && (
+              <span className="qg-limit" style={{ color: left <= 30 ? SP.roseDeep : SP.textMid }}>
+                <Timer size={15} /> {mmss(left)}
+              </span>
+            )
           )}
         </div>
-      </SproutCard>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={q.id}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.22 }}
+          >
+            <SproutCard padding={26} animate={false} className="qg-qcard">
+              <div className="qg-qnum">
+                Вопрос {idx + 1} из {total}
+              </div>
+              <div className="qg-qtext">{q.text}</div>
+              {q.kind === 'MULTIPLE' && <Tag color="cyan">Выберите все верные ответы</Tag>}
+            </SproutCard>
+
+            <div className="qg-options">
+              {q.options.map((o, i) => {
+                const on = picked.includes(i)
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className={on ? 'qg-opt is-on' : 'qg-opt'}
+                    style={{ ['--qg-c' as string]: TILE_COLORS[i % TILE_COLORS.length] }}
+                    aria-pressed={on}
+                    onClick={() => choose(i)}
+                  >
+                    <span className="qg-letter">{LETTERS[i] ?? i + 1}</span>
+                    <span>{o.text}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {q.kind === 'MULTIPLE' && (
+              <div style={{ textAlign: 'center', marginTop: 18 }}>
+                <Button type="primary" size="large" loading={submitting} onClick={() => lockIn()} disabled={picked.length === 0}>
+                  {idx === total - 1 ? 'Завершить' : 'Ответить'}
+                </Button>
+              </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     )
   }
 
-  // ─── Результат и разбор ───────────────────────────────────────
+  // ─── Результат: звёзды, очки, серия и разбор ──────────────────
   const r = result!
+  const g = game!
+  const tone = r.percent >= 80 ? SP.primaryDeep : r.percent >= 50 ? SP.yellowDeep : SP.roseDeep
+  const totalSec = Math.round((Date.now() - startedAt) / 1000)
   return (
-    <div style={{ maxWidth: 760, margin: '0 auto' }}>
-      <SproutCard padding={24} style={{ textAlign: 'center', marginBottom: 16 }}>
-        <div style={{ color: SP.muted }}>{quiz.title}</div>
-        <div
-          style={{
-            fontSize: 56,
-            fontWeight: 800,
-            color: r.percent >= 80 ? SP.primaryDeep : r.percent >= 50 ? SP.yellowDeep : SP.danger,
-          }}
-        >
+    <div className="qg-wrap" style={{ maxWidth: 780 }}>
+      <SproutCard padding={26} style={{ textAlign: 'center', marginBottom: 16 }}>
+        <div style={{ color: SP.muted, fontWeight: 600 }}>{quiz.title}</div>
+        <Stars count={g.stars} />
+        <div className="qg-percent" style={{ color: tone }}>
           {r.percent}%
         </div>
         <div style={{ color: SP.textMid }}>
           Верно {r.score} из {r.total}
+          {g.stars === 3 ? ' — отличный результат!' : g.stars === 0 ? ' — попробуй ещё раз, получится.' : ''}
         </div>
-        <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'center' }}>
-          <Button type="primary" onClick={start}>
-            Пройти ещё раз
+        <div className="qg-stats">
+          <div>
+            <b className="sp-num">{xpShown}</b>
+            <span>очков</span>
+          </div>
+          <div>
+            <b className="sp-num">
+              <Flame size={18} /> {g.bestStreak}
+            </b>
+            <span>лучшая серия</span>
+          </div>
+          <div>
+            <b className="sp-num">{mmss(totalSec)}</b>
+            <span>время</span>
+          </div>
+        </div>
+        <div className="qg-actions" style={{ marginTop: 18 }}>
+          <Button type="primary" size="large" onClick={() => start(false)}>
+            Играть ещё
           </Button>
-          <Button onClick={() => navigate('/student/quizzes')}>К квизам</Button>
+          <Button size="large" icon={<Zap size={16} />} onClick={() => start(true)}>
+            На скорость
+          </Button>
+          <Button size="large" type="text" onClick={() => navigate('/student/quizzes')}>
+            К квизам
+          </Button>
         </div>
       </SproutCard>
 
-      <div style={{ fontSize: 16, fontWeight: 700, margin: '4px 4px 10px' }}>Разбор ответов</div>
+      <div className="qg-review-title">Разбор ответов</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {quiz.questions.map((q, n) => {
           const rev = r.review.find((x) => x.questionId === q.id)
           if (!rev) return null
+          const pts = g.perQuestion[n]
           return (
-            <SproutCard key={q.id} padding={16}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                {rev.correct ? (
-                  <CheckCircleFilled style={{ color: SP.primary, fontSize: 18, marginTop: 3 }} />
-                ) : (
-                  <CloseCircleFilled style={{ color: SP.danger, fontSize: 18, marginTop: 3 }} />
-                )}
-                <div style={{ fontWeight: 700 }}>
+            <SproutCard key={q.id} padding={16} animate={false}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span className={rev.correct ? 'qg-mark ok' : 'qg-mark bad'}>{rev.correct ? '✓' : '✗'}</span>
+                <div style={{ fontWeight: 700, flex: 1 }}>
                   {n + 1}. {q.text}
                 </div>
+                {pts?.correct && (
+                  <span className="sp-chip" style={{ background: SP.primarySoft, color: SP.primaryDeep }}>
+                    +{pts.points}
+                    {pts.streak >= 2 && (
+                      <>
+                        {' '}
+                        <Flame size={12} /> {pts.streak}
+                      </>
+                    )}
+                  </span>
+                )}
               </div>
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {q.options.map((o, i) => {
@@ -240,10 +446,10 @@ export default function StudentQuizPlayPage() {
                       key={i}
                       style={{
                         padding: '6px 10px',
-                        borderRadius: 8,
+                        borderRadius: 10,
                         fontSize: 14,
-                        background: isCorrect ? 'rgba(16,185,129,0.12)' : chosen ? 'rgba(239,68,68,0.10)' : 'transparent',
-                        color: isCorrect ? SP.primaryDeep : chosen ? SP.danger : SP.textMid,
+                        background: isCorrect ? SP.primarySoft : chosen ? SP.roseSoft : 'transparent',
+                        color: isCorrect ? SP.primaryDeep : chosen ? SP.roseDeep : SP.textMid,
                         fontWeight: isCorrect || chosen ? 600 : 400,
                       }}
                     >
@@ -255,7 +461,7 @@ export default function StudentQuizPlayPage() {
                 })}
               </div>
               {rev.explanation && (
-                <div style={{ marginTop: 8, fontSize: 13, color: SP.textMid }}>💡 {rev.explanation}</div>
+                <div style={{ marginTop: 8, fontSize: 13, color: SP.textMid }}>Пояснение: {rev.explanation}</div>
               )}
             </SproutCard>
           )

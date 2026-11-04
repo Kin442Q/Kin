@@ -1,8 +1,10 @@
 import { Button, Tag } from 'antd'
+import { Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 import { SP, SproutCard } from '../sprout'
 import type { QuizSummary } from '../../api/learningApi'
+import { starsFor } from '../../lib/quizGame'
 
 /** Квиз в списке ученика: что за тест, сколько вопросов и лучший результат. */
 export default function QuizCard({ quiz }: { quiz: QuizSummary }) {
@@ -30,14 +32,21 @@ export default function QuizCard({ quiz }: { quiz: QuizSummary }) {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
         {best ? (
-          <Tag color={best.percent >= 80 ? 'green' : best.percent >= 50 ? 'orange' : 'red'} style={{ margin: 0 }}>
-            Лучший: {best.percent}% · попыток {best.attempts}
-          </Tag>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span className="qg-quizcard-stars" aria-label={`Звёзд: ${starsFor(best.percent)} из 3`}>
+              {[0, 1, 2].map((i) => (
+                <Star key={i} size={18} className={i < starsFor(best.percent) ? 'on' : undefined} fill={i < starsFor(best.percent) ? 'currentColor' : 'none'} />
+              ))}
+            </span>
+            <span style={{ fontSize: 12, color: SP.textMid, fontWeight: 600 }}>
+              {best.percent}% · попыток {best.attempts}
+            </span>
+          </span>
         ) : (
           <span style={{ fontSize: 12, color: SP.muted }}>Ещё не проходил(а)</span>
         )}
         <Button type="primary" onClick={() => navigate(`/student/quizzes/${quiz.id}`)}>
-          {best ? 'Ещё раз' : 'Пройти'}
+          {best ? 'Играть ещё' : 'Играть'}
         </Button>
       </div>
     </SproutCard>

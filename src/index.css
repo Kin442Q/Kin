@@ -846,6 +846,278 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
 }
 
 /* ============================================================
+   Квиз-игра (прохождение квиза учеником)
+   ============================================================ */
+.qg-wrap {
+  max-width: 760px;
+  margin: 0 auto;
+}
+.qg-hero-icon {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 12px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--sp-primary-solid);
+  color: #fff;
+  box-shadow: 0 14px 30px -12px rgba(13, 122, 124, 0.7);
+}
+.qg-title {
+  margin: 0;
+  font: 800 clamp(24px, 4vw, 32px) 'Montserrat', sans-serif;
+  letter-spacing: -0.02em;
+  color: var(--sp-text);
+}
+.qg-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 16px 0 6px;
+}
+.qg-rules {
+  list-style: none;
+  padding: 0;
+  margin: 14px auto 20px;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+.qg-rules li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--sp-surface-alt);
+  color: var(--sp-text-mid);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.qg-rules li svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--sp-rose);
+}
+.qg-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.qg-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.qg-close {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 13px;
+  border: 1px solid var(--sp-border);
+  background: var(--sp-surface-alt);
+  color: var(--sp-text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.qg-segs {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+}
+.qg-seg {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--sp-border-soft);
+  transition: background-color 0.3s ease;
+}
+.qg-seg.done {
+  background: var(--sp-primary-solid);
+}
+.qg-seg.now {
+  background: var(--sp-rose);
+}
+.qg-timer {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  font: 800 15px 'Montserrat', sans-serif;
+}
+.qg-timer svg {
+  position: absolute;
+  inset: 0;
+}
+.qg-timer span {
+  position: relative;
+}
+.qg-limit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  font-size: 14px;
+  white-space: nowrap;
+}
+.qg-qcard {
+  text-align: center;
+}
+.qg-qnum {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sp-muted);
+}
+.qg-qtext {
+  margin: 10px 0 8px;
+  font: 800 clamp(20px, 3.4vw, 26px) 'Montserrat', sans-serif;
+  letter-spacing: -0.01em;
+  color: var(--sp-text);
+  line-height: 1.25;
+}
+.qg-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+@media (max-width: 640px) {
+  .qg-options {
+    grid-template-columns: 1fr;
+  }
+}
+.qg-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 68px;
+  padding: 12px 14px;
+  text-align: left;
+  border-radius: 18px;
+  border: 2px solid var(--sp-border);
+  background: var(--sp-surface);
+  -webkit-backdrop-filter: var(--sp-glass-blur);
+  backdrop-filter: var(--sp-glass-blur);
+  color: var(--sp-text);
+  font: 600 16px 'Inter', sans-serif;
+  cursor: pointer;
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.18s ease,
+    border-color 0.18s ease, background-color 0.18s ease;
+}
+.qg-opt:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sp-shadow-md);
+}
+.qg-opt:active {
+  transform: scale(0.98);
+}
+.qg-opt.is-on {
+  border-color: var(--qg-c);
+  background: color-mix(in srgb, var(--qg-c) 16%, var(--sp-surface));
+  transform: scale(1.02);
+}
+.qg-letter {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--qg-c);
+  color: #fff;
+  font: 800 15px 'Montserrat', sans-serif;
+}
+.qg-stars {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 12px 0 4px;
+}
+.qg-star {
+  color: var(--sp-border);
+  display: inline-flex;
+}
+.qg-star.on {
+  color: var(--sp-yellow);
+  filter: drop-shadow(0 6px 10px rgba(255, 176, 32, 0.45));
+}
+.qg-percent {
+  font: 800 64px/1.05 'Montserrat', sans-serif;
+  letter-spacing: -0.03em;
+}
+.qg-stats {
+  display: flex;
+  justify-content: center;
+  gap: 28px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+.qg-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qg-stats b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--sp-text);
+}
+.qg-stats span {
+  font-size: 12px;
+  color: var(--sp-muted);
+}
+.qg-review-title {
+  font: 800 18px 'Montserrat', sans-serif;
+  margin: 4px 4px 10px;
+  color: var(--sp-text);
+}
+.qg-mark {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+}
+.qg-mark.ok {
+  background: var(--sp-primary-solid);
+}
+.qg-mark.bad {
+  background: var(--sp-rose-deep);
+}
+.qg-quizcard-stars {
+  display: inline-flex;
+  gap: 2px;
+  color: var(--sp-border);
+}
+.qg-quizcard-stars .on {
+  color: var(--sp-yellow);
+}
+@media (prefers-reduced-motion: reduce) {
+  .qg-opt,
+  .qg-seg {
+    transition: none;
+  }
+}
+
+/* ============================================================
    Фильтр класса: параллель → буква (ClassFilter)
    ============================================================ */
 .cf {

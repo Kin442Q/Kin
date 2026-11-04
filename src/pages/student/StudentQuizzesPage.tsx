@@ -26,7 +26,7 @@ export default function StudentQuizzesPage() {
         title="Квизы"
         icon={<ListChecks size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description="Проверь знания: ответы проверяются сразу, а лучший результат запоминается"
+        description="Играй, набирай очки и звёзды. Режим «на скорость» даёт бонус за быстрые ответы, лучший результат запоминается"
       />
       <Spin spinning={loading}>
         {quizzes.length === 0 ? (
