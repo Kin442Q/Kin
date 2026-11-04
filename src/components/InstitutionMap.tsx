@@ -67,7 +67,7 @@ export default function InstitutionMap({
     : DEFAULT_CENTER
 
   return (
-    <div style={{ width: '100%', height, borderRadius: 12, overflow: 'hidden', border: '1px solid #E8E4DA' }}>
+    <div style={{ width: '100%', height, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--sp-border)' }}>
       <MapContainer
         center={center}
         zoom={hasCoords ? 17 : 12}
@@ -99,8 +99,8 @@ export default function InstitutionMap({
               center={[latitude!, longitude!]}
               radius={Math.max(20, radiusMeters)}
               pathOptions={{
-                color: '#4FB286',
-                fillColor: '#4FB286',
+                color: '#0D7A7C',
+                fillColor: '#0D7A7C',
                 fillOpacity: 0.15,
                 weight: 2,
               }}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Row, Col, Progress, Tag } from 'antd'
+import { Row, Col, Progress, Tag, Button } from 'antd'
 import {
   Wallet,
   TrendingUp,
@@ -23,6 +23,7 @@ import {
   SproutCard,
   SproutKPI,
   SproutEmpty,
+  GreetingBanner,
 } from '../components/sprout'
 import OnboardingChecklist from '../components/OnboardingChecklist'
 import { useDataStore } from '../store/dataStore'
@@ -31,6 +32,7 @@ import { useLabels } from '../hooks/useLabels'
 import { useFeature } from '../hooks/useFeature'
 import { http } from '../api'
 import { formatMoneyCompact, formatPercent } from '../lib/format'
+import { useChartTheme } from '../theme/chartTheme'
 
 interface DashboardApi {
   month: string
@@ -54,6 +56,7 @@ interface TrendItem {
 }
 
 export default function Dashboard() {
+  const chartTheme = useChartTheme()
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
   const staff = useDataStore((s) => s.staff)
@@ -68,6 +71,7 @@ export default function Dashboard() {
   // Финансовые блоки показываем только если разделы включены для учреждения.
   const showAnalytics = useFeature('analytics')
   const showPayments = useFeature('payments')
+  const showAttendance = useFeature('attendance')
 
   const [dashboard, setDashboard] = useState<DashboardApi | null>(null)
   const [trend, setTrend] = useState<TrendItem[]>([])
@@ -172,37 +176,30 @@ export default function Dashboard() {
       <OnboardingChecklist />
 
       {/* Greeting bar */}
-      <SproutCard
-        accent="mint-yellow"
-        padding={18}
-        style={{
-          marginBottom: 20,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 18,
-        }}
-      >
-        <div style={{ fontSize: 36, flexShrink: 0 }}>🌿</div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: SP.text }}>
-            {greeting}, {userName}!
-          </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: SP.textMid,
-              marginTop: 2,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-            }}
-          >
-            {dayjs().format('dddd, D MMMM')} · {'в школе'}{' '}
-            {dashboard?.activeStudents ?? children.length}{' '}
-            {'учеников'}
-            {totalToday > 0 ? ` · ${attendancePct}% посещаемость` : ''}
-          </div>
-        </div>
-      </SproutCard>
+      <GreetingBanner
+        eyebrow={dayjs().format('dddd, D MMMM')}
+        title={`${greeting}, ${userName}!`}
+        subtitle={
+          <>
+            В школе {dashboard?.activeStudents ?? children.length} учеников
+            {totalToday > 0 ? ` · посещаемость сегодня ${attendancePct}%` : ''}
+          </>
+        }
+        actions={
+          <>
+            {showAttendance && (
+              <Button type="primary" size="large" onClick={() => navigate('/admin/attendance')}>
+                Отметить посещаемость
+              </Button>
+            )}
+            {showPayments && (
+              <Button size="large" onClick={() => navigate('/admin/payments')}>
+                Принять оплату
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {/* KPIs */}
       <Row gutter={[16, 16]}>
@@ -293,11 +290,11 @@ export default function Dashboard() {
               </div>
               <div style={{ display: 'flex', gap: 14, fontSize: 12, color: SP.textMid }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 9, height: 9, background: '#2E9E6B', borderRadius: '50%' }} />
+                  <span style={{ width: 9, height: 9, background: '#0D7A7C', borderRadius: '50%' }} />
                   Доход
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 9, height: 9, background: '#E5B43A', borderRadius: '50%' }} />
+                  <span style={{ width: 9, height: 9, background: '#FFB020', borderRadius: '50%' }} />
                   Расход
                 </span>
               </div>
@@ -305,31 +302,17 @@ export default function Dashboard() {
             <div style={{ flex: 1, minHeight: 0 }}>
               {trendData.length > 0 ? (
                 <Area
+                  theme={chartTheme}
                   data={trendData}
                   xField="month"
                   yField="value"
-                  seriesField="type"
-                  //@ts-ignore
-                  smooth
+                  colorField="type"
+                  shapeField="smooth"
                   height={280}
-                  // Стиль из нового дизайна: доход — зелёная линия с градиентной
-                  // заливкой вниз; расход — оранжевая пунктирная линия без заливки.
-                  color={({ type }: { type: string }) =>
-                    type === 'Доход' ? '#2E9E6B' : '#E5B43A'
-                  }
-                  areaStyle={({ type }: { type: string }) =>
-                    type === 'Доход'
-                      ? { fill: 'l(270) 0:rgba(46,158,107,0.28) 1:rgba(46,158,107,0)' }
-                      : { fill: 'transparent' }
-                  }
-                  line={{
-                    style: ({ type }: { type: string }) =>
-                      type === 'Расход'
-                        ? { lineWidth: 2.5, lineDash: [1, 5], lineCap: 'round' }
-                        : { lineWidth: 3 },
-                  }}
+                  // доход и расход — линии с лёгкой заливкой: бирюза и коралл из палитры темы
+                  style={{ fillOpacity: 0.16 }}
+                  line={{ style: { lineWidth: 3 } }}
                   legend={false}
-                  animation={{ appear: { animation: 'wave-in', duration: 1100 } }}
                 />
               ) : (
                 <SproutEmpty
@@ -410,7 +393,7 @@ export default function Dashboard() {
                     marginTop: 'auto',
                     padding: '10px 12px',
                     borderRadius: 12,
-                    background: global.netProfit >= 0 ? SP.primaryGhost : 'rgba(239,68,68,0.08)',
+                    background: global.netProfit >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
                     fontSize: 12.5,
                     color: SP.text,
                     lineHeight: 1.5,

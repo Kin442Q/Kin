@@ -38,10 +38,12 @@ import StatCard from "../components/ui/StatCard";
 import { calcGroupFinances } from "../lib/finance";
 import { calcAge, formatMoney, formatPercent } from "../lib/format";
 import type { Child, Expense, Payment } from "../types";
+import { useChartTheme } from '../theme/chartTheme'
 
 const { Text, Title } = Typography;
 
 export default function GroupDetailPage() {
+  const chartTheme = useChartTheme()
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -179,7 +181,7 @@ export default function GroupDetailPage() {
             {group.name}
             <Tag
               style={{
-                background: f.profit >= 0 ? SP.primaryGhost : '#FCEAE5',
+                background: f.profit >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
                 color: f.profit >= 0 ? SP.primaryDeep : SP.danger,
                 border: 'none',
                 fontWeight: 600,
@@ -298,14 +300,14 @@ export default function GroupDetailPage() {
               precision={0} // Округлит до целых (напр. 10.5 -> 11)
               valueStyle={{
                 fontWeight: 700,
-                color: f.profit >= 0 ? "#10b981" : "#f43f5e",
+                color: f.profit >= 0 ? "#0D7A7C" : "#E5533D",
               }}
             />
             <div className="mt-2">
               <Progress
                 percent={Math.max(0, Math.min(100, f.margin * 100 + 50))}
                 size="small"
-                strokeColor={f.profit >= 0 ? "#10b981" : "#f43f5e"}
+                strokeColor={f.profit >= 0 ? "#0D7A7C" : "#E5533D"}
                 format={() => `маржа ${formatPercent(f.margin)}`}
               />
             </div>
@@ -321,6 +323,7 @@ export default function GroupDetailPage() {
             </Title>
             {expenseByCategory.length > 0 ? (
               <Pie
+                theme={chartTheme}
                 data={expenseByCategory}
                 angleField="value"
                 colorField="type"
@@ -340,13 +343,14 @@ export default function GroupDetailPage() {
               Динамика прибыли (6 мес.)
             </Title>
             <Area
+              theme={chartTheme}
               data={trend}
               xField="month"
               yField="profit"
               //@ts-ignore
               smooth
               height={260}
-              color="#6366f1"
+              color="#3B8FBF"
               areaStyle={{ fillOpacity: 0.3 }}
               animation={{ appear: { animation: "wave-in", duration: 900 } }}
             />
@@ -374,7 +378,7 @@ export default function GroupDetailPage() {
                       key: "fio",
                       render: (_: unknown, c: Child) => (
                         <Space>
-                          <Avatar size={28} style={{ background: "#6366f1" }}>
+                          <Avatar size={28} style={{ background: "#3B8FBF" }}>
                             {c.firstName[0]}
                           </Avatar>
                           <span>
@@ -433,13 +437,14 @@ export default function GroupDetailPage() {
                   ]);
                 return chartData.length > 0 ? (
                   <Column
+                    theme={chartTheme}
                     data={chartData}
                     xField="date"
                     yField="value"
                     seriesField="type"
                     isStack
                     height={300}
-                    color={["#10b981", "#f43f5e"]}
+                    color={["#0D7A7C", "#E5533D"]}
                   />
                 ) : (
                   <Text type="secondary">Нет данных о посещаемости</Text>
@@ -521,12 +526,13 @@ export default function GroupDetailPage() {
                       </Title>
                       {paidVsDebt.length > 0 ? (
                         <Pie
+                          theme={chartTheme}
                           data={paidVsDebt}
                           angleField="value"
                           colorField="type"
                           radius={0.9}
                           height={260}
-                          color={["#10b981", "#f43f5e"]}
+                          color={["#0D7A7C", "#E5533D"]}
                           legend={{ position: "bottom" }}
                         />
                       ) : (
@@ -559,7 +565,7 @@ export default function GroupDetailPage() {
                           <Text
                             strong
                             style={{
-                              color: f.profit >= 0 ? "#10b981" : "#f43f5e",
+                              color: f.profit >= 0 ? "#0D7A7C" : "#E5533D",
                             }}
                           >
                             {formatPercent(f.margin)}

@@ -1,35 +1,30 @@
 import { theme as antdTheme, ThemeConfig } from 'antd'
-import type { ThemeDesign } from '../store/themeStore'
 
 /**
- * Тема Ant Design.
+ * Тема Ant Design для «Мактаби ман» (палитра «Помир»).
  *
- * Поддерживает два дизайн-варианта:
- *  - classic  — текущая мятная Sprout-тема (как было)
- *  - premium  — премиум-редизайн: насыщенный зелёный, крупнее радиусы,
- *               глубже тени, акцент на «дорогую» подачу.
+ * Бирюзовый — основной, коралловый — акцент (фокус, бейджи). Поверхности
+ * стеклянные: полупрозрачные контейнеры лежат поверх фонового слоя
+ * (закат / ночные горы, см. AppBackdrop), а окна и выпадающие меню — сплошные,
+ * чтобы текст не терялся на фоне.
  *
- * Цветовые токены большинства компонентов берутся из CSS-переменных --sp-*
- * (см. index.css), которые сами переключаются между classic/premium —
- * здесь мы задаём только то, что AntD не умеет читать из CSS.
+ * Большую часть цветов Sprout-компонентов задают CSS-переменные --sp-*
+ * (index.css); здесь — то, что AntD не умеет читать из CSS.
  */
-export function buildAntdTheme(
-  mode: 'light' | 'dark',
-  design: ThemeDesign = 'classic',
-): ThemeConfig {
+export function buildAntdTheme(mode: 'light' | 'dark'): ThemeConfig {
   const isDark = mode === 'dark'
-  const isPremium = design === 'premium'
 
-  // Палитра primary под выбранный дизайн
-  const primary = isPremium ? '#3DA776' : '#4FB286'
-  const primaryDeep = isPremium ? '#1F855A' : '#2F8862'
-  const link = primaryDeep
-  const success = primary
+  const primary = '#0D7A7C'
+  const primaryHover = isDark ? '#1BA6A0' : '#075B5D'
+  const primaryActive = '#064A4C'
+  // Текст и ссылки: на тёмном фоне бирюза светлее, иначе не читается
+  const link = isDark ? '#5FD0CB' : '#075B5D'
+  const coral = '#FF8A65'
 
-  // Радиусы — в премиуме чуть крупнее (мягче)
-  const r = isPremium ? 14 : 12
-  const rLG = isPremium ? 18 : 16
-  const rSM = isPremium ? 11 : 10
+  const text = isDark ? '#F2F7F6' : '#10282A'
+  const inputBg = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.72)'
+  const border = isDark ? 'rgba(255,255,255,0.16)' : 'rgba(16,40,42,0.14)'
+  const borderSoft = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(16,40,42,0.08)'
 
   return {
     algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
@@ -37,54 +32,47 @@ export function buildAntdTheme(
     hashed: true,
     token: {
       colorPrimary: primary,
-      colorInfo: isPremium ? '#5BA9D1' : '#5BA9D1',
-      colorSuccess: success,
-      colorWarning: isPremium ? '#E5B43A' : '#E5B43A',
-      colorError: isPremium ? '#D2615B' : '#D86464',
+      colorPrimaryHover: primaryHover,
+      colorPrimaryActive: primaryActive,
+      colorInfo: isDark ? '#7CC0EA' : '#3B8FBF',
+      colorSuccess: isDark ? '#5FD0CB' : '#0D7A7C',
+      colorWarning: isDark ? '#FFC93C' : '#E69A00',
+      colorError: isDark ? '#FF7A6B' : '#C0392B',
       colorLink: link,
+      colorLinkHover: isDark ? '#8FE3DF' : '#10282A',
 
-      borderRadius: r,
-      borderRadiusLG: rLG,
-      borderRadiusSM: rSM,
+      borderRadius: 14,
+      borderRadiusLG: 22,
+      borderRadiusSM: 10,
 
       fontFamily:
-        "'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 
       colorBgLayout: 'transparent',
-      colorBgContainer: isDark ? 'rgba(31,45,39,0.85)' : '#FFFFFF',
-      colorBgElevated: isDark ? 'rgba(31,45,39,0.95)' : '#FFFFFF',
+      colorBgContainer: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.58)',
+      colorBgElevated: isDark ? '#0F2D2F' : '#FFFFFF',
 
-      colorText: isDark ? '#F4F1EA' : isPremium ? '#16261F' : '#1F2D27',
-      colorTextSecondary: isDark
-        ? 'rgba(244,241,234,0.7)'
-        : isPremium
-          ? '#46554E'
-          : '#4A5752',
-      colorTextTertiary: isDark
-        ? 'rgba(244,241,234,0.5)'
-        : isPremium
-          ? '#7E8B84'
-          : '#8A968F',
+      colorText: text,
+      colorTextSecondary: isDark ? '#D3E2E2' : '#2C4749',
+      colorTextTertiary: isDark ? '#A9C2C3' : '#4A6466',
+      colorTextPlaceholder: isDark ? 'rgba(242,247,246,0.55)' : 'rgba(16,40,42,0.55)',
 
-      colorBorder: isDark
-        ? 'rgba(244,241,234,0.1)'
-        : isPremium
-          ? '#E7EAE6'
-          : '#E8E4DA',
-      colorBorderSecondary: isDark
-        ? 'rgba(244,241,234,0.06)'
-        : isPremium
-          ? '#EFF2EE'
-          : '#F0EDE4',
+      colorBorder: border,
+      colorBorderSecondary: borderSoft,
+      colorSplit: borderSoft,
 
-      boxShadow: isPremium
-        ? '0 2px 6px -2px rgba(22,38,31,0.06),0 10px 26px -10px rgba(22,38,31,0.10)'
-        : '0 4px 16px -4px rgba(31,45,39,0.06)',
-      boxShadowSecondary: isPremium
-        ? '0 1px 2px rgba(22,38,31,0.05)'
-        : '0 1px 2px rgba(31,45,39,0.04)',
+      boxShadow: isDark
+        ? '0 14px 34px -22px rgba(0,0,0,0.7)'
+        : '0 10px 30px -22px rgba(16,40,42,0.38)',
+      boxShadowSecondary: isDark
+        ? '0 1px 2px rgba(0,0,0,0.3)'
+        : '0 1px 2px rgba(16,40,42,0.05)',
 
-      controlHeight: 40,
+      controlHeight: 42,
+      controlOutline: isDark ? 'rgba(95,208,203,0.25)' : 'rgba(13,122,124,0.16)',
+      controlOutlineWidth: 4,
+      controlItemBgActive: isDark ? 'rgba(95,208,203,0.18)' : 'rgba(13,122,124,0.12)',
+      controlItemBgHover: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(13,122,124,0.07)',
     },
     components: {
       Layout: {
@@ -95,57 +83,80 @@ export function buildAntdTheme(
       },
       Menu: {
         itemBg: 'transparent',
-        itemSelectedBg: isPremium
-          ? 'rgba(61,167,118,0.16)'
-          : 'rgba(79,178,134,0.10)',
-        itemSelectedColor: primaryDeep,
-        itemHoverBg: isPremium
-          ? 'rgba(61,167,118,0.08)'
-          : 'rgba(79,178,134,0.06)',
+        itemSelectedBg: isDark ? 'rgba(95,208,203,0.18)' : 'rgba(255,255,255,0.8)',
+        itemSelectedColor: link,
+        itemHoverBg: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(13,122,124,0.08)',
         itemBorderRadius: 12,
         subMenuItemBg: 'transparent',
-        itemHeight: 44,
+        itemHeight: 42,
+        groupTitleColor: isDark ? '#A9C2C3' : '#4A6466',
       },
       Card: {
-        borderRadiusLG: isPremium ? 18 : 18,
-        paddingLG: isPremium ? 20 : 22,
+        borderRadiusLG: 22,
+        paddingLG: 22,
+        colorBgContainer: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.58)',
       },
       Table: {
-        borderRadiusLG: 14,
-        headerBg: isPremium ? '#F1F4F1' : '#F4F1EA',
+        borderRadiusLG: 18,
+        headerBg: isDark ? 'rgba(95,208,203,0.1)' : 'rgba(13,122,124,0.08)',
+        headerColor: isDark ? '#A9C2C3' : '#4A6466',
         headerSplitColor: 'transparent',
-        rowHoverBg: isPremium
-          ? 'rgba(61,167,118,0.06)'
-          : 'rgba(79,178,134,0.04)',
+        rowHoverBg: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(13,122,124,0.06)',
+        borderColor: borderSoft,
       },
       Button: {
-        borderRadius: r,
-        controlHeight: 40,
-        fontWeight: isPremium ? 700 : 600,
-        primaryShadow: isPremium
-          ? '0 8px 18px -6px rgba(31,133,90,0.5)'
-          : '0 4px 12px -2px rgba(79,178,134,0.35)',
-        defaultShadow: '0 1px 2px rgba(31,45,39,0.04)',
+        borderRadius: 14,
+        borderRadiusLG: 16,
+        borderRadiusSM: 12,
+        controlHeight: 42,
+        fontWeight: 600,
+        primaryShadow: '0 8px 18px -8px rgba(13,122,124,0.7)',
+        defaultShadow: 'none',
+        dangerShadow: 'none',
+        defaultBg: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.55)',
+        defaultColor: isDark ? '#F2F7F6' : '#10282A',
+        defaultBorderColor: border,
+        defaultHoverColor: link,
+        defaultHoverBorderColor: primary,
+        defaultHoverBg: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.8)',
+        textHoverBg: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(13,122,124,0.08)',
       },
       Input: {
-        borderRadius: r,
-        controlHeight: 40,
+        borderRadius: 14,
+        controlHeight: 42,
+        colorBgContainer: inputBg,
+        activeBorderColor: primary,
+        hoverBorderColor: primary,
+        activeBg: isDark ? 'rgba(255,255,255,0.1)' : '#FFFFFF',
+      },
+      InputNumber: {
+        borderRadius: 14,
+        controlHeight: 42,
+        colorBgContainer: inputBg,
         activeBorderColor: primary,
         hoverBorderColor: primary,
       },
       Select: {
-        borderRadius: r,
-        controlHeight: 40,
+        borderRadius: 14,
+        controlHeight: 42,
+        colorBgContainer: inputBg,
+        optionSelectedBg: isDark ? 'rgba(95,208,203,0.18)' : 'rgba(13,122,124,0.12)',
+        optionActiveBg: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(13,122,124,0.07)',
       },
       DatePicker: {
-        borderRadius: r,
-        controlHeight: 40,
+        borderRadius: 14,
+        controlHeight: 42,
+        colorBgContainer: inputBg,
+        activeBorderColor: primary,
+        hoverBorderColor: primary,
       },
       Modal: {
-        borderRadiusLG: isPremium ? 24 : 20,
+        borderRadiusLG: 28,
+        contentBg: isDark ? '#0F2D2F' : '#FFFFFF',
+        headerBg: isDark ? '#0F2D2F' : '#FFFFFF',
       },
       Drawer: {
-        colorBgElevated: isDark ? 'rgba(31,45,39,0.98)' : '#FFFFFF',
+        colorBgElevated: isDark ? '#0F2D2F' : '#FFFFFF',
       },
       Statistic: {
         titleFontSize: 12,
@@ -154,8 +165,13 @@ export function buildAntdTheme(
       Tag: {
         borderRadiusSM: 999, // pill-shape
       },
+      Badge: {
+        colorError: coral,
+        textFontSize: 12,
+      },
       Progress: {
-        defaultColor: primary,
+        defaultColor: isDark ? '#5FD0CB' : primary,
+        remainingColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(16,40,42,0.08)',
       },
       Switch: {
         colorPrimary: primary,
@@ -167,7 +183,25 @@ export function buildAntdTheme(
         colorPrimary: primary,
       },
       Segmented: {
-        itemSelectedColor: primaryDeep,
+        itemSelectedColor: link,
+        trackBg: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(16,40,42,0.06)',
+        itemSelectedBg: isDark ? 'rgba(95,208,203,0.18)' : '#FFFFFF',
+        borderRadius: 14,
+        borderRadiusSM: 12,
+      },
+      Tabs: {
+        itemSelectedColor: link,
+        itemHoverColor: link,
+        inkBarColor: coral,
+      },
+      Alert: {
+        borderRadiusLG: 16,
+      },
+      Dropdown: {
+        borderRadiusLG: 16,
+      },
+      Tooltip: {
+        colorBgSpotlight: isDark ? '#1B4A4C' : '#10282A',
       },
     },
   }

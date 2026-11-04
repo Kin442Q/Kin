@@ -339,7 +339,7 @@ export default function StaffPage() {
                       <Avatar
                         size={36}
                         style={{
-                          background: 'linear-gradient(135deg,#4FB286,#2F8862)',
+                          background: 'linear-gradient(135deg,#0D7A7C,#075B5D)',
                         }}
                       >
                         {s.firstName[0]}
@@ -351,8 +351,8 @@ export default function StaffPage() {
                             <Tooltip title="Может входить в систему">
                               <Tag
                                 style={{
-                                  background: '#D8EFE3',
-                                  color: '#2F8862',
+                                  background: 'var(--sp-primary-soft)',
+                                  color: '#075B5D',
                                   border: 'none',
                                   fontSize: 10,
                                   margin: 0,

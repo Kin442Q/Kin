@@ -33,10 +33,12 @@ import { useLabels } from "../hooks/useLabels";
 import { cap } from "../lib/labels";
 import { calcGlobalFinance, calcGroupFinances } from "../lib/finance";
 import { formatMoney, formatMoneyCompact, formatPercent } from "../lib/format";
+import { useChartTheme } from '../theme/chartTheme'
 
 const { Text, Title } = Typography;
 
 export default function AnalyticsPage() {
+  const chartTheme = useChartTheme()
   const L = useLabels();
   const isSchool = L.group === "класс";
   const groups = useDataStore((s) => s.groups);
@@ -199,7 +201,7 @@ export default function AnalyticsPage() {
           bordered={false}
           style={{
             marginBottom: 16,
-            background: global.netProfit >= 0 ? '#EEF7F2' : '#FCEAE5',
+            background: global.netProfit >= 0 ? 'var(--sp-primary-ghost)' : 'var(--sp-rose-soft)',
             borderRadius: 14,
           }}
           bodyStyle={{ padding: 16 }}
@@ -253,7 +255,7 @@ export default function AnalyticsPage() {
               Чистая прибыль:{" "}
               <Text
                 strong
-                style={{ color: global.netProfit >= 0 ? "#10b981" : "#f43f5e" }}
+                style={{ color: global.netProfit >= 0 ? "#0D7A7C" : "#E5533D" }}
               >
                 {global.netProfit >= 0 ? "+" : ""}
                 {formatMoneyCompact(global.netProfit)}
@@ -315,6 +317,7 @@ export default function AnalyticsPage() {
               <Title level={5}>Динамика дохода и расхода (12 месяцев)</Title>
               {hasTrendData ? (
                 <Area
+                  theme={chartTheme}
                   data={trendSeries}
                   xField="month"
                   yField="value"
@@ -322,7 +325,7 @@ export default function AnalyticsPage() {
                   //@ts-ignore
                   smooth
                   height={300}
-                  color={["#4FB286", "#E5B43A"]}
+                  color={["#0D7A7C", "#FFB020"]}
                   areaStyle={{ fillOpacity: 0.3 }}
                   legend={{ position: "top-right" }}
                   animation={{ appear: { animation: "wave-in", duration: 1100 } }}
@@ -348,12 +351,13 @@ export default function AnalyticsPage() {
               <Title level={5}>Profit / Loss</Title>
               {hasProfitData ? (
                 <Line
+                  theme={chartTheme}
                   data={profitTrend}
                   xField="month"
                   yField="value"
                   smooth
                   height={300}
-                  color={profitGrowing ? "#4FB286" : "#D86464"}
+                  color={profitGrowing ? "#0D7A7C" : "#C0392B"}
                   point={{ size: 4 }}
                   animation={{ appear: { animation: "path-in", duration: 1100 } }}
                 />
@@ -381,13 +385,14 @@ export default function AnalyticsPage() {
               <Title level={5}>Cash flow (6 мес.)</Title>
               {hasCashFlowData ? (
                 <Column
+                  theme={chartTheme}
                   data={cashFlow}
                   xField="month"
                   yField="value"
                   seriesField="type"
                   isGroup
                   height={280}
-                  color={["#4FB286", "#D86464"]}
+                  color={["#0D7A7C", "#C0392B"]}
                   columnStyle={{ radius: [8, 8, 0, 0] }}
                   legend={{ position: "top-right" }}
                 />
@@ -412,6 +417,7 @@ export default function AnalyticsPage() {
               <Title level={5}>Структура расходов</Title>
               {expenseShare.length > 0 ? (
                 <Pie
+                  theme={chartTheme}
                   data={expenseShare}
                   angleField="value"
                   colorField="type"
@@ -419,7 +425,7 @@ export default function AnalyticsPage() {
                   innerRadius={0.55}
                   height={280}
                   legend={{ position: "bottom" }}
-                  color={["#4FB286", "#5BA9D1", "#E5B43A", "#9B7BD4", "#D88EAE", "#3FA8B3"]}
+                  color={["#0D7A7C", "#3B8FBF", "#FFB020", "#8B7BD4", "#D9709B", "#1BA6A0"]}
                 />
               ) : (
                 <SproutEmpty
@@ -449,13 +455,13 @@ export default function AnalyticsPage() {
                 <Text type="secondary">Маржа прибыли</Text>
                 <Progress
                   percent={Math.max(0, Math.min(100, global.margin * 100))}
-                  strokeColor={{ from: "#6366f1", to: "#10b981" }}
+                  strokeColor={{ from: "#3B8FBF", to: "#0D7A7C" }}
                   format={() => formatPercent(global.margin)}
                 />
                 <Text type="secondary">ROI</Text>
                 <Progress
                   percent={Math.max(0, Math.min(100, roi * 100))}
-                  strokeColor={{ from: "#a855f7", to: "#ec4899" }}
+                  strokeColor={{ from: "#8B7BD4", to: "#D9709B" }}
                   format={() => formatPercent(roi)}
                 />
                 <Text type="secondary">
@@ -466,7 +472,7 @@ export default function AnalyticsPage() {
                     0,
                     Math.min(100, (children.length / 60) * 100),
                   )}
-                  strokeColor={{ from: "#06b6d4", to: "#10b981" }}
+                  strokeColor={{ from: "#1BA6A0", to: "#0D7A7C" }}
                   format={() => `${children.length} / 60`}
                 />
               </div>
@@ -475,7 +481,7 @@ export default function AnalyticsPage() {
                   title={"Лучший класс"}
                   value={global.bestGroup?.group.name || "—"}
                   valueStyle={{
-                    color: "#10b981",
+                    color: "#0D7A7C",
                     fontWeight: 700,
                     fontSize: 18,
                   }}
@@ -484,7 +490,7 @@ export default function AnalyticsPage() {
                   title={"Худший класс"}
                   value={global.worstGroup?.group.name || "—"}
                   valueStyle={{
-                    color: "#f43f5e",
+                    color: "#E5533D",
                     fontWeight: 700,
                     fontSize: 18,
                   }}

@@ -12,6 +12,7 @@ dayjs.extend(relativeTime)
 
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
+import AppBackdrop from './components/layout/AppBackdrop'
 import './index.css'
 import { useThemeStore } from './store/themeStore'
 import { buildAntdTheme } from './theme/antdTheme'
@@ -26,18 +27,16 @@ const queryClient = new QueryClient({
 
 function Root() {
   const mode = useThemeStore((s) => s.mode)
-  const design = useThemeStore((s) => s.design)
 
-  // Применяем атрибуты data-theme (светлая/тёмная) и data-design
-  // (classic/premium) на html. Делаем сразу при инициализации.
+  // Применяем data-theme (светлая «закат» / тёмная «ночь») на html.
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', mode)
-    document.documentElement.setAttribute('data-design', design)
-  }, [mode, design])
+  }, [mode])
 
   return (
-    <ConfigProvider locale={ruRU} theme={buildAntdTheme(mode, design)}>
+    <ConfigProvider locale={ruRU} theme={buildAntdTheme(mode)}>
       <AntdApp>
+        <AppBackdrop />
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
             <BrowserRouter basename={import.meta.env.BASE_URL}>

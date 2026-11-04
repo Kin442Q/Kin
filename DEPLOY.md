@@ -1,4 +1,4 @@
-# 🚀 Деплой KinderCRM
+# Деплой «Мактаби ман»
 
 Архитектура деплоя:
 - **Frontend** → Cloudflare Pages (статический SPA, бесплатно, unlimited bandwidth)

@@ -38,6 +38,7 @@ import {
   ExpenseCategoryEnum,
 } from '../lib/expenseCategoryMap'
 import { EXPENSE_CATEGORIES, Expense, ExpenseCategory } from '../types'
+import { useChartTheme } from '../theme/chartTheme'
 
 interface ExpenseApi {
   id: string
@@ -65,6 +66,7 @@ interface ExtraIncomeApi {
 const { useBreakpoint } = Grid
 
 export default function ExpensesPage() {
+  const chartTheme = useChartTheme()
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
   const isMobile = !screens.md
@@ -313,6 +315,7 @@ export default function ExpensesPage() {
               </Title>
               {byCategoryData.length > 0 ? (
                 <Pie
+                  theme={chartTheme}
                   data={byCategoryData}
                   angleField="value"
                   colorField="type"
@@ -320,7 +323,7 @@ export default function ExpensesPage() {
                   innerRadius={0.55}
                   height={280}
                   legend={{ position: 'bottom' }}
-                  color={['#4FB286', '#5BA9D1', '#E5B43A', '#9B7BD4', '#D88EAE', '#3FA8B3']}
+                  color={['#0D7A7C', '#3B8FBF', '#FFB020', '#8B7BD4', '#D9709B', '#1BA6A0']}
                 />
               ) : (
                 <SproutEmpty
@@ -345,10 +348,11 @@ export default function ExpensesPage() {
               </Title>
               {byCategoryData.length > 0 ? (
                 <Column
+                  theme={chartTheme}
                   data={byCategoryData}
                   xField="type"
                   yField="value"
-                  color="#4FB286"
+                  color="#0D7A7C"
                   columnStyle={{ radius: [8, 8, 0, 0] }}
                   height={280}
                   xAxis={{ label: { autoRotate: true } }}

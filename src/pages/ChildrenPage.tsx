@@ -258,8 +258,8 @@ export default function ChildrenPage() {
               style={{
                 background:
                   c.gender === 'female'
-                    ? 'linear-gradient(135deg,#ec4899,#f97316)'
-                    : 'linear-gradient(135deg,#6366f1,#06b6d4)',
+                    ? 'linear-gradient(135deg,#D9709B,#FFB020)'
+                    : 'linear-gradient(135deg,#3B8FBF,#1BA6A0)',
               }}
             />
           )}
@@ -498,7 +498,7 @@ export default function ChildrenPage() {
                     size="small"
                     style={{
                       borderRadius: 12,
-                      borderLeft: `4px solid ${g?.color || '#6366f1'}`,
+                      borderLeft: `4px solid ${g?.color || '#3B8FBF'}`,
                     }}
                     styles={{ body: { padding: 12 } }}
                   >
@@ -518,8 +518,8 @@ export default function ChildrenPage() {
                           style={{
                             background:
                               c.gender === 'female'
-                                ? 'linear-gradient(135deg,#ec4899,#f97316)'
-                                : 'linear-gradient(135deg,#6366f1,#06b6d4)',
+                                ? 'linear-gradient(135deg,#D9709B,#FFB020)'
+                                : 'linear-gradient(135deg,#3B8FBF,#1BA6A0)',
                           }}
                         />
                       )}

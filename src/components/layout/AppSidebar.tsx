@@ -24,16 +24,17 @@ import {
   Target,
   Gamepad2,
   MessageCircle,
+  LogOut,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { ReactNode } from 'react'
 
 import { useAuthStore } from '../../store/authStore'
-import { useThemeStore } from '../../store/themeStore'
 import { useLabels } from '../../hooks/useLabels'
 import { hasFeature, type FeatureKey } from '../../lib/features'
-import { SP, SproutLogo, SproutBalloons } from '../sprout'
+import { SP, SproutLogo, BrandMark } from '../sprout'
+import { initialsOf, roleLabel } from '../../lib/roles'
 import type { Role } from '../../types'
 
 /**
@@ -541,11 +542,17 @@ interface Props {
   collapsed: boolean
 }
 
+/** Учебный год вида «2025/26»: с августа начинается новый. */
+function schoolYear(now = new Date()): string {
+  const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+  return `${y}/${String(y + 1).slice(2)}`
+}
+
 export default function AppSidebar({ collapsed }: Props) {
   const location = useLocation()
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
-  const design = useThemeStore((s) => s.design)
+  const logout = useAuthStore((s) => s.logout)
   const L = useLabels()
 
   const isGlobalOwner = !!user && !user.kindergartenId
@@ -584,7 +591,7 @@ export default function AppSidebar({ collapsed }: Props) {
       ) : (
         text
       ),
-      icon: <span className={`sp-nav-icon ${n.accentClass}`}>{n.icon}</span>,
+      icon: <span className="sp-nav-icon">{n.icon}</span>,
     }
   }
 
@@ -611,6 +618,15 @@ export default function AppSidebar({ collapsed }: Props) {
     flat[0]?.key ??
     '/admin/dashboard'
 
+  const schoolName = isGlobalOwner
+    ? 'Мактаби ман'
+    : (user?.institution?.name ?? 'Моя школа')
+  const schoolSub = isGlobalOwner ? 'Платформа' : `Школа · ${schoolYear()}`
+  const doLogout = () => {
+    logout()
+    navigate('/login', { replace: true })
+  }
+
   return (
     <motion.div
       className="app-sidebar-card"
@@ -622,37 +638,82 @@ export default function AppSidebar({ collapsed }: Props) {
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        padding: collapsed ? '16px 8px' : 16,
-        background: SP.surface,
-        borderRadius: 18,
-        border: `1px solid ${SP.borderSoft}`,
-        boxShadow: 'var(--sp-shadow-md)',
+        gap: 14,
+        padding: collapsed ? '16px 8px' : '18px 14px',
         overflow: 'hidden',
       }}
     >
       {/* Логотип */}
       <div
         style={{
-          marginBottom: 18,
           display: 'flex',
           justifyContent: collapsed ? 'center' : 'flex-start',
           alignItems: 'center',
-          minHeight: 44,
-          position: 'relative',
-          zIndex: 2,
+          minHeight: 40,
+          padding: collapsed ? 0 : '0 8px',
         }}
       >
-        <SproutLogo size={collapsed ? 16 : 18} showSubtitle={!collapsed} />
+        {collapsed ? <BrandMark width={40} /> : <SproutLogo size={17} />}
       </div>
 
-      {/* Menu с разделами */}
+      {/* Школа */}
+      {!collapsed && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 12px',
+            borderRadius: 16,
+            background: SP.surfaceAlt,
+            border: `1px solid ${SP.borderSoft}`,
+          }}
+        >
+          <span
+            aria-hidden="true"
+            style={{
+              width: 36,
+              height: 36,
+              flex: 'none',
+              borderRadius: 11,
+              background: '#FF8A65',
+              color: '#10282A',
+              fontWeight: 800,
+              fontSize: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontFamily: "'Montserrat', sans-serif",
+            }}
+          >
+            {schoolName.trim().charAt(0).toUpperCase()}
+          </span>
+          <span style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <span
+              title={schoolName}
+              style={{
+                fontWeight: 700,
+                fontSize: 14,
+                color: SP.text,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {schoolName}
+            </span>
+            <span style={{ fontSize: 12, color: SP.muted }}>{schoolSub}</span>
+          </span>
+        </div>
+      )}
+
+      {/* Меню с разделами */}
       <div
         style={{
           flex: 1,
           overflowY: 'auto',
           overflowX: 'hidden',
-          position: 'relative',
-          zIndex: 2,
+          minHeight: 0,
         }}
       >
         <Menu
@@ -673,37 +734,92 @@ export default function AppSidebar({ collapsed }: Props) {
         />
       </div>
 
-      {/* Pro-карточка */}
-      {!collapsed && (
+      {/* Пользователь */}
+      {user && (
         <div
           style={{
-            marginTop: 16,
-            padding: 14,
-            background: SP.primaryGhost,
-            borderRadius: 14,
-            position: 'relative',
-            zIndex: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            gap: 8,
+            padding: collapsed ? 4 : 10,
+            borderRadius: 16,
+            background: collapsed ? 'transparent' : SP.primaryGhost,
           }}
         >
-          <div
-            style={{
-              fontSize: 11.5,
-              fontWeight: 700,
-              color: SP.primaryDeep,
-              marginBottom: 4,
-            }}
-          >
-            🌿 Pro · v2.0
-          </div>
-          <div style={{ fontSize: 11, color: SP.textMid, lineHeight: 1.4 }}>
-            Все возможности, безлимит детей
-          </div>
+          {!collapsed && (
+            <>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 36,
+                  height: 36,
+                  flex: 'none',
+                  borderRadius: 999,
+                  fontSize: 13,
+                  background: SP.primarySolid,
+                  color: '#fff',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {initialsOf(user.fullName)}
+              </span>
+              <span style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                <span
+                  title={user.fullName}
+                  style={{
+                    fontWeight: 700,
+                    fontSize: 14,
+                    color: SP.text,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {user.fullName}
+                </span>
+                <span
+                  title={roleLabel(user)}
+                  style={{
+                    fontSize: 12,
+                    color: SP.muted,
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                  }}
+                >
+                  {roleLabel(user)}
+                </span>
+              </span>
+            </>
+          )}
+          <Tooltip title="Выйти" placement={collapsed ? 'right' : 'top'}>
+            <button
+              type="button"
+              aria-label="Выйти"
+              onClick={doLogout}
+              style={{
+                width: 36,
+                height: 36,
+                border: 0,
+                borderRadius: 10,
+                background: 'transparent',
+                color: SP.muted,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                flex: 'none',
+              }}
+            >
+              <LogOut size={18} />
+            </button>
+          </Tooltip>
         </div>
       )}
-
-      {/* Шарики — только в классической теме. В премиуме сайдбар строгий,
-          как в редизайне (без декоративной анимации). */}
-      {!collapsed && design === 'classic' && <SproutBalloons />}
     </motion.div>
   )
 }

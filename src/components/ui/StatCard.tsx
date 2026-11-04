@@ -90,7 +90,7 @@ export default function StatCard({
           {title}
         </Text>
         {icon && (
-          <div className="text-lg opacity-70" style={{ color: 'var(--text-primary)' }}>
+          <div className="text-lg" style={{ color: 'var(--sp-primary-deep)', opacity: 0.85 }}>
             {icon}
           </div>
         )}
@@ -98,9 +98,10 @@ export default function StatCard({
 
       <Tooltip title={typeof value === 'number' ? value.toLocaleString('ru-RU') : undefined}>
         <div
+          className="sp-num"
           style={{
-            fontWeight: 700,
-            fontSize: 24,
+            fontWeight: 800,
+            fontSize: 26,
             lineHeight: 1.2,
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -124,9 +125,8 @@ export default function StatCard({
               <span
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md"
                 style={{
-                  background:
-                    trend >= 0 ? 'rgba(16,185,129,0.12)' : 'rgba(244,63,94,0.12)',
-                  color: trend >= 0 ? '#10b981' : '#f43f5e',
+                  background: trend >= 0 ? 'var(--sp-primary-soft)' : 'var(--sp-rose-soft)',
+                  color: trend >= 0 ? 'var(--sp-primary-deep)' : 'var(--sp-rose-deep)',
                   fontWeight: 600,
                   whiteSpace: 'nowrap',
                 }}

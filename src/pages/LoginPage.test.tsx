@@ -110,8 +110,14 @@ describe('LoginPage', () => {
     expect(screen.queryByText(/Запросить демо/)).not.toBeInTheDocument()
   })
 
-  it('бренд Maktab присутствует', () => {
+  it('бренд «Мактаби ман» присутствует', () => {
     renderLogin()
-    expect(screen.getAllByText(/Maktab/).length).toBeGreaterThan(0)
+    expect(screen.getAllByLabelText('Мактаби ман').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Maktab/)).not.toBeInTheDocument()
+  })
+
+  it('кнопка смены темы есть и подписана', () => {
+    renderLogin()
+    expect(screen.getByRole('button', { name: /тема/i })).toBeInTheDocument()
   })
 })

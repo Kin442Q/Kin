@@ -69,7 +69,7 @@ export default function ExamTracksPanel({ tracks, onChanged }: Props) {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, gap: 12, flexWrap: 'wrap' }}>
-        <span style={{ color: '#8a8a8a', fontSize: 13 }}>
+        <span style={{ color: 'var(--sp-muted)', fontSize: 13 }}>
           Создайте направления с любым названием и привязывайте к ним квизы в редакторе квиза.
         </span>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
@@ -84,7 +84,7 @@ export default function ExamTracksPanel({ tracks, onChanged }: Props) {
         pagination={false}
         locale={{ emptyText: 'Направлений пока нет. Например: «ЕГЭ», «Вступительные экзамены»' }}
         columns={[
-          { title: 'Название', dataIndex: 'name', render: (n: string, t) => (<><b>{n}</b>{t.description ? <div style={{ fontSize: 12, color: '#8a8a8a' }}>{t.description}</div> : null}</>) },
+          { title: 'Название', dataIndex: 'name', render: (n: string, t) => (<><b>{n}</b>{t.description ? <div style={{ fontSize: 12, color: 'var(--sp-muted)' }}>{t.description}</div> : null}</>) },
           { title: 'Квизов', dataIndex: 'quizzesCount', width: 90, align: 'center' },
           { title: 'Автор', key: 'author', width: 180, render: (_, t) => t.author?.fullName ?? '—' },
           {

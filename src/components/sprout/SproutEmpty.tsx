@@ -15,7 +15,7 @@ interface Props {
 
 /**
  * Универсальный empty-state для пустых блоков, таблиц, карточек.
- * Sprout-стиль: мятная иконка в круглой плашке + заголовок + описание + опц. кнопка.
+ * Бирюзовая иконка в круглой плашке + заголовок + описание + опц. кнопка.
  */
 export default function SproutEmpty({
   icon,
@@ -44,7 +44,7 @@ export default function SproutEmpty({
           height: 64,
           borderRadius: '50%',
           background: SP.primaryGhost,
-          color: SP.primary,
+          color: SP.primaryDeep,
           display: 'grid',
           placeItems: 'center',
         }}
@@ -53,8 +53,9 @@ export default function SproutEmpty({
       </div>
       <div
         style={{
-          fontSize: 15,
-          fontWeight: 700,
+          fontSize: 16,
+          fontWeight: 800,
+          fontFamily: "'Montserrat', 'Inter', sans-serif",
           color: SP.text,
         }}
       >
@@ -64,7 +65,7 @@ export default function SproutEmpty({
         <div
           style={{
             fontSize: 13,
-            color: SP.muted,
+            color: SP.textMid,
             maxWidth: 320,
             lineHeight: 1.5,
           }}

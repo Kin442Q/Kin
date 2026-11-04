@@ -49,14 +49,14 @@ export default class ErrorBoundary extends Component<Props, State> {
             maxWidth: 440,
             textAlign: 'center',
             background: '#fff',
-            border: '1px solid #E8E4DA',
+            border: '1px solid var(--sp-border)',
             borderRadius: 20,
             padding: '36px 28px',
             boxShadow: '0 12px 40px -12px rgba(31,45,39,0.15)',
           }}
         >
           <div style={{ fontSize: 44, marginBottom: 12 }}>🌧️</div>
-          <h1 style={{ fontSize: 20, fontWeight: 800, color: '#1F2D27', margin: 0 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--sp-text)', margin: 0 }}>
             Что-то пошло не так
           </h1>
           <p style={{ fontSize: 14, color: '#5C6B63', marginTop: 8, lineHeight: 1.5 }}>
@@ -91,7 +91,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                 padding: '11px 20px',
                 borderRadius: 12,
                 border: 'none',
-                background: 'linear-gradient(135deg,#4FB286,#3D9970)',
+                background: 'linear-gradient(135deg,#0D7A7C,#075B5D)',
                 color: '#fff',
                 fontWeight: 700,
                 fontSize: 14,
@@ -105,9 +105,9 @@ export default class ErrorBoundary extends Component<Props, State> {
               style={{
                 padding: '11px 20px',
                 borderRadius: 12,
-                border: '1px solid #E8E4DA',
+                border: '1px solid var(--sp-border)',
                 background: '#fff',
-                color: '#1F2D27',
+                color: 'var(--sp-text)',
                 fontWeight: 600,
                 fontSize: 14,
                 cursor: 'pointer',
