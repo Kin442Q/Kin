@@ -3,10 +3,9 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 
-// GitHub Pages хостит сайт по адресу https://kin442q.github.io/Kin/
-// поэтому при сборке для prod нужен base = '/Kin/'.
-// На dev и других хостингах оставляем '/'.
-const base = process.env.GITHUB_ACTIONS ? '/Kin/' : '/'
+// Сайт отдаётся с корня своего домена (tahlilgar.cyou, GitHub Pages), поэтому base = '/'.
+// Если вернуть адрес вида https://kin442q.github.io/Kin/, здесь нужен base = '/Kin/'.
+const base = '/'
 
 export default defineConfig({
   base,
