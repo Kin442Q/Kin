@@ -47,22 +47,24 @@ import { http } from '../api'
 import type { Group, GroupFinance } from '../types'
 import { calcGroupFinances } from '../lib/finance'
 import { formatMoney, formatMoneyCompact, formatPercent } from '../lib/format'
+import { useChartTheme } from '../theme/chartTheme'
 
 // Sprout-палитра для группы
 const GROUP_COLORS = [
-  '#4FB286', // mint
-  '#5BA9D1', // blue
-  '#E5B43A', // yellow
-  '#9B7BD4', // lilac
-  '#E48979', // rose
-  '#D88EAE', // pink
-  '#3FA8B3', // cyan
-  '#2F8862', // mint deep
+  '#0D7A7C', // mint
+  '#3B8FBF', // blue
+  '#FFB020', // yellow
+  '#8B7BD4', // lilac
+  '#FF8A65', // rose
+  '#D9709B', // pink
+  '#1BA6A0', // cyan
+  '#075B5D', // mint deep
 ]
 
 const { useBreakpoint } = Grid
 
 export default function GroupsPage() {
+  const chartTheme = useChartTheme()
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
@@ -268,7 +270,7 @@ export default function GroupsPage() {
       key: 'debtorsCount',
       render: (v: number) =>
         v > 0 ? (
-          <Tag style={{ background: '#FCEAE5', color: SP.danger, border: 'none', fontWeight: 600 }}>
+          <Tag style={{ background: 'var(--sp-rose-soft)', color: SP.danger, border: 'none', fontWeight: 600 }}>
             {v}
           </Tag>
         ) : (
@@ -306,7 +308,7 @@ export default function GroupsPage() {
       render: (v: number) => (
         <Tag
           style={{
-            background: v >= 0 ? SP.primaryGhost : '#FCEAE5',
+            background: v >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
             color: v >= 0 ? SP.primaryDeep : SP.danger,
             border: 'none',
             fontWeight: 700,
@@ -503,6 +505,7 @@ export default function GroupsPage() {
             </div>
             {total.withDataCount > 0 ? (
               <Column
+                theme={chartTheme}
                 data={finances
                   .filter((g) => g.income > 0 || g.expenses > 0)
                   .map((g) => ({
@@ -516,7 +519,7 @@ export default function GroupsPage() {
                 color={({ type }: { type: string }) =>
                   // Стиль диаграмм из нового дизайна: вертикальный градиент в столбцах
                   type === 'Прибыль'
-                    ? 'l(270) 0:#7FD0AC 1:#2F8862'
+                    ? 'l(270) 0:#5FD0CB 1:#0D7A7C'
                     : 'l(270) 0:#E89B96 1:#C2453F'
                 }
                 columnStyle={{ radius: [10, 10, 0, 0] }}
@@ -545,6 +548,7 @@ export default function GroupsPage() {
             </div>
             {incomeShare.length > 0 ? (
               <Pie
+                theme={chartTheme}
                 data={incomeShare}
                 angleField="value"
                 colorField="type"
@@ -637,7 +641,7 @@ export default function GroupsPage() {
                     {showFinance && (
                     <Tag
                       style={{
-                        background: row.profit >= 0 ? SP.primaryGhost : '#FCEAE5',
+                        background: row.profit >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
                         color: row.profit >= 0 ? SP.primaryDeep : SP.danger,
                         border: 'none',
                         fontWeight: 700,

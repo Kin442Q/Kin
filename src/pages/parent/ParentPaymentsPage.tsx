@@ -136,7 +136,7 @@ export default function ParentPaymentsPage() {
             bordered={false}
             bodyStyle={{
               padding: 16,
-              background: totals.due > 0 ? '#FCEAE5' : SP.surface,
+              background: totals.due > 0 ? 'var(--sp-rose-soft)' : SP.surface,
             }}
           >
             <Space>
@@ -209,7 +209,7 @@ export default function ParentPaymentsPage() {
                 >
                   <Avatar
                     style={{
-                      background: p.paid ? SP.primarySoft : '#FCEAE5',
+                      background: p.paid ? SP.primarySoft : 'var(--sp-rose-soft)',
                       color: p.paid ? SP.primaryDeep : SP.danger,
                     }}
                     icon={<Wallet size={18} />}

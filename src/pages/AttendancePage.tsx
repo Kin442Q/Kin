@@ -282,7 +282,7 @@ export default function AttendancePage() {
                   <Space>
                     <Avatar
                       size={32}
-                      style={{ background: r.group?.color || '#6366f1' }}
+                      style={{ background: r.group?.color || '#3B8FBF' }}
                     >
                       {r.child.firstName[0]}
                     </Avatar>

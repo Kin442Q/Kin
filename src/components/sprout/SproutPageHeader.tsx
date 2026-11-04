@@ -25,7 +25,7 @@ const accentBg: Record<NonNullable<Props['iconAccent']>, { bg: string; fg: strin
 }
 
 /**
- * Шапка страницы Sprout: иконка + заголовок + описание + кнопки действий справа.
+ * Шапка страницы: иконка + заголовок + описание + кнопки действий справа.
  * Заменяет старый PageHeader.
  */
 export default function SproutPageHeader({
@@ -63,9 +63,9 @@ export default function SproutPageHeader({
           {icon && (
             <div
               style={{
-                width: 44,
-                height: 44,
-                borderRadius: 12,
+                width: 46,
+                height: 46,
+                borderRadius: 14,
                 background: a.bg,
                 color: a.fg,
                 display: 'grid',
@@ -88,8 +88,9 @@ export default function SproutPageHeader({
               <h1
                 style={{
                   margin: 0,
-                  fontSize: 22,
-                  fontWeight: 700,
+                  fontFamily: "'Montserrat', 'Inter', sans-serif",
+                  fontSize: 'clamp(22px, 2.6vw, 30px)',
+                  fontWeight: 800,
                   letterSpacing: '-0.02em',
                   color: SP.text,
                   lineHeight: 1.2,
@@ -102,8 +103,8 @@ export default function SproutPageHeader({
             {description && (
               <div
                 style={{
-                  fontSize: 13,
-                  color: SP.muted,
+                  fontSize: 14,
+                  color: SP.textMid,
                   marginTop: 4,
                   lineHeight: 1.4,
                 }}

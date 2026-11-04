@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Layout, Grid, Drawer } from 'antd'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { Lock } from 'lucide-react'
 import AppSidebar from './AppSidebar'
 import AppHeader from './AppHeader'
 import { useTenantSync } from '../../hooks/useTenantSync'
@@ -95,9 +96,9 @@ export default function AppLayout() {
               borderBottom: `1px solid ${SP.border}`,
             }}
           >
-            <span>
-              🔒 Демо-режим — данные доступны только для просмотра, изменения
-              отключены.
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Lock size={14} aria-hidden="true" />
+              Демо-режим — данные доступны только для просмотра, изменения отключены.
             </span>
             <button
               type="button"

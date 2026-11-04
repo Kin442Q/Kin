@@ -78,8 +78,8 @@ const WD_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'] // ind
 // Отметки отсутствия в ячейке журнала (буква + цвет + подпись).
 const ABSENT_MARK: Record<string, { ch: string; color: string; label: string }> = {
   ABSENT: { ch: 'н', color: '#D2615B', label: 'Отсутствовал' },
-  SICK: { ch: 'б', color: '#E5B43A', label: 'Болел' },
-  VACATION: { ch: 'у', color: '#5BA9D1', label: 'Уважительная причина' },
+  SICK: { ch: 'б', color: '#FFB020', label: 'Болел' },
+  VACATION: { ch: 'у', color: '#3B8FBF', label: 'Уважительная причина' },
 }
 
 function gradeColor(v: number): string {

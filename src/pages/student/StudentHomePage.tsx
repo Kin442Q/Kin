@@ -3,7 +3,7 @@ import { Tag } from 'antd'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 
-import { SP, SproutCard, SproutEmpty } from '../../components/sprout'
+import { SP, SproutCard, SproutEmpty, GreetingBanner } from '../../components/sprout'
 import StudentHomeworkCard from '../../components/student/StudentHomeworkCard'
 import { useAuthStore } from '../../store/authStore'
 import { useFeature } from '../../hooks/useFeature'
@@ -68,16 +68,18 @@ export default function StudentHomePage() {
 
   return (
     <div>
-      <SproutCard accent="mint-yellow" padding={18} style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: SP.text }}>
-          {greeting}, {profile?.firstName ?? user?.fullName?.split(' ')[0] ?? 'ученик'}!
-        </div>
-        <div style={{ fontSize: 13, color: SP.textMid, marginTop: 2 }}>
-          {dayjs().format('dddd, D MMMM')}
-          {profile && ` · ${profile.group.name} класс`}
-          {profile?.homeroomTeacher && ` · классный руководитель: ${profile.homeroomTeacher.fullName}`}
-        </div>
-      </SproutCard>
+      <GreetingBanner
+        eyebrow={dayjs().format('dddd, D MMMM')}
+        title={`${greeting}, ${profile?.firstName ?? user?.fullName?.split(' ')[0] ?? 'ученик'}!`}
+        subtitle={
+          profile ? (
+            <>
+              {profile.group.name} класс
+              {profile.homeroomTeacher && ` · классный руководитель: ${profile.homeroomTeacher.fullName}`}
+            </>
+          ) : undefined
+        }
+      />
 
       {withSchedule && (
         <SproutCard style={{ marginBottom: 16 }}>

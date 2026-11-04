@@ -93,7 +93,7 @@ async function bootstrap() {
   // Swagger (только не в проде, либо за basic auth)
   if (config.get<string>('env') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('KinderCRM API')
+      .setTitle('Мактаби ман API')
       .setDescription('Backend API детского сада')
       .setVersion('1.0')
       .addBearerAuth()
@@ -109,7 +109,7 @@ async function bootstrap() {
   const port = config.get<number>('port')!
   await app.listen(port)
   // eslint-disable-next-line no-console
-  console.log(`✓ KinderCRM API: http://localhost:${port}/api/v1`)
+  console.log(`✓ Мактаби ман API: http://localhost:${port}/api/v1`)
 }
 
 bootstrap().catch((err) => {

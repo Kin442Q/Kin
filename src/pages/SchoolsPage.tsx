@@ -232,7 +232,7 @@ export default function SchoolsPage() {
                   <Space>
                     <Avatar
                       icon={<BankOutlined />}
-                      style={{ background: 'linear-gradient(135deg,#0EA5E9,#6366f1)' }}
+                      style={{ background: 'linear-gradient(135deg,#3B8FBF,#3B8FBF)' }}
                     />
                     <div>
                       <div style={{ fontWeight: 600 }}>
@@ -452,7 +452,7 @@ export default function SchoolsPage() {
       <Modal
         title={
           <Space>
-            <KeyOutlined style={{ color: '#10b981' }} />
+            <KeyOutlined style={{ color: '#0D7A7C' }} />
             <span>Учётные данные директора школы</span>
           </Space>
         }
@@ -465,7 +465,7 @@ export default function SchoolsPage() {
             onClick={() => {
               if (!credentialsModal) return
               const text =
-                `Maktab — Доступ к школе "${credentialsModal.kindergartenName}"\n\n` +
+                `Мактаби ман — доступ к школе "${credentialsModal.kindergartenName}"\n\n` +
                 `👤 ${credentialsModal.ownerName}\n` +
                 `📧 Email: ${credentialsModal.email}\n` +
                 `🔑 Пароль: ${credentialsModal.password}\n\n` +
@@ -535,7 +535,7 @@ export default function SchoolsPage() {
                       background: '#fff',
                       padding: '6px 10px',
                       borderRadius: 8,
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid var(--sp-border)',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
@@ -566,7 +566,7 @@ export default function SchoolsPage() {
                       background: '#fff',
                       padding: '6px 10px',
                       borderRadius: 8,
-                      border: '1px solid #e2e8f0',
+                      border: '1px solid var(--sp-border)',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',

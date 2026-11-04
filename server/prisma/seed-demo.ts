@@ -50,7 +50,7 @@ async function main() {
   const kg = await prisma.kindergarten.create({
     data: {
       slug: DEMO_SLUG,
-      name: 'Демо-школа «Maktab»',
+      name: 'Демо-школа «Мактаби ман»',
       address: 'Душанбе',
       isActive: true,
       isDemo: true,

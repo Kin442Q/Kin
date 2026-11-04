@@ -2,8 +2,19 @@ import { useState } from 'react'
 import { Form, Input, App as AntdApp, Spin, Modal } from 'antd'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
-import { BarChart3, MessageCircle, Smartphone } from 'lucide-react'
+import {
+  ArrowRight,
+  BarChart3,
+  Info,
+  Lock,
+  MessageCircle,
+  Moon,
+  Smartphone,
+  Sun,
+  User,
+} from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
+import { useThemeStore } from '../store/themeStore'
 import { http } from '../api'
 import { SP, SproutLogo } from '../components/sprout'
 
@@ -139,339 +150,289 @@ export default function LoginPage() {
     }
   }
 
-  // Плавающие пузыри на левой панели
-  const bubbles = [
-    { x: 8, y: 14, s: 88, c: SP.primarySoft, d: 0 },
-    { x: 14, y: 78, s: 56, c: SP.yellowSoft, d: 1.2 },
-    { x: 76, y: 18, s: 120, c: SP.blueSoft, d: 0.6 },
-    { x: 84, y: 72, s: 72, c: SP.primaryGhost, d: 1.8 },
-    { x: 42, y: 88, s: 40, c: SP.yellowSoft, d: 2.4 },
-    { x: 92, y: 44, s: 28, c: SP.primarySoft, d: 0.3 },
-  ]
+  const mode = useThemeStore((s) => s.mode)
+  const toggleTheme = useThemeStore((s) => s.toggle)
 
   return (
-    <div
-      style={{
-        width: '100%',
-        minHeight: '100vh',
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        background: SP.bg,
-      }}
-      className="login-grid"
-    >
-      {/* Левая часть — визуал */}
-      <div
-        style={{
-          position: 'relative',
-          background: `linear-gradient(160deg, ${SP.primarySoft} 0%, ${SP.yellowSoft} 100%)`,
-          padding: 48,
-          overflow: 'hidden',
-        }}
-        className="login-visual"
-      >
-        {bubbles.map((b, i) => (
-          <div
-            key={i}
-            className="sp-bubble"
-            style={{
-              left: `${b.x}%`,
-              top: `${b.y}%`,
-              width: b.s,
-              height: b.s,
-              background: b.c,
-              animation: `sp-float ${4 + (i % 3)}s ease-in-out infinite`,
-              animationDelay: `${b.d}s`,
-            }}
-          />
-        ))}
-        <div style={{ position: 'relative', zIndex: 1 }}>
+    <div className="login-grid">
+      {/* Левая часть — приветствие */}
+      <div className="login-visual">
+        <div className="login-brand">
           <SproutLogo size={22} />
         </div>
-        <div style={{ position: 'relative', zIndex: 1, marginTop: 80, maxWidth: 420 }}>
-          <div
-            className="sp-chip"
-            style={{
-              background: SP.surface,
-              color: SP.primaryDeep,
-              marginBottom: 20,
-              padding: '4px 12px',
-            }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: SP.primary,
-              }}
-            />
-            Школа · одна платформа
-          </div>
-          <h1
-            style={{
-              fontSize: 44,
-              lineHeight: 1.08,
-              letterSpacing: '-0.03em',
-              margin: 0,
-              fontWeight: 700,
-              color: SP.text,
-            }}
-          >
-            Управляйте школой
-            <br />
-            в{' '}
-            <span style={{ color: SP.primaryDeep, fontStyle: 'italic' }}>
-              одном месте
-            </span>
-          </h1>
-          <p
-            style={{
-              fontSize: 15,
-              lineHeight: 1.55,
-              color: SP.textMid,
-              marginTop: 18,
-              marginBottom: 0,
-            }}
-          >
-            Ученики, оценки, домашние задания, посещаемость и расписание — всё в одном
-            месте. Кабинет для каждого ученика и уведомления родителям.
-          </p>
-          <div style={{ display: 'flex', gap: 26, marginTop: 36, flexWrap: 'wrap' }}>
-            {[
-              {
-                Icon: BarChart3,
-                title: 'Журнал',
-                sub: 'оценки и ДЗ',
-                bg: SP.primarySoft,
-                fg: SP.primaryDeep,
-              },
-              {
-                Icon: MessageCircle,
-                title: 'Чат',
-                sub: 'с родителями',
-                bg: SP.blueSoft,
-                fg: SP.blueDeep,
-              },
-              {
-                Icon: Smartphone,
-                title: 'Веб + мобильное',
-                sub: 'приложение',
-                bg: SP.yellowSoft,
-                fg: SP.yellowDeep,
-              },
-            ].map(({ Icon, title, sub, bg, fg }) => (
-              <div key={title} style={{ maxWidth: 130 }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 12,
-                    background: bg,
-                    color: fg,
-                    display: 'grid',
-                    placeItems: 'center',
-                    marginBottom: 8,
-                  }}
-                >
-                  <Icon size={20} strokeWidth={2} />
-                </div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: SP.text }}>
-                  {title}
-                </div>
-                <div style={{ fontSize: 12, color: SP.textMid, marginTop: 2 }}>{sub}</div>
-              </div>
-            ))}
-          </div>
+        <div className="sp-chip login-chip">
+          <span className="login-chip-dot" />
+          Школа · одна платформа
         </div>
-        {/* Декоративные листья */}
-        <svg
-          style={{ position: 'absolute', bottom: -40, left: -30, opacity: 0.4 }}
-          width="280"
-          height="280"
-          viewBox="0 0 200 200"
-          fill="none"
-        >
-          <path
-            d="M30 170c0-60 30-100 80-110-10 50-40 90-80 110z"
-            fill={SP.primary}
-            opacity="0.3"
-          />
-          <path
-            d="M70 180c0-50 25-85 70-95-8 45-32 80-70 95z"
-            fill={SP.primaryDeep}
-            opacity="0.25"
-          />
-        </svg>
+        <h1 className="login-title">
+          Хуш омадед!{' '}
+          <span className="login-title-accent">Рады видеть вас снова</span>
+        </h1>
+        <p className="login-lead">
+          Один вход для директора, учителей, родителей и учеников — система сама
+          откроет нужный кабинет.
+        </p>
+        <div className="login-features">
+          {[
+            { Icon: BarChart3, title: 'Журнал', sub: 'оценки и ДЗ', bg: SP.primarySoft, fg: SP.primaryDeep },
+            { Icon: MessageCircle, title: 'Чат', sub: 'с родителями', bg: SP.roseSoft, fg: SP.roseDeep },
+            { Icon: Smartphone, title: 'Веб и телефон', sub: 'одно приложение', bg: SP.blueSoft, fg: SP.blueDeep },
+          ].map(({ Icon, title, sub, bg, fg }) => (
+            <div key={title} className="login-feature">
+              <div className="login-feature-icon" style={{ background: bg, color: fg }}>
+                <Icon size={20} strokeWidth={2} />
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: SP.text }}>{title}</div>
+              <div style={{ fontSize: 12.5, color: SP.textMid, marginTop: 2 }}>{sub}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Правая часть — форма */}
-      <div
-        style={{
-          background: SP.bg,
-          display: 'grid',
-          placeItems: 'center',
-          padding: 48,
-        }}
+      <motion.div
+        className="login-card"
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.2, 0.8, 0.2, 1] }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: 'easeOut' }}
-          style={{ width: '100%', maxWidth: 380 }}
-        >
-          {/* На mobile логотип сверху формы */}
-          <div className="login-mobile-logo" style={{ marginBottom: 24 }}>
-            <SproutLogo size={20} />
+        <div className="login-card-top">
+          {/* На узких экранах левой части нет — логотип над формой */}
+          <div className="login-mobile-logo">
+            <SproutLogo size={19} />
           </div>
+          <button
+            type="button"
+            className="login-theme-btn"
+            onClick={toggleTheme}
+            aria-label={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+          >
+            {mode === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
+          </button>
+        </div>
 
-          <h2
-            style={{
-              margin: 0,
-              fontSize: 28,
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              color: SP.text,
-            }}
-          >
-            Добро пожаловать
-          </h2>
-          <p
-            style={{
-              color: SP.muted,
-              fontSize: 14,
-              marginTop: 6,
-              marginBottom: 28,
-            }}
-          >
-            Войдите в свой аккаунт, чтобы продолжить
+        <div>
+          <h2 className="login-card-title">Вход в систему</h2>
+          <p style={{ color: SP.textMid, fontSize: 15, margin: '6px 0 0' }}>
+            Директор, учитель, родитель или ученик
           </p>
+        </div>
 
-          <Spin spinning={loading}>
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={onFinish}
-              requiredMark={false}
-            >
-              <Form.Item
-                label={
-                  <span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>
-                    Email или телефон
-                  </span>
-                }
-                name="login"
-                rules={[{ required: true, message: "Введите email или номер телефона" }]}
-              >
-                <Input
-                  placeholder="email или +992 90 123 45 67"
-                  autoComplete="username"
-                  disabled={loading}
-                  style={{ height: 44 }}
-                />
-              </Form.Item>
-
-              <Form.Item
-                label={
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'baseline',
-                      width: '100%',
-                    }}
-                  >
-                    <span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>
-                      Пароль
-                    </span>
-                    <button
-                      type="button"
-                      onClick={openForgot}
-                      style={{
-                        fontSize: 11.5,
-                        color: SP.primaryDeep,
-                        fontWeight: 600,
-                        background: 'none',
-                        border: 'none',
-                        padding: 0,
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                      }}
-                    >
-                      Забыли?
-                    </button>
-                  </div>
-                }
-                name="password"
-                rules={[{ required: true, message: 'Введите пароль' }]}
-              >
-                <Input.Password
-                  placeholder="••••••••"
-                  disabled={loading}
-                  style={{ height: 44 }}
-                />
-              </Form.Item>
-
-              <button
-                type="submit"
-                className="sp-btn-primary"
-                style={{
-                  width: '100%',
-                  padding: '13px',
-                  fontSize: 14,
-                  marginTop: 6,
-                }}
-                disabled={loading}
-              >
-                Войти →
-              </button>
-            </Form>
-          </Spin>
-
-          <Modal
-            open={forgotOpen}
-            onCancel={() => setForgotOpen(false)}
-            onOk={submitForgot}
-            okText="Отправить запрос"
-            cancelText="Отмена"
-            confirmLoading={forgotLoading}
-            title="Восстановление доступа"
-            destroyOnClose
+        <Spin spinning={loading}>
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={onFinish}
+            requiredMark={false}
+            style={{ marginTop: 4 }}
           >
-            <p style={{ color: SP.textMid, fontSize: 13.5, marginTop: 0 }}>
-              Доступ восстанавливает администратор. Укажите email или телефон,
-              под которым вы входите — администратор получит запрос и сбросит
-              вам пароль.
-            </p>
-            <Input
-              placeholder="email или телефон"
-              value={forgotValue}
-              onChange={(e) => setForgotValue(e.target.value)}
-              onPressEnter={submitForgot}
-              disabled={forgotLoading}
-              style={{ height: 42 }}
-            />
-          </Modal>
+            <Form.Item
+              label={<span className="login-label">Email или телефон</span>}
+              name="login"
+              rules={[{ required: true, message: 'Введите email или номер телефона' }]}
+            >
+              <Input
+                size="large"
+                prefix={<User size={18} color="var(--sp-muted)" />}
+                placeholder="email или +992 90 123 45 67"
+                autoComplete="username"
+                disabled={loading}
+                style={{ height: 50 }}
+              />
+            </Form.Item>
 
-        </motion.div>
-      </div>
+            <Form.Item
+              label={
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'baseline',
+                    width: '100%',
+                  }}
+                >
+                  <span className="login-label">Пароль</span>
+                  <button type="button" onClick={openForgot} className="login-link">
+                    Забыли?
+                  </button>
+                </div>
+              }
+              name="password"
+              rules={[{ required: true, message: 'Введите пароль' }]}
+            >
+              <Input.Password
+                size="large"
+                prefix={<Lock size={18} color="var(--sp-muted)" />}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={loading}
+                style={{ height: 50 }}
+              />
+            </Form.Item>
+
+            <button type="submit" className="sp-btn-primary login-submit" disabled={loading}>
+              Войти
+              <ArrowRight size={18} strokeWidth={2.2} />
+            </button>
+          </Form>
+        </Spin>
+
+        <div className="login-hint">
+          <Info size={20} style={{ flex: 'none' }} />
+          <span>
+            Логин и пароль выдаёт администратор школы. Родители входят по номеру
+            телефона, указанному в школе.
+          </span>
+        </div>
+
+        <Modal
+          open={forgotOpen}
+          onCancel={() => setForgotOpen(false)}
+          onOk={submitForgot}
+          okText="Отправить запрос"
+          cancelText="Отмена"
+          confirmLoading={forgotLoading}
+          title="Восстановление доступа"
+          destroyOnClose
+        >
+          <p style={{ color: SP.textMid, fontSize: 13.5, marginTop: 0 }}>
+            Доступ восстанавливает администратор. Укажите email или телефон,
+            под которым вы входите — администратор получит запрос и сбросит
+            вам пароль.
+          </p>
+          <Input
+            placeholder="email или телефон"
+            value={forgotValue}
+            onChange={(e) => setForgotValue(e.target.value)}
+            onPressEnter={submitForgot}
+            disabled={forgotLoading}
+            style={{ height: 42 }}
+          />
+        </Modal>
+      </motion.div>
 
       <style>{`
-        @media (max-width: 900px) {
-          .login-grid {
-            grid-template-columns: 1fr !important;
-          }
-          .login-visual {
-            display: none;
-          }
+        .login-grid {
+          position: relative;
+          min-height: 100vh;
+          width: 100%;
+          max-width: 1280px;
+          margin: 0 auto;
+          padding: 32px 24px;
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 48px;
         }
-        .login-mobile-logo {
-          display: none;
+        .login-visual {
+          flex: 1 1 440px;
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 22px;
+          align-self: center;
         }
+        .login-chip {
+          background: var(--sp-surface);
+          border: 1px solid var(--sp-glass-border);
+          color: var(--sp-primary-deep);
+          padding: 6px 14px;
+        }
+        .login-chip-dot {
+          width: 7px; height: 7px; border-radius: 50%; background: var(--sp-rose);
+        }
+        .login-title {
+          margin: 0;
+          font-family: 'Montserrat', 'Inter', sans-serif;
+          font-weight: 800;
+          font-size: clamp(34px, 4vw, 54px);
+          line-height: 1.08;
+          letter-spacing: -0.02em;
+          max-width: 540px;
+          color: var(--sp-text);
+        }
+        .login-title-accent { color: var(--sp-primary-deep); }
+        .login-lead {
+          margin: 0;
+          font-size: 18px;
+          line-height: 1.6;
+          color: var(--sp-text-mid);
+          max-width: 470px;
+        }
+        .login-features { display: flex; gap: 26px; flex-wrap: wrap; margin-top: 8px; }
+        .login-feature { max-width: 140px; }
+        .login-feature-icon {
+          width: 42px; height: 42px; border-radius: 13px;
+          display: grid; place-items: center; margin-bottom: 8px;
+        }
+        .login-card {
+          flex: 0 1 460px;
+          min-width: 0;
+          margin: 0 auto;
+          padding: 36px;
+          border-radius: 32px;
+          background: var(--sp-surface);
+          border: 1px solid var(--sp-glass-border);
+          -webkit-backdrop-filter: blur(28px) saturate(170%);
+          backdrop-filter: blur(28px) saturate(170%);
+          box-shadow: 0 40px 80px -40px rgba(7, 40, 42, 0.55);
+          display: flex;
+          flex-direction: column;
+          gap: 20px;
+        }
+        .login-card-top { display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
+        .login-card-title {
+          margin: 0;
+          font-family: 'Montserrat', 'Inter', sans-serif;
+          font-size: 28px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          color: var(--sp-text);
+        }
+        .login-label { font-size: 14px; font-weight: 600; color: var(--sp-text); }
+        .login-card .ant-form-item-label,
+        .login-card .ant-form-item-label > label { width: 100%; }
+        .login-card .ant-form-item-label > label::after { display: none; }
+        .login-link {
+          font-size: 13px; font-weight: 600; color: var(--sp-primary-deep);
+          background: none; border: none; padding: 0; cursor: pointer; font-family: inherit;
+        }
+        .login-link:hover { text-decoration: underline; }
+        .login-submit {
+          width: 100%;
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+          padding: 16px; font-size: 17px; border-radius: 16px; margin-top: 6px;
+        }
+        .login-theme-btn {
+          margin-left: auto;
+          width: 44px; height: 44px; border-radius: 14px;
+          border: 1px solid var(--sp-border);
+          background: var(--sp-surface-alt);
+          color: var(--sp-text);
+          display: flex; align-items: center; justify-content: center;
+          cursor: pointer;
+          transition: background-color 0.18s ease, transform 0.12s ease;
+        }
+        .login-theme-btn:hover { background: var(--sp-nav-hover); }
+        .login-theme-btn:active { transform: scale(0.97); }
+        .login-hint {
+          display: flex; align-items: center; gap: 10px;
+          padding: 14px 16px; border-radius: 14px;
+          background: var(--sp-rose-soft);
+          color: var(--sp-rose-deep);
+          font-size: 14px; line-height: 1.45;
+        }
+        .login-mobile-logo { display: none; }
         @media (max-width: 900px) {
-          .login-mobile-logo {
-            display: block;
-          }
+          .login-grid { padding: 20px 16px; gap: 0; align-items: flex-start; justify-content: center; }
+          .login-visual { display: none; }
+          .login-mobile-logo { display: block; }
+          .login-card { padding: 24px 20px; border-radius: 28px; width: 100%; flex-basis: 460px; }
+        }
+        @media (max-width: 480px) {
+          .login-card-title { font-size: 24px; }
         }
       `}</style>
     </div>

@@ -535,14 +535,14 @@ export default function PaymentsPage() {
                   size="small"
                   style={{
                     borderRadius: 12,
-                    borderLeft: `4px solid ${r.paid ? "#10b981" : "#ef4444"}`,
+                    borderLeft: `4px solid ${r.paid ? "#0D7A7C" : "#E5533D"}`,
                   }}
                   styles={{ body: { padding: 12 } }}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <Avatar
                       size={40}
-                      style={{ background: r.group?.color || "#6366f1" }}
+                      style={{ background: r.group?.color || "#3B8FBF" }}
                     >
                       {r.child.firstName[0]}
                     </Avatar>
@@ -649,7 +649,7 @@ export default function PaymentsPage() {
                     <Space>
                       <Avatar
                         size={32}
-                        style={{ background: r.group?.color || "#6366f1" }}
+                        style={{ background: r.group?.color || "#3B8FBF" }}
                       >
                         {r.child.firstName[0]}
                       </Avatar>
@@ -801,7 +801,7 @@ export default function PaymentsPage() {
       <Modal
         title={
           <Space>
-            <SendOutlined style={{ color: "#6366f1" }} />
+            <SendOutlined style={{ color: "#3B8FBF" }} />
             <span>
               {remindersResult
                 ? "Результат отправки"
@@ -856,7 +856,7 @@ export default function PaymentsPage() {
             >
               <Space align="start">
                 <WarningOutlined
-                  style={{ color: "#ef4444", fontSize: 20, marginTop: 2 }}
+                  style={{ color: "#E5533D", fontSize: 20, marginTop: 2 }}
                 />
                 <div>
                   <Text strong>
@@ -894,7 +894,7 @@ export default function PaymentsPage() {
                   }}
                 >
                   <div
-                    style={{ fontSize: 28, fontWeight: 600, color: "#ef4444" }}
+                    style={{ fontSize: 28, fontWeight: 600, color: "#E5533D" }}
                   >
                     {remindersResult.totalOverdue}
                   </div>
@@ -910,7 +910,7 @@ export default function PaymentsPage() {
                   }}
                 >
                   <div
-                    style={{ fontSize: 28, fontWeight: 600, color: "#10b981" }}
+                    style={{ fontSize: 28, fontWeight: 600, color: "#0D7A7C" }}
                   >
                     {remindersResult.remindersSent}
                   </div>
@@ -926,7 +926,7 @@ export default function PaymentsPage() {
                   }}
                 >
                   <div
-                    style={{ fontSize: 28, fontWeight: 600, color: "#f59e0b" }}
+                    style={{ fontSize: 28, fontWeight: 600, color: "#FFB020" }}
                   >
                     {remindersResult.skipped}
                   </div>

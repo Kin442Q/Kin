@@ -227,7 +227,7 @@ export default function CheckInAuditPage() {
                     {e.distanceMeters != null ? (
                       <Tag
                         style={{
-                          background: outside ? '#FCEAE5' : SP.primaryGhost,
+                          background: outside ? 'var(--sp-rose-soft)' : SP.primaryGhost,
                           color: outside ? SP.danger : SP.primaryDeep,
                           border: 'none',
                           fontWeight: 700,

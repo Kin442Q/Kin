@@ -329,7 +329,7 @@ export default function TeachersPage() {
                   <Space>
                     <Avatar
                       size={36}
-                      style={{ background: 'linear-gradient(135deg,#6366f1,#a855f7)' }}
+                      style={{ background: 'linear-gradient(135deg,#3B8FBF,#8B7BD4)' }}
                     >
                       {t.fullName[0]}
                     </Avatar>
@@ -594,7 +594,7 @@ export default function TeachersPage() {
       <Modal
         title={
           <Space>
-            <KeyOutlined style={{ color: '#10b981' }} />
+            <KeyOutlined style={{ color: '#0D7A7C' }} />
             <span>Учётные данные учителя</span>
           </Space>
         }
@@ -607,7 +607,7 @@ export default function TeachersPage() {
             onClick={() => {
               if (!credentialsModal) return
               const text =
-                `Логин для входа в Maktab\n\n` +
+                `Логин для входа в «Мактаби ман»\n\n` +
                 `👨‍🏫 ${credentialsModal.fullName}\n` +
                 `📱 Телефон: ${credentialsModal.phone}\n` +
                 `🔑 Пароль: ${credentialsModal.password}\n\n` +
@@ -667,7 +667,7 @@ export default function TeachersPage() {
                     background: '#fff',
                     padding: '6px 10px',
                     borderRadius: 8,
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--sp-border)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -698,7 +698,7 @@ export default function TeachersPage() {
                     background: '#fff',
                     padding: '6px 10px',
                     borderRadius: 8,
-                    border: '1px solid #e2e8f0',
+                    border: '1px solid var(--sp-border)',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',

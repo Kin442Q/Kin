@@ -22,7 +22,6 @@ import {
   Search,
   Settings as SettingsIcon,
   Sun,
-  Sparkles,
   GraduationCap,
   User as UserIcon,
 } from 'lucide-react'
@@ -38,6 +37,7 @@ import { useActiveClassStore } from '../../store/activeClassStore'
 import { chatApi } from '../../api/chatApi'
 import { getSocket } from '../../lib/socket'
 import { SP } from '../sprout'
+import { initialsOf, roleLabel } from '../../lib/roles'
 
 const { Header } = Layout
 
@@ -50,8 +50,6 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
   const navigate = useNavigate()
   const mode = useThemeStore((s) => s.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
-  const design = useThemeStore((s) => s.design)
-  const toggleDesign = useThemeStore((s) => s.toggleDesign)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const notifications = useDataStore((s) => s.notifications)
@@ -100,12 +98,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
     }
   }, [user, loadChatUnread])
 
-  const initials = user?.fullName
-    ?.split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() ?? '?'
+  const initials = initialsOf(user?.fullName)
 
   const userMenu: MenuProps['items'] = [
     {
@@ -151,14 +144,14 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
         transition={{ duration: 0.35 }}
         style={{
           background: SP.surface,
-          border: `1px solid ${SP.borderSoft}`,
-          borderRadius: 16,
-          padding: '10px 14px',
+          border: '1px solid var(--sp-glass-border)',
+          borderRadius: 22,
+          padding: '10px 12px 10px 14px',
           display: 'flex',
           alignItems: 'center',
           gap: 12,
           minHeight: 56,
-          boxShadow: 'var(--sp-shadow-sm)',
+          boxShadow: 'var(--sp-shadow-md)',
         }}
       >
         {/* Toggle */}
@@ -171,9 +164,10 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: 11,
+            borderRadius: 13,
             background: SP.surfaceAlt,
           }}
+          aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
           icon={collapsed ? <MenuIcon size={18} /> : <PanelLeftClose size={18} />}
         />
 
@@ -188,14 +182,15 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
           />
           <Input
-            placeholder="Поиск ребёнка, группы…"
+            placeholder="Поиск ученика, класса…"
+            aria-label="Поиск"
             style={{
-              paddingLeft: 36,
+              paddingLeft: 38,
               background: SP.surfaceAlt,
-              border: 'none',
-              borderRadius: 12,
-              height: 38,
-              fontSize: 13,
+              border: `1px solid ${SP.borderSoft}`,
+              borderRadius: 14,
+              height: 40,
+              fontSize: 14,
             }}
           />
         </div>
@@ -259,32 +254,6 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
           </Dropdown>
         )}
 
-        {/* Дизайн: премиум-редизайн ↔ классический */}
-        <Tooltip
-          title={
-            design === 'premium'
-              ? 'Премиум-редизайн (нажмите для классического)'
-              : 'Классическое оформление (нажмите для премиума)'
-          }
-        >
-          <Button
-            type="text"
-            onClick={toggleDesign}
-            style={{
-              width: 38,
-              height: 38,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 11,
-              background:
-                design === 'premium' ? SP.primaryGhost : SP.surfaceAlt,
-              color: design === 'premium' ? SP.primaryDeep : undefined,
-            }}
-            icon={<Sparkles size={17} />}
-          />
-        </Tooltip>
-
         {/* Theme */}
         <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
           <Button
@@ -296,9 +265,10 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: 11,
+              borderRadius: 13,
               background: SP.surfaceAlt,
             }}
+            aria-label={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
             icon={mode === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           />
         </Tooltip>
@@ -328,10 +298,11 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderRadius: 11,
+                  borderRadius: 13,
                   background: chatUnread > 0 ? SP.primaryGhost : SP.surfaceAlt,
                   color: chatUnread > 0 ? SP.primaryDeep : undefined,
                 }}
+                aria-label="Сообщения"
                 icon={<MessageCircle size={17} />}
               />
             </motion.div>
@@ -349,9 +320,10 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: 11,
+              borderRadius: 13,
               background: SP.surfaceAlt,
             }}
+            aria-label="Уведомления"
             icon={<Bell size={17} />}
           />
         </Badge>
@@ -364,9 +336,10 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               alignItems: 'center',
               gap: 10,
               padding: '4px 10px 4px 4px',
-              borderRadius: 12,
+              borderRadius: 14,
               background: SP.surfaceAlt,
-              border: 'none',
+              border: `1px solid ${SP.borderSoft}`,
+              color: SP.text,
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
@@ -374,8 +347,8 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             <Avatar
               size={32}
               style={{
-                background: `linear-gradient(135deg, ${SP.yellow}, ${SP.primarySoft})`,
-                color: SP.primaryDeep,
+                background: SP.primarySolid,
+                color: '#fff',
                 fontWeight: 700,
                 fontSize: 13,
               }}
@@ -386,19 +359,9 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               <div style={{ fontSize: 13, fontWeight: 600, color: SP.text }}>
                 {user?.fullName}
               </div>
-              <Tag
-                style={{
-                  margin: 0,
-                  fontSize: 10,
-                  lineHeight: '14px',
-                  background: SP.primaryGhost,
-                  color: SP.primaryDeep,
-                  border: 'none',
-                  padding: '0 8px',
-                }}
-              >
-                {user?.role}
-              </Tag>
+              <span style={{ fontSize: 11.5, color: SP.muted, lineHeight: '14px' }}>
+                {roleLabel(user)}
+              </span>
             </div>
           </button>
         </Dropdown>

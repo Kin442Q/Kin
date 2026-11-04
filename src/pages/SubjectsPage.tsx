@@ -62,7 +62,7 @@ export default function SubjectsPage() {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ color: '#4FB286' })
+    form.setFieldsValue({ color: '#0D7A7C' })
     setDrawer(true)
   }
   const openEdit = (s: SubjectDto) => {

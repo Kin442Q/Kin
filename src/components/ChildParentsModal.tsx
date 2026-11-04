@@ -188,7 +188,7 @@ export default function ChildParentsModal({
                     icon={<UserOutlined />}
                     style={{
                       background: p.isActive
-                        ? 'linear-gradient(135deg,#4FB286,#5BA9D1)'
+                        ? 'linear-gradient(135deg,#0D7A7C,#3B8FBF)'
                         : '#999',
                     }}
                   />
@@ -312,7 +312,7 @@ export default function ChildParentsModal({
             onClick={() => {
               if (!credentialsModal) return
               const text =
-                `Maktab — Доступ родителя\n\n` +
+                `Мактаби ман — доступ родителя\n\n` +
                 `👤 ${credentialsModal.fullName}\n` +
                 `📧 ${credentialsModal.email}\n` +
                 `🔑 ${credentialsModal.password}\n\n` +

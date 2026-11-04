@@ -36,7 +36,7 @@ function attendanceMeta(isSchool: boolean) {
   const present = 'В школе'
   return {
     PRESENT: { label: present, color: SP.primaryDeep, bg: SP.primarySoft, emoji: '🟢' },
-    ABSENT: { label: 'Нет', color: SP.danger, bg: '#FCEAE5', emoji: '🔴' },
+    ABSENT: { label: 'Нет', color: SP.danger, bg: 'var(--sp-rose-soft)', emoji: '🔴' },
     SICK: { label: 'Болеет', color: SP.yellowDeep, bg: SP.yellowSoft, emoji: '🤒' },
     VACATION: { label: 'В отпуске', color: SP.lilacDeep, bg: SP.lilacSoft, emoji: '🌴' },
   } as const
