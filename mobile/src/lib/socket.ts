@@ -1,8 +1,6 @@
 import { io, type Socket } from 'socket.io-client'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-
-// Тот же хост, что и API, но без /api
-const SOCKET_URL = 'https://kin-production-b330.up.railway.app'
+import { SERVER_URL as SOCKET_URL } from './config'
 
 let socket: Socket | null = null
 

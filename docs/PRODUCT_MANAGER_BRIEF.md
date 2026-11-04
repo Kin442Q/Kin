@@ -74,7 +74,7 @@
 - JWT access + refresh, RBAC (SUPER_ADMIN, ADMIN, TEACHER, PARENT)
 - Модули: auth, students, groups, finance, analytics, attendance, payments, expenses, menu, meetings, notifications, **telegram**, **time-tracking** (геофенс, терминал Hikvision/ZKTeco), **diary**, **school**, parent API
 - Redis, BullMQ (очереди), Swagger, throttling, audit log в схеме
-- **Деплой:** production URL на Railway (мобайл указывает на `kin-production-b330.up.railway.app`)
+- **Деплой:** production URL на Railway (мобайл и сайт указывают на `kin-production-efe6.up.railway.app`)
 - **Тесты:** ~10 unit-спеков на сервере (auth, payments, attendance и др.)
 
 ### 3.3. Мобильное приложение (Expo)
