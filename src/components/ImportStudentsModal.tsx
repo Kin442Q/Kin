@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import {
   App as AntdApp,
   Button,
@@ -25,6 +25,10 @@ import * as XLSX from 'xlsx'
 import { http } from '../api'
 import { SP } from './sprout'
 import type { Group } from '../types'
+import { classKey, compactClassName, findClassByName } from '../lib/classes'
+
+/** Цвета для классов, которые создаются автоматически при импорте. */
+const AUTO_CLASS_COLORS = ['#0D7A7C', '#3B8FBF', '#FFB020', '#8B7BD4', '#FF8A65', '#D9709B', '#1BA6A0', '#075B5D']
 
 const { Text } = Typography
 
@@ -108,12 +112,20 @@ export default function ImportStudentsModal({
   const groupLabel = 'класс'
 
   const resolveGroupId = (groupName?: string): string | undefined => {
-    if (!groupName) return undefined
-    const g = groups.find(
-      (x) => x.name.trim().toLowerCase() === groupName.trim().toLowerCase(),
-    )
-    return g?.id
+    return findClassByName(groups, groupName)?.id
   }
+
+  // Классы из файла, которых ещё нет в школе: создадутся при импорте сами.
+  const missingClasses = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const d of drafts) {
+      if (!d.groupId && d.groupName?.trim()) {
+        const k = classKey(d.groupName)
+        if (!seen.has(k)) seen.set(k, compactClassName(d.groupName))
+      }
+    }
+    return Array.from(seen.values())
+  }, [drafts])
 
   const update = (key: string, patch: Partial<Draft>) =>
     setDrafts((d) => d.map((r) => (r.key === key ? { ...r, ...patch } : r)))
@@ -212,13 +224,40 @@ export default function ImportStudentsModal({
     }
     setCreating(true)
     try {
+      // Сначала создаём недостающие классы, чтобы ученики попали в свои классы
+      const needed = new Map<string, string>()
+      for (const d of drafts) {
+        if (!d.groupId && d.groupName?.trim()) {
+          const k = classKey(d.groupName)
+          if (!needed.has(k)) needed.set(k, compactClassName(d.groupName))
+        }
+      }
+      const createdIds = new Map<string, string>()
+      let colorIdx = groups.length
+      for (const [k, name] of needed) {
+        try {
+          const res = await http.post<{ id: string }>('/v1/groups', {
+            name,
+            color: AUTO_CLASS_COLORS[colorIdx % AUTO_CLASS_COLORS.length],
+          })
+          createdIds.set(k, res.data.id)
+          colorIdx++
+        } catch (e: any) {
+          throw new Error(
+            `Не удалось создать класс «${name}»: ${e?.response?.data?.message || e?.message || 'ошибка'}`,
+          )
+        }
+      }
+      const classIdOf = (d: Draft) =>
+        d.groupId ?? (d.groupName?.trim() ? createdIds.get(classKey(d.groupName)) : undefined)
+
       const items = drafts.map((d) => ({
         lastName: d.lastName,
         firstName: d.firstName,
         middleName: d.middleName || undefined,
         birthDate: d.birthDate,
         gender: d.gender || 'MALE',
-        groupId: d.groupId ?? defaultGroupId,
+        groupId: classIdOf(d) ?? defaultGroupId,
         motherPhone: d.motherPhone || undefined,
         fatherPhone: d.fatherPhone || undefined,
       }))
@@ -234,14 +273,17 @@ export default function ImportStudentsModal({
         message.warning(`С ошибками: ${errorCount} — оставлены в таблице`)
         // оставляем только ошибочные строки для исправления
         const errRows = new Set(errors.map((e) => e.row))
-        setDrafts((d) => d.filter((_, i) => errRows.has(i)))
+        // Созданные классы запоминаем в строках, чтобы повторная отправка не создала их заново
+        setDrafts((d) =>
+          d.filter((_, i) => errRows.has(i)).map((r) => ({ ...r, groupId: classIdOf(r) ?? r.groupId })),
+        )
       } else {
         setDrafts([])
         onClose()
       }
       onDone()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка импорта')
+      message.error(e?.response?.data?.message || e?.message || 'Ошибка импорта')
     } finally {
       setCreating(false)
     }
@@ -343,6 +385,16 @@ export default function ImportStudentsModal({
           options={groups.map((g) => ({ value: g.id, label: g.name }))}
         />
       </div>
+
+      {drafts.length > 0 && missingClasses.length > 0 && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={`Новые классы: ${missingClasses.join(', ')}`}
+          description="Этих классов ещё нет в школе. При создании учеников они появятся автоматически, и каждый ученик попадёт в свой класс."
+        />
+      )}
 
       {drafts.length === 0 ? (
         <Alert

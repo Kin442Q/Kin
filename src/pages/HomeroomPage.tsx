@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { App as AntdApp, Avatar, Button, Input, Modal, Segmented, Select, Space, Spin, Table, Tag, Tooltip } from 'antd'
+import { App as AntdApp, Avatar, Button, Input, Modal, Segmented, Space, Spin, Table, Tag, Tooltip } from 'antd'
 import { MessageOutlined } from '@ant-design/icons'
 import { Users } from 'lucide-react'
 
 import { SP, SproutCard, SproutEmpty, SproutPageHeader } from '../components/sprout'
+import ClassFilter, { EMPTY_SELECTION, selectionFor, type ClassSelection } from '../components/ClassFilter'
 import {
   homeroomApi,
   type HomeroomClass,
@@ -26,7 +27,9 @@ const QUICK_TEXTS = [
 export default function HomeroomPage() {
   const { message } = AntdApp.useApp()
   const [classes, setClasses] = useState<HomeroomClass[] | null>(null)
-  const [groupId, setGroupId] = useState<string | null>(null)
+  // Класс выбирается двумя шагами: параллель → буква; пока не выбран, сводка не показывается.
+  const [sel, setSel] = useState<ClassSelection>(EMPTY_SELECTION)
+  const groupId = sel.groupId
   const [days, setDays] = useState(14)
   const [data, setData] = useState<HomeroomOverview | null>(null)
   const [loading, setLoading] = useState(false)
@@ -43,7 +46,8 @@ export default function HomeroomPage() {
       .mine()
       .then((list) => {
         setClasses(list)
-        if (list.length > 0) setGroupId((cur) => cur ?? list[0].id)
+        // Класс один — открываем сразу; несколько — выбирает сам пользователь
+        if (list.length === 1) setSel((cur) => (cur.groupId ? cur : selectionFor(list, list[0].id)))
       })
       .catch((e) => {
         setClasses([])
@@ -98,14 +102,6 @@ export default function HomeroomPage() {
         description="Классному руководителю: кто не делает ДЗ, пропускает уроки, и связь с родителями"
         actions={
           <Space wrap>
-            {classes && classes.length > 1 && (
-              <Select
-                style={{ minWidth: 140 }}
-                value={groupId ?? undefined}
-                onChange={setGroupId}
-                options={classes.map((c) => ({ value: c.id, label: `${c.name} (${c.studentsCount})` }))}
-              />
-            )}
             <Segmented
               value={days}
               onChange={(v) => setDays(Number(v))}
@@ -130,6 +126,20 @@ export default function HomeroomPage() {
         </SproutCard>
       ) : (
         <SproutCard>
+          {classes && classes.length > 1 && (
+            <div style={{ marginBottom: 14 }}>
+              <ClassFilter groups={classes} value={sel} onChange={setSel} />
+            </div>
+          )}
+          {!groupId ? (
+            <SproutEmpty
+              icon={<Users size={32} strokeWidth={1.8} />}
+              title="Выберите класс"
+              description="Сначала параллель, затем букву класса. Сводка появится после выбора."
+              minHeight={200}
+            />
+          ) : (
+          <>
           <Space style={{ marginBottom: 12 }} wrap>
             <Button
               type="primary"
@@ -234,6 +244,8 @@ export default function HomeroomPage() {
               ]}
             />
           </Spin>
+          </>
+          )}
         </SproutCard>
       )}
 

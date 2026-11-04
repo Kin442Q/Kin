@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Avatar,
   Button,
@@ -24,7 +24,12 @@ import { motion } from 'framer-motion'
 import dayjs, { Dayjs } from 'dayjs'
 
 import { ClipboardCheck } from 'lucide-react'
-import { SproutPageHeader } from '../components/sprout'
+import { SproutCard, SproutEmpty, SproutPageHeader } from '../components/sprout'
+import ClassFilter, {
+  EMPTY_SELECTION,
+  defaultSelection,
+  type ClassSelection,
+} from '../components/ClassFilter'
 import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
@@ -88,9 +93,18 @@ export default function AttendancePage() {
   const isSchool = L.group === 'класс'
 
   const [date, setDate] = useState<Dayjs>(dayjs())
-  const [groupFilter, setGroupFilter] = useState<string | undefined>(
-    user?.role === 'teacher' ? user.groupId : undefined,
-  )
+  // Посещаемость отмечают по одному классу: пока класс не выбран, список пуст.
+  const [sel, setSel] = useState<ClassSelection>(EMPTY_SELECTION)
+  const selTouched = useRef(false)
+  const groupFilter = sel.groupId ?? undefined
+  const isTeacher = user?.role === 'TEACHER' || user?.role === 'teacher'
+
+  // Класс по умолчанию: у учителя — его класс, если класс в школе один — он.
+  useEffect(() => {
+    if (selTouched.current || groups.length === 0) return
+    const d = defaultSelection(groups, isTeacher ? user?.groupId : null)
+    if (d.groupId) setSel(d)
+  }, [groups, isTeacher, user?.groupId])
 
   const [records, setRecords] = useState<AttendanceApi[]>([])
   const [loading, setLoading] = useState(false)
@@ -99,12 +113,16 @@ export default function AttendancePage() {
 
   const loadAttendance = async () => {
     if (!user) return
+    if (!groupFilter) {
+      setRecords([])
+      return
+    }
     try {
       setLoading(true)
       const res = await http.get<AttendanceApi[]>('/v1/attendance', {
         params: {
           date: dateStr,
-          ...(groupFilter ? { groupId: groupFilter } : {}),
+          groupId: groupFilter,
         },
       })
       setRecords(res.data || [])
@@ -125,12 +143,9 @@ export default function AttendancePage() {
   }, [dateStr, groupFilter])
 
   const children = useMemo(() => {
-    let res = childrenAll
-    if (user?.role === 'teacher')
-      res = res.filter((c) => c.groupId === user.groupId)
-    if (groupFilter) res = res.filter((c) => c.groupId === groupFilter)
-    return res
-  }, [childrenAll, user, groupFilter])
+    if (!groupFilter) return []
+    return childrenAll.filter((c) => c.groupId === groupFilter)
+  }, [childrenAll, groupFilter])
 
   const rows = useMemo(() => {
     return children.map((c) => {
@@ -215,13 +230,14 @@ export default function AttendancePage() {
               allowClear={false}
               format="DD.MM.YYYY"
             />
-            <Button type="primary" onClick={markAllPresent}>
+            <Button type="primary" onClick={markAllPresent} disabled={!groupFilter || rows.length === 0}>
               Все присутствуют
             </Button>
           </Space>
         }
       />
 
+      {groupFilter && (
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <StatCard
@@ -244,6 +260,7 @@ export default function AttendancePage() {
           />
         </Col>
       </Row>
+      )}
 
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -252,22 +269,24 @@ export default function AttendancePage() {
         className="mt-4"
       >
         <Card className="glass" bordered={false}>
-          <Row gutter={[12, 12]} className="mb-3">
-            <Col xs={24} md={8}>
-              <Select
-                allowClear
-                style={{ width: '100%' }}
-                placeholder="Все группы"
-                value={groupFilter}
-                onChange={setGroupFilter}
-                disabled={user?.role === 'teacher'}
-                options={groups.map((g) => ({
-                  value: g.id,
-                  label: g.name,
-                }))}
-              />
-            </Col>
-          </Row>
+          <div className="mb-3">
+            <ClassFilter
+              groups={groups}
+              value={sel}
+              onChange={(n) => {
+                selTouched.current = true
+                setSel(n)
+              }}
+            />
+          </div>
+          {!groupFilter ? (
+            <SproutEmpty
+              icon={<ClipboardCheck size={28} strokeWidth={1.8} />}
+              title="Выберите класс"
+              description="Сначала параллель, затем букву класса. Список учеников появится после выбора."
+              minHeight={200}
+            />
+          ) : (
           <Table
             rowKey="key"
             loading={loading}
@@ -346,6 +365,7 @@ export default function AttendancePage() {
               },
             ]}
           />
+          )}
         </Card>
       </motion.div>
     </div>

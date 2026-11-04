@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { useAuthStore } from '../../store/authStore'
 import { useLabels } from '../../hooks/useLabels'
@@ -548,6 +548,18 @@ function schoolYear(now = new Date()): string {
   return `${y}/${String(y + 1).slice(2)}`
 }
 
+const NAV_OPEN_KEY = 'kg_nav_open'
+
+function loadOpenSections(): string[] | null {
+  try {
+    const raw = localStorage.getItem(NAV_OPEN_KEY)
+    const v = raw ? JSON.parse(raw) : null
+    return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : null
+  } catch {
+    return null
+  }
+}
+
 export default function AppSidebar({ collapsed }: Props) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -595,28 +607,44 @@ export default function AppSidebar({ collapsed }: Props) {
     }
   }
 
-  // Собираем элементы Menu с заголовками разделов через item-group
-  const items: ReturnType<typeof toMenuItem>[] = []
-  function toMenuItem(n: NavEntry) {
-    return renderEntry(n)
-  }
-  for (const sec of SECTION_ORDER) {
-    const inSection = list.filter((n) => n.section === sec)
-    if (inSection.length === 0) continue
-    items.push({
-      // тип-группа — заголовок раздела
-      type: 'group',
-      key: `section-${sec}`,
-      label: collapsed ? null : SECTION_TITLES[sec],
-      children: inSection.map(toMenuItem),
-    } as any)
-  }
-
   const flat = list
   const activeKey =
     flat.find((i) => location.pathname.startsWith(i.key))?.key ??
     flat[0]?.key ??
     '/admin/dashboard'
+  const activeSection = flat.find((i) => i.key === activeKey)?.section
+
+  // Разделы меню — складные. По умолчанию раскрыты «Платформа», «Основное»
+  // и раздел с открытой страницей; остальные свёрнуты, выбор запоминается.
+  const [openSections, setOpenSections] = useState<string[]>(
+    () => loadOpenSections() ?? ['section-platform', 'section-main'],
+  )
+  useEffect(() => {
+    if (!activeSection) return
+    const key = `section-${activeSection}`
+    setOpenSections((cur) => (cur.includes(key) ? cur : [...cur, key]))
+  }, [activeSection])
+  const onOpenChange = (keys: string[]) => {
+    setOpenSections(keys)
+    try {
+      localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(keys))
+    } catch {
+      /* без localStorage просто не запоминаем */
+    }
+  }
+
+  // Свёрнутое меню (только иконки) — плоские группы; обычное — складные разделы.
+  const items: any[] = []
+  for (const sec of SECTION_ORDER) {
+    const inSection = list.filter((n) => n.section === sec)
+    if (inSection.length === 0) continue
+    items.push({
+      type: collapsed ? 'group' : undefined,
+      key: `section-${sec}`,
+      label: collapsed ? null : SECTION_TITLES[sec],
+      children: inSection.map(renderEntry),
+    })
+  }
 
   const schoolName = isGlobalOwner
     ? 'Мактаби ман'
@@ -639,7 +667,7 @@ export default function AppSidebar({ collapsed }: Props) {
         display: 'flex',
         flexDirection: 'column',
         gap: 14,
-        padding: collapsed ? '16px 8px' : '18px 14px',
+        padding: collapsed ? '16px 8px' : '18px 10px',
         overflow: 'hidden',
       }}
     >
@@ -719,8 +747,11 @@ export default function AppSidebar({ collapsed }: Props) {
         <Menu
           mode="inline"
           inlineCollapsed={collapsed}
+          inlineIndent={0}
           selectedKeys={[activeKey]}
-          items={items as any}
+          openKeys={collapsed ? undefined : openSections}
+          onOpenChange={onOpenChange}
+          items={items}
           onClick={({ key }) => {
             if (typeof key === 'string' && !key.startsWith('section-')) {
               navigate(key)

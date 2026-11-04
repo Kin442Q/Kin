@@ -46,7 +46,7 @@ export default function AppLayout() {
           collapsedWidth={110}
           collapsed={collapsed}
           onCollapse={setCollapsed}
-          width={252}
+          width={276}
           trigger={null}
           style={{
             position: 'sticky',
