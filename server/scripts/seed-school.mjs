@@ -1,21 +1,31 @@
 #!/usr/bin/env node
 /**
- * Наполнение тестовой школы данными через обычный API (как это делал бы человек).
+ * Наполнение школы данными через обычный API (как это делал бы человек).
+ * ТОЛЬКО ДОБАВЛЯЕТ: ничего не удаляет и не меняет, уже существующее пропускает.
  *
  *   SEED_API=https://<сайт>/api  SEED_LOGIN=<email админа школы>  SEED_PASSWORD=<пароль> \
  *     node server/scripts/seed-school.mjs
  *
- * Что создаёт: предметы, четверти, классы, учеников, учителей (БЕЗ привязки к классам —
- * её делает админ), родителей, входы учеников, расписание, оценки, посещаемость,
- * домашние задания + напоминания родителям, родительские собрания, квизы, материалы
- * библиотеки и переписку родителей с администрацией.
+ * Проще — через server/scripts/seed-school.ps1: он спросит адрес, логин и пароль,
+ * сначала покажет, что будет добавлено, и только после «да» начнёт запись.
  *
- * Пароли и логины созданных людей пишутся в CSV (SEED_OUT), в консоль не выводятся.
- * Скрипт идемпотентен там, где это дёшево (классы, предметы, четверти, учителя,
- * ученики, квизы, материалы пропускаются, если уже есть); оценки, посещаемость и ДЗ
- * создаются только для учеников, добавленных в этом запуске.
+ * Принцип «догрузки»: скрипт сначала смотрит, что в школе уже есть, и добавляет
+ * только недостающее:
+ *   • классы 1–11 (1 А, 1 Б …) — недостающие создаются, существующие («1А», «1 а») узнаются;
+ *   • ученики — в каждом классе до SEED_PER_CLASS человек (если уже столько есть — не добавляет);
+ *   • учителя (БЕЗ привязки к классам — её делает админ) — до 8 человек всего;
+ *   • родители (по 2 на класс) и входы учеников (по 1 на класс) — до целевого числа;
+ *   • предметы, четверти (если их нет), расписание (классам без расписания);
+ *   • оценки, посещаемость за последние учебные дни и домашние задания — тем, у кого их нет;
+ *   • собрания, квизы, материалы библиотеки (по названию) и переписка родителей с администрацией.
+ *
+ * Логины и пароли созданных людей пишутся в CSV (SEED_OUT), в консоль не выводятся.
  *
  * Настройки (необязательные):
+ *   SEED_DRY_RUN=1          только посмотреть: что есть и что будет добавлено, без записи
+ *   SEED_SKIP=grades,chat   пропустить разделы: subjects, terms, classes, teachers, students,
+ *                           parents, schedule, grades, attendance, homework, meetings,
+ *                           quizzes, library, chat
  *   SEED_RPS=1.5            запросов в секунду (на сервере лимит 120/мин на IP)
  *   SEED_PER_CLASS=10       учеников в классе
  *   SEED_GRADES=5           оценок на ученика
@@ -31,6 +41,9 @@ import { randomBytes } from 'node:crypto'
 const API = (process.env.SEED_API ?? '').replace(/\/+$/, '')
 const LOGIN = process.env.SEED_LOGIN ?? ''
 const PASSWORD = process.env.SEED_PASSWORD ?? ''
+const DRY = process.env.SEED_DRY_RUN === '1'
+const SKIP = new Set((process.env.SEED_SKIP ?? '').split(',').map((s) => s.trim()).filter(Boolean))
+const on = (section) => !SKIP.has(section)
 const RPS = Number(process.env.SEED_RPS ?? 1.5)
 const PER_CLASS = Number(process.env.SEED_PER_CLASS ?? 10)
 const GRADES_PER_STUDENT = Number(process.env.SEED_GRADES ?? 5)
@@ -57,8 +70,16 @@ const addDays = (d, n) => {
   x.setDate(x.getDate() + n)
   return x
 }
-// Пароли — из crypto, а не из rnd(): иначе повторный запуск сдвигает последовательность имён и не узнаёт уже созданных учеников.
+// Пароли — из crypto, а не из rnd(): иначе повторный запуск сдвигает последовательность имён.
 const strongPassword = () => `${randomBytes(6).toString('base64url')}-${100 + (randomBytes(2).readUInt16BE() % 900)}Aa!`
+
+// Сравнение названий классов и предметов: «1 А», «1А», «1-а» и латинская «1 A» — один и тот же класс.
+const LOOKALIKE = { a: 'а', b: 'в', c: 'с', e: 'е', h: 'н', k: 'к', m: 'м', o: 'о', p: 'р', t: 'т', x: 'х' }
+const norm = (s) =>
+  String(s ?? '')
+    .toLowerCase()
+    .replace(/[\s.\-–—_]+/g, '')
+    .replace(/[abcehkmoptx]/g, (c) => LOOKALIKE[c])
 
 // ── HTTP с ограничением частоты, повтором при 429 и перелогином при 401 ──────
 let token = ''
@@ -67,6 +88,9 @@ const gap = 1000 / RPS
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const stats = { ok: 0, fail: 0 }
 const failures = new Map()
+const planned = new Map()
+let dryN = 0
+const isFake = (v) => typeof v === 'string' && v.startsWith('dry-')
 
 // Сервер заворачивает успешные ответы в { data, meta? }.
 const unwrap = (body) => (body && typeof body === 'object' && !Array.isArray(body) && 'data' in body ? body.data : body)
@@ -82,8 +106,27 @@ async function rawLogin(email, password) {
 }
 
 let credentials = { email: LOGIN, password: PASSWORD }
+let bulkGroupId = () => `dry-g`
+
+const routeKey = (method, path) => `${method} ${path.split('?')[0].replace(/\/dry-[^/]*/g, '/:id').replace(/\/[0-9a-z]{20,}/gi, '/:id')}`
 
 async function call(method, path, body, { tok, quiet } = {}) {
+  if (DRY && !tok) {
+    if (method !== 'GET') {
+      const key = routeKey(method, path)
+      planned.set(key, (planned.get(key) ?? 0) + (path.endsWith('/students/bulk') ? body.items.length : 1))
+      if (path.endsWith('/students/bulk')) {
+        return {
+          created: body.items.map((it) => ({
+            ...it, id: `dry-${++dryN}`, groupId: bulkGroupId(it.groupName),
+          })),
+          errors: [],
+        }
+      }
+      return { id: `dry-${++dryN}`, ...(body ?? {}) }
+    }
+    if (path.includes('dry-')) return path.includes('/account') ? null : []
+  }
   for (let attempt = 0; attempt < 6; attempt++) {
     const wait = lastCall + gap - Date.now()
     if (wait > 0) await sleep(wait)
@@ -106,7 +149,7 @@ async function call(method, path, body, { tok, quiet } = {}) {
     if (!res.ok) {
       stats.fail++
       const msg = Array.isArray(data?.message) ? data.message.join('; ') : (data?.message ?? res.statusText)
-      const key = `${method} ${path.replace(/[0-9a-z]{20,}/gi, ':id').split('?')[0]} → ${res.status} ${msg}`
+      const key = `${routeKey(method, path)} → ${res.status} ${msg}`
       failures.set(key, (failures.get(key) ?? 0) + 1)
       if (quiet) return null
       const err = new Error(`${key}`)
@@ -119,8 +162,19 @@ async function call(method, path, body, { tok, quiet } = {}) {
   throw new Error(`${method} ${path}: слишком много повторов`)
 }
 const get = (p) => call('GET', p)
+const tryGet = async (p) => {
+  try {
+    return await get(p)
+  } catch {
+    return null
+  }
+}
 const post = (p, b, o) => call('POST', p, b ?? {}, o)
 const tryPost = (p, b, o) => call('POST', p, b ?? {}, { ...o, quiet: true })
+const list = async (p) => {
+  const r = await tryGet(p)
+  return Array.isArray(r) ? r : []
+}
 const step = (name) => console.log(`\n▶ ${name}`)
 
 // ── Справочники ─────────────────────────────────────────────────────────────
@@ -133,6 +187,7 @@ const SUBJECTS = [
 const CORE_YOUNG = ['Математика', 'Русский язык', 'Таджикский язык', 'Английский язык', 'Физкультура', 'Литература']
 const CORE_MIDDLE = ['Математика', 'Русский язык', 'Таджикский язык', 'Английский язык', 'История', 'География', 'Биология', 'Физкультура', 'Литература']
 const CORE_SENIOR = ['Математика', 'Русский язык', 'Таджикский язык', 'Английский язык', 'Физика', 'Химия', 'Биология', 'История', 'Информатика', 'Физкультура']
+const gradeOf = (name) => parseInt(String(name), 10) || 5
 const subjectsFor = (grade) => (grade <= 4 ? CORE_YOUNG : grade <= 8 ? CORE_MIDDLE : CORE_SENIOR)
 
 const CLASSES = ['1 А', '1 Б', '1 В', '2 А', '2 Б', '3 А', '3 Б', '4 А', '5 А', '5 Б', '6 А', '7 А', '8 А', '9 А', '9 Б', '10 А', '11 А', '11 Б']
@@ -177,7 +232,7 @@ const QUIZZES = [
     ['SINGLE', 'They ___ football on Sundays.', [['play', 1], ['plays', 0], ['playing', 0], ['is play', 0]], null],
     ['SINGLE', 'Choose the correct question: ___ he like tea?', [['Does', 1], ['Do', 0], ['Is', 0], ['Are', 0]], null],
     ['MULTIPLE', 'Which words are days of the week?', [['Monday', 1], ['April', 0], ['Friday', 1], ['Sunday', 1]], null],
-    ['SINGLE', 'The negative form of «I like apples»:', [["I don't like apples", 1], ["I doesn't like apples", 0], ['I not like apples', 0], ["I am not like apples", 0]], null],
+    ['SINGLE', 'The negative form of «I like apples»:', [["I don't like apples", 1], ["I doesn't like apples", 0], ['I not like apples', 0], ['I am not like apples', 0]], null],
   ] },
   { title: 'Биология: клетка', subject: 'Биология', timeLimitSec: null, questions: [
     ['SINGLE', 'Что является «энергетической станцией» клетки?', [['Митохондрия', 1], ['Ядро', 0], ['Рибосома', 0], ['Вакуоль', 0]], null],
@@ -187,11 +242,11 @@ const QUIZZES = [
     ['SINGLE', 'Что окружает клетку снаружи у животных?', [['Мембрана', 1], ['Клеточная стенка', 0], ['Ядро', 0], ['Хлоропласт', 0]], null],
   ] },
   { title: 'География: материки и океаны', subject: 'География', timeLimitSec: null, questions: [
-    ['SINGLE', 'Сколько материков на Земле (по самой распространённой схеме)?', [['6', 0], ['7', 1], ['5', 0], ['8', 0]], 'Евразия, Африка, Северная и Южная Америка, Австралия, Антарктида — это 6 по русской традиции; в мире чаще считают 7, разделяя Америку'],
     ['SINGLE', 'Самый большой океан:', [['Тихий', 1], ['Атлантический', 0], ['Индийский', 0], ['Северный Ледовитый', 0]], null],
     ['SINGLE', 'Самая высокая гора мира:', [['Эверест', 1], ['Монблан', 0], ['Эльбрус', 0], ['Килиманджаро', 0]], null],
+    ['SINGLE', 'На каком материке находится Таджикистан?', [['Евразия', 1], ['Африка', 0], ['Австралия', 0], ['Южная Америка', 0]], null],
     ['MULTIPLE', 'Какие страны граничат с Таджикистаном?', [['Узбекистан', 1], ['Кыргызстан', 1], ['Китай', 1], ['Казахстан', 0]], 'Также граничит с Афганистаном'],
-    ['SINGLE', 'Как называется самая длинная река Центральной Азии, текущая на границе с Афганистаном?', [['Пяндж (верховье Амударьи)', 1], ['Волга', 0], ['Днепр', 0], ['Нил', 0]], null],
+    ['SINGLE', 'Как называется пограничная с Афганистаном река, верховье Амударьи?', [['Пяндж', 1], ['Волга', 0], ['Днепр', 0], ['Нил', 0]], null],
   ] },
 ]
 
@@ -221,7 +276,21 @@ const LIBRARY = [
 
 const rows = [['Роль', 'ФИО', 'Логин', 'Пароль', 'Класс / примечание']]
 const addCred = (role, name, login, pass, note = '') => rows.push([role, name, login, pass, note])
-const saveCreds = () => writeFileSync(OUT, '﻿' + rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n'))
+const saveCreds = () => {
+  if (DRY || rows.length < 2) return
+  writeFileSync(OUT, '﻿' + rows.map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n'))
+}
+
+const PLAN_LABELS = {
+  'POST /subjects': 'предметов', 'POST /terms': 'четвертей', 'POST /groups': 'классов',
+  'POST /users/teacher': 'учителей', 'POST /students/bulk': 'учеников',
+  'POST /students/:id/parents': 'родителей', 'POST /students/:id/account': 'входов учеников',
+  'POST /schedule': 'уроков в расписании', 'POST /grades': 'оценок', 'POST /attendance/mark': 'отметок посещаемости',
+  'POST /homework': 'домашних заданий', 'POST /homework/:id/notify-parents': 'напоминаний по ДЗ',
+  'POST /homeroom/:id/notify': 'сообщений родителям класса', 'POST /meetings': 'родительских собраний',
+  'POST /quizzes': 'квизов', 'POST /library': 'материалов', 'POST /chat/my/messages': 'обращений родителей',
+  'POST /chat/conversations/:id/messages': 'ответов администрации',
+}
 
 // ── Основной ход ────────────────────────────────────────────────────────────
 async function main() {
@@ -236,6 +305,10 @@ async function main() {
         'Этот логин не привязан к школе (владелец платформы). Войдите админом школы или задайте SEED_CREATE_SCHOOL="Название" — тогда будет создана новая школа с отдельным админом.',
       )
     }
+    if (DRY) {
+      console.log(`  (пробный запуск) была бы создана школа «${schoolName}» с отдельным админом`)
+      return
+    }
     const adminEmail = `admin-${randomBytes(3).toString('hex')}@test-school.local`
     const adminPass = strongPassword()
     await post('/kindergartens', { name: schoolName, owner: { fullName: 'Администратор тестовой школы', email: adminEmail, password: adminPass } })
@@ -247,148 +320,216 @@ async function main() {
     console.log('  создана новая школа и её админ (данные — в CSV)')
   }
   if (!['ADMIN', 'SUPER_ADMIN'].includes(me.role)) throw new Error(`Нужен админ школы, а вход выполнен как ${me.role}`)
-  console.log(`  вход выполнен, роль ${me.role}`)
+  console.log(`  вход выполнен, роль ${me.role}, школа: ${me.institution?.name ?? '—'}${DRY ? '  [ПРОБНЫЙ ЗАПУСК: ничего не записывается]' : ''}`)
+
+  // Что уже есть
+  step('Что уже есть в системе')
+  const groups = await list('/groups')
+  const students0 = await list('/students')
+  const users = await list('/users')
+  const teachers0 = users.filter((u) => u.role === 'TEACHER')
+  const parents0 = users.filter((u) => u.role === 'PARENT')
+  const studentUsers0 = users.filter((u) => u.role === 'STUDENT')
+  const subjectsList = await list('/subjects')
+  const termsList = await list('/terms')
+  console.log(`  классов: ${groups.length}, учеников: ${students0.length}, учителей: ${teachers0.length}, родителей: ${parents0.length}, входов учеников: ${studentUsers0.length}`)
+  console.log(`  предметов: ${subjectsList.length}, четвертей: ${termsList.length}`)
+  const takenEmails = new Set(users.map((u) => String(u.email ?? '').toLowerCase()))
+  const freeEmail = (prefix, start) => {
+    let n = start
+    let e
+    do {
+      e = `${prefix}${String(n++).padStart(2, '0')}@test-school.local`
+    } while (takenEmails.has(e))
+    takenEmails.add(e)
+    return e
+  }
 
   // Предметы
-  step('Предметы')
-  const subjectByName = new Map((await get('/subjects')).map((s) => [s.name.toLowerCase(), s]))
-  for (const [name, color] of SUBJECTS) {
-    if (subjectByName.has(name.toLowerCase())) continue
-    const s = await tryPost('/subjects', { name, color })
-    if (s) subjectByName.set(name.toLowerCase(), s)
-  }
-  const subj = (name) => subjectByName.get(name.toLowerCase())
-  console.log(`  предметов: ${subjectByName.size}`)
-
-  // Четверти
-  step('Четверти')
-  const now = new Date()
-  const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
-  const quarters = [
-    [`I четверть ${y}/${y + 1}`, `${y}-09-01`, `${y}-11-07`],
-    [`II четверть ${y}/${y + 1}`, `${y}-11-08`, `${y}-12-31`],
-    [`III четверть ${y}/${y + 1}`, `${y + 1}-01-10`, `${y + 1}-03-25`],
-    [`IV четверть ${y}/${y + 1}`, `${y + 1}-04-03`, `${y + 1}-05-30`],
-  ]
-  const termsNow = (await tryGet('/terms')) ?? []
-  const haveTerm = new Set(termsNow.map((t) => t.name))
-  for (const [name, startDate, endDate] of quarters) {
-    if (!haveTerm.has(name)) await tryPost('/terms', { name, type: 'QUARTER', startDate, endDate })
-  }
-
-  // Классы
-  step('Классы')
-  const groupByName = new Map((await get('/groups')).map((g) => [g.name.trim().toLowerCase(), g]))
-  for (const [i, name] of CLASSES.entries()) {
-    if (groupByName.has(name.toLowerCase())) continue
-    const g = await tryPost('/groups', { name, capacity: 30, color: CLASS_COLORS[i % CLASS_COLORS.length] })
-    if (g) groupByName.set(name.toLowerCase(), g)
-  }
-  console.log(`  классов: ${CLASSES.filter((n) => groupByName.has(n.toLowerCase())).length} из ${CLASSES.length}`)
-
-  // Учителя (без привязки к классам — её делает админ)
-  step('Учителя (без привязки к классам)')
-  const existingEmails = new Set(((await tryGet('/users/teachers')) ?? []).map((t) => (t.email ?? '').toLowerCase()))
-  for (const [i, [fullName, subject]] of TEACHERS.entries()) {
-    const email = `teacher${i + 1}@test-school.local`
-    if (existingEmails.has(email)) continue
-    const password = strongPassword()
-    const t = await tryPost('/users/teacher', { fullName, phone: `+992 900 10 ${String(i + 1).padStart(2, '0')}`, email, password })
-    if (t) addCred('Учитель', fullName, email, password, subject)
-  }
-
-  // Ученики
-  step('Ученики')
-  const existingStudents = (await get('/students')) ?? []
-  const studentKey = (s) => `${s.lastName}|${s.firstName}|${String(s.birthDate).slice(0, 10)}`
-  const haveKeys = new Set(existingStudents.map(studentKey))
-  const used = new Set()
-  const items = []
-  for (const cls of CLASSES) {
-    const grade = parseInt(cls, 10)
-    for (let i = 0; i < PER_CLASS; i++) {
-      const female = (i + grade) % 2 === 0
-      let first, last, key
-      do {
-        first = pick(female ? FEMALE : MALE)
-        last = pick(SURNAMES) + (female ? 'а' : '')
-        key = last + first
-      } while (used.has(key))
-      used.add(key)
-      const year = now.getFullYear() - 6 - grade
-      const birthDate = `${year}-${String(1 + Math.floor(rnd() * 12)).padStart(2, '0')}-${String(1 + Math.floor(rnd() * 28)).padStart(2, '0')}`
-      const it = {
-        lastName: last, firstName: first, middleName: pick(PATRONYMS) + (female ? 'овна' : 'ович'), birthDate,
-        gender: female ? 'FEMALE' : 'MALE', groupName: cls,
-        motherName: `${last} (мама)`, motherPhone: `+992 900 00 ${String(items.length + 1).padStart(3, '0')}`,
-      }
-      if (!haveKeys.has(studentKey(it))) items.push(it)
+  const subjectByName = new Map(subjectsList.map((s) => [norm(s.name), s]))
+  if (on('subjects')) {
+    step('Предметы')
+    for (const [name, color] of SUBJECTS) {
+      if (subjectByName.has(norm(name))) continue
+      const s = await tryPost('/subjects', { name, color })
+      if (s) subjectByName.set(norm(name), s)
     }
   }
-  const created = []
-  for (let i = 0; i < items.length; i += 100) {
-    const res = await post('/students/bulk', { items: items.slice(i, i + 100) })
-    created.push(...(res.created ?? []))
-    for (const e of res.errors ?? []) console.log(`  строка ${e.row}: ${e.name} — ${e.message}`)
+  const anySubject = [...subjectByName.values()][0]
+  const subj = (name) => subjectByName.get(norm(name)) ?? anySubject
+
+  // Четверти
+  if (on('terms') && termsList.length === 0) {
+    step('Четверти')
+    const now = new Date()
+    const y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1
+    const quarters = [
+      [`I четверть ${y}/${y + 1}`, `${y}-09-01`, `${y}-11-07`],
+      [`II четверть ${y}/${y + 1}`, `${y}-11-08`, `${y}-12-31`],
+      [`III четверть ${y}/${y + 1}`, `${y + 1}-01-10`, `${y + 1}-03-25`],
+      [`IV четверть ${y}/${y + 1}`, `${y + 1}-04-03`, `${y + 1}-05-30`],
+    ]
+    for (const [name, startDate, endDate] of quarters) await tryPost('/terms', { name, type: 'QUARTER', startDate, endDate })
   }
-  console.log(`  добавлено учеников: ${created.length}${created.length ? '' : ' (все уже были)'}`)
-  const gradeOf = (name) => parseInt(name, 10)
-  const groupNameById = new Map([...groupByName.values()].map((g) => [g.id, g.name]))
+
+  // Классы: недостающие создаём, существующие («1А», «1 а») узнаём по названию
+  const groupByKey = new Map(groups.map((g) => [norm(g.name), g]))
+  const allGroups = [...groups]
+  if (on('classes')) {
+    step('Классы')
+    for (const [i, name] of CLASSES.entries()) {
+      if (groupByKey.has(norm(name))) continue
+      const g = await tryPost('/groups', { name, capacity: 30, color: CLASS_COLORS[i % CLASS_COLORS.length] })
+      if (g) {
+        groupByKey.set(norm(name), g)
+        allGroups.push(g)
+      }
+    }
+  }
+  const targetGroups = CLASSES.map((n) => groupByKey.get(norm(n))).filter(Boolean)
+  const groupNameById = new Map(allGroups.map((g) => [g.id, g.name]))
+  bulkGroupId = (name) => groupByKey.get(norm(name))?.id ?? 'dry-g'
+  console.log(`  классов в целевом списке: ${targetGroups.length} из ${CLASSES.length}`)
+
+  // Учителя (без привязки к классам — её делает админ): добираем до 8 человек
+  if (on('teachers')) {
+    step('Учителя (без привязки к классам)')
+    const haveNames = new Set(teachers0.map((t) => norm(t.fullName)))
+    let need = Math.max(0, TEACHERS.length - teachers0.length)
+    for (const [i, [fullName, subject]] of TEACHERS.entries()) {
+      if (need <= 0) break
+      if (haveNames.has(norm(fullName))) continue
+      const email = freeEmail('teacher', i + 1)
+      const password = strongPassword()
+      const t = await tryPost('/users/teacher', { fullName, phone: `+992 900 10 ${String(i + 1).padStart(2, '0')}`, email, password })
+      if (t) {
+        addCred('Учитель', fullName, email, password, subject)
+        need--
+      }
+    }
+  }
+
+  // Ученики: в каждом целевом классе добираем до PER_CLASS
   const byGroup = new Map()
-  for (const s of created) {
+  for (const s of students0) {
     if (!byGroup.has(s.groupId)) byGroup.set(s.groupId, [])
     byGroup.get(s.groupId).push(s)
   }
+  if (on('students')) {
+    step('Ученики')
+    const studentKey = (s) => `${s.lastName}|${s.firstName}|${String(s.birthDate).slice(0, 10)}`
+    const haveKeys = new Set(students0.map(studentKey))
+    const items = []
+    const now = new Date()
+    for (const cls of CLASSES) {
+      const g = groupByKey.get(norm(cls))
+      const have = g ? (byGroup.get(g.id) ?? []).length : 0
+      const grade = gradeOf(cls)
+      for (let i = 0; i < Math.max(0, PER_CLASS - have); i++) {
+        const female = (i + grade) % 2 === 0
+        let first, last, it
+        let tries = 0
+        do {
+          first = pick(female ? FEMALE : MALE)
+          last = pick(SURNAMES) + (female ? 'а' : '')
+          const year = now.getFullYear() - 6 - grade
+          const birthDate = `${year}-${String(1 + Math.floor(rnd() * 12)).padStart(2, '0')}-${String(1 + Math.floor(rnd() * 28)).padStart(2, '0')}`
+          it = {
+            lastName: last, firstName: first, middleName: pick(PATRONYMS) + (female ? 'овна' : 'ович'), birthDate,
+            gender: female ? 'FEMALE' : 'MALE', groupName: g?.name ?? cls,
+            motherName: `${last} (мама)`, motherPhone: `+992 900 00 ${String(items.length + 1).padStart(3, '0')}`,
+          }
+        } while (haveKeys.has(studentKey(it)) && ++tries < 50)
+        haveKeys.add(studentKey(it))
+        items.push(it)
+      }
+    }
+    for (let i = 0; i < items.length; i += 100) {
+      const res = await post('/students/bulk', { items: items.slice(i, i + 100) })
+      for (const s of res.created ?? []) {
+        if (!byGroup.has(s.groupId)) byGroup.set(s.groupId, [])
+        byGroup.get(s.groupId).push(s)
+      }
+      for (const e of res.errors ?? []) console.log(`  строка ${e.row}: ${e.name} — ${e.message}`)
+    }
+    console.log(`  добавлено учеников: ${items.length}${items.length ? '' : ' (в классах уже достаточно)'}`)
+  }
+  const allStudents = [...byGroup.values()].flat()
+  const gradeNameOfStudent = (s) => groupNameById.get(s.groupId) ?? ''
+  const orderedStudents = [...allStudents].sort((a, b) => {
+    const ia = CLASSES.findIndex((c) => norm(c) === norm(gradeNameOfStudent(a)))
+    const ib = CLASSES.findIndex((c) => norm(c) === norm(gradeNameOfStudent(b)))
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
+  })
 
-  // Родители и входы учеников
-  step('Родители и входы учеников')
+  // Родители (по 2 на класс) и входы учеников (по 1 на класс): добираем до целевого числа
   const parents = []
-  let parentNo = 0
-  for (const [gid, list] of byGroup) {
-    const cls = groupNameById.get(gid)
-    for (const s of list.slice(0, 2)) {
-      parentNo++
-      const email = `parent${String(parentNo).padStart(2, '0')}@test-school.local`
+  let phoneSeq = 0
+  if (on('parents')) {
+    step('Родители и входы учеников')
+    let needParents = Math.max(0, targetGroups.length * 2 - parents0.length)
+    for (const s of orderedStudents) {
+      if (needParents <= 0) break
+      const have = await tryGet(`/students/${s.id}/parents`)
+      if (Array.isArray(have) && have.length) continue
+      const email = freeEmail('parent', 1)
       const password = strongPassword()
-      const fullName = `${s.lastName.replace(/а$/, '')}${s.gender === 'FEMALE' ? '' : ''} (родитель ${s.firstName})`.replace(/\s+/g, ' ')
-      const p = await tryPost(`/students/${s.id}/parents`, { fullName, email, phone: `+992 900 20 ${String(parentNo).padStart(2, '0')}`, password })
+      const fullName = `Родитель ${s.firstName} ${s.lastName}`
+      const p = await tryPost(`/students/${s.id}/parents`, { fullName, email, phone: `+992 900 2${String(++phoneSeq).padStart(3, '0')}`, password })
       if (p) {
-        addCred('Родитель', fullName, email, password, `${cls}, ребёнок ${s.lastName} ${s.firstName}`)
-        parents.push({ email, password, student: s, cls })
+        addCred('Родитель', fullName, email, password, `${gradeNameOfStudent(s)}, ребёнок ${s.lastName} ${s.firstName}`)
+        parents.push({ email, password, student: s })
+        needParents--
       }
     }
-    const s0 = list[0]
-    const acc = await tryPost(`/students/${s0.id}/account`, {})
-    if (acc) addCred('Ученик', `${s0.lastName} ${s0.firstName}`, acc.login ?? acc.email ?? '', acc.password ?? '', cls)
+    let needAccounts = Math.max(0, targetGroups.length - studentUsers0.length)
+    const firstOfClass = new Set()
+    for (const s of orderedStudents) {
+      if (needAccounts <= 0) break
+      if (firstOfClass.has(s.groupId)) continue
+      firstOfClass.add(s.groupId)
+      if (await tryGet(`/students/${s.id}/account`)) continue
+      const acc = await tryPost(`/students/${s.id}/account`, {})
+      if (acc) {
+        addCred('Ученик', `${s.lastName} ${s.firstName}`, acc.login ?? acc.email ?? '', acc.password ?? '', gradeNameOfStudent(s))
+        needAccounts--
+      }
+    }
+    console.log(`  добавлено родителей: ${parents.length}`)
   }
-  console.log(`  родителей: ${parents.length}`)
 
-  // Расписание
-  step('Расписание')
-  const slots = [['08:00', '08:45'], ['08:55', '09:40'], ['09:50', '10:35'], ['10:45', '11:30'], ['11:40', '12:25']]
-  for (const cls of CLASSES) {
-    const g = groupByName.get(cls.toLowerCase())
-    if (!g || !byGroup.has(g.id)) continue
-    const pool = subjectsFor(gradeOf(cls))
-    for (let day = 1; day <= 5; day++) {
-      for (let l = 0; l < Math.min(LESSONS, slots.length); l++) {
-        const name = pool[(day * 3 + l * 2 + gradeOf(cls)) % pool.length]
-        await tryPost('/schedule', {
-          groupId: g.id, dayOfWeek: day, startTime: slots[l][0], endTime: slots[l][1], activity: name,
-          subjectId: subj(name)?.id, room: `Каб. ${10 + ((day + l + gradeOf(cls)) % 20)}`,
-        })
+  // Расписание: классам, у которых его нет
+  if (on('schedule')) {
+    step('Расписание')
+    const slots = [['08:00', '08:45'], ['08:55', '09:40'], ['09:50', '10:35'], ['10:45', '11:30'], ['11:40', '12:25']]
+    for (const cls of CLASSES) {
+      const g = groupByKey.get(norm(cls))
+      if (!g) continue
+      if ((await list(`/schedule?groupId=${g.id}`)).length) continue
+      const pool = subjectsFor(gradeOf(cls))
+      for (let day = 1; day <= 5; day++) {
+        for (let l = 0; l < Math.min(LESSONS, slots.length); l++) {
+          const name = pool[(day * 3 + l * 2 + gradeOf(cls)) % pool.length]
+          await tryPost('/schedule', {
+            groupId: g.id, dayOfWeek: day, startTime: slots[l][0], endTime: slots[l][1], activity: name,
+            subjectId: subj(name)?.id, room: `Каб. ${10 + ((day + l + gradeOf(cls)) % 20)}`,
+          })
+        }
       }
     }
   }
 
-  // Оценки
-  step('Оценки')
-  const types = ['CLASSWORK', 'CLASSWORK', 'HOMEWORK', 'CONTROL', 'EXAM', 'PROJECT']
-  const comments = ['', '', '', 'Хорошая работа', 'Нужно повторить тему', 'Активно работал на уроке', 'Аккуратно выполнено']
-  let gradeCount = 0
-  for (const [gid, list] of byGroup) {
-    const pool = subjectsFor(gradeOf(groupNameById.get(gid)))
-    for (const s of list) {
+  // Оценки: ученикам, у которых их нет
+  const now = new Date()
+  if (on('grades')) {
+    step('Оценки')
+    const withGrades = new Set((await list('/grades')).map((g) => g.studentId))
+    const types = ['CLASSWORK', 'CLASSWORK', 'HOMEWORK', 'CONTROL', 'EXAM', 'PROJECT']
+    const comments = ['', '', '', 'Хорошая работа', 'Нужно повторить тему', 'Активно работал на уроке', 'Аккуратно выполнено']
+    let count = 0
+    for (const s of allStudents) {
+      if (withGrades.has(s.id)) continue
+      const pool = subjectsFor(gradeOf(gradeNameOfStudent(s)))
       for (let k = 0; k < GRADES_PER_STUDENT; k++) {
         const name = pick(pool)
         const value = chance(0.08) ? 3 + Math.floor(rnd() * 2) : chance(0.35) ? 10 : 6 + Math.floor(rnd() * 4)
@@ -396,126 +537,148 @@ async function main() {
           studentId: s.id, subjectId: subj(name)?.id, value, type: pick(types),
           date: iso(addDays(now, -Math.floor(rnd() * 14))), comment: pick(comments) || undefined,
         })
-        if (r) gradeCount++
+        if (r) count++
       }
     }
+    console.log(`  добавлено оценок: ${count}`)
   }
-  console.log(`  оценок: ${gradeCount}`)
 
-  // Посещаемость за последние учебные дни
-  step('Посещаемость')
-  const schoolDays = []
-  for (let d = 0; schoolDays.length < ATT_DAYS && d < 14; d++) {
-    const day = addDays(now, -d)
-    if (day.getDay() !== 0 && day.getDay() !== 6) schoolDays.push(iso(day))
-  }
-  let attCount = 0
-  for (const list of byGroup.values()) {
-    for (const s of list) {
-      for (const date of schoolDays) {
+  // Посещаемость за последние учебные дни: ученикам без отметки за день
+  if (on('attendance')) {
+    step('Посещаемость')
+    const schoolDays = []
+    for (let d = 0; schoolDays.length < ATT_DAYS && d < 14; d++) {
+      const day = addDays(now, -d)
+      if (day.getDay() !== 0 && day.getDay() !== 6) schoolDays.push(iso(day))
+    }
+    let count = 0
+    for (const date of schoolDays) {
+      const marked = new Set((await list(`/attendance?date=${date}`)).map((a) => a.studentId ?? a.student?.id))
+      for (const s of allStudents) {
+        if (marked.has(s.id)) continue
         const roll = rnd()
         const status = roll < 0.9 ? 'PRESENT' : roll < 0.95 ? 'ABSENT' : roll < 0.99 ? 'SICK' : 'VACATION'
-        const r = await tryPost('/attendance/mark', { studentId: s.id, date, status, note: status === 'SICK' ? 'Справка от врача' : undefined })
-        if (r) attCount++
+        if (await tryPost('/attendance/mark', { studentId: s.id, date, status, note: status === 'SICK' ? 'Справка от врача' : undefined })) count++
       }
     }
+    console.log(`  добавлено отметок: ${count}`)
   }
-  console.log(`  отметок: ${attCount}`)
 
-  // Домашние задания и напоминания родителям
-  step('Домашние задания и напоминания')
-  let hwCount = 0
-  let notified = 0
-  for (const [gid, list] of byGroup) {
-    const cls = groupNameById.get(gid)
-    const pool = subjectsFor(gradeOf(cls))
-    for (let k = 0; k < 2; k++) {
-      const name = pool[(k * 2 + gradeOf(cls)) % pool.length]
-      const title = (HOMEWORK_TITLES[name] ?? ['Домашнее задание'])[k % 2]
-      const hw = await tryPost('/homework', {
-        subjectId: subj(name)?.id, groupId: gid, title,
-        description: `Тема: ${name.toLowerCase()}. Выполнить в тетради, срок — до указанной даты.`,
-        dueDate: iso(addDays(now, 2 + k * 3)),
-      })
-      if (!hw) continue
-      hwCount++
-      if (k === 0 && (await tryPost(`/homework/${hw.id}/notify-parents`, { studentIds: list.slice(0, 5).map((s) => s.id), template: 'REMINDER' }))) notified++
+  // Домашние задания (по 2 на класс) и напоминания родителям
+  if (on('homework')) {
+    step('Домашние задания и напоминания')
+    const hwByGroup = new Map()
+    for (const h of await list('/homework')) hwByGroup.set(h.groupId, (hwByGroup.get(h.groupId) ?? 0) + 1)
+    let hwCount = 0
+    let notified = 0
+    for (const g of targetGroups) {
+      const list0 = byGroup.get(g.id) ?? []
+      const need = Math.max(0, 2 - (hwByGroup.get(g.id) ?? 0))
+      if (!need || !list0.length) continue
+      const pool = subjectsFor(gradeOf(g.name))
+      for (let k = 0; k < need; k++) {
+        const name = pool[(k * 2 + gradeOf(g.name)) % pool.length]
+        const title = (HOMEWORK_TITLES[name] ?? ['Домашнее задание'])[k % 2]
+        const hw = await tryPost('/homework', {
+          subjectId: subj(name)?.id, groupId: g.id, title,
+          description: `Тема: ${name.toLowerCase()}. Выполнить в тетради, срок — до указанной даты.`,
+          dueDate: iso(addDays(now, 2 + k * 3)),
+        })
+        if (!hw) continue
+        hwCount++
+        if (k === 0 && (await tryPost(`/homework/${hw.id}/notify-parents`, { studentIds: list0.slice(0, 5).map((s) => s.id), template: 'REMINDER' }))) notified++
+      }
+      await tryPost(`/homeroom/${g.id}/notify`, { studentIds: list0.slice(0, 3).map((s) => s.id), text: 'Напоминаем: завтра родительское собрание в 17:00, пожалуйста, приходите вовремя.' })
     }
-    await tryPost(`/homeroom/${gid}/notify`, { studentIds: list.slice(0, 3).map((s) => s.id), text: 'Напоминаем: завтра родительское собрание в 17:00, пожалуйста, приходите вовремя.' })
+    console.log(`  добавлено ДЗ: ${hwCount}, напоминаний по ДЗ: ${notified}`)
   }
-  console.log(`  ДЗ: ${hwCount}, напоминаний по ДЗ: ${notified}`)
 
   // Родительские собрания
-  step('Родительские собрания')
-  const haveMeeting = new Set(((await tryGet('/meetings')) ?? []).map((m) => m.title))
-  for (const [i, cls] of ['1 А', '5 А', '11 А'].entries()) {
-    const g = groupByName.get(cls.toLowerCase())
-    const title = `Родительское собрание ${cls} класса`
-    if (!g || haveMeeting.has(title)) continue
-    await tryPost('/meetings', {
-      groupId: g.id, title,
-      scheduledAt: new Date(addDays(now, 7 + i * 7).setHours(17, 0, 0, 0)).toISOString(),
-      location: `Каб. ${12 + i}`, description: 'Итоги четверти, подготовка к зимним каникулам, вопросы родителей.',
-    })
+  if (on('meetings')) {
+    step('Родительские собрания')
+    const haveMeeting = new Set((await list('/meetings')).map((m) => m.title))
+    for (const [i, cls] of ['1 А', '5 А', '11 А'].entries()) {
+      const g = groupByKey.get(norm(cls))
+      const title = `Родительское собрание ${cls} класса`
+      if (!g || haveMeeting.has(title)) continue
+      await tryPost('/meetings', {
+        groupId: g.id, title,
+        scheduledAt: new Date(addDays(now, 7 + i * 7).setHours(17, 0, 0, 0)).toISOString(),
+        location: `Каб. ${12 + i}`, description: 'Итоги четверти, подготовка к зимним каникулам, вопросы родителей.',
+      })
+    }
   }
 
   // Квизы
-  step('Квизы')
-  const haveQuiz = new Set(((await tryGet('/quizzes')) ?? []).map((q) => q.title))
-  let quizCount = 0
-  for (const q of QUIZZES) {
-    if (haveQuiz.has(q.title)) continue
-    const r = await tryPost('/quizzes', {
-      title: q.title, description: `Проверьте себя: ${q.subject.toLowerCase()}`, subjectId: subj(q.subject)?.id,
-      timeLimitSec: q.timeLimitSec, isPublished: true,
-      questions: q.questions.map(([kind, text, options, explanation]) => ({
-        kind, text, options: options.map(([t, c]) => ({ text: t, correct: !!c })), explanation: explanation ?? undefined,
-      })),
-    })
-    if (r) quizCount++
+  if (on('quizzes')) {
+    step('Квизы')
+    const haveQuiz = new Set((await list('/quizzes')).map((q) => q.title))
+    let quizCount = 0
+    for (const q of QUIZZES) {
+      if (haveQuiz.has(q.title)) continue
+      const r = await tryPost('/quizzes', {
+        title: q.title, description: `Проверьте себя: ${q.subject.toLowerCase()}`, subjectId: subj(q.subject)?.id,
+        timeLimitSec: q.timeLimitSec, isPublished: true,
+        questions: q.questions.map(([kind, text, options, explanation]) => ({
+          kind, text, options: options.map(([t, c]) => ({ text: t, correct: !!c })), explanation: explanation ?? undefined,
+        })),
+      })
+      if (r) quizCount++
+    }
+    console.log(`  добавлено квизов: ${quizCount}`)
   }
-  console.log(`  квизов: ${quizCount}`)
 
   // Материалы библиотеки
-  step('Материалы')
-  const haveLib = new Set(((await tryGet('/library')) ?? []).map((m) => m.title))
-  for (const [title, type, url, subject, gradeNumber] of LIBRARY) {
-    if (haveLib.has(title)) continue
-    await tryPost('/library', { title, description: 'Материал для самостоятельной работы', type, url, subjectId: subject ? subj(subject)?.id : undefined, gradeNumber: gradeNumber ?? undefined })
+  if (on('library')) {
+    step('Материалы')
+    const haveLib = new Set((await list('/library')).map((m) => m.title))
+    for (const [title, type, url, subject, gradeNumber] of LIBRARY) {
+      if (haveLib.has(title)) continue
+      await tryPost('/library', { title, description: 'Материал для самостоятельной работы', type, url, subjectId: subject ? subj(subject)?.id : undefined, gradeNumber: gradeNumber ?? undefined })
+    }
   }
 
   // Чат: родители пишут администрации, администратор отвечает
-  step('Чат')
-  let chats = 0
-  for (const p of parents.slice(0, 4)) {
-    try {
-      const { accessToken } = await rawLogin(p.email, p.password)
-      const sent = await call('POST', '/chat/my/messages', { text: `Здравствуйте! Подскажите, пожалуйста, расписание на следующую неделю у ${p.student.firstName}.`, scope: 'ADMIN' }, { tok: accessToken, quiet: true })
-      if (sent) chats++
-    } catch {
-      /* чат или вход родителя недоступны — переходим дальше */
+  if (on('chat')) {
+    step('Чат')
+    const convs0 = await list('/chat/conversations')
+    if (convs0.length === 0 && parents.length) {
+      let chats = 0
+      for (const p of parents.slice(0, 4)) {
+        if (DRY) {
+          planned.set('POST /chat/my/messages', (planned.get('POST /chat/my/messages') ?? 0) + 1)
+          continue
+        }
+        try {
+          const { accessToken } = await rawLogin(p.email, p.password)
+          const sent = await call('POST', '/chat/my/messages', { text: `Здравствуйте! Подскажите, пожалуйста, расписание на следующую неделю у ${p.student.firstName}.`, scope: 'ADMIN' }, { tok: accessToken, quiet: true })
+          if (sent) chats++
+        } catch {
+          /* чат или вход родителя недоступны — переходим дальше */
+        }
+      }
+      const convs = await list('/chat/conversations')
+      for (const c of convs.slice(0, 4)) {
+        await tryPost(`/chat/conversations/${c.id}/messages`, { text: 'Добрый день! Расписание обновлено в разделе «Расписание», посмотрите, пожалуйста.' })
+      }
+      console.log(`  обращений родителей: ${chats}, диалогов: ${convs.length}`)
+    } else {
+      console.log(convs0.length ? '  переписка уже есть — пропускаю' : '  нет новых родителей для переписки — пропускаю')
     }
   }
-  const convs = (await tryGet('/chat/conversations')) ?? []
-  for (const c of convs.slice(0, 4)) {
-    await tryPost(`/chat/conversations/${c.id}/messages`, { text: 'Добрый день! Расписание обновлено в разделе «Расписание», посмотрите, пожалуйста.' })
-  }
-  console.log(`  обращений родителей: ${chats}, диалогов: ${convs.length}`)
 
   saveCreds()
+  if (DRY) {
+    console.log('\n══ ПРОБНЫЙ ЗАПУСК: ничего не записано. Было бы добавлено: ══')
+    if (planned.size === 0) console.log('  ничего — в системе уже есть всё нужное')
+    for (const [key, n] of planned) console.log(`  ${String(n).padStart(5)}  ${PLAN_LABELS[key] ?? key}`)
+    return
+  }
   console.log(`\n✔ Готово. Запросов: ${stats.ok} успешно, ${stats.fail} с ошибкой.`)
-  console.log(`  Логины и пароли созданных людей: ${OUT}`)
+  if (rows.length > 1) console.log(`  Логины и пароли созданных людей: ${OUT}`)
   if (failures.size) {
     console.log('\nОшибки (сгруппированы):')
     for (const [k, n] of failures) console.log(`  ×${n}  ${k}`)
-  }
-}
-
-async function tryGet(path) {
-  try {
-    return await get(path)
-  } catch {
-    return null
   }
 }
 
