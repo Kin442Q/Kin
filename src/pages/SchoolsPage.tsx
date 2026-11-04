@@ -13,7 +13,6 @@ import {
   Modal,
   Popconfirm,
   Row,
-  Segmented,
   Space,
   Table,
   Tag,
@@ -41,11 +40,10 @@ import { motion } from 'framer-motion'
 import { School } from 'lucide-react'
 import { SproutPageHeader } from '../components/sprout'
 import { http } from '../api'
+import FeaturesModal from '../components/FeaturesModal'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
-
-type InstitutionType = 'KINDERGARTEN' | 'SCHOOL'
 
 interface KindergartenApi {
   id: string
@@ -54,7 +52,6 @@ interface KindergartenApi {
   address: string | null
   phone: string | null
   isActive: boolean
-  type: InstitutionType
   createdAt: string
   stats: {
     usersCount: number
@@ -63,7 +60,7 @@ interface KindergartenApi {
   }
 }
 
-export default function KindergartensPage() {
+export default function SchoolsPage() {
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
   const isMobile = !screens.md
@@ -83,7 +80,8 @@ export default function KindergartensPage() {
     password: string
   } | null>(null)
 
-  const [createType, setCreateType] = useState<InstitutionType>('KINDERGARTEN')
+  // Школа, чьи разделы редактируются в модалке
+  const [featuresFor, setFeaturesFor] = useState<KindergartenApi | null>(null)
 
   const load = async () => {
     try {
@@ -94,7 +92,7 @@ export default function KindergartensPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить учреждения'
+        'Не удалось загрузить школы'
       message.error(msg)
     } finally {
       setLoading(false)
@@ -119,13 +117,11 @@ export default function KindergartensPage() {
     setEditing(null)
     form.resetFields()
     form.setFieldsValue({ phone: '+992 ' })
-    setCreateType('KINDERGARTEN')
     setDrawerOpen(true)
   }
 
   const openEdit = (k: KindergartenApi) => {
     setEditing(k)
-    setCreateType(k.type)
     form.setFieldsValue({
       name: k.name,
       address: k.address,
@@ -144,15 +140,13 @@ export default function KindergartensPage() {
           name: v.name,
           address: v.address || undefined,
           phone: v.phone || undefined,
-          type: createType,
         })
-        message.success('Учреждение обновлено')
+        message.success('Школа обновлена')
       } else {
         await http.post('/v1/kindergartens', {
           name: v.name,
           address: v.address || undefined,
           phone: v.phone || undefined,
-          type: createType,
           owner: {
             fullName: v.ownerFullName,
             email: v.ownerEmail.trim().toLowerCase(),
@@ -165,9 +159,7 @@ export default function KindergartensPage() {
           email: v.ownerEmail.trim().toLowerCase(),
           password: v.ownerPassword,
         })
-        message.success(
-          createType === 'SCHOOL' ? 'Школа создана' : 'Детский сад создан',
-        )
+        message.success('Школа создана')
       }
 
       setDrawerOpen(false)
@@ -201,13 +193,13 @@ export default function KindergartensPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Учреждения"
+        title="Школы"
         icon={<School size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Управление всеми учреждениями платформы — детскими садами и школами. Каждое учреждение изолировано."
+        description="Управление всеми школами платформы. Каждая школа изолирована: свои классы, ученики и данные."
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            {isMobile ? 'Новое' : 'Новое учреждение'}
+            {isMobile ? 'Новая' : 'Новая школа'}
           </Button>
         }
       />
@@ -216,7 +208,7 @@ export default function KindergartensPage() {
         type="info"
         showIcon
         message="Вы — владелец платформы"
-        description="Создавайте новые учреждения (детсады или школы) и назначайте им владельцев. У каждого учреждения своя изолированная база данных."
+        description="Создавайте школы и назначайте им директоров. Разделами каждой школы (кнопка «Разделы» в строке) вы управляете сами."
         style={{ marginBottom: 16 }}
       />
 
@@ -240,12 +232,7 @@ export default function KindergartensPage() {
                   <Space>
                     <Avatar
                       icon={<BankOutlined />}
-                      style={{
-                        background:
-                          k.type === 'SCHOOL'
-                            ? 'linear-gradient(135deg,#0EA5E9,#6366f1)'
-                            : 'linear-gradient(135deg,#4FB286,#a855f7)',
-                      }}
+                      style={{ background: 'linear-gradient(135deg,#0EA5E9,#6366f1)' }}
                     />
                     <div>
                       <div style={{ fontWeight: 600 }}>
@@ -257,16 +244,6 @@ export default function KindergartensPage() {
                     </div>
                   </Space>
                 ),
-              },
-              {
-                title: 'Тип',
-                key: 'type',
-                render: (_, k) =>
-                  k.type === 'SCHOOL' ? (
-                    <Tag color="geekblue">🏫 Школа</Tag>
-                  ) : (
-                    <Tag color="green">🌱 Детский сад</Tag>
-                  ),
               },
               {
                 title: 'Адрес',
@@ -324,6 +301,14 @@ export default function KindergartensPage() {
                 key: 'actions',
                 render: (_, k) => (
                   <Space>
+                    <Tooltip title="Разделы">
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<AppstoreOutlined />}
+                        onClick={() => setFeaturesFor(k)}
+                      />
+                    </Tooltip>
                     <Tooltip title="Редактировать">
                       <Button
                         size="small"
@@ -334,11 +319,7 @@ export default function KindergartensPage() {
                     </Tooltip>
                     <Popconfirm
                       title={`Удалить «${k.name}»?`}
-                      description={
-                        k.type === 'SCHOOL'
-                          ? 'Все данные школы (классы, ученики, оценки, домашка, платежи) удалятся безвозвратно!'
-                          : 'Все данные садика (группы, дети, платежи) удалятся безвозвратно!'
-                      }
+                      description="Все данные школы (классы, ученики, оценки, домашние задания, платежи) удалятся безвозвратно!"
                       okText="Удалить"
                       okButtonProps={{ danger: true }}
                       cancelText="Отмена"
@@ -360,7 +341,7 @@ export default function KindergartensPage() {
       </motion.div>
 
       <Drawer
-        title={editing ? 'Редактировать учреждение' : 'Новое учреждение'}
+        title={editing ? 'Редактировать школу' : 'Новая школа'}
         width={isMobile ? '100%' : 480}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
@@ -375,31 +356,7 @@ export default function KindergartensPage() {
         }
       >
         <Form layout="vertical" form={form}>
-          <Typography.Title level={5}>🏛 Тип учреждения</Typography.Title>
-          <Segmented<InstitutionType>
-            block
-            value={createType}
-            onChange={(v) => setCreateType(v)}
-            options={[
-              { value: 'KINDERGARTEN', label: '🌱 Детский сад' },
-              { value: 'SCHOOL', label: '🏫 Школа' },
-            ]}
-            style={{ marginBottom: 18 }}
-          />
-          <Alert
-            type="info"
-            showIcon
-            message={
-              createType === 'SCHOOL'
-                ? 'Интерфейс школы: классы, предметы, оценки, домашние задания, дневник.'
-                : 'Интерфейс детсада: группы, посещаемость, расписание занятий, питание, дневник.'
-            }
-            style={{ marginBottom: 18 }}
-          />
-
-          <Typography.Title level={5}>
-            📍 Информация {createType === 'SCHOOL' ? 'о школе' : 'о садике'}
-          </Typography.Title>
+          <Typography.Title level={5}>📍 Информация о школе</Typography.Title>
 
           <Form.Item
             name="name"
@@ -407,11 +364,7 @@ export default function KindergartensPage() {
             rules={[{ required: true, message: 'Введите название' }]}
           >
             <Input
-              placeholder={
-                createType === 'SCHOOL'
-                  ? 'Например, Школа №42'
-                  : 'Например, ДОУ «Радуга»'
-              }
+              placeholder="Например, Школа №42"
             />
           </Form.Item>
 
@@ -432,12 +385,8 @@ export default function KindergartensPage() {
               <Alert
                 type="info"
                 showIcon
-                message={
-                  createType === 'SCHOOL'
-                    ? 'Это будет владелец школы'
-                    : 'Это будет владелец садика'
-                }
-                description="Передайте ему email и пароль — он сможет управлять своим учреждением."
+                message="Это будет директор школы"
+                description="Передайте ему email и пароль — он сможет управлять своей школой."
                 style={{ marginBottom: 12 }}
               />
 
@@ -504,7 +453,7 @@ export default function KindergartensPage() {
         title={
           <Space>
             <KeyOutlined style={{ color: '#10b981' }} />
-            <span>Учётные данные владельца учреждения</span>
+            <span>Учётные данные директора школы</span>
           </Space>
         }
         open={!!credentialsModal}
@@ -516,7 +465,7 @@ export default function KindergartensPage() {
             onClick={() => {
               if (!credentialsModal) return
               const text =
-                `Maktab — Доступ к учреждению "${credentialsModal.kindergartenName}"\n\n` +
+                `Maktab — Доступ к школе "${credentialsModal.kindergartenName}"\n\n` +
                 `👤 ${credentialsModal.ownerName}\n` +
                 `📧 Email: ${credentialsModal.email}\n` +
                 `🔑 Пароль: ${credentialsModal.password}\n\n` +
@@ -558,7 +507,7 @@ export default function KindergartensPage() {
               <Row gutter={[8, 12]}>
                 <Col span={24}>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    <BankOutlined /> Садик
+                    <BankOutlined /> Школа
                   </Text>
                   <div style={{ fontWeight: 600, fontSize: 15 }}>
                     {credentialsModal.kindergartenName}
@@ -640,6 +589,8 @@ export default function KindergartensPage() {
           </div>
         )}
       </Modal>
+
+      <FeaturesModal school={featuresFor} onClose={() => setFeaturesFor(null)} />
     </div>
   )
 }

@@ -11,6 +11,8 @@ export interface JwtPayload {
   groupId?: string | null
   /** Для PARENT */
   childId?: string | null
+  /** Для STUDENT: ученик, чей это аккаунт */
+  studentId?: string | null
   /** Учреждение в режиме «живое демо» — мутации запрещены. */
   isDemo?: boolean
 }

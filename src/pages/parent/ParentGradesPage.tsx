@@ -22,6 +22,7 @@ import {
   type ParentGradeStats,
   type ParentHomework,
 } from '../../api/parentApi'
+import { STATUS_COLOR, STATUS_LABEL } from '../../api/schoolApi'
 
 const { Text } = Typography
 
@@ -284,7 +285,14 @@ export default function ParentGradesPage() {
                           >
                             {h.subject?.name ?? '—'}
                           </Tag>
-                          {overdue && <Tag color="red">просрочено</Tag>}
+                          {overdue && !h.submission && <Tag color="red">просрочено</Tag>}
+                          {h.submission && (
+                            <Tag color={STATUS_COLOR[h.submission.status]}>
+                              {h.submission.status === 'SUBMITTED'
+                                ? 'Ребёнок отметил «сделал», учитель проверит'
+                                : STATUS_LABEL[h.submission.status]}
+                            </Tag>
+                          )}
                         </Space>
                         <div
                           style={{
@@ -309,6 +317,11 @@ export default function ParentGradesPage() {
                             }}
                           >
                             {h.description}
+                          </div>
+                        )}
+                        {h.submission?.comment && h.submission.status !== 'SUBMITTED' && (
+                          <div style={{ fontSize: 13, color: SP.textMid, marginTop: 6 }}>
+                            Учитель: {h.submission.comment}
                           </div>
                         )}
                       </div>

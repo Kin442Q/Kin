@@ -105,7 +105,7 @@ export default function ImportStudentsModal({
   const [defaultGroupId, setDefaultGroupId] = useState<string | undefined>()
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const groupLabel = isSchool ? 'класс' : 'группа'
+  const groupLabel = 'класс'
 
   const resolveGroupId = (groupName?: string): string | undefined => {
     if (!groupName) return undefined
@@ -197,7 +197,7 @@ export default function ImportStudentsModal({
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['Фамилия', 'Имя', 'Отчество', 'Дата рождения', 'Пол', isSchool ? 'Класс' : 'Группа', 'Телефон мамы', 'Телефон папы'],
+      ['Фамилия', 'Имя', 'Отчество', 'Дата рождения', 'Пол', 'Класс', 'Телефон мамы', 'Телефон папы'],
       ['Каримова', 'Айша', 'Ивановна', '2020-05-01', 'Ж', groups[0]?.name ?? '', '+992900112233', ''],
     ])
     const wb = XLSX.utils.book_new()
@@ -399,7 +399,7 @@ export default function ImportStudentsModal({
               ),
             },
             {
-              title: isSchool ? 'Класс' : 'Группа',
+              title: 'Класс',
               width: 160,
               render: (_, r) => {
                 // Если задан класс по умолчанию — колонка disabled и показывает

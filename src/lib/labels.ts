@@ -1,8 +1,7 @@
 /**
- * Лейблы UI в зависимости от типа учреждения. Парные с mobile/src/theme/labels.ts.
+ * Подписи интерфейса. Платформа только для школ, поэтому набор один.
+ * Парные с mobile/src/theme/labels.ts.
  */
-import type { InstitutionType } from '../types'
-
 export interface UiLabels {
   institution: string
   group: string
@@ -14,19 +13,6 @@ export interface UiLabels {
   teachers: string
   parent: string
   classDescriptor: string
-}
-
-const KINDERGARTEN_LABELS: UiLabels = {
-  institution: 'садик',
-  group: 'группа',
-  inGroup: 'в группу',
-  groups: 'Группы',
-  student: 'ребёнок',
-  students: 'Дети',
-  teacher: 'воспитатель',
-  teachers: 'Воспитатели',
-  parent: 'родитель',
-  classDescriptor: 'возрастная группа',
 }
 
 const SCHOOL_LABELS: UiLabels = {
@@ -42,8 +28,8 @@ const SCHOOL_LABELS: UiLabels = {
   classDescriptor: 'класс',
 }
 
-export function labels(type?: InstitutionType | null): UiLabels {
-  return type === 'SCHOOL' ? SCHOOL_LABELS : KINDERGARTEN_LABELS
+export function labels(): UiLabels {
+  return SCHOOL_LABELS
 }
 
 export function cap(s: string): string {

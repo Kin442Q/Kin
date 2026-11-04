@@ -23,6 +23,7 @@ interface MockModel {
   deleteMany: AnyFn
   count: AnyFn
   aggregate: AnyFn
+  groupBy: AnyFn
 }
 
 function model(): MockModel {
@@ -41,6 +42,7 @@ function model(): MockModel {
     deleteMany: jest.fn(),
     count: jest.fn(),
     aggregate: jest.fn(),
+    groupBy: jest.fn(),
   }
 }
 
@@ -72,6 +74,19 @@ export function createPrismaMock() {
     monthlyReport: model(),
     conversation: model(),
     message: model(),
+    kindergartenFeature: model(),
+    homework: model(),
+    homeworkSubmission: model(),
+    grade: model(),
+    diaryEntry: model(),
+    kidNote: model(),
+    subject: model(),
+    libraryItem: model(),
+    examTrack: model(),
+    quiz: model(),
+    quizQuestion: model(),
+    quizAttempt: model(),
+    gameScore: model(),
     $transaction,
     $queryRaw: jest.fn(),
     $disconnect: jest.fn(),

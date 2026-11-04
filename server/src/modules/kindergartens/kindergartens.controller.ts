@@ -44,7 +44,6 @@ export class KindergartensController {
       name?: string
       address?: string
       phone?: string
-      type?: 'KINDERGARTEN' | 'SCHOOL'
       latitude?: number | null
       longitude?: number | null
       checkInRadiusMeters?: number
@@ -65,7 +64,6 @@ export class KindergartensController {
       name: string
       address?: string
       phone?: string
-      type?: 'KINDERGARTEN' | 'SCHOOL'
       owner: {
         fullName: string
         email: string
@@ -87,7 +85,6 @@ export class KindergartensController {
       address?: string
       phone?: string
       isActive?: boolean
-      type?: 'KINDERGARTEN' | 'SCHOOL'
       latitude?: number | null
       longitude?: number | null
       checkInRadiusMeters?: number

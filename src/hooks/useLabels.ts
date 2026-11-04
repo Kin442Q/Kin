@@ -1,11 +1,10 @@
-import { useAuthStore } from '../store/authStore'
 import { labels, type UiLabels } from '../lib/labels'
 
 /**
- * Хук-обёртка для веба. Возвращает лейблы UI исходя из институции пользователя.
- * Если у пользователя нет привязки или type = KINDERGARTEN — садиковые лейблы.
+ * Подписи интерфейса. Платформа только для школ: «класс», «ученик», «учитель».
+ * Хук оставлен, чтобы страницы не менялись, если подписи когда-то
+ * станут зависеть от настроек школы.
  */
 export function useLabels(): UiLabels {
-  const type = useAuthStore((s) => s.user?.institution?.type)
-  return labels(type)
+  return labels()
 }

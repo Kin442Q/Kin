@@ -216,31 +216,13 @@ export default function SettingsPage() {
                         value: i.id,
                         label: `${i.type === 'SCHOOL' ? '🏫' : '🌱'} ${i.name}`,
                       }))}
-                      notFoundContent="Учреждений нет"
+                      notFoundContent="Школ нет"
                     />
                     <div style={{ marginTop: 6, fontSize: 12, color: '#8a8a8a' }}>
                       Привязка геолокации сохранится для выбранного учреждения.
                     </div>
                   </div>
                 )}
-
-                <Space size="middle" style={{ marginBottom: 12 }}>
-                  <Text type="secondary">Тип учреждения:</Text>
-                  <Tag
-                    color={activeInst?.type === 'SCHOOL' ? 'geekblue' : 'green'}
-                    style={{ fontSize: 13, padding: '2px 10px' }}
-                  >
-                    {activeInst?.type === 'SCHOOL' ? '🏫 Школа' : '🌱 Детский сад'}
-                  </Tag>
-                </Space>
-                <div>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    Тип задаётся при создании учреждения владельцем платформы и
-                    не может быть изменён. Если нужна другая школа/садик —
-                    обратитесь к владельцу платформы для создания нового
-                    учреждения.
-                  </Text>
-                </div>
 
                 <Divider />
 

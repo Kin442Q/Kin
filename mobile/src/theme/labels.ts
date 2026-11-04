@@ -1,14 +1,10 @@
 /**
- * Лейблы UI в зависимости от типа учреждения.
- * Используем как `labels(type).group` — без if/else в компонентах.
- *
- * Для садика: «садик / группа / ребёнок / воспитатель»
- * Для школы:  «школа / класс / ученик / учитель»
+ * Подписи интерфейса. Платформа только для школ: «школа / класс / ученик / учитель».
+ * Парные с web/src/lib/labels.ts.
  */
-import type { InstitutionType } from '../api/auth'
 
 export interface UiLabels {
-  /** Тип учреждения как существительное: «садик» / «школа» */
+  /** «школа» */
   institution: string
   /** Существительное группы: «группа» / «класс» */
   group: string
@@ -30,19 +26,6 @@ export interface UiLabels {
   classDescriptor: string
 }
 
-const KINDERGARTEN_LABELS: UiLabels = {
-  institution: 'садик',
-  group: 'группа',
-  inGroup: 'в группу',
-  groups: 'Группы',
-  student: 'ребёнок',
-  students: 'Дети',
-  teacher: 'воспитатель',
-  teachers: 'Воспитатели',
-  parent: 'родитель',
-  classDescriptor: 'возрастная группа',
-}
-
 const SCHOOL_LABELS: UiLabels = {
   institution: 'школа',
   group: 'класс',
@@ -56,9 +39,8 @@ const SCHOOL_LABELS: UiLabels = {
   classDescriptor: 'класс',
 }
 
-/** Возвращает набор лейблов под тип учреждения. По умолчанию — садик. */
-export function labels(type?: InstitutionType | null): UiLabels {
-  return type === 'SCHOOL' ? SCHOOL_LABELS : KINDERGARTEN_LABELS
+export function labels(): UiLabels {
+  return SCHOOL_LABELS
 }
 
 /** Капитализация: «группа» → «Группа». */

@@ -24,7 +24,8 @@ describe('authStore', () => {
 
   it('login сохраняет user + token', () => {
     useAuthStore.getState().login(sampleUser, 'jwt-token')
-    expect(useAuthStore.getState().user).toEqual(sampleUser)
+    // ADMIN с бэкенда приводится к 'admin', как его проверяет интерфейс
+    expect(useAuthStore.getState().user).toEqual({ ...sampleUser, role: 'admin' })
     expect(useAuthStore.getState().token).toBe('jwt-token')
   })
 
@@ -58,6 +59,23 @@ describe('authStore', () => {
     expect(useAuthStore.getState().hasRole('ADMIN')).toBe(true)
     expect(useAuthStore.getState().hasRole('TEACHER')).toBe(false)
     expect(useAuthStore.getState().hasRole('ADMIN', 'TEACHER')).toBe(true)
+  })
+
+  it('ADMIN и admin — одна роль: и для входа, и для проверок', () => {
+    useAuthStore.getState().login(sampleUser)
+    expect(useAuthStore.getState().user?.role).toBe('admin')
+    expect(useAuthStore.getState().hasRole('admin')).toBe(true)
+    expect(useAuthStore.getState().hasRole('ADMIN')).toBe(true)
+    // роль, пришедшая позже через updateUser, тоже приводится
+    useAuthStore.getState().updateUser({ role: 'ADMIN' })
+    expect(useAuthStore.getState().user?.role).toBe('admin')
+  })
+
+  it('SUPER_ADMIN и TEACHER не меняются', () => {
+    useAuthStore.getState().login({ ...sampleUser, role: 'SUPER_ADMIN' })
+    expect(useAuthStore.getState().user?.role).toBe('SUPER_ADMIN')
+    useAuthStore.getState().login({ ...sampleUser, id: 'u2', role: 'TEACHER' })
+    expect(useAuthStore.getState().user?.role).toBe('TEACHER')
   })
 
   it('hasRole возвращает false если не залогинен', () => {

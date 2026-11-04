@@ -52,6 +52,7 @@ import {
   type TerminalSettings,
 } from '../api'
 import { formatMoneyCompact } from '../lib/format'
+import { serverOrigin } from '../lib/serverOrigin'
 
 const { useBreakpoint } = Grid
 const { Text } = Typography
@@ -901,7 +902,7 @@ function TerminalDrawer({
               Webhook URL (укажите в настройках терминала)
             </div>
             <Input
-              value={`https://kin-production-b330.up.railway.app${settings.webhookUrl}`}
+              value={`${serverOrigin()}${settings.webhookUrl}`}
               readOnly
               style={{ fontFamily: 'monospace', fontSize: 12 }}
               suffix={
@@ -910,7 +911,7 @@ function TerminalDrawer({
                   style={{ cursor: 'pointer', color: SP.muted }}
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `https://kin-production-b330.up.railway.app${settings.webhookUrl}`,
+                      `${serverOrigin()}${settings.webhookUrl}`,
                     )
                     message.success('Скопировано')
                   }}

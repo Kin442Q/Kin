@@ -28,6 +28,7 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 class UpsertDiaryDto {
   @IsString() groupId!: string
@@ -234,6 +235,7 @@ class DiaryService {
 
 @ApiTags('diary')
 @ApiBearerAuth()
+@Feature('diary')
 @Controller({ path: 'diary', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT')

@@ -28,6 +28,16 @@ function resetTenantData(previousUserId: string | null, newUserId: string) {
   }
 }
 
+/**
+ * Бэкенд отдаёт роль администратора как ADMIN, а интерфейс везде (меню, маршруты,
+ * страницы) проверяет 'admin'. Без приведения ADMIN не открывал ни одной страницы.
+ */
+const normalizeRole = (r: Role): Role => (r === 'ADMIN' ? 'admin' : r)
+
+export function normalizeUser(u: User): User {
+  return u.role === 'ADMIN' ? { ...u, role: normalizeRole(u.role) } : u
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -36,13 +46,13 @@ export const useAuthStore = create<AuthState>()(
       login: (user, token = 'demo-token') => {
         const prev = get().user
         resetTenantData(prev?.id || null, user.id)
-        set({ user, token })
+        set({ user: normalizeUser(user), token })
       },
       setToken: (token) => set({ token }),
       updateUser: (patch) => {
         const u = get().user
         if (!u) return
-        set({ user: { ...u, ...patch } })
+        set({ user: normalizeUser({ ...u, ...patch }) })
       },
       logout: () => {
         // При выходе тоже чистим — следующий вход начнётся с чистого листа
@@ -54,9 +64,17 @@ export const useAuthStore = create<AuthState>()(
       hasRole: (...roles) => {
         const u = get().user
         if (!u) return false
-        return roles.includes(u.role)
+        // ADMIN и admin — одна и та же роль
+        return roles.map(normalizeRole).includes(normalizeRole(u.role))
       },
     }),
-    { name: 'kg_auth' },
+    {
+      name: 'kg_auth',
+      // Старые сессии из localStorage хранят ADMIN — приводим при загрузке.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<AuthState>
+        return { ...current, ...p, user: p.user ? normalizeUser(p.user) : null }
+      },
+    },
   ),
 )

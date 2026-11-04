@@ -25,6 +25,7 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 class CreateMenuDto {
   @IsDateString() date!: string
@@ -125,6 +126,7 @@ class MenuService {
 
 @ApiTags('menu')
 @ApiBearerAuth()
+@Feature('menu')
 @Controller({ path: 'menu', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')

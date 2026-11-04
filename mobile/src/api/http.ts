@@ -1,10 +1,9 @@
 import axios from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-
-const BASE_URL = 'https://kin-production-b330.up.railway.app/api'
+import { API_URL } from '../lib/config'
 
 export const http = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_URL,
   timeout: 15_000,
 })
 

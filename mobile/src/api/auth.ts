@@ -1,6 +1,14 @@
 import { http } from './http'
 
-export type Role = 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'PARENT' | 'teacher' | 'admin' | 'parent'
+export type Role =
+  | 'SUPER_ADMIN'
+  | 'ADMIN'
+  | 'TEACHER'
+  | 'PARENT'
+  | 'STUDENT'
+  | 'teacher'
+  | 'admin'
+  | 'parent'
 
 export type InstitutionType = 'KINDERGARTEN' | 'SCHOOL'
 
@@ -25,6 +33,10 @@ export interface User {
   phone?: string | null
   /** Заполняется только в ответе /auth/me, не в login (для обратной совместимости) */
   institution?: InstitutionDto | null
+  /** Включённые разделы учреждения (ключи из lib/features.ts). Есть в /auth/me. */
+  features?: string[]
+  /** Классы, где пользователь — классный руководитель. Есть в /auth/me. */
+  homeroomGroups?: Array<{ id: string; name: string }>
 }
 
 export interface LoginResponse {

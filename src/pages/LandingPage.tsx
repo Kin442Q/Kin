@@ -19,7 +19,9 @@ export default function LandingPage() {
   const [loadingDemo, setLoadingDemo] = useState(false)
 
   const homeFor = (role: string) =>
-    role === 'PARENT'
+    role === 'STUDENT'
+      ? '/student/home'
+      : role === 'PARENT'
       ? '/parent/home'
       : role === 'TEACHER' || role === 'teacher'
         ? '/teacher/dashboard'
@@ -54,6 +56,7 @@ export default function LandingPage() {
           groupId: user.groupId ?? undefined,
           childId: user.childId ?? undefined,
           institution,
+          features: user.features,
         },
         accessToken,
       )

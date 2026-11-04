@@ -33,15 +33,13 @@ import { cap } from '../theme/labels'
 import { parentApi, type KidDto, type KidTodayDto } from '../api/parent'
 import type { AttendanceStatus } from '../api/attendance'
 
-function statusMeta(type: 'KINDERGARTEN' | 'SCHOOL' | null | undefined): Record<
+function statusMeta(): Record<
   AttendanceStatus,
   { label: string; bg: string; fg: string; emoji: string }
 > {
-  const place = type === 'SCHOOL' ? 'в школе' : 'в саду'
-  const placeNeg = type === 'SCHOOL' ? 'Нет в школе' : 'Нет в саду'
   return {
-    PRESENT: { label: `В ${place === 'в школе' ? 'школе' : 'саду'}`, bg: colors.primarySoft, fg: colors.primaryDeep, emoji: '🟢' },
-    ABSENT: { label: placeNeg, bg: colors.roseSoft, fg: colors.roseDeep, emoji: '🔴' },
+    PRESENT: { label: 'В школе', bg: colors.primarySoft, fg: colors.primaryDeep, emoji: '🟢' },
+    ABSENT: { label: 'Нет в школе', bg: colors.roseSoft, fg: colors.roseDeep, emoji: '🔴' },
     SICK: { label: 'Болеет', bg: colors.yellowSoft, fg: colors.yellowDeep, emoji: '🤒' },
     VACATION: { label: 'В отпуске', bg: colors.lilacSoft, fg: colors.lilacDeep, emoji: '🌴' },
   }
@@ -50,7 +48,7 @@ function statusMeta(type: 'KINDERGARTEN' | 'SCHOOL' | null | undefined): Record<
 export default function ParentHomeScreen() {
   const user = useAuthStore((s) => s.user)
   const L = useLabels()
-  const STATUS_META = statusMeta(user?.institution?.type)
+  const STATUS_META = statusMeta()
 
   const [kids, setKids] = useState<KidDto[]>([])
   const [activeKidId, setActiveKidId] = useState<string | null>(null)

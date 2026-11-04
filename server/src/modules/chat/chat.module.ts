@@ -26,6 +26,7 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 class SendMessageDto {
   @IsString() @MinLength(1) @MaxLength(2000) text!: string
@@ -266,6 +267,53 @@ export class ChatService {
     return { sent }
   }
 
+  /**
+   * Сотрудник пишет всем активным родителям одного ученика в общий канал
+   * (GENERAL): каждому создаётся или переиспользуется его переписка с классом,
+   * сообщение уходит с пушем и в Telegram, как обычное. Доступ сотрудника к
+   * ученику проверяет вызывающий (ClassAccessService).
+   */
+  async sendToStudentParents(
+    user: AuthUser,
+    studentId: string,
+    text: string,
+  ): Promise<{ sent: number }> {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: {
+        groupId: true,
+        kindergartenId: true,
+        parents: { where: { isActive: true }, select: { id: true } },
+      },
+    })
+    if (!student) throw new NotFoundException('Ученик не найден')
+
+    const legacy = await this.prisma.user.findMany({
+      where: { role: 'PARENT', childId: studentId, isActive: true },
+      select: { id: true },
+    })
+    const parentIds = Array.from(
+      new Set([...student.parents.map((p) => p.id), ...legacy.map((l) => l.id)]),
+    )
+
+    for (const parentId of parentIds) {
+      const conv = await this.prisma.conversation.upsert({
+        where: {
+          groupId_parentId_scope: { groupId: student.groupId, parentId, scope: 'GENERAL' },
+        },
+        create: {
+          groupId: student.groupId,
+          parentId,
+          scope: 'GENERAL',
+          kindergartenId: student.kindergartenId,
+        },
+        update: {},
+      })
+      await this.send(user, conv.id, text)
+    }
+    return { sent: parentIds.length }
+  }
+
   private async send(
     user: AuthUser,
     conversationId: string,
@@ -478,6 +526,7 @@ export class ChatService {
 
 @ApiTags('chat')
 @ApiBearerAuth()
+@Feature('chat')
 @Controller({ path: 'chat', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT')
@@ -518,6 +567,9 @@ class ChatController {
     )
   }
 
+  // Handler-level @Feature перекрывает class-level 'chat': напоминания об
+  // оплате закрываются вместе с разделом «Оплата», а не с чатом целиком.
+  @Feature('payments')
   @Post('payment-reminder')
   @Roles('SUPER_ADMIN', 'ADMIN')
   @ApiOperation({
@@ -566,5 +618,6 @@ class ChatController {
   ],
   controllers: [ChatController],
   providers: [ChatService, ChatGateway],
+  exports: [ChatService],
 })
 export class ChatModule {}

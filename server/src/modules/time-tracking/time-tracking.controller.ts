@@ -28,6 +28,7 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 enum VerifyMethodDto {
   MANUAL = 'MANUAL',
@@ -72,6 +73,7 @@ class SetFaceBody {
 
 @ApiTags('time-tracking')
 @ApiBearerAuth()
+@Feature('timesheet')
 @Controller({ path: 'time', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')

@@ -15,7 +15,7 @@ async function main() {
   const pwTeacher = await bcrypt.hash('Teacher123456!', 10)
 
   // ---------- Глобальный супер-админ (владелец платформы) --------
-  // У этого пользователя НЕТ kindergartenId — он управляет всеми садиками.
+  // У этого пользователя НЕТ kindergartenId — он управляет всеми школами.
   const pwOwner = await bcrypt.hash('Owner123456!', 10)
   await prisma.user.upsert({
     where: { email: 'owner@kindergarten.tj' },
@@ -36,18 +36,19 @@ async function main() {
     update: {},
     create: {
       slug: 'default',
-      name: 'Мой Детский Сад',
+      name: 'Моя школа',
       address: 'Душанбе',
       isActive: true,
+      type: 'SCHOOL',
     },
   })
 
   // ---------- Группы --------------------------------------------
   const groups = [
-    { id: 'g-sun',    name: 'Солнышко',  ageRange: '3–4 года', capacity: 20, monthlyFee: 1200, fixedMonthlyExpense: 6000, color: '#f59e0b' },
-    { id: 'g-star',   name: 'Звёздочка', ageRange: '4–5 лет',  capacity: 20, monthlyFee: 1300, fixedMonthlyExpense: 6500, color: '#6366f1' },
-    { id: 'g-rain',   name: 'Радуга',    ageRange: '5–6 лет',  capacity: 20, monthlyFee: 1400, fixedMonthlyExpense: 7000, color: '#10b981' },
-    { id: 'g-flower', name: 'Цветочек',  ageRange: '2–3 года', capacity: 20, monthlyFee: 1100, fixedMonthlyExpense: 7500, color: '#ec4899' },
+    { id: 'g-sun',    name: '1А',        ageRange: '7–8 лет',  capacity: 20, monthlyFee: 1200, fixedMonthlyExpense: 6000, color: '#f59e0b' },
+    { id: 'g-star',   name: '2А',        ageRange: '8–9 лет',  capacity: 20, monthlyFee: 1300, fixedMonthlyExpense: 6500, color: '#6366f1' },
+    { id: 'g-rain',   name: '3А',        ageRange: '9–10 лет', capacity: 20, monthlyFee: 1400, fixedMonthlyExpense: 7000, color: '#10b981' },
+    { id: 'g-flower', name: '4А',        ageRange: '10–11 лет', capacity: 20, monthlyFee: 1100, fixedMonthlyExpense: 7500, color: '#ec4899' },
   ]
   for (const g of groups) {
     await prisma.group.upsert({
@@ -189,23 +190,23 @@ async function main() {
 
   console.log('✓ Seed выполнен. Учетные данные:')
   console.log('')
-  console.log('🌐 ВЛАДЕЛЕЦ ПЛАТФОРМЫ (управляет всеми садиками):')
+  console.log('🌐 ВЛАДЕЛЕЦ ПЛАТФОРМЫ (управляет всеми школами):')
   console.log('   Email: owner@kindergarten.tj')
   console.log('   Пароль: Owner123456!')
   console.log('')
-  console.log('👑 SUPER ADMIN садика "Мой Детский Сад":')
+  console.log('👑 SUPER ADMIN школы "Моя школа":')
   console.log('   Email: superadmin@kindergarten.tj')
   console.log('   Пароль: Admin123456!')
   console.log('')
-  console.log('👤 АДМИНИСТРАТОР садика:')
+  console.log('👤 АДМИНИСТРАТОР школы:')
   console.log('   Email: admin@kindergarten.tj')
   console.log('   Пароль: Admin123456!')
   console.log('')
   console.log('👨‍🏫 УЧИТЕЛЯ (одинаковый пароль: Teacher123456!):')
-  console.log('   +992901111111 → Зарина (Солнышко)    · T001 · 45 сом/ч')
-  console.log('   +992902222222 → Мадина (Звёздочка)   · T002 · 50 сом/ч')
-  console.log('   +992903333333 → Шахноза (Радуга)     · T003 · 55 сом/ч')
-  console.log('   +992904444444 → Гулнора (Цветочек)   · T004 · 50 сом/ч')
+  console.log('   +992901111111 → Зарина (1А)          · T001 · 45 сом/ч')
+  console.log('   +992902222222 → Мадина (2А)          · T002 · 50 сом/ч')
+  console.log('   +992903333333 → Шахноза (3А)         · T003 · 55 сом/ч')
+  console.log('   +992904444444 → Гулнора (4А)         · T004 · 50 сом/ч')
 }
 
 main()

@@ -7,6 +7,7 @@ import LandingPage from "./pages/LandingPage";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireRole from "./components/auth/RequireRole";
 import { useAuthStore } from "./store/authStore";
+import { useSessionSync } from "./hooks/useSessionSync";
 
 import Dashboard from "./pages/Dashboard";
 import ChildrenPage from "./pages/ChildrenPage";
@@ -18,7 +19,18 @@ import ExpensesPage from "./pages/ExpensesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import StaffPage from "./pages/StaffPage";
 import TeachersPage from "./pages/TeachersPage";
-import KindergartensPage from "./pages/KindergartensPage";
+import SchoolsPage from "./pages/SchoolsPage";
+import HomeroomPage from "./pages/HomeroomPage";
+import StudentHomePage from "./pages/student/StudentHomePage";
+import StudentHomeworkPage from "./pages/student/StudentHomeworkPage";
+import StudentGradesPage from "./pages/student/StudentGradesPage";
+import StudentLibraryPage from "./pages/student/StudentLibraryPage";
+import StudentQuizzesPage from "./pages/student/StudentQuizzesPage";
+import StudentQuizPlayPage from "./pages/student/StudentQuizPlayPage";
+import StudentExamPage from "./pages/student/StudentExamPage";
+import StudentGamesPage from "./pages/student/StudentGamesPage";
+import LibraryPage from "./pages/LibraryPage";
+import QuizzesPage from "./pages/QuizzesPage";
 import SchedulePage from "./pages/SchedulePage";
 import MeetingsPage from "./pages/MeetingsPage";
 import TeacherDashboard from "./pages/TeacherDashboard";
@@ -42,12 +54,17 @@ export default function App() {
   const user = useAuthStore((s) => s.user);
   const isTeacher = user?.role === "TEACHER" || user?.role === "teacher";
   const isParent = user?.role === "PARENT";
+  const isStudent = user?.role === "STUDENT";
+
+  useSessionSync();
 
   // Куда направлять домой по умолчанию:
   //   PARENT → личный кабинет родителя
   //   TEACHER → свой кабинет
   //   остальные → admin/dashboard
-  const homePath = isParent
+  const homePath = isStudent
+    ? "/student/home"
+    : isParent
     ? "/parent/home"
     : isTeacher
       ? "/teacher/dashboard"
@@ -81,6 +98,74 @@ export default function App() {
             />
           </Route>
 
+          <Route path="student">
+            <Route index element={<Navigate to="home" replace />} />
+            <Route
+              path="home"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="portal">
+                  <StudentHomePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="homework"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="homework">
+                  <StudentHomeworkPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="grades"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="grades">
+                  <StudentGradesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="library"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="library">
+                  <StudentLibraryPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="quizzes"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="quiz">
+                  <StudentQuizzesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="quizzes/:id"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="quiz">
+                  <StudentQuizPlayPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="exam"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="exam_prep">
+                  <StudentExamPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="games"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="games">
+                  <StudentGamesPage />
+                </RequireRole>
+              }
+            />
+          </Route>
+
           <Route path="parent">
             <Route index element={<Navigate to="home" replace />} />
             <Route
@@ -94,7 +179,7 @@ export default function App() {
             <Route
               path="schedule"
               element={
-                <RequireRole roles={["PARENT"]}>
+                <RequireRole roles={["PARENT"]} feature="schedule">
                   <ParentSchedulePage />
                 </RequireRole>
               }
@@ -102,7 +187,7 @@ export default function App() {
             <Route
               path="grades"
               element={
-                <RequireRole roles={["PARENT"]}>
+                <RequireRole roles={["PARENT"]} feature="grades">
                   <ParentGradesPage />
                 </RequireRole>
               }
@@ -110,7 +195,7 @@ export default function App() {
             <Route
               path="payments"
               element={
-                <RequireRole roles={["PARENT"]}>
+                <RequireRole roles={["PARENT"]} feature="payments">
                   <ParentPaymentsPage />
                 </RequireRole>
               }
@@ -118,7 +203,7 @@ export default function App() {
             <Route
               path="chat"
               element={
-                <RequireRole roles={["PARENT"]}>
+                <RequireRole roles={["PARENT"]} feature="chat">
                   <ChatPage />
                 </RequireRole>
               }
@@ -138,7 +223,7 @@ export default function App() {
             <Route
               path="groups"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="groups">
                   <GroupsPage />
                 </RequireRole>
               }
@@ -146,7 +231,7 @@ export default function App() {
             <Route
               path="groups/:id"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="groups">
                   <GroupDetailPage />
                 </RequireRole>
               }
@@ -154,7 +239,7 @@ export default function App() {
             <Route
               path="children"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="students">
                   <ChildrenPage />
                 </RequireRole>
               }
@@ -162,7 +247,7 @@ export default function App() {
             <Route
               path="attendance"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="attendance">
                   <AttendancePage />
                 </RequireRole>
               }
@@ -170,7 +255,7 @@ export default function App() {
             <Route
               path="payments"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="payments">
                   <PaymentsPage />
                 </RequireRole>
               }
@@ -178,7 +263,7 @@ export default function App() {
             <Route
               path="expenses"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="expenses">
                   <ExpensesPage />
                 </RequireRole>
               }
@@ -186,7 +271,7 @@ export default function App() {
             <Route
               path="analytics"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="analytics">
                   <AnalyticsPage />
                 </RequireRole>
               }
@@ -194,7 +279,7 @@ export default function App() {
             <Route
               path="staff"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="staff">
                   <StaffPage />
                 </RequireRole>
               }
@@ -202,23 +287,49 @@ export default function App() {
             <Route
               path="teachers"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="teachers">
                   <TeachersPage />
                 </RequireRole>
               }
             />
             <Route
-              path="kindergartens"
+              path="schools"
               element={
                 <RequireRole roles={["SUPER_ADMIN"]}>
-                  <KindergartensPage />
+                  <SchoolsPage />
+                </RequireRole>
+              }
+            />
+            {/* Старый адрес: закладки и ссылки продолжают работать */}
+            <Route path="kindergartens" element={<Navigate to="/admin/schools" replace />} />
+            <Route
+              path="homeroom"
+              element={
+                <RequireRole roles={["TEACHER", "SUPER_ADMIN", "admin"]} feature="homeroom">
+                  <HomeroomPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="library"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="library">
+                  <LibraryPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="quizzes"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="quiz">
+                  <QuizzesPage />
                 </RequireRole>
               }
             />
             <Route
               path="schedule"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="schedule">
                   <SchedulePage />
                 </RequireRole>
               }
@@ -226,7 +337,7 @@ export default function App() {
             <Route
               path="meetings"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="meetings">
                   <MeetingsPage />
                 </RequireRole>
               }
@@ -234,7 +345,7 @@ export default function App() {
             <Route
               path="timesheet"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="timesheet">
                   <TimesheetPage />
                 </RequireRole>
               }
@@ -242,7 +353,7 @@ export default function App() {
             <Route
               path="menu"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="menu">
                   <MenuPage />
                 </RequireRole>
               }
@@ -258,7 +369,7 @@ export default function App() {
             <Route
               path="subjects"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="subjects">
                   <SubjectsPage />
                 </RequireRole>
               }
@@ -266,7 +377,7 @@ export default function App() {
             <Route
               path="grades"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="grades">
                   <GradesPage />
                 </RequireRole>
               }
@@ -274,7 +385,7 @@ export default function App() {
             <Route
               path="homework"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="homework">
                   <HomeworkPage />
                 </RequireRole>
               }
@@ -282,7 +393,7 @@ export default function App() {
             <Route
               path="checkin-audit"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="timesheet">
                   <CheckInAuditPage />
                 </RequireRole>
               }
@@ -290,7 +401,7 @@ export default function App() {
             <Route
               path="terms"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="terms">
                   <TermsPage />
                 </RequireRole>
               }
@@ -298,7 +409,7 @@ export default function App() {
             <Route
               path="chat"
               element={
-                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]}>
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="chat">
                   <ChatPage />
                 </RequireRole>
               }

@@ -13,7 +13,6 @@ interface CreateKindergartenDto {
   name: string
   address?: string
   phone?: string
-  type?: 'KINDERGARTEN' | 'SCHOOL'
   owner: {
     fullName: string
     email: string
@@ -26,7 +25,6 @@ interface UpdateKindergartenDto {
   address?: string
   phone?: string
   isActive?: boolean
-  type?: 'KINDERGARTEN' | 'SCHOOL'
   latitude?: number | null
   longitude?: number | null
   checkInRadiusMeters?: number
@@ -128,7 +126,8 @@ export class KindergartensService {
           address: dto.address?.trim() || null,
           phone: dto.phone?.trim() || null,
           isActive: true,
-          type: dto.type ?? 'KINDERGARTEN',
+          // Платформа только для школ — тип не выбирается.
+          type: 'SCHOOL',
         },
       })
 
@@ -162,9 +161,7 @@ export class KindergartensService {
 
   /**
    * Обновление текущего учреждения «своими» админами (без прав global-owner).
-   * Тип учреждения (KINDERGARTEN / SCHOOL) задаётся ОДИН раз при создании
-   * глобальным владельцем платформы и не меняется. Админ может править только
-   * имя, адрес, телефон и геолокацию check-in.
+   * Админ школы может править только имя, адрес, телефон и геолокацию check-in.
    */
   async updateMine(user: AuthUser, dto: UpdateKindergartenDto) {
     if (!user.kindergartenId) {
@@ -173,9 +170,7 @@ export class KindergartensService {
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Доступ только для администратора')
     }
-    // Принудительно отрезаем type — администратор учреждения не может его менять.
-    const { type: _ignored, ...allowed } = dto
-    return this.applyUpdate(user.kindergartenId, allowed)
+    return this.applyUpdate(user.kindergartenId, dto)
   }
 
   private async applyUpdate(id: string, dto: UpdateKindergartenDto) {
@@ -187,7 +182,6 @@ export class KindergartensService {
     if (dto.address !== undefined) data.address = dto.address?.trim() || null
     if (dto.phone !== undefined) data.phone = dto.phone?.trim() || null
     if (dto.isActive !== undefined) data.isActive = dto.isActive
-    if (dto.type !== undefined) data.type = dto.type
     if (dto.latitude !== undefined) data.latitude = dto.latitude
     if (dto.longitude !== undefined) data.longitude = dto.longitude
     if (dto.checkInRadiusMeters !== undefined) {
@@ -209,9 +203,19 @@ export class KindergartensService {
     const existing = await this.prisma.kindergarten.findUnique({
       where: { id },
     })
-    if (!existing) throw new NotFoundException('Садик не найден')
+    if (!existing) throw new NotFoundException('Школа не найдена')
 
-    await this.prisma.kindergarten.delete({ where: { id } })
+    // Оценки, ДЗ, дневник, заметки и сообщения ссылаются на пользователей без
+    // каскада — без этого школа с такими данными не удалялась (409 «Нарушение
+    // связи»). Сначала убираем их, затем школу, всё в одной транзакции.
+    await this.prisma.$transaction([
+      this.prisma.message.deleteMany({ where: { conversation: { kindergartenId: id } } }),
+      this.prisma.homework.deleteMany({ where: { group: { kindergartenId: id } } }),
+      this.prisma.grade.deleteMany({ where: { student: { kindergartenId: id } } }),
+      this.prisma.diaryEntry.deleteMany({ where: { group: { kindergartenId: id } } }),
+      this.prisma.kidNote.deleteMany({ where: { student: { kindergartenId: id } } }),
+      this.prisma.kindergarten.delete({ where: { id } }),
+    ])
     return { success: true }
   }
 

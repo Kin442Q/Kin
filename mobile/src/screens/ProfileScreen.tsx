@@ -20,6 +20,7 @@ import {
   CalendarHeart,
   ChevronRight,
   MessageCircle,
+  Users,
 } from 'lucide-react-native'
 import Constants from 'expo-constants'
 import Screen from '../components/Screen'
@@ -30,6 +31,7 @@ import BottomModal from '../components/BottomModal'
 import { colors, radius } from '../theme/colors'
 import { http } from '../api/http'
 import { useAuthStore } from '../store/authStore'
+import { hasFeature } from '../lib/features'
 import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
 
@@ -82,7 +84,7 @@ export default function ProfileScreen() {
     Alert.alert(
       'Настройки',
       `Учреждение: ${inst?.name ?? '—'}\n` +
-        `Тип: ${inst?.type === 'SCHOOL' ? 'Школа' : 'Детский сад'}\n` +
+        `Тип: Школа\n` +
         `Версия приложения: ${Constants.expoConfig?.version ?? '1.0.0'}\n\n` +
         'Push-уведомления включаются при первом входе. Если не приходят — проверьте разрешения в настройках телефона.',
     )
@@ -102,7 +104,9 @@ export default function ProfileScreen() {
         ? 'Администратор'
         : r === 'TEACHER'
           ? cap(L.teacher)
-          : cap(L.parent)
+          : r === 'STUDENT'
+            ? cap(L.student)
+            : cap(L.parent)
 
   return (
     <Screen>
@@ -125,22 +129,44 @@ export default function ProfileScreen() {
                 title={L.students}
                 onPress={() => navigation.navigate('AdminStudents')}
               />
-              <ListRow
-                icon={<Receipt size={18} color={colors.roseDeep} />}
-                bg={colors.roseSoft}
-                title="Расходы"
-                onPress={() => navigation.navigate('AdminExpenses')}
-              />
-              <ListRow
-                icon={<CalendarHeart size={18} color={colors.lilacDeep} />}
-                bg={colors.lilacSoft}
-                title="Собрания"
-                onPress={() => navigation.navigate('AdminMeetings')}
-                last
-              />
+              {hasFeature(user, 'expenses') && (
+                <ListRow
+                  icon={<Receipt size={18} color={colors.roseDeep} />}
+                  bg={colors.roseSoft}
+                  title="Расходы"
+                  onPress={() => navigation.navigate('AdminExpenses')}
+                  last={!hasFeature(user, 'meetings')}
+                />
+              )}
+              {hasFeature(user, 'meetings') && (
+                <ListRow
+                  icon={<CalendarHeart size={18} color={colors.lilacDeep} />}
+                  bg={colors.lilacSoft}
+                  title="Собрания"
+                  onPress={() => navigation.navigate('AdminMeetings')}
+                  last
+                />
+              )}
             </View>
           </>
         )}
+
+        {isTeacher &&
+          hasFeature(user, 'homeroom') &&
+          (user?.homeroomGroups?.length ?? 0) > 0 && (
+            <>
+              <Text style={styles.section}>Классное руководство</Text>
+              <View style={styles.list}>
+                <ListRow
+                  icon={<Users size={18} color={colors.primaryDeep} />}
+                  bg={colors.primarySoft}
+                  title={`Мой класс · ${user!.homeroomGroups!.map((g) => g.name).join(', ')}`}
+                  onPress={() => navigation.navigate('TeacherHomeroom')}
+                  last
+                />
+              </View>
+            </>
+          )}
 
         {(isParent || isTeacher) && (
           <>

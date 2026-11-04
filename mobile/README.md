@@ -78,15 +78,11 @@ npm start
 
 ## Конфигурация бэка
 
-URL бэка прибит в [src/api/http.ts](src/api/http.ts):
+Адрес бэка по умолчанию (боевой Railway) задан в [src/lib/config.ts](src/lib/config.ts). Его можно переопределить переменной `EXPO_PUBLIC_API_URL` — без правки кода (шаблон: [.env.example](.env.example)).
 
-```ts
-const BASE_URL = 'https://kin-production-b330.up.railway.app/api'
-```
-
-Чтобы временно подключиться к локальному бэку:
+Чтобы подключиться к локальному бэку:
 1. Найди IP ноута в Wi-Fi: `ipconfig` → `IPv4 Address` (например `192.168.1.42`)
-2. Замени `BASE_URL` на `http://192.168.1.42:4000/api`
+2. Создай `mobile/.env.local` (не коммитится): `EXPO_PUBLIC_API_URL=http://192.168.1.42:4000` (без `/api` на конце), затем Reload в приложении
 3. Бэк должен быть запущен с `npm run start:dev` (см. [server/README](../server))
 
 ---

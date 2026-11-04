@@ -33,7 +33,7 @@ import { parentApi, type ParentKid, type ParentToday } from '../../api/parentApi
 const { Text, Title } = Typography
 
 function attendanceMeta(isSchool: boolean) {
-  const present = isSchool ? 'В школе' : 'В саду'
+  const present = 'В школе'
   return {
     PRESENT: { label: present, color: SP.primaryDeep, bg: SP.primarySoft, emoji: '🟢' },
     ABSENT: { label: 'Нет', color: SP.danger, bg: '#FCEAE5', emoji: '🔴' },
@@ -112,7 +112,7 @@ export default function ParentHomePage() {
           <SproutEmpty
             icon={<Baby size={32} strokeWidth={1.8} />}
             title="Нет привязанных детей"
-            description={`Обратитесь к администратору ${isSchool ? 'школы' : 'сада'}.`}
+            description={`Обратитесь к администратору школы.`}
             minHeight={200}
           />
         </Card>
@@ -167,7 +167,7 @@ export default function ParentHomePage() {
                     {kid.firstName}
                   </Title>
                   <Text type="secondary">
-                    {isSchool ? 'Класс' : 'Группа'} «{kid.group?.name ?? '—'}»
+                    {'Класс'} «{kid.group?.name ?? '—'}»
                     {kid.group?.ageRange ? ` · ${kid.group.ageRange}` : ''}
                   </Text>
                 </div>
@@ -185,7 +185,7 @@ export default function ParentHomePage() {
               >
                 {meta
                   ? `${meta.emoji} ${meta.label}`
-                  : `⚪ ${isSchool ? 'Учитель' : 'Воспитатель'} ещё не отметил`}
+                  : `⚪ Учитель ещё не отметил`}
               </div>
 
               {lastPayment && (
@@ -283,7 +283,7 @@ export default function ParentHomePage() {
           ) : (
             <Card className="glass" bordered={false}>
               <Empty
-                description={`${isSchool ? 'Учитель' : 'Воспитатель'} ещё не заполнил дневник на сегодня`}
+                description={`Учитель ещё не заполнил дневник на сегодня`}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             </Card>
@@ -300,7 +300,7 @@ export default function ParentHomePage() {
             <Card
               className="glass"
               bordered={false}
-              title={`Сегодня ${isSchool ? 'в школе' : 'в саду'}`}
+              title={`Сегодня в школе`}
             >
               {lessons.length === 0 ? (
                 <Empty

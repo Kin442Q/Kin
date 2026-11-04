@@ -35,6 +35,7 @@ import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { Feature } from '../../common/decorators/feature.decorator'
 
 // ─── DTOs ─────────────────────────────────────────────────────────────
 
@@ -444,6 +445,7 @@ class SchoolService {
 
 @ApiTags('subjects')
 @ApiBearerAuth()
+@Feature('subjects')
 @Controller({ path: 'subjects', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')
@@ -481,6 +483,7 @@ class SubjectsController {
 
 @ApiTags('grades')
 @ApiBearerAuth()
+@Feature('grades')
 @Controller({ path: 'grades', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')
@@ -523,6 +526,7 @@ class GradesController {
 
 @ApiTags('homework')
 @ApiBearerAuth()
+@Feature('homework')
 @Controller({ path: 'homework', version: '1' })
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')

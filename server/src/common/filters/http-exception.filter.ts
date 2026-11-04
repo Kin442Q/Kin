@@ -24,7 +24,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus() ?? HttpStatus.INTERNAL_SERVER_ERROR
     const payload = exception.getResponse() as
       | string
-      | { message: string | string[]; error?: string }
+      | { message: string | string[]; error?: string; code?: string; feature?: string }
 
     if (status >= 500) {
       this.logger.error(`${req.method} ${req.url} → ${status}`, exception.stack)
@@ -40,6 +40,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
           : Array.isArray(payload.message)
             ? payload.message.join(', ')
             : payload.message,
+      // Машиночитаемый код (например FEATURE_DISABLED) — фронт по нему
+      // отличает «раздел выключен» от обычного 403.
+      ...(typeof payload === 'object' && payload.code
+        ? { code: payload.code, ...(payload.feature ? { feature: payload.feature } : {}) }
+        : {}),
     })
   }
 }

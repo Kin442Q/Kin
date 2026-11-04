@@ -13,6 +13,9 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { Roles } from '../../common/decorators/roles.decorator'
+import { Feature } from '../../common/decorators/feature.decorator'
+import { FeaturesModule } from '../features/features.module'
+import { FeaturesService } from '../features/features.service'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
@@ -38,7 +41,10 @@ function normPayment<T extends { amount: unknown } | null>(p: T): T {
  */
 @Injectable()
 class ParentService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly features: FeaturesService,
+  ) {}
 
   /** Список детей текущего родителя (childId + many-to-many parents). */
   async myKids(user: AuthUser) {
@@ -179,13 +185,19 @@ class ParentService {
 
   async kidHomework(user: AuthUser, kidId: string) {
     const kid = await this.ensureKidAccess(user, kidId)
-    return this.prisma.homework.findMany({
+    const list = await this.prisma.homework.findMany({
       where: { groupId: kid.groupId },
       orderBy: { dueDate: 'asc' },
       include: {
         subject: { select: { id: true, name: true, color: true } },
+        // Как мой ребёнок выполнил это ДЗ (нет записи — ещё не отмечено).
+        submissions: {
+          where: { studentId: kidId },
+          select: { status: true, comment: true, updatedAt: true },
+        },
       },
     })
+    return list.map(({ submissions, ...hw }) => ({ ...hw, submission: submissions[0] ?? null }))
   }
 
   /** Сводка для главного экрана: ребёнок + статус на сегодня + следующее занятие + дневник. */
@@ -201,28 +213,46 @@ class ParentService {
     const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     const todayStart = new Date(todayStr)
 
+    // Данные выключенных разделов не отдаём, даже внутри общей сводки «сегодня».
+    const [withAttendance, withSchedule, withPayments, withDiary] = await Promise.all([
+      this.features.isEnabled(user.kindergartenId, 'attendance'),
+      this.features.isEnabled(user.kindergartenId, 'schedule'),
+      this.features.isEnabled(user.kindergartenId, 'payments'),
+      this.features.isEnabled(user.kindergartenId, 'diary'),
+    ])
+
     const [todayAttendance, todaySchedule, lastPayment, todayDiary, todayKidNote] =
       await Promise.all([
-        this.prisma.attendance.findFirst({
-          where: { studentId: kidId, date: todayStart },
-        }),
-        this.prisma.scheduleItem.findMany({
-          where: {
-            groupId: kid.groupId,
-            dayOfWeek: ((new Date().getDay() + 6) % 7) + 1, // Mon=1..Sun=7
-          },
-          orderBy: { startTime: 'asc' },
-        }),
-        this.prisma.payment.findFirst({
-          where: { studentId: kidId },
-          orderBy: { month: 'desc' },
-        }),
-        this.prisma.diaryEntry.findUnique({
-          where: { groupId_date: { groupId: kid.groupId, date: todayStart } },
-        }),
-        this.prisma.kidNote.findUnique({
-          where: { studentId_date: { studentId: kidId, date: todayStart } },
-        }),
+        withAttendance
+          ? this.prisma.attendance.findFirst({
+              where: { studentId: kidId, date: todayStart },
+            })
+          : null,
+        withSchedule
+          ? this.prisma.scheduleItem.findMany({
+              where: {
+                groupId: kid.groupId,
+                dayOfWeek: ((new Date().getDay() + 6) % 7) + 1, // Mon=1..Sun=7
+              },
+              orderBy: { startTime: 'asc' },
+            })
+          : [],
+        withPayments
+          ? this.prisma.payment.findFirst({
+              where: { studentId: kidId },
+              orderBy: { month: 'desc' },
+            })
+          : null,
+        withDiary
+          ? this.prisma.diaryEntry.findUnique({
+              where: { groupId_date: { groupId: kid.groupId, date: todayStart } },
+            })
+          : null,
+        withDiary
+          ? this.prisma.kidNote.findUnique({
+              where: { studentId_date: { studentId: kidId, date: todayStart } },
+            })
+          : null,
       ])
 
     return {
@@ -256,11 +286,13 @@ class ParentController {
     return this.service.kidToday(user, id)
   }
 
+  @Feature('schedule')
   @Get('kids/:id/schedule')
   kidSchedule(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.kidSchedule(user, id)
   }
 
+  @Feature('attendance')
   @Get('kids/:id/attendance')
   kidAttendance(
     @CurrentUser() user: AuthUser,
@@ -271,11 +303,13 @@ class ParentController {
     return this.service.kidAttendance(user, id, from, to)
   }
 
+  @Feature('payments')
   @Get('kids/:id/payments')
   kidPayments(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.kidPayments(user, id)
   }
 
+  @Feature('grades')
   @Get('kids/:id/grades')
   kidGrades(
     @CurrentUser() user: AuthUser,
@@ -286,6 +320,7 @@ class ParentController {
     return this.service.kidGrades(user, id, from, to)
   }
 
+  @Feature('grades')
   @Get('kids/:id/grades/stats')
   kidGradeStats(
     @CurrentUser() user: AuthUser,
@@ -296,6 +331,7 @@ class ParentController {
     return this.service.kidGradeStats(user, id, from, to)
   }
 
+  @Feature('homework')
   @Get('kids/:id/homework')
   kidHomework(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.kidHomework(user, id)
@@ -303,6 +339,7 @@ class ParentController {
 }
 
 @Module({
+  imports: [FeaturesModule],
   controllers: [ParentController],
   providers: [ParentService],
 })

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common'
 import { Prisma, StudentStatus } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import { randomInt } from 'node:crypto'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { CreateStudentDto, UpdateStudentDto } from './dto/student.dto'
 import type { AuthUser } from '../../common/types/jwt-payload'
@@ -524,6 +525,140 @@ export class StudentsService {
         data: { childId: null },
       })
     }
+  }
+
+  // ─── Аккаунт ученика (вход в кабинет ученика) ───────────────────────
+
+  /**
+   * Доступ ученику выдают админ школы или классный руководитель его класса.
+   * Возвращает ученика вместе с текущим аккаунтом (если есть).
+   */
+  private async studentForAccount(studentId: string, user: AuthUser) {
+    const student = await this.prisma.student.findUnique({
+      where: { id: studentId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        kindergartenId: true,
+        group: { select: { homeroomTeacherId: true } },
+        account: { select: { id: true, email: true, isActive: true, lastLoginAt: true } },
+      },
+    })
+    if (!student) throw new NotFoundException('Ученик не найден')
+    if (user.kindergartenId && student.kindergartenId !== user.kindergartenId) {
+      throw new ForbiddenException('Ученик из другой школы')
+    }
+    const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN'
+    const isHomeroom = user.role === 'TEACHER' && student.group.homeroomTeacherId === user.sub
+    if (!isAdmin && !isHomeroom) {
+      throw new ForbiddenException('Доступ ученику выдаёт администратор или классный руководитель')
+    }
+    return student
+  }
+
+  private serializeAccount(a: {
+    id: string
+    email: string
+    isActive: boolean
+    lastLoginAt: Date | null
+  }) {
+    return { id: a.id, login: a.email, isActive: a.isActive, lastLoginAt: a.lastLoginAt }
+  }
+
+  /** Пароль без похожих символов (0/O, 1/l/I), чтобы его можно было продиктовать. */
+  private generatePassword(length = 8) {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+    return Array.from({ length }, () => alphabet[randomInt(alphabet.length)]).join('')
+  }
+
+  /** Логин ученика — email-вида, чтобы входить той же формой, что и все. */
+  private async uniqueStudentLogin(wanted?: string) {
+    if (wanted?.trim()) {
+      let login = wanted.trim().toLowerCase()
+      if (!login.includes('@')) login = `${login}@students.local`
+      if (!/^[a-z0-9._-]{2,40}@[a-z0-9.-]+$/.test(login)) {
+        throw new BadRequestException('Логин: латиница, цифры, точка, дефис, подчёркивание')
+      }
+      if (await this.prisma.user.findUnique({ where: { email: login } })) {
+        throw new ConflictException('Такой логин уже занят')
+      }
+      return login
+    }
+    const chars = '0123456789abcdefghjkmnpqrstuvwxyz'
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const suffix = Array.from({ length: 6 }, () => chars[randomInt(chars.length)]).join('')
+      const login = `st${suffix}@students.local`
+      if (!(await this.prisma.user.findUnique({ where: { email: login } }))) return login
+    }
+    throw new ConflictException('Не удалось подобрать свободный логин, попробуйте ещё раз')
+  }
+
+  async getAccount(studentId: string, user: AuthUser) {
+    const s = await this.studentForAccount(studentId, user)
+    return s.account ? this.serializeAccount(s.account) : null
+  }
+
+  /** Создать вход ученику. Пароль возвращается один раз — его нужно передать ученику. */
+  async createAccount(
+    studentId: string,
+    dto: { login?: string; password?: string },
+    user: AuthUser,
+  ) {
+    const s = await this.studentForAccount(studentId, user)
+    if (s.status !== 'ACTIVE') {
+      throw new BadRequestException('Аккаунт можно создать только действующему ученику')
+    }
+    if (s.account) throw new ConflictException('У ученика уже есть аккаунт')
+    if (dto.password !== undefined && dto.password.length < 6) {
+      throw new BadRequestException('Пароль минимум 6 символов')
+    }
+
+    const login = await this.uniqueStudentLogin(dto.login)
+    const password = dto.password ?? this.generatePassword()
+    const created = await this.prisma.user.create({
+      data: {
+        email: login,
+        passwordHash: await bcrypt.hash(password, 10),
+        fullName: `${s.firstName} ${s.lastName}`.trim(),
+        role: 'STUDENT',
+        studentId: s.id,
+        kindergartenId: s.kindergartenId,
+        isActive: true,
+      },
+      select: { id: true, email: true, isActive: true, lastLoginAt: true },
+    })
+    return { account: this.serializeAccount(created), password }
+  }
+
+  /** Новый пароль ученику (старый перестаёт работать). Возвращается один раз. */
+  async resetAccountPassword(studentId: string, dto: { password?: string }, user: AuthUser) {
+    const s = await this.studentForAccount(studentId, user)
+    if (!s.account) throw new NotFoundException('У ученика нет аккаунта')
+    if (dto.password !== undefined && dto.password.length < 6) {
+      throw new BadRequestException('Пароль минимум 6 символов')
+    }
+    const password = dto.password ?? this.generatePassword()
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: s.account.id },
+        data: { passwordHash: await bcrypt.hash(password, 10), isActive: true },
+      }),
+      // старые сессии ученика закрываем
+      this.prisma.refreshToken.updateMany({
+        where: { userId: s.account.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ])
+    return { account: this.serializeAccount({ ...s.account, isActive: true }), password }
+  }
+
+  /** Отобрать доступ: аккаунт удаляется, ученик и его данные остаются. */
+  async removeAccount(studentId: string, user: AuthUser) {
+    const s = await this.studentForAccount(studentId, user)
+    if (!s.account) return
+    await this.prisma.user.delete({ where: { id: s.account.id } })
   }
 
   private serializeParent(u: {
