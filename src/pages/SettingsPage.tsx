@@ -34,11 +34,15 @@ import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import InstitutionMap from '../components/InstitutionMap'
 import { http } from '../api'
+import { LANGS, useLangStore, useT, type Lang } from '../i18n'
 
 const { Text, Title } = Typography
 
 export default function SettingsPage() {
   const { message } = AntdApp.useApp()
+  const t = useT()
+  const lang = useLangStore((s) => s.lang)
+  const setLang = useLangStore((s) => s.setLang)
   const mode = useThemeStore((s) => s.mode)
   const setMode = useThemeStore((s) => s.setMode)
   const seed = useDataStore((s) => s.seedDemo)
@@ -81,9 +85,9 @@ export default function SettingsPage() {
         setSelectedInstId((prev) => prev ?? r.data[0]?.id ?? null)
       })
       .catch((e: any) =>
-        message.error(e?.response?.data?.message || 'Не удалось загрузить учреждения'),
+        message.error(e?.response?.data?.message || t('settings.loadInstFail')),
       )
-  }, [isOwner, message])
+  }, [isOwner, message, t])
 
   // Заполняем форму данными активного учреждения.
   useEffect(() => {
@@ -99,7 +103,7 @@ export default function SettingsPage() {
 
   const useBrowserGeo = () => {
     if (!navigator.geolocation) {
-      message.error('Геолокация недоступна в этом браузере')
+      message.error(t('settings.geoUnavailable'))
       return
     }
     navigator.geolocation.getCurrentPosition(
@@ -108,10 +112,10 @@ export default function SettingsPage() {
           latitude: Number(pos.coords.latitude.toFixed(6)),
           longitude: Number(pos.coords.longitude.toFixed(6)),
         })
-        message.success('Координаты текущей позиции записаны')
+        message.success(t('settings.geoSet'))
       },
       (err) => {
-        message.error('Не удалось получить координаты: ' + err.message)
+        message.error(t('settings.geoFail') + ' ' + err.message)
       },
       { enableHighAccuracy: true, timeout: 10000 },
     )
@@ -119,7 +123,7 @@ export default function SettingsPage() {
 
   const saveInstitution = async () => {
     if (isOwner && !selectedInstId) {
-      message.warning('Сначала выберите учреждение')
+      message.warning(t('settings.pickFirst'))
       return
     }
     try {
@@ -136,7 +140,7 @@ export default function SettingsPage() {
         longitude: values.longitude ?? null,
         checkInRadiusMeters: values.checkInRadiusMeters,
       })
-      message.success('Сохранено')
+      message.success(t('settings.saved'))
       if (isOwner) {
         // обновляем локальный список выбранного учреждения
         setInstitutions((list) =>
@@ -167,7 +171,7 @@ export default function SettingsPage() {
       }
     } catch (e: any) {
       if (e?.errorFields) return // ant-d form errors
-      message.error(e?.response?.data?.message || 'Ошибка сохранения')
+      message.error(e?.response?.data?.message || t('settings.saveFail'))
     } finally {
       setSavingInst(false)
     }
@@ -176,10 +180,10 @@ export default function SettingsPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Настройки"
+        title={t('settings.title')}
         icon={<SettingsIcon size={22} strokeWidth={2} />}
         iconAccent="cyan"
-        description="Параметры приложения и управление данными"
+        description={t('settings.description')}
       />
 
       <Row gutter={[16, 16]}>
@@ -195,18 +199,18 @@ export default function SettingsPage() {
                 bordered={false}
                 title={
                   <>
-                    <HomeOutlined /> Настройки учреждения
+                    <HomeOutlined /> {t('settings.instTitle')}
                   </>
                 }
               >
                 {isOwner && (
                   <div style={{ marginBottom: 16 }}>
                     <Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>
-                      Учреждение
+                      {t('settings.institution')}
                     </Text>
                     <Select
                       style={{ width: '100%', marginTop: 4, maxWidth: 420 }}
-                      placeholder="Выберите учреждение"
+                      placeholder={t('settings.pickInstitution')}
                       value={selectedInstId ?? undefined}
                       onChange={(v) => setSelectedInstId(v)}
                       showSearch
@@ -215,10 +219,10 @@ export default function SettingsPage() {
                         value: i.id,
                         label: `${i.type === 'SCHOOL' ? '🏫' : '🌱'} ${i.name}`,
                       }))}
-                      notFoundContent="Школ нет"
+                      notFoundContent={t('settings.noSchools')}
                     />
                     <div style={{ marginTop: 6, fontSize: 12, color: 'var(--sp-muted)' }}>
-                      Привязка геолокации сохранится для выбранного учреждения.
+                      {t('settings.geoSavedFor')}
                     </div>
                   </div>
                 )}
@@ -231,21 +235,19 @@ export default function SettingsPage() {
                   onFinish={saveInstitution}
                 >
                   <Form.Item
-                    label="Название"
+                    label={t('settings.name')}
                     name="name"
-                    rules={[{ required: true, message: 'Укажите название' }]}
+                    rules={[{ required: true, message: t('settings.nameRequired') }]}
                   >
-                    <Input placeholder="ДОУ «Солнышко» или Школа №42" />
+                    <Input placeholder={t('settings.namePlaceholder')} />
                   </Form.Item>
 
                   <Divider orientation="left" plain>
-                    <EnvironmentOutlined /> Геолокация для check-in
+                    <EnvironmentOutlined /> {t('settings.geoTitle')}
                   </Divider>
 
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Кликните по карте чтобы поставить точку или перетащите
-                    маркер. Учитель сможет отметить приход только в пределах
-                    зелёного круга.
+                    {t('settings.geoHelp')}
                   </Text>
 
                   <Form.Item shouldUpdate noStyle>
@@ -271,7 +273,7 @@ export default function SettingsPage() {
 
                   <Row gutter={16}>
                     <Col xs={24} md={8}>
-                      <Form.Item label="Широта" name="latitude">
+                      <Form.Item label={t('settings.latitude')} name="latitude">
                         <InputNumber
                           style={{ width: '100%' }}
                           step={0.000001}
@@ -280,7 +282,7 @@ export default function SettingsPage() {
                       </Form.Item>
                     </Col>
                     <Col xs={24} md={8}>
-                      <Form.Item label="Долгота" name="longitude">
+                      <Form.Item label={t('settings.longitude')} name="longitude">
                         <InputNumber
                           style={{ width: '100%' }}
                           step={0.000001}
@@ -290,7 +292,7 @@ export default function SettingsPage() {
                     </Col>
                     <Col xs={24} md={8}>
                       <Form.Item
-                        label="Радиус (м)"
+                        label={t('settings.radius')}
                         name="checkInRadiusMeters"
                         rules={[
                           {
@@ -317,10 +319,10 @@ export default function SettingsPage() {
                       icon={<AimOutlined />}
                       onClick={useBrowserGeo}
                     >
-                      Взять текущие координаты
+                      {t('settings.useCurrent')}
                     </Button>
                     <Button type="primary" htmlType="submit" loading={savingInst}>
-                      Сохранить
+                      {t('common.save')}
                     </Button>
                     {activeInst?.latitude != null && activeInst?.longitude != null && (
                       <a
@@ -328,7 +330,7 @@ export default function SettingsPage() {
                         target="_blank"
                         rel="noreferrer"
                       >
-                        <Button>Открыть на карте</Button>
+                        <Button>{t('settings.openMap')}</Button>
                       </a>
                     )}
                   </Space>
@@ -340,25 +342,42 @@ export default function SettingsPage() {
 
         <Col xs={24} md={12}>
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            <Card className="glass" bordered={false} title={<><BulbOutlined /> Внешний вид</>}>
-              <Text type="secondary">Тема оформления</Text>
+            <Card className="glass" bordered={false} title={<><BulbOutlined /> {t('settings.appearance')}</>}>
+              <Text type="secondary">{t('settings.themeLabel')}</Text>
               <div className="mt-2">
                 <Segmented
                   value={mode}
                   onChange={(v) => setMode(v as 'light' | 'dark')}
                   options={[
-                    { value: 'light', label: 'Светлая — закат над горами' },
-                    { value: 'dark', label: 'Тёмная — ночное небо' },
+                    { value: 'light', label: t('settings.themeLight') },
+                    { value: 'dark', label: t('settings.themeDark') },
                   ]}
                 />
                 <div style={{ marginTop: 6 }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    Тему можно переключить и в шапке — значок солнца или луны.
+                    {t('settings.themeHint')}
                   </Text>
                 </div>
               </div>
               <Divider />
-              <Text type="secondary">Текущий пользователь</Text>
+              <Text type="secondary">{t('lang.title')}</Text>
+              <div className="mt-2">
+                <Segmented
+                  value={lang}
+                  onChange={(v) => setLang(v as Lang)}
+                  options={LANGS.map((l) => ({
+                    value: l.code,
+                    label: <span lang={l.htmlLang}>{l.name}</span>,
+                  }))}
+                />
+                <div style={{ marginTop: 6 }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    {t('lang.hint')}
+                  </Text>
+                </div>
+              </div>
+              <Divider />
+              <Text type="secondary">{t('settings.currentUser')}</Text>
               <div className="mt-2">
                 <Space>
                   <Text strong>{user?.fullName}</Text>
@@ -371,43 +390,43 @@ export default function SettingsPage() {
 
         <Col xs={24} md={12}>
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.1 }}>
-            <Card className="glass" bordered={false} title={<><FileDoneOutlined /> Данные</>}>
-              <Text type="secondary">
-                Загрузите демо-данные, чтобы увидеть систему «вживую», или сбросьте всё.
-              </Text>
+            <Card className="glass" bordered={false} title={<><FileDoneOutlined /> {t('settings.data')}</>}>
+              <Text type="secondary">{t('settings.dataHelp')}</Text>
               <Space className="mt-3" wrap>
                 <Button
                   icon={<ReloadOutlined />}
                   onClick={() => {
                     seed()
-                    message.success('Демо-данные загружены')
+                    message.success(t('settings.demoLoaded'))
                   }}
                 >
-                  Загрузить демо
+                  {t('settings.loadDemo')}
                 </Button>
                 <Popconfirm
-                  title="Сбросить все данные?"
-                  description="Это удалит группы, детей, оплаты, расходы и сотрудников."
-                  okText="Сбросить"
-                  cancelText="Отмена"
+                  title={t('settings.resetTitle')}
+                  description={t('settings.resetDesc')}
+                  okText={t('settings.resetOk')}
+                  cancelText={t('common.cancel')}
                   onConfirm={() => {
                     reset()
-                    message.success('Данные сброшены')
+                    message.success(t('settings.resetDone'))
                   }}
                 >
-                  <Button danger>Сбросить всё</Button>
+                  <Button danger>{t('settings.resetAll')}</Button>
                 </Popconfirm>
               </Space>
               <Divider />
               <Title level={5} style={{ marginTop: 0 }}>
-                Информация о системе
+                {t('settings.sysInfo')}
               </Title>
               <ul className="text-sm space-y-1">
                 <li>
-                  Версия: <Tag color="purple">v2.0</Tag>
+                  {t('settings.version')} <Tag color="purple">v2.0</Tag>
                 </li>
-                <li>Хранилище: localStorage (демо-режим)</li>
-                <li>Локаль: русский</li>
+                <li>{t('settings.storage')}</li>
+                <li>
+                  {t('settings.localeLine')} {t('settings.localeName')}
+                </li>
               </ul>
             </Card>
           </motion.div>

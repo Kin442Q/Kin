@@ -7,6 +7,7 @@ import AppSidebar from './AppSidebar'
 import AppHeader from './AppHeader'
 import { useTenantSync } from '../../hooks/useTenantSync'
 import { useAuthStore } from '../../store/authStore'
+import { useT } from '../../i18n'
 import { SP } from '../sprout'
 
 const { Content, Sider } = Layout
@@ -24,6 +25,7 @@ export default function AppLayout() {
   const isMobile = !screens.md
 
   const navigate = useNavigate()
+  const t = useT()
   const isDemo = useAuthStore((s) => !!s.user?.institution?.isDemo)
   const logout = useAuthStore((s) => s.logout)
   const exitDemo = () => {
@@ -98,7 +100,7 @@ export default function AppLayout() {
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <Lock size={14} aria-hidden="true" />
-              Демо-режим — данные доступны только для просмотра, изменения отключены.
+              {t('layout.demoBanner')}
             </span>
             <button
               type="button"
@@ -115,7 +117,7 @@ export default function AppLayout() {
                 fontFamily: 'inherit',
               }}
             >
-              Выйти из демо
+              {t('layout.exitDemo')}
             </button>
           </div>
         )}

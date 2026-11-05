@@ -17,6 +17,7 @@ import { SproutCard, SP } from './sprout'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { useLabels } from '../hooks/useLabels'
+import { useT } from '../i18n'
 import { http } from '../api'
 
 interface Step {
@@ -35,6 +36,7 @@ interface Step {
  */
 export default function OnboardingChecklist() {
   const navigate = useNavigate()
+  const t = useT()
   const user = useAuthStore((s) => s.user)
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
@@ -70,37 +72,37 @@ export default function OnboardingChecklist() {
       {
         key: 'geo',
         icon: <MapPin size={18} />,
-        title: 'Геолокация для check-in',
-        hint: 'Чтобы учителя отмечались только на территории',
+        title: t('onb.geo'),
+        hint: t('onb.geoHint'),
         done: hasGeo,
         to: '/admin/settings',
       },
       {
         key: 'groups',
         icon: <Users2 size={18} />,
-        title: `Создать классы`,
-        hint: `Хотя бы один класс`,
+        title: t('onb.classes'),
+        hint: t('onb.classesHint'),
         done: groups.length > 0,
         to: '/admin/groups',
       },
       {
         key: 'students',
         icon: <Baby size={18} />,
-        title: `Добавить учеников`,
-        hint: 'Вручную или импортом из Excel/фото',
+        title: t('onb.students'),
+        hint: t('onb.studentsHint'),
         done: children.length > 0,
         to: '/admin/children',
       },
       {
         key: 'teachers',
         icon: <GraduationCap size={18} />,
-        title: `Добавить учителей`,
-        hint: 'Создать аккаунты сотрудников',
+        title: t('onb.teachers'),
+        hint: t('onb.teachersHint'),
         done: (teacherCount ?? 0) > 0,
         to: '/admin/teachers',
       },
     ]
-  }, [inst, groups.length, children.length, teacherCount, isSchool])
+  }, [inst, groups.length, children.length, teacherCount, isSchool, t])
 
   const doneCount = steps.filter((s) => s.done).length
   const total = steps.length
@@ -142,14 +144,10 @@ export default function OnboardingChecklist() {
               <div style={{ fontSize: 22 }}>{allDone ? '🎉' : '🚀'}</div>
               <div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: SP.text }}>
-                  {allDone
-                    ? 'Учреждение настроено!'
-                    : 'Настройка учреждения'}
+                  {allDone ? t('onb.doneTitle') : t('onb.title')}
                 </div>
                 <div style={{ fontSize: 12, color: SP.textMid }}>
-                  {allDone
-                    ? 'Всё готово к работе. Можно скрыть эту подсказку.'
-                    : `Готово ${doneCount} из ${total} шагов`}
+                  {allDone ? t('onb.doneText') : t('onb.progress', { done: doneCount, total })}
                 </div>
               </div>
             </div>
@@ -160,7 +158,7 @@ export default function OnboardingChecklist() {
                 icon={<PartyPopper size={14} />}
                 onClick={finish}
               >
-                Завершить
+                {t('onb.finish')}
               </Button>
             ) : (
               <Button
@@ -168,7 +166,7 @@ export default function OnboardingChecklist() {
                 type="text"
                 icon={<X size={15} />}
                 onClick={finish}
-                title="Скрыть"
+                title={t('onb.hide')}
               />
             )}
           </div>

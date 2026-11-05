@@ -31,7 +31,7 @@ import { motion } from 'framer-motion'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import { useAuthStore } from '../../store/authStore'
-import { useLabels } from '../../hooks/useLabels'
+import { useT, type MsgKey } from '../../i18n'
 import { hasFeature, type FeatureKey } from '../../lib/features'
 import { SP, SproutLogo, BrandMark } from '../sprout'
 import { initialsOf, roleLabel } from '../../lib/roles'
@@ -82,8 +82,8 @@ type SectionKey =
 
 interface NavEntry {
   key: string
-  /** Текст пункта — статический или функция от лейблов институции (для «Группы»/«Классы») */
-  label: string | ((L: { groups: string; students: string }) => string)
+  /** Ключ подписи пункта в словаре переводов (src/i18n) */
+  labelKey: MsgKey
   icon: ReactNode
   /** Класс из index.css: sp-icon-mint / sp-icon-blue / ... */
   accentClass: string
@@ -102,19 +102,8 @@ interface NavEntry {
 
 const ICON_SIZE = 18
 
-const SECTION_TITLES: Record<SectionKey, string> = {
-  platform: 'Платформа',
-  main: 'Основное',
-  composition: 'Состав',
-  studying: 'Учебный процесс',
-  finance: 'Финансы',
-  hr: 'Персонал',
-  system: 'Система',
-  'my-group': 'Мой класс',
-  communication: 'Общение',
-  parent: 'Мой ребёнок',
-  student: 'Мой кабинет',
-}
+/** Заголовок раздела меню: ключ «nav.section.<раздел>» в словаре переводов. */
+const sectionTitleKey = (sec: SectionKey): MsgKey => `nav.section.${sec}`
 
 const SECTION_ORDER: SectionKey[] = [
   'platform',
@@ -134,7 +123,7 @@ const NAV: NavEntry[] = [
   // ─── Платформа (только глобальный владелец) ──────────────────────
   {
     key: '/admin/schools',
-    label: 'Школы',
+    labelKey: 'nav.schools',
     icon: <School size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN'],
@@ -145,7 +134,7 @@ const NAV: NavEntry[] = [
   // ─── Основное ────────────────────────────────────────────────────
   {
     key: '/teacher/dashboard',
-    label: 'Мой кабинет',
+    labelKey: 'nav.myCabinet',
     icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['TEACHER', 'teacher'],
@@ -153,7 +142,7 @@ const NAV: NavEntry[] = [
   },
   {
     key: '/admin/dashboard',
-    label: 'Главная',
+    labelKey: 'nav.home',
     icon: <HomeIcon size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -165,7 +154,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/groups',
     feature: 'groups',
-    label: (l) => l.groups,
+    labelKey: 'nav.classes',
     icon: <LayoutGrid size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -175,7 +164,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/children',
     feature: 'students',
-    label: (l) => l.students,
+    labelKey: 'nav.students',
     icon: <Baby size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -185,7 +174,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/subjects',
     feature: 'subjects',
-    label: 'Предметы',
+    labelKey: 'nav.subjects',
     icon: <BookMarked size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -195,7 +184,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/terms',
     feature: 'terms',
-    label: 'Учебные периоды',
+    labelKey: 'nav.terms',
     icon: <CalendarRange size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -207,7 +196,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/children',
     feature: 'students',
-    label: (l) => l.students,
+    labelKey: 'nav.students',
     icon: <Baby size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['TEACHER'],
@@ -216,7 +205,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/attendance',
     feature: 'attendance',
-    label: 'Посещаемость',
+    labelKey: 'nav.attendance',
     icon: <ClipboardCheck size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
     roles: ['TEACHER'],
@@ -225,7 +214,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/menu',
     feature: 'menu',
-    label: 'Меню питания',
+    labelKey: 'nav.menu',
     icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['TEACHER'],
@@ -235,7 +224,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/homeroom',
     feature: 'homeroom',
-    label: 'Сводка класса',
+    labelKey: 'nav.homeroom',
     icon: <Users size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
     roles: ['TEACHER'],
@@ -249,7 +238,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/grades',
     feature: 'grades',
-    label: 'Журнал оценок',
+    labelKey: 'nav.grades',
     icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
@@ -259,7 +248,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/homework',
     feature: 'homework',
-    label: 'Домашние задания',
+    labelKey: 'nav.homework',
     icon: <BookOpen size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
@@ -269,7 +258,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/schedule',
     feature: 'schedule',
-    label: 'Расписание уроков',
+    labelKey: 'nav.schedule',
     icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
@@ -280,7 +269,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/menu',
     feature: 'menu',
-    label: 'Меню питания',
+    labelKey: 'nav.menu',
     icon: <UtensilsCrossed size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -290,7 +279,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/attendance',
     feature: 'attendance',
-    label: 'Посещаемость',
+    labelKey: 'nav.attendance',
     icon: <ClipboardCheck size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -301,7 +290,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/homeroom',
     feature: 'homeroom',
-    label: 'Сводка класса',
+    labelKey: 'nav.homeroom',
     icon: <Users size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -312,7 +301,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/library',
     feature: 'library',
-    label: 'Библиотека',
+    labelKey: 'nav.library',
     icon: <Library size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
@@ -322,7 +311,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/quizzes',
     feature: 'quiz',
-    label: 'Квизы',
+    labelKey: 'nav.quizzes',
     icon: <ListChecks size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
@@ -334,7 +323,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/payments',
     feature: 'payments',
-    label: 'Оплата',
+    labelKey: 'nav.payments',
     icon: <Wallet size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-rose',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -344,7 +333,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/expenses',
     feature: 'expenses',
-    label: 'Расходы',
+    labelKey: 'nav.expenses',
     icon: <PieChart size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-pink',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -354,7 +343,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/analytics',
     feature: 'analytics',
-    label: 'Аналитика',
+    labelKey: 'nav.analytics',
     icon: <TrendingUp size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -366,7 +355,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/staff',
     feature: 'staff',
-    label: 'Сотрудники',
+    labelKey: 'nav.staff',
     icon: <Users size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -376,7 +365,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/timesheet',
     feature: 'timesheet',
-    label: 'Табель',
+    labelKey: 'nav.timesheet',
     icon: <Clock size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -386,7 +375,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/checkin-audit',
     feature: 'timesheet',
-    label: 'Журнал check-in',
+    labelKey: 'nav.checkin',
     icon: <MapPin size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -398,7 +387,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/meetings',
     feature: 'meetings',
-    label: 'Собрания',
+    labelKey: 'nav.meetings',
     icon: <Megaphone size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
@@ -408,7 +397,7 @@ const NAV: NavEntry[] = [
   {
     key: '/admin/chat',
     feature: 'chat',
-    label: 'Чат с родителями',
+    labelKey: 'nav.chatParents',
     icon: <MessageCircle size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
@@ -419,7 +408,7 @@ const NAV: NavEntry[] = [
   // ─── Система ─────────────────────────────────────────────────────
   {
     key: '/admin/settings',
-    label: 'Настройки',
+    labelKey: 'nav.settings',
     icon: <Settings size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-gray',
     roles: ['SUPER_ADMIN', 'admin'],
@@ -429,7 +418,7 @@ const NAV: NavEntry[] = [
   // ─── РОДИТЕЛЬ ────────────────────────────────────────────────────
   {
     key: '/parent/home',
-    label: 'Главная',
+    labelKey: 'nav.home',
     icon: <HomeIcon size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['PARENT'],
@@ -438,7 +427,7 @@ const NAV: NavEntry[] = [
   {
     key: '/parent/schedule',
     feature: 'schedule',
-    label: 'Расписание',
+    labelKey: 'nav.parentSchedule',
     icon: <Calendar size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['PARENT'],
@@ -447,7 +436,7 @@ const NAV: NavEntry[] = [
   {
     key: '/parent/grades',
     feature: 'grades',
-    label: 'Оценки и ДЗ',
+    labelKey: 'nav.parentGrades',
     icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['PARENT'],
@@ -456,7 +445,7 @@ const NAV: NavEntry[] = [
   {
     key: '/parent/payments',
     feature: 'payments',
-    label: 'Оплаты',
+    labelKey: 'nav.parentPayments',
     icon: <Wallet size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-rose',
     roles: ['PARENT'],
@@ -465,7 +454,7 @@ const NAV: NavEntry[] = [
   {
     key: '/parent/chat',
     feature: 'chat',
-    label: 'Чат с учителем',
+    labelKey: 'nav.chatTeacher',
     icon: <MessageCircle size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['PARENT'],
@@ -476,7 +465,7 @@ const NAV: NavEntry[] = [
   {
     key: '/student/home',
     feature: 'portal',
-    label: 'Главная',
+    labelKey: 'nav.home',
     icon: <HomeIcon size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['STUDENT'],
@@ -485,7 +474,7 @@ const NAV: NavEntry[] = [
   {
     key: '/student/homework',
     feature: 'homework',
-    label: 'Домашние задания',
+    labelKey: 'nav.homework',
     icon: <BookOpen size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-yellow',
     roles: ['STUDENT'],
@@ -494,7 +483,7 @@ const NAV: NavEntry[] = [
   {
     key: '/student/grades',
     feature: 'grades',
-    label: 'Мои оценки',
+    labelKey: 'nav.myGrades',
     icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
     roles: ['STUDENT'],
@@ -503,7 +492,7 @@ const NAV: NavEntry[] = [
   {
     key: '/student/library',
     feature: 'library',
-    label: 'Библиотека',
+    labelKey: 'nav.library',
     icon: <Library size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-cyan',
     roles: ['STUDENT'],
@@ -512,7 +501,7 @@ const NAV: NavEntry[] = [
   {
     key: '/student/quizzes',
     feature: 'quiz',
-    label: 'Квизы',
+    labelKey: 'nav.quizzes',
     icon: <ListChecks size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['STUDENT'],
@@ -521,7 +510,7 @@ const NAV: NavEntry[] = [
   {
     key: '/student/exam',
     feature: 'exam_prep',
-    label: 'Подготовка к экзаменам',
+    labelKey: 'nav.exam',
     icon: <Target size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-rose',
     roles: ['STUDENT'],
@@ -530,7 +519,7 @@ const NAV: NavEntry[] = [
   {
     key: '/student/games',
     feature: 'games',
-    label: 'Игры для мозга',
+    labelKey: 'nav.games',
     icon: <Gamepad2 size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-lilac',
     roles: ['STUDENT'],
@@ -565,7 +554,7 @@ export default function AppSidebar({ collapsed }: Props) {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
-  const L = useLabels()
+  const t = useT()
 
   const isGlobalOwner = !!user && !user.kindergartenId
 
@@ -590,10 +579,7 @@ export default function AppSidebar({ collapsed }: Props) {
   const list = Array.from(dedup.values())
 
   const renderEntry = (n: NavEntry) => {
-    const text =
-      typeof n.label === 'function'
-        ? n.label({ groups: L.groups, students: L.students })
-        : n.label
+    const text = t(n.labelKey)
     return {
       key: n.key,
       label: collapsed ? (
@@ -641,15 +627,15 @@ export default function AppSidebar({ collapsed }: Props) {
     items.push({
       type: collapsed ? 'group' : undefined,
       key: `section-${sec}`,
-      label: collapsed ? null : SECTION_TITLES[sec],
+      label: collapsed ? null : t(sectionTitleKey(sec)),
       children: inSection.map(renderEntry),
     })
   }
 
   const schoolName = isGlobalOwner
     ? 'Мактаби ман'
-    : (user?.institution?.name ?? 'Моя школа')
-  const schoolSub = isGlobalOwner ? 'Платформа' : `Школа · ${schoolYear()}`
+    : (user?.institution?.name ?? t('nav.mySchool'))
+  const schoolSub = isGlobalOwner ? t('nav.platform') : t('nav.schoolYear', { year: schoolYear() })
   const doLogout = () => {
     logout()
     navigate('/login', { replace: true })
@@ -827,10 +813,10 @@ export default function AppSidebar({ collapsed }: Props) {
               </span>
             </>
           )}
-          <Tooltip title="Выйти" placement={collapsed ? 'right' : 'top'}>
+          <Tooltip title={t('nav.logout')} placement={collapsed ? 'right' : 'top'}>
             <button
               type="button"
-              aria-label="Выйти"
+              aria-label={t('nav.logout')}
               onClick={doLogout}
               style={{
                 width: 36,

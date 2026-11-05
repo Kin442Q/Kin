@@ -1991,3 +1991,42 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--day-accent) 30%, transparent);
   }
 }
+
+/* ============================================================
+   Переключатель языка (RU / EN / TJ)
+   ============================================================ */
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 11px;
+  border-radius: 13px;
+  border: 0;
+  background: var(--sp-surface-alt);
+  color: var(--sp-text);
+  font: 700 12.5px/1 'Inter', sans-serif;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    transform 0.12s ease;
+}
+.lang-btn:hover {
+  background: var(--sp-nav-hover);
+}
+.lang-btn:active {
+  transform: scale(0.97);
+}
+.lang-btn:focus-visible {
+  outline: 2px solid var(--sp-primary);
+  outline-offset: 2px;
+}
+.lang-btn-login {
+  height: 44px;
+  padding: 0 13px;
+  border-radius: 14px;
+  border: 1px solid var(--sp-border);
+  font-size: 13px;
+}
