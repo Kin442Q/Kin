@@ -9,17 +9,17 @@ import {
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
-import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import { ChevronLeft, Plus, BookMarked } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
-import Avatar from '../components/Avatar'
+import { ScreenHeading } from '../components/ui'
 import BottomModal from '../components/BottomModal'
 import Dropdown from '../components/Dropdown'
 import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
+import { gradeTone } from '../lib/gradeStyle'
 import { studentsApi, type StudentDto } from '../api/students'
 import {
   schoolApi,
@@ -39,8 +39,9 @@ const TYPE_LABELS: Record<GradeType, string> = {
 }
 
 export default function TeacherGradesScreen() {
-  const navigation = useNavigation()
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [])
+  // Выбранный ученик: оценка с клавиатуры внизу ставится ему и выбор переходит к следующему.
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const [students, setStudents] = useState<StudentDto[]>([])
   const [subjects, setSubjects] = useState<SubjectDto[]>([])
@@ -162,6 +163,28 @@ export default function TeacherGradesScreen() {
     }
   }
 
+  /** Оценка с клавиатуры: сегодняшняя оценка за урок выбранному ученику, затем — следующий по списку. */
+  const padSave = async (value: number) => {
+    if (!selectedId || !activeSubjectId) return
+    setSaving(true)
+    try {
+      await schoolApi.createGrade({
+        studentId: selectedId,
+        subjectId: activeSubjectId,
+        value,
+        type: 'CLASSWORK',
+        date: today,
+      })
+      await reloadGrades()
+      const i = students.findIndex((s) => s.id === selectedId)
+      setSelectedId(students[Math.min(i + 1, students.length - 1)]?.id ?? selectedId)
+    } catch (e: any) {
+      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   const removeGrade = (g: GradeDto) => {
     Alert.alert(
       'Оценка ' + g.value,
@@ -197,11 +220,10 @@ export default function TeacherGradesScreen() {
   return (
     <Screen>
       <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.backBtn}>
-          <ChevronLeft size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.topTitle}>Журнал оценок</Text>
-        <View style={{ width: 36 }} />
+        <ScreenHeading
+          eyebrow={`${subjects.find((s) => s.id === activeSubjectId)?.name ?? 'Журнал'} · ${dayjs().format('D MMMM')}`}
+          title="Журнал оценок"
+        />
       </View>
 
       {subjects.length === 0 ? (
@@ -295,10 +317,20 @@ export default function TeacherGradesScreen() {
             const fullName = `${item.firstName} ${item.lastName}`.trim()
             const stuGrades = gradesByStudent[item.id] ?? []
             const avg = avgByStudent[item.id] ?? 0
+            const selected = selectedId === item.id
+            const initials = `${item.firstName[0] ?? ''}${item.lastName[0] ?? ''}`.toUpperCase()
             return (
-              <Card padding={12}>
+              <Pressable
+                onPress={() => setSelectedId(item.id)}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`Выбрать: ${fullName}`}
+              >
+              <Card padding={12} style={selected ? styles.cardOn : undefined}>
                 <View style={styles.row}>
-                  <Avatar name={fullName} size={38} />
+                  <View style={styles.initial}>
+                    <Text style={styles.initialText}>{initials}</Text>
+                  </View>
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.name}>{fullName}</Text>
                     <View style={styles.gradeStrip}>
@@ -337,6 +369,7 @@ export default function TeacherGradesScreen() {
                   </Pressable>
                 </View>
               </Card>
+              </Pressable>
             )
           }}
           ListEmptyComponent={
@@ -345,6 +378,55 @@ export default function TeacherGradesScreen() {
             </View>
           }
         />
+      )}
+
+      {/* Клавиатура оценок: выбрали ученика — нажали оценку — она сохранилась, выбран следующий */}
+      {subjects.length > 0 && selectedId && (
+        <View style={styles.keypad}>
+          <Text style={styles.keypadFor} numberOfLines={1}>
+            Оценка для:{' '}
+            <Text style={styles.keypadName}>
+              {(() => {
+                const s = students.find((x) => x.id === selectedId)
+                return s ? `${s.firstName} ${s.lastName}` : ''
+              })()}
+            </Text>
+          </Text>
+          <View style={styles.keys}>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => {
+              const tone = gradeTone(v)
+              return (
+                <Pressable
+                  key={v}
+                  disabled={saving}
+                  onPress={() => padSave(v)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Оценка ${v}`}
+                  style={({ pressed }) => [
+                    styles.key,
+                    { backgroundColor: tone.bg, opacity: saving ? 0.5 : 1 },
+                    pressed && { transform: [{ scale: 0.95 }] },
+                  ]}
+                >
+                  <Text style={[styles.keyText, { color: tone.fg }]}>{v}</Text>
+                </Pressable>
+              )
+            })}
+          </View>
+          <Pressable
+            onPress={() => {
+              const s = students.find((x) => x.id === selectedId)
+              if (!s) return
+              setEditingStudent(s)
+              setDate(today)
+              setType('CLASSWORK')
+              setComment('')
+            }}
+            accessibilityRole="button"
+          >
+            <Text style={styles.more}>Другая дата, тип или комментарий</Text>
+          </Pressable>
+        </View>
       )}
 
       <BottomModal
@@ -557,4 +639,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gradeKeyText: { color: '#fff', fontSize: 22, fontWeight: '800' },
+  cardOn: { borderWidth: 2, borderColor: colors.primary, backgroundColor: '#FFFFFF' },
+  initial: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#9EDDD9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  initialText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  // клавиатура оценок
+  keypad: {
+    marginHorizontal: 12,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.96)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.95)',
+    gap: 8,
+    ...shadow.md,
+  },
+  keypadFor: { fontSize: 13, fontWeight: '600', color: colors.textMid },
+  keypadName: { color: colors.text, fontWeight: '800' },
+  keys: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  key: {
+    width: '18%',
+    flexGrow: 1,
+    height: 50,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keyText: { fontSize: 22, fontWeight: '800' },
+  more: { fontSize: 13, fontWeight: '700', color: colors.primaryDeep, textAlign: 'center', paddingVertical: 2 },
 })

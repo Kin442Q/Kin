@@ -8,51 +8,68 @@ import {
   StyleSheet,
   View,
 } from 'react-native'
-import { Text } from '../components/Text'
+import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
-import {
-  Clock,
-  AlertCircle,
-  CheckCircle2,
-  Wallet,
-  Coffee,
-  Soup,
-  Cookie,
-  Sparkles,
-  StickyNote,
-  BookOpen,
-} from 'lucide-react-native'
+import { AlertCircle, ChevronDown, MessageCircle, School } from 'lucide-react-native'
 
+import { Text } from '../components/Text'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
-import Avatar from '../components/Avatar'
+import { CardTitle, ScreenHeading } from '../components/ui'
 import { colors, radius, shadow } from '../theme/colors'
+import { gradeTone } from '../lib/gradeStyle'
+import { hasFeature } from '../lib/features'
 import { useAuthStore } from '../store/authStore'
-import { useLabels } from '../theme/useLabels'
-import { cap } from '../theme/labels'
-import { parentApi, type KidDto, type KidTodayDto } from '../api/parent'
+import {
+  parentApi,
+  type KidDto,
+  type KidTodayDto,
+  type ParentGradeDto,
+  type ParentHomeworkDto,
+} from '../api/parent'
 import type { AttendanceStatus } from '../api/attendance'
 
-function statusMeta(): Record<
-  AttendanceStatus,
-  { label: string; bg: string; fg: string; emoji: string }
-> {
-  return {
-    PRESENT: { label: 'В школе', bg: colors.primarySoft, fg: colors.primaryDeep, emoji: '🟢' },
-    ABSENT: { label: 'Нет в школе', bg: colors.roseSoft, fg: colors.roseDeep, emoji: '🔴' },
-    SICK: { label: 'Болеет', bg: colors.yellowSoft, fg: colors.yellowDeep, emoji: '🤒' },
-    VACATION: { label: 'В отпуске', bg: colors.lilacSoft, fg: colors.lilacDeep, emoji: '🌴' },
-  }
+/** Карточка-статус «Малика в школе»: цвет и подпись по отметке посещаемости. */
+const STATUS: Record<AttendanceStatus | 'NONE', { title: string; bg: string; fg: string; sub: string }> = {
+  PRESENT: { title: 'в школе', bg: colors.primary, fg: '#FFFFFF', sub: '#DDF1F0' },
+  ABSENT: { title: 'нет в школе', bg: colors.coral, fg: colors.text, sub: '#4A2A20' },
+  SICK: { title: 'болеет', bg: '#F6C46A', fg: colors.text, sub: '#4A2A20' },
+  VACATION: { title: 'в отпуске', bg: '#CFC6F2', fg: colors.text, sub: '#3F3478' },
+  NONE: { title: 'пока не отмечен', bg: 'rgba(255,255,255,0.84)', fg: colors.text, sub: colors.textMid },
+}
+
+function greeting(): string {
+  const h = new Date().getHours()
+  if (h < 6) return 'Доброй ночи!'
+  if (h < 12) return 'Доброе утро!'
+  if (h < 18) return 'Добрый день!'
+  return 'Добрый вечер!'
+}
+
+const minutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + (m || 0)
+}
+
+/** «до завтра», «до пт», «до 12.11» — срок домашнего задания. */
+function dueLabel(due: string): string {
+  const d = dayjs(due).startOf('day')
+  const diff = d.diff(dayjs().startOf('day'), 'day')
+  if (diff <= 0) return 'на сегодня'
+  if (diff === 1) return 'до завтра'
+  return `до ${d.format('DD.MM')}`
 }
 
 export default function ParentHomeScreen() {
+  const nav = useNavigation<any>()
   const user = useAuthStore((s) => s.user)
-  const L = useLabels()
-  const STATUS_META = statusMeta()
+  const chatOn = hasFeature(user, 'chat')
 
   const [kids, setKids] = useState<KidDto[]>([])
   const [activeKidId, setActiveKidId] = useState<string | null>(null)
   const [today, setToday] = useState<KidTodayDto | null>(null)
+  const [grades, setGrades] = useState<ParentGradeDto[]>([])
+  const [homework, setHomework] = useState<ParentHomeworkDto[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -70,16 +87,23 @@ export default function ParentHomeScreen() {
 
   const loadToday = useCallback(async () => {
     if (!activeKidId) return
+    const day = dayjs().format('YYYY-MM-DD')
     try {
-      const t = await parentApi.today(activeKidId)
+      const [t, g, hw] = await Promise.all([
+        parentApi.today(activeKidId),
+        hasFeature(user, 'grades') ? parentApi.grades(activeKidId, day, day).catch(() => []) : Promise.resolve([]),
+        hasFeature(user, 'homework') ? parentApi.homework(activeKidId).catch(() => []) : Promise.resolve([]),
+      ])
       setToday(t)
+      setGrades(g)
+      setHomework(hw)
     } catch (e: any) {
       Alert.alert('Ошибка', e?.response?.data?.message || String(e))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeKidId])
+  }, [activeKidId, user])
 
   useEffect(() => {
     loadKids()
@@ -89,18 +113,10 @@ export default function ParentHomeScreen() {
     if (activeKidId) loadToday()
   }, [activeKidId, loadToday])
 
-  const greeting = (() => {
-    const h = new Date().getHours()
-    if (h < 6) return 'Доброй ночи'
-    if (h < 12) return 'Доброе утро'
-    if (h < 18) return 'Добрый день'
-    return 'Добрый вечер'
-  })()
-
   if (loading) {
     return (
-      <Screen>
-        <View style={styles.loader}>
+      <Screen variant="home">
+        <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
       </Screen>
@@ -109,12 +125,11 @@ export default function ParentHomeScreen() {
 
   if (!kids.length) {
     return (
-      <Screen>
-        <View style={styles.empty}>
+      <Screen variant="home">
+        <View style={styles.center}>
           <AlertCircle size={40} color={colors.muted} />
           <Text style={styles.emptyText}>
-            К вашему аккаунту пока не привязан ни один {L.student.toLowerCase()}. Обратитесь к
-            администратору {L.institution === 'школа' ? 'школы' : 'сада'}.
+            К вашему аккаунту пока не привязан ни один ученик. Обратитесь к администратору школы.
           </Text>
         </View>
       </Screen>
@@ -122,24 +137,23 @@ export default function ParentHomeScreen() {
   }
 
   const kid = today?.kid ?? kids.find((k) => k.id === activeKidId) ?? kids[0]
-  const fullName = `${kid.firstName} ${kid.lastName}`.trim()
-  const status = today?.today.attendance?.status ?? null
-  const meta = status ? STATUS_META[status] : null
-  const nextLesson = today?.today.schedule?.[0]
-  const upcoming = (today?.today.schedule ?? []).slice(0, 4)
+  const status = STATUS[today?.today.attendance?.status ?? 'NONE']
+  const lessons = [...(today?.today.schedule ?? [])].sort((a, b) => a.startTime.localeCompare(b.startTime))
+  const nowMin = dayjs().hour() * 60 + dayjs().minute()
+  const nextHomework = [...homework]
+    .filter((h) => !dayjs(h.dueDate).isBefore(dayjs().startOf('day')))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
+  const kidChip = `${kid.firstName}${kid.group?.name ? ' · ' + kid.group.name : ''}`
+  const initials = `${kid.firstName[0] ?? ''}${kid.lastName[0] ?? ''}`.toUpperCase()
 
-  // Часы пребывания сегодня: от начала первого занятия до конца последнего
-  const schedule = today?.today.schedule ?? []
-  const dayHours =
-    schedule.length > 0
-      ? {
-          from: schedule[0].startTime,
-          to: schedule[schedule.length - 1].endTime,
-        }
-      : null
+  const cycleKid = () => {
+    if (kids.length < 2) return
+    const i = kids.findIndex((k) => k.id === kid.id)
+    setActiveKidId(kids[(i + 1) % kids.length].id)
+  }
 
   return (
-    <Screen>
+    <Screen variant="home">
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -153,354 +167,174 @@ export default function ParentHomeScreen() {
           />
         }
       >
-        <Text style={styles.greeting}>{greeting},</Text>
-        <Text style={styles.name}>{user?.fullName}</Text>
-        <Text style={styles.date}>{dayjs().format('dddd, D MMMM')}</Text>
-
-        {kids.length > 1 && (
-          <View style={styles.kidTabs}>
-            {kids.map((k) => {
-              const on = k.id === activeKidId
-              return (
-                <Pressable
-                  key={k.id}
-                  onPress={() => setActiveKidId(k.id)}
-                  style={[
-                    styles.kidChip,
-                    {
-                      backgroundColor: on ? colors.primary : colors.surfaceAlt,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      color: on ? '#fff' : colors.text,
-                      fontWeight: '700',
-                      fontSize: 13,
-                    }}
-                  >
-                    {k.firstName}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </View>
-        )}
-
-        <Card padding={20} style={[styles.heroCard, shadow.md]}>
-          <View style={styles.heroTop}>
-            <Avatar name={fullName} size={56} />
-            <View style={{ marginLeft: 14, flex: 1 }}>
-              <Text style={styles.childName}>{kid.firstName}</Text>
-              <Text style={styles.childSub}>
-                {cap(L.group)} «{kid.group?.name ?? '—'}»
-                {kid.group?.ageRange ? ` · ${kid.group.ageRange}` : ''}
+        <ScreenHeading
+          title={greeting()}
+          size={24}
+          right={
+            <Pressable
+              onPress={cycleKid}
+              disabled={kids.length < 2}
+              accessibilityRole="button"
+              accessibilityLabel={kids.length > 1 ? `Ребёнок: ${kidChip}. Сменить` : `Ребёнок: ${kidChip}`}
+              style={styles.kidChip}
+            >
+              <View style={styles.kidAvatar}>
+                <Text style={styles.kidAvatarText}>{initials}</Text>
+              </View>
+              <Text style={styles.kidChipText} numberOfLines={1}>
+                {kidChip}
               </Text>
-              {dayHours && (
-                <Text style={styles.childHours}>
-                  🕐 Сегодня {L.institution === 'школа' ? 'в школе' : 'в саду'} с{' '}
-                  {dayHours.from} до {dayHours.to}
-                </Text>
-              )}
-            </View>
-          </View>
+              {kids.length > 1 && <ChevronDown size={15} color={colors.textMid} />}
+            </Pressable>
+          }
+        />
 
-          {meta ? (
-            <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
-              <Text style={[styles.statusText, { color: meta.fg }]}>
-                {meta.emoji} {meta.label}
-              </Text>
-            </View>
+        <View style={[styles.statusCard, { backgroundColor: status.bg }, shadow.lg]}>
+          <View style={styles.statusIcon}>
+            <School size={26} color={status.fg} strokeWidth={2} />
+          </View>
+          <View style={{ flex: 1, gap: 2 }}>
+            <Text style={[styles.statusTitle, { color: status.fg }]} numberOfLines={2}>
+              {kid.firstName} {status.title}
+            </Text>
+            <Text style={[styles.statusSub, { color: status.sub }]}>
+              {lessons.length
+                ? `Уроки сегодня: ${lessons[0].startTime}–${lessons[lessons.length - 1].endTime}`
+                : dayjs().format('dddd, D MMMM')}
+            </Text>
+          </View>
+        </View>
+
+        <Card padding={16}>
+          <CardTitle
+            title="Дневник за сегодня"
+            right={lessons.length ? `${lessons.length} ${lessons.length === 1 ? 'урок' : lessons.length < 5 ? 'урока' : 'уроков'}` : undefined}
+          />
+          {lessons.length === 0 ? (
+            <Text style={styles.muted}>На сегодня уроков нет</Text>
           ) : (
-            <View style={[styles.statusBadge, { backgroundColor: colors.surfaceAlt }]}>
-              <Text style={[styles.statusText, { color: colors.muted }]}>
-                ⚪ Воспитатель ещё не отметил
-              </Text>
+            <View style={{ gap: 10 }}>
+              {lessons.map((l, i) => {
+                const grade = grades.find((g) => g.subject?.name.toLowerCase() === l.activity.toLowerCase())
+                const start = minutes(l.startTime)
+                const end = minutes(l.endTime)
+                const now = nowMin >= start && nowMin < end
+                const future = nowMin < start
+                const tone = gradeTone(grade?.value)
+                return (
+                  <View key={l.id} style={[styles.lessonRow, future && { opacity: 0.6 }]}>
+                    <Text style={styles.lessonNo}>{i + 1}</Text>
+                    <Text style={styles.lessonName} numberOfLines={1}>
+                      {l.activity}
+                    </Text>
+                    {grade ? (
+                      <View style={[styles.gradeBox, { backgroundColor: tone.bg }]}>
+                        <Text style={[styles.gradeText, { color: tone.fg }]}>{grade.value}</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.lessonHint}>{now ? 'идёт сейчас' : future ? l.startTime : ''}</Text>
+                    )}
+                  </View>
+                )
+              })}
             </View>
           )}
         </Card>
 
-        {today?.lastPayment && (
-          <Card padding={14} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={[styles.kpiIcon, { backgroundColor: colors.yellowSoft }]}>
-              <Wallet size={18} color={colors.yellowDeep} />
-            </View>
-            <View style={{ flex: 1, marginLeft: 12 }}>
-              <Text style={styles.kpiLabel}>
-                {today.lastPayment.paid ? 'Оплачено' : 'К оплате'}
-                {' · '}
-                {today.lastPayment.month}
-              </Text>
-              <Text style={styles.kpiValue}>
-                {Math.round(Number(today.lastPayment.amount)).toLocaleString('ru-RU')}{' '}
-                <Text style={{ fontSize: 13, color: colors.muted }}>с</Text>
-              </Text>
-            </View>
-            {today.lastPayment.paid ? (
-              <CheckCircle2 size={22} color={colors.primaryDeep} />
-            ) : (
-              <AlertCircle size={22} color={colors.roseDeep} />
-            )}
-          </Card>
-        )}
-
-        {/* Электронный дневник за сегодня */}
-        {(today?.today.diary || today?.today.kidNote) && (
-          <>
-            <Text style={styles.section}>
-              <BookOpen size={14} color={colors.text} /> Дневник за сегодня
+        {nextHomework && (
+          <Card padding={16} style={{ gap: 6 }}>
+            <CardTitle title="Домашнее задание" right={dueLabel(nextHomework.dueDate)} rightTone="warn" />
+            <Text style={styles.hwText}>
+              {nextHomework.subject?.name ? `${nextHomework.subject.name}: ` : ''}
+              {nextHomework.title}
             </Text>
-            <Card padding={16} style={shadow.sm}>
-              {today.today.diary?.breakfast && (
-                <DiaryRow
-                  icon={<Coffee size={14} color={colors.primaryDeep} />}
-                  bg={colors.primarySoft}
-                  label="Завтрак"
-                  text={today.today.diary.breakfast}
-                />
-              )}
-              {today.today.diary?.lunch && (
-                <DiaryRow
-                  icon={<Soup size={14} color={colors.yellowDeep} />}
-                  bg={colors.yellowSoft}
-                  label="Обед"
-                  text={today.today.diary.lunch}
-                />
-              )}
-              {today.today.diary?.snack && (
-                <DiaryRow
-                  icon={<Cookie size={14} color={colors.roseDeep} />}
-                  bg={colors.roseSoft}
-                  label="Полдник"
-                  text={today.today.diary.snack}
-                />
-              )}
-              {today.today.diary?.activities && (
-                <DiaryRow
-                  icon={<Sparkles size={14} color={colors.blueDeep} />}
-                  bg={colors.blueSoft}
-                  label="Активности"
-                  text={today.today.diary.activities}
-                />
-              )}
-              {today.today.diary?.note && (
-                <DiaryRow
-                  icon={<StickyNote size={14} color={colors.lilacDeep} />}
-                  bg={colors.lilacSoft}
-                  label="Заметка"
-                  text={today.today.diary.note}
-                />
-              )}
-              {today.today.kidNote && (
-                <View style={styles.kidNoteBlock}>
-                  <Text style={styles.kidNoteLabel}>О твоём {L.student}</Text>
-                  {today.today.kidNote.mood && (
-                    <Text style={styles.kidNoteText}>
-                      Настроение:{' '}
-                      {moodEmoji(today.today.kidNote.mood)}{' '}
-                      {moodLabel(today.today.kidNote.mood)}
-                    </Text>
-                  )}
-                  {today.today.kidNote.napQuality && (
-                    <Text style={styles.kidNoteText}>
-                      Сон: {napLabel(today.today.kidNote.napQuality)}
-                    </Text>
-                  )}
-                  {today.today.kidNote.note && (
-                    <Text style={styles.kidNoteText}>
-                      «{today.today.kidNote.note}»
-                    </Text>
-                  )}
-                </View>
-              )}
-            </Card>
-          </>
+          </Card>
         )}
 
-        <Text style={styles.section}>
-          Сегодня {L.institution === 'школа' ? 'в школе' : 'в саду'}
-        </Text>
-
-        {upcoming.length === 0 ? (
-          <Card padding={20}>
-            <Text style={styles.emptyMini}>На сегодня занятий нет</Text>
+        {today?.lastPayment && !today.lastPayment.paid && (
+          <Card padding={16}>
+            <CardTitle title="К оплате" right={today.lastPayment.month} rightTone="warn" />
+            <Text style={styles.hwText}>
+              {Math.round(Number(today.lastPayment.amount)).toLocaleString('ru-RU')} с
+            </Text>
           </Card>
-        ) : (
-          upcoming.map((item, i) => (
-            <Card key={item.id} style={i ? { marginTop: 10 } : undefined}>
-              <View style={styles.itemRow}>
-                <View style={styles.timeCol}>
-                  <Clock size={14} color={colors.primaryDeep} />
-                  <Text style={styles.time}>{item.startTime}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemTitle}>{item.activity}</Text>
-                  <Text style={styles.itemSub}>
-                    до {item.endTime}
-                  </Text>
-                </View>
-              </View>
-            </Card>
-          ))
+        )}
+
+        {chatOn && (
+          <Pressable
+            onPress={() => nav.navigate('ParentChat')}
+            accessibilityRole="button"
+            style={styles.chatBtn}
+          >
+            <MessageCircle size={20} color={colors.primaryDeep} />
+            <Text style={styles.chatBtnText}>Написать классному руководителю</Text>
+          </Pressable>
         )}
       </ScrollView>
     </Screen>
   )
 }
 
-function DiaryRow({
-  icon,
-  bg,
-  label,
-  text,
-}: {
-  icon: React.ReactNode
-  bg: string
-  label: string
-  text: string
-}) {
-  return (
-    <View style={diaryStyles.row}>
-      <View style={[diaryStyles.icon, { backgroundColor: bg }]}>{icon}</View>
-      <View style={{ flex: 1 }}>
-        <Text style={diaryStyles.label}>{label}</Text>
-        <Text style={diaryStyles.text}>{text}</Text>
-      </View>
-    </View>
-  )
-}
-
-function moodEmoji(m: 'HAPPY' | 'NEUTRAL' | 'SAD' | 'SICK'): string {
-  return m === 'HAPPY' ? '😊' : m === 'NEUTRAL' ? '😐' : m === 'SAD' ? '😟' : '🤒'
-}
-function moodLabel(m: 'HAPPY' | 'NEUTRAL' | 'SAD' | 'SICK'): string {
-  return m === 'HAPPY'
-    ? 'хорошее'
-    : m === 'NEUTRAL'
-      ? 'обычное'
-      : m === 'SAD'
-        ? 'грустное'
-        : 'болел(а)'
-}
-function napLabel(n: 'GOOD' | 'NORMAL' | 'POOR' | 'NO_NAP'): string {
-  return n === 'GOOD'
-    ? 'хорошо спал(а)'
-    : n === 'NORMAL'
-      ? 'обычно'
-      : n === 'POOR'
-        ? 'плохо спал(а)'
-        : 'не спал(а)'
-}
-
-const diaryStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 },
-  icon: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
-    marginTop: 2,
-  },
-  label: { fontSize: 11, color: colors.muted, fontWeight: '700' },
-  text: { fontSize: 13, color: colors.text, marginTop: 1, lineHeight: 18 },
-})
-
 const styles = StyleSheet.create({
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  empty: {
-    flex: 1,
-    padding: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 14,
-  },
-  emptyText: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    lineHeight: 19,
-  },
-  emptyMini: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-  container: { padding: 20, gap: 14 },
-  greeting: { fontSize: 14, color: colors.muted, fontWeight: '500' },
-  name: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  date: { fontSize: 13, color: colors.textMid, marginBottom: 4 },
-  kidTabs: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14 },
+  emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 19 },
+  container: { padding: 16, gap: 12 },
   kidChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-  },
-  heroCard: { marginTop: 2 },
-  heroTop: { flexDirection: 'row', alignItems: 'center' },
-  childName: { fontSize: 18, fontWeight: '800', color: colors.text },
-  childSub: { fontSize: 13, color: colors.muted, marginTop: 2 },
-  childHours: { fontSize: 12, color: colors.primaryDeep, fontWeight: '600', marginTop: 4 },
-  statusBadge: {
-    marginTop: 14,
-    padding: 12,
-    borderRadius: radius.md,
-    alignItems: 'center',
-  },
-  statusText: { fontWeight: '700', fontSize: 13 },
-  kpiIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  kpiLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
-  kpiValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.text,
-    marginTop: 2,
-    letterSpacing: -0.5,
-  },
-  section: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  itemRow: { flexDirection: 'row', alignItems: 'center' },
-  timeCol: {
-    width: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
+    maxWidth: 190,
+    paddingVertical: 6,
+    paddingLeft: 6,
+    paddingRight: 12,
+    borderRadius: radius.pill,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
-  time: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: colors.primaryDeep,
-    fontVariant: ['tabular-nums'],
+  kidAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#9EDDD9',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  itemTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  itemSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  kidNoteBlock: {
-    marginTop: 6,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSoft,
-    gap: 4,
+  kidAvatarText: { fontSize: 12, fontWeight: '700', color: colors.text },
+  kidChipText: { fontSize: 14, fontWeight: '600', color: colors.text, flexShrink: 1 },
+  statusCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    padding: 18,
+    borderRadius: 24,
   },
-  kidNoteLabel: {
-    fontSize: 11,
-    color: colors.primaryDeep,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 2,
+  statusIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  kidNoteText: { fontSize: 13, color: colors.text, lineHeight: 18 },
+  statusTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  statusSub: { fontSize: 14 },
+  muted: { fontSize: 14, color: colors.textMid },
+  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 30 },
+  lessonNo: { width: 22, fontSize: 13, color: colors.textMid },
+  lessonName: { flex: 1, fontSize: 14, color: colors.text },
+  lessonHint: { fontSize: 12, color: colors.textMid },
+  gradeBox: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  gradeText: { fontSize: 15, fontWeight: '800' },
+  hwText: { fontSize: 14, color: colors.textMid, lineHeight: 20 },
+  chatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 50,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.85)',
+  },
+  chatBtnText: { fontSize: 15, fontWeight: '700', color: colors.primaryDeep },
 })
