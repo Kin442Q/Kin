@@ -17,6 +17,8 @@ import { useAuthStore } from '../store/authStore'
 import { useThemeStore } from '../store/themeStore'
 import { http } from '../api'
 import { SP, SproutLogo } from '../components/sprout'
+import LanguageSwitcher from '../components/LanguageSwitcher'
+import { useT } from '../i18n'
 
 interface LoginValues {
   /** Email или телефон — тип определяем по наличию «@». */
@@ -39,6 +41,7 @@ export default function LoginPage() {
   const navigate = useNavigate()
   const login = useAuthStore((s) => s.login)
   const { message } = AntdApp.useApp()
+  const t = useT()
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm()
 
@@ -56,7 +59,7 @@ export default function LoginPage() {
   const submitForgot = async () => {
     const v = forgotValue.trim()
     if (!v) {
-      message.warning('Укажите email или телефон')
+      message.warning(t('login.forgotEnter'))
       return
     }
     const payload = v.includes('@')
@@ -65,15 +68,10 @@ export default function LoginPage() {
     try {
       setForgotLoading(true)
       await http.post('/v1/auth/forgot-password', payload)
-      message.success(
-        'Запрос отправлен. Администратор сбросит пароль и сообщит вам новый.',
-      )
+      message.success(t('login.forgotOk'))
       setForgotOpen(false)
     } catch (error: any) {
-      message.error(
-        error?.response?.data?.message ||
-          'Не удалось отправить запрос. Попробуйте позже.',
-      )
+      message.error(error?.response?.data?.message || t('login.forgotFail'))
     } finally {
       setForgotLoading(false)
     }
@@ -88,7 +86,7 @@ export default function LoginPage() {
       const { user, accessToken } = response.data
 
       if (!user || !accessToken) {
-        message.error('Ошибка сервера: некорректный ответ')
+        message.error(t('login.badResponse'))
         return
       }
 
@@ -123,7 +121,7 @@ export default function LoginPage() {
         accessToken,
       )
 
-      message.success(`Добро пожаловать, ${user.fullName}`)
+      message.success(t('login.welcome', { name: user.fullName }))
       // Куда редиректить по роли:
       //   PARENT → личный кабинет родителя
       //   TEACHER → свой кабинет
@@ -143,7 +141,7 @@ export default function LoginPage() {
       const errorMsg =
         error?.response?.data?.message ||
         error?.message ||
-        'Ошибка входа. Проверьте данные'
+        t('login.failed')
       message.error(errorMsg)
     } finally {
       setLoading(false)
@@ -162,21 +160,18 @@ export default function LoginPage() {
         </div>
         <div className="sp-chip login-chip">
           <span className="login-chip-dot" />
-          Школа · одна платформа
+          {t('login.chip')}
         </div>
         <h1 className="login-title">
-          Хуш омадед!{' '}
-          <span className="login-title-accent">Рады видеть вас снова</span>
+          {t('login.title1')}{' '}
+          <span className="login-title-accent">{t('login.title2')}</span>
         </h1>
-        <p className="login-lead">
-          Один вход для директора, учителей, родителей и учеников — система сама
-          откроет нужный кабинет.
-        </p>
+        <p className="login-lead">{t('login.lead')}</p>
         <div className="login-features">
           {[
-            { Icon: BarChart3, title: 'Журнал', sub: 'оценки и ДЗ', bg: SP.primarySoft, fg: SP.primaryDeep },
-            { Icon: MessageCircle, title: 'Чат', sub: 'с родителями', bg: SP.roseSoft, fg: SP.roseDeep },
-            { Icon: Smartphone, title: 'Веб и телефон', sub: 'одно приложение', bg: SP.blueSoft, fg: SP.blueDeep },
+            { Icon: BarChart3, title: t('login.feat.journal'), sub: t('login.feat.journalSub'), bg: SP.primarySoft, fg: SP.primaryDeep },
+            { Icon: MessageCircle, title: t('login.feat.chat'), sub: t('login.feat.chatSub'), bg: SP.roseSoft, fg: SP.roseDeep },
+            { Icon: Smartphone, title: t('login.feat.apps'), sub: t('login.feat.appsSub'), bg: SP.blueSoft, fg: SP.blueDeep },
           ].map(({ Icon, title, sub, bg, fg }) => (
             <div key={title} className="login-feature">
               <div className="login-feature-icon" style={{ background: bg, color: fg }}>
@@ -201,20 +196,23 @@ export default function LoginPage() {
           <div className="login-mobile-logo">
             <SproutLogo size={19} />
           </div>
-          <button
-            type="button"
-            className="login-theme-btn"
-            onClick={toggleTheme}
-            aria-label={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
-          >
-            {mode === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
-          </button>
+          <div className="login-card-tools">
+            <LanguageSwitcher variant="login" />
+            <button
+              type="button"
+              className="login-theme-btn"
+              onClick={toggleTheme}
+              aria-label={mode === 'dark' ? t('theme.light') : t('theme.dark')}
+            >
+              {mode === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
+            </button>
+          </div>
         </div>
 
         <div>
-          <h2 className="login-card-title">Вход в систему</h2>
+          <h2 className="login-card-title">{t('login.cardTitle')}</h2>
           <p style={{ color: SP.textMid, fontSize: 15, margin: '6px 0 0' }}>
-            Директор, учитель, родитель или ученик
+            {t('login.cardSub')}
           </p>
         </div>
 
@@ -227,14 +225,14 @@ export default function LoginPage() {
             style={{ marginTop: 4 }}
           >
             <Form.Item
-              label={<span className="login-label">Email или телефон</span>}
+              label={<span className="login-label">{t('login.loginLabel')}</span>}
               name="login"
-              rules={[{ required: true, message: 'Введите email или номер телефона' }]}
+              rules={[{ required: true, message: t('login.loginRequired') }]}
             >
               <Input
                 size="large"
                 prefix={<User size={18} color="var(--sp-muted)" />}
-                placeholder="email или +992 90 123 45 67"
+                placeholder={t('login.loginPlaceholder')}
                 autoComplete="username"
                 disabled={loading}
                 style={{ height: 50 }}
@@ -251,14 +249,14 @@ export default function LoginPage() {
                     width: '100%',
                   }}
                 >
-                  <span className="login-label">Пароль</span>
+                  <span className="login-label">{t('login.passwordLabel')}</span>
                   <button type="button" onClick={openForgot} className="login-link">
-                    Забыли?
+                    {t('login.forgot')}
                   </button>
                 </div>
               }
               name="password"
-              rules={[{ required: true, message: 'Введите пароль' }]}
+              rules={[{ required: true, message: t('login.passwordRequired') }]}
             >
               <Input.Password
                 size="large"
@@ -271,7 +269,7 @@ export default function LoginPage() {
             </Form.Item>
 
             <button type="submit" className="sp-btn-primary login-submit" disabled={loading}>
-              Войти
+              {t('login.submit')}
               <ArrowRight size={18} strokeWidth={2.2} />
             </button>
           </Form>
@@ -279,29 +277,24 @@ export default function LoginPage() {
 
         <div className="login-hint">
           <Info size={20} style={{ flex: 'none' }} />
-          <span>
-            Логин и пароль выдаёт администратор школы. Родители входят по номеру
-            телефона, указанному в школе.
-          </span>
+          <span>{t('login.hint')}</span>
         </div>
 
         <Modal
           open={forgotOpen}
           onCancel={() => setForgotOpen(false)}
           onOk={submitForgot}
-          okText="Отправить запрос"
-          cancelText="Отмена"
+          okText={t('login.forgotSend')}
+          cancelText={t('common.cancel')}
           confirmLoading={forgotLoading}
-          title="Восстановление доступа"
+          title={t('login.forgotTitle')}
           destroyOnClose
         >
           <p style={{ color: SP.textMid, fontSize: 13.5, marginTop: 0 }}>
-            Доступ восстанавливает администратор. Укажите email или телефон,
-            под которым вы входите — администратор получит запрос и сбросит
-            вам пароль.
+            {t('login.forgotBody')}
           </p>
           <Input
-            placeholder="email или телефон"
+            placeholder={t('login.forgotPlaceholder')}
             value={forgotValue}
             onChange={(e) => setForgotValue(e.target.value)}
             onPressEnter={submitForgot}
@@ -383,6 +376,7 @@ export default function LoginPage() {
           gap: 20px;
         }
         .login-card-top { display: flex; justify-content: space-between; align-items: center; min-height: 44px; }
+        .login-card-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
         .login-card-title {
           margin: 0;
           font-family: 'Montserrat', 'Inter', sans-serif;
@@ -406,7 +400,6 @@ export default function LoginPage() {
           padding: 16px; font-size: 17px; border-radius: 16px; margin-top: 6px;
         }
         .login-theme-btn {
-          margin-left: auto;
           width: 44px; height: 44px; border-radius: 14px;
           border: 1px solid var(--sp-border);
           background: var(--sp-surface-alt);

@@ -33,8 +33,9 @@ import { useLabels } from '../hooks/useLabels'
 import { useFeature } from '../hooks/useFeature'
 import { http } from '../api'
 import { formatMoneyCompact, formatPercent } from '../lib/format'
-import { classLetterOf, groupByGrade, plural } from '../lib/classes'
+import { classLetterOf, groupByGrade } from '../lib/classes'
 import { useChartTheme } from '../theme/chartTheme'
+import { useT } from '../i18n'
 
 interface DashboardApi {
   month: string
@@ -58,6 +59,7 @@ interface TrendItem {
 }
 
 export default function Dashboard() {
+  const t = useT()
   const chartTheme = useChartTheme()
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
@@ -117,13 +119,13 @@ export default function Dashboard() {
 
   const trendData = useMemo(() => {
     const arr: { month: string; type: string; value: number }[] = []
-    trend.forEach((t) => {
-      const label = dayjs(t.month + '-01').format('MMM')
-      arr.push({ month: label, type: 'Доход', value: Math.round(t.income) })
-      arr.push({ month: label, type: 'Расход', value: Math.round(t.expenses) })
+    trend.forEach((item) => {
+      const label = dayjs(item.month + '-01').format('MMM')
+      arr.push({ month: label, type: t('dash.chart.income'), value: Math.round(item.income) })
+      arr.push({ month: label, type: t('dash.chart.expense'), value: Math.round(item.expenses) })
     })
     return arr
-  }, [trend])
+  }, [trend, t])
 
   const todayStr = dayjs().format('YYYY-MM-DD')
   const presentToday = attendance.filter(
@@ -146,8 +148,8 @@ export default function Dashboard() {
         const age = today.year() - bd.year()
         list.push({
           kind: 'birthday',
-          text: `Сегодня день рождения у ${c.firstName} ${c.lastName} (${age})`,
-          time: 'сегодня',
+          text: t('dash.events.birthday', { name: `${c.firstName} ${c.lastName}`, age }),
+          time: t('common.today'),
         })
       }
     })
@@ -160,13 +162,15 @@ export default function Dashboard() {
       .forEach((c) => {
         list.push({
           kind: 'student',
-          text: `Добавлен${c.gender === 'female' ? 'а' : ''} ${c.firstName} ${c.lastName}`,
+          text: t(c.gender === 'female' ? 'dash.events.addedFemale' : 'dash.events.addedMale', {
+            name: `${c.firstName} ${c.lastName}`,
+          }),
           time: dayjs(c.createdAt).fromNow(),
         })
       })
 
     return list.slice(0, 6)
-  }, [children])
+  }, [children, t])
 
   // Параллели: 1 класс → А, Б, В — компактные плитки вместо длинного списка классов
   const gradeTiles = useMemo(
@@ -186,33 +190,39 @@ export default function Dashboard() {
     const noClass = children.filter((c) => !c.groupId).length
     if (noClass > 0)
       list.push({
-        title: `${noClass} ${plural(noClass, ['ученик', 'ученика', 'учеников'])} без класса`,
-        text: 'Назначьте класс на странице «Ученики», иначе они не попадут в журнал и посещаемость.',
+        title: t('dash.attention.noClass', { n: noClass }),
+        text: t('dash.attention.noClassText'),
         tone: 'rose',
       })
     const empty = groups.filter((g) => !children.some((c) => c.groupId === g.id)).length
     if (empty > 0)
       list.push({
-        title: `${empty} ${plural(empty, ['класс', 'класса', 'классов'])} без учеников`,
-        text: 'Добавьте учеников вручную или импортом из Excel.',
+        title: t('dash.attention.emptyClass', { n: empty }),
+        text: t('dash.attention.emptyClassText'),
         tone: 'yellow',
       })
     if (showHomeroom) {
       const noTeacher = groups.filter((g) => !g.homeroomTeacher).length
       if (noTeacher > 0)
         list.push({
-          title: `${noTeacher} ${plural(noTeacher, ['класс', 'класса', 'классов'])} без классного руководителя`,
-          text: 'Назначьте руководителя в карточке класса: он увидит «Сводку класса».',
+          title: t('dash.attention.noTeacher', { n: noTeacher }),
+          text: t('dash.attention.noTeacherText'),
           tone: 'yellow',
         })
     }
     return list
-  }, [children, groups, showHomeroom])
+  }, [children, groups, showHomeroom, t])
 
   const hour = new Date().getHours()
   const greeting =
-    hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер'
-  const userName = user?.fullName?.split(' ')[0] || 'Друг'
+    hour < 6
+      ? t('dash.greet.night')
+      : hour < 12
+        ? t('dash.greet.morning')
+        : hour < 18
+          ? t('dash.greet.day')
+          : t('dash.greet.evening')
+  const userName = user?.fullName?.split(' ')[0] || t('dash.friend')
 
   return (
     <div>
@@ -225,20 +235,20 @@ export default function Dashboard() {
         title={`${greeting}, ${userName}!`}
         subtitle={
           <>
-            В школе {dashboard?.activeStudents ?? children.length} учеников
-            {totalToday > 0 ? ` · посещаемость сегодня ${attendancePct}%` : ''}
+            {t('dash.subStudents', { n: dashboard?.activeStudents ?? children.length })}
+            {totalToday > 0 ? t('dash.subAttendance', { pct: attendancePct }) : ''}
           </>
         }
         actions={
           <>
             {showAttendance && (
               <Button type="primary" size="large" onClick={() => navigate('/admin/attendance')}>
-                Отметить посещаемость
+                {t('dash.markAttendance')}
               </Button>
             )}
             {showPayments && (
               <Button size="large" onClick={() => navigate('/admin/payments')}>
-                Принять оплату
+                {t('dash.takePayment')}
               </Button>
             )}
           </>
@@ -251,33 +261,33 @@ export default function Dashboard() {
           <>
         <Col xs={12} sm={12} lg={6}>
           <SproutKPI
-            label="Доход за месяц"
+            label={t('dash.kpi.income')}
             value={formatMoneyCompact(global.totalIncome)}
             accent="mint"
             trend={12.4}
-            hint="к плану"
+            hint={t('dash.kpi.incomeHint')}
             icon={<Wallet size={18} strokeWidth={2} />}
             delay={0}
           />
         </Col>
         <Col xs={12} sm={12} lg={6}>
           <SproutKPI
-            label="Расходы за месяц"
+            label={t('dash.kpi.expenses')}
             value={formatMoneyCompact(global.totalExpenses)}
             accent="yellow"
             trend={3.1}
-            hint="бюджет"
+            hint={t('dash.kpi.expensesHint')}
             icon={<TrendingDown size={18} strokeWidth={2} />}
             delay={0.05}
           />
         </Col>
         <Col xs={12} sm={12} lg={6}>
           <SproutKPI
-            label="Чистая прибыль"
+            label={t('dash.kpi.profit')}
             value={formatMoneyCompact(global.netProfit)}
             accent="blue"
             trend={8.7}
-            hint={`маржа ${formatPercent(global.margin)}`}
+            hint={t('dash.kpi.margin', { pct: formatPercent(global.margin) })}
             icon={<TrendingUp size={18} strokeWidth={2} />}
             delay={0.1}
           />
@@ -286,10 +296,10 @@ export default function Dashboard() {
         )}
         <Col xs={12} sm={12} lg={showAnalytics ? 6 : 12}>
           <SproutKPI
-            label={'Учеников в школе'}
+            label={t('dash.kpi.students')}
             value={String(dashboard?.activeStudents ?? children.length)}
             accent="mint"
-            hint={`Сотрудников: ${staff.length}`}
+            hint={t('dash.kpi.staff', { n: staff.length })}
             icon={<Baby size={18} strokeWidth={2} />}
             delay={0.15}
           />
@@ -297,10 +307,10 @@ export default function Dashboard() {
         {!showAnalytics && (
           <Col xs={12} sm={12} lg={12}>
             <SproutKPI
-              label={'Классов'}
+              label={t('dash.kpi.classes')}
               value={String(groups.length)}
               accent="blue"
-              hint={`Присутствуют сегодня: ${presentToday}`}
+              hint={t('dash.kpi.presentToday', { n: presentToday })}
               icon={<CheckCircle2 size={18} strokeWidth={2} />}
               delay={0.2}
             />
@@ -326,20 +336,20 @@ export default function Dashboard() {
             >
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-                  Доход и расход
+                  {t('dash.chart.title')}
                 </div>
                 <div style={{ fontSize: 12, color: SP.muted, marginTop: 2 }}>
-                  Последние 6 месяцев
+                  {t('dash.chart.sub')}
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 14, fontSize: 12, color: SP.textMid }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 9, height: 9, background: '#0D7A7C', borderRadius: '50%' }} />
-                  Доход
+                  {t('dash.chart.income')}
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 9, height: 9, background: '#FFB020', borderRadius: '50%' }} />
-                  Расход
+                  {t('dash.chart.expense')}
                 </span>
               </div>
             </div>
@@ -360,8 +370,8 @@ export default function Dashboard() {
                 />
               ) : (
                 <SproutEmpty
-                  title="Данных пока нет"
-                  description="Здесь появится тренд после первого месяца работы"
+                  title={t('dash.empty.title')}
+                  description={t('dash.empty.trend')}
                   minHeight={240}
                 />
               )}
@@ -375,18 +385,18 @@ export default function Dashboard() {
             delay={0.25}
           >
             <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-              Финансы за месяц
+              {t('dash.fin.title')}
             </div>
             <div style={{ fontSize: 12, color: SP.muted, marginTop: 2, marginBottom: 16 }}>
-              Простыми словами
+              {t('dash.fin.sub')}
             </div>
 
             {global.totalIncome > 0 || global.totalExpenses > 0 ? (
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {([
-                  { label: 'Получили (доход)', value: global.totalIncome, color: SP.primary, Icon: Wallet },
-                  { label: 'Потратили (расход)', value: global.totalExpenses, color: SP.yellowDeep, Icon: CreditCard },
-                  { label: 'Осталось (прибыль)', value: global.netProfit, color: global.netProfit >= 0 ? SP.primaryDeep : SP.danger, Icon: global.netProfit >= 0 ? CheckCircle2 : TrendingDown },
+                  { label: t('dash.fin.got'), value: global.totalIncome, color: SP.primary, Icon: Wallet },
+                  { label: t('dash.fin.spent'), value: global.totalExpenses, color: SP.yellowDeep, Icon: CreditCard },
+                  { label: t('dash.fin.left'), value: global.netProfit, color: global.netProfit >= 0 ? SP.primaryDeep : SP.danger, Icon: global.netProfit >= 0 ? CheckCircle2 : TrendingDown },
                 ]).map((row) => {
                   const max = Math.max(global.totalIncome, global.totalExpenses, 1)
                   const pct = Math.max(4, Math.round((Math.abs(row.value) / max) * 100))
@@ -445,21 +455,24 @@ export default function Dashboard() {
                 >
                   {global.totalIncome > 0 ? (
                     <>
-                      Из каждых <b>100 сомони</b> дохода остаётся{' '}
-                      <b style={{ color: global.netProfit >= 0 ? SP.primaryDeep : SP.danger }}>
-                        {Math.round(global.margin * 100)} сомони
-                      </b>{' '}
-                      прибыли.
+                      {t.rich('dash.fin.per100', {
+                        a: <b>{t('dash.fin.per100a')}</b>,
+                        b: (
+                          <b style={{ color: global.netProfit >= 0 ? SP.primaryDeep : SP.danger }}>
+                            {t('dash.fin.per100b', { x: Math.round(global.margin * 100) })}
+                          </b>
+                        ),
+                      })}
                     </>
                   ) : (
-                    'Дохода в этом месяце пока не было.'
+                    t('dash.fin.noIncome')
                   )}
                 </div>
               </div>
             ) : (
               <SproutEmpty
-                title="Данных пока нет"
-                description="Здесь появится сводка после первых оплат и расходов"
+                title={t('dash.empty.title')}
+                description={t('dash.empty.finance')}
                 minHeight={240}
               />
             )}
@@ -482,11 +495,11 @@ export default function Dashboard() {
             >
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-                  {L.groups}{showAnalytics ? ' · доходность' : ''}
+                  {t('dash.classes.title')}{showAnalytics ? t('dash.classes.profitSuffix') : ''}
                 </div>
                 <div style={{ fontSize: 12, color: SP.muted, marginTop: 2 }}>
-                  {groups.length} {plural(groups.length, ['класс', 'класса', 'классов'])} в {gradeTiles.length}{' '}
-                  {plural(gradeTiles.length, ['параллели', 'параллелях', 'параллелях'])}
+                  {t('dash.classes.count', { n: groups.length })}{' '}
+                  {t('dash.classes.inParallels', { n: gradeTiles.length })}
                 </div>
               </div>
               <button
@@ -503,7 +516,7 @@ export default function Dashboard() {
                   gap: 4,
                 }}
               >
-                Все {'классы'} <ArrowRight size={13} />
+                {t('dash.classes.all')} <ArrowRight size={13} />
               </button>
             </div>
             {groups.length > 0 ? (
@@ -520,9 +533,7 @@ export default function Dashboard() {
                       <span className="sp-grade-badge">{gr.grade ?? '•'}</span>
                       <div className="sp-parallel-title">
                         <b>{gr.label}</b>
-                        <span>
-                          {gr.items.length} {plural(gr.items.length, ['класс', 'класса', 'классов'])}
-                        </span>
+                        <span>{t('dash.classes.count', { n: gr.items.length })}</span>
                       </div>
                       <span className="sp-parallel-total sp-num">{total}</span>
                     </div>
@@ -549,10 +560,8 @@ export default function Dashboard() {
               </div>
             ) : (
               <SproutEmpty
-                title={'Классы ещё не созданы'}
-                description={
-                  'Добавьте первый класс — 1А, 5Б или 11А'
-                }
+                title={t('dash.classes.emptyTitle')}
+                description={t('dash.classes.emptyDesc')}
                 minHeight={200}
               />
             )}
@@ -570,7 +579,7 @@ export default function Dashboard() {
                 marginBottom: 12,
               }}
             >
-              <div style={{ fontSize: 13.5, fontWeight: 700, color: SP.text }}>Требует внимания</div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: SP.text }}>{t('dash.attention.title')}</div>
               {attention.length > 0 && (
                 <span
                   className="sp-chip"
@@ -583,7 +592,7 @@ export default function Dashboard() {
             {attention.length === 0 ? (
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', color: SP.textMid, fontSize: 13 }}>
                 <CheckCircle2 size={20} color={SP.primary} strokeWidth={1.8} />
-                Всё в порядке: замечаний нет.
+                {t('dash.attention.ok')}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -625,7 +634,7 @@ export default function Dashboard() {
           {/* Сегодня */}
           <SproutCard padding={18} delay={0.35}>
             <div style={{ fontSize: 13.5, fontWeight: 700, color: SP.text, marginBottom: 12 }}>
-              Сегодня
+              {t('dash.today.title')}
             </div>
             <div
               style={{
@@ -637,7 +646,7 @@ export default function Dashboard() {
               }}
             >
               <div>
-                <div style={{ fontSize: 12, color: SP.muted }}>Посещаемость</div>
+                <div style={{ fontSize: 12, color: SP.muted }}>{t('dash.today.attendance')}</div>
                 <div
                   className="sp-num"
                   style={{ fontSize: 22, fontWeight: 700, color: SP.primaryDeep }}
@@ -657,7 +666,7 @@ export default function Dashboard() {
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 12, color: SP.muted }}>Должники</div>
+                  <div style={{ fontSize: 12, color: SP.muted }}>{t('dash.today.debtors')}</div>
                   <div
                     className="sp-num"
                     style={{ fontSize: 22, fontWeight: 700, color: SP.danger }}
@@ -683,10 +692,10 @@ export default function Dashboard() {
                 marginBottom: 4,
               }}
             >
-              <Bell size={14} /> События
+              <Bell size={14} /> {t('dash.events.title')}
             </div>
             <div style={{ fontSize: 12, color: SP.muted, marginBottom: 12 }}>
-              Дни рождения и новые {'ученики'}
+              {t('dash.events.sub')}
             </div>
             {events.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -730,7 +739,7 @@ export default function Dashboard() {
             ) : (
               <SproutEmpty
                 icon={<Zap size={24} strokeWidth={1.6} />}
-                title="Тихо. Событий нет."
+                title={t('dash.events.empty')}
                 minHeight={120}
               />
             )}

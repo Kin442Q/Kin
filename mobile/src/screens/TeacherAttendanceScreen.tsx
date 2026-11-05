@@ -10,15 +10,15 @@ import {
 } from 'react-native'
 import { Text } from '../components/Text'
 import dayjs from 'dayjs'
-import { Check, Heart, MinusCircle, Sun, StickyNote } from 'lucide-react-native'
+import { StickyNote } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
-import Avatar from '../components/Avatar'
+import { Chip, ScreenHeading } from '../components/ui'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
 import { Field, Select } from '../components/Field'
-import { colors, radius, shadow } from '../theme/colors'
+import { colors } from '../theme/colors'
 import { useLabels } from '../theme/useLabels'
 import { diaryApi, type Mood, type NapQuality, type KidNoteDto } from '../api/diary'
 import { studentsApi, type StudentDto } from '../api/students'
@@ -33,46 +33,17 @@ interface Row {
   status: AttendanceStatus | null
 }
 
+/** Четыре статуса из макета: выбранный — залитая плашка своего цвета. */
 const STATUSES: Array<{
   key: AttendanceStatus
   label: string
-  short: string
-  bg: string
-  fg: string
-  icon: typeof Check
+  solid: string
+  onSolid: string
 }> = [
-  {
-    key: 'PRESENT',
-    label: 'Здесь',
-    short: 'Здесь',
-    bg: colors.primarySoft,
-    fg: colors.primaryDeep,
-    icon: Check,
-  },
-  {
-    key: 'ABSENT',
-    label: 'Нет',
-    short: 'Нет',
-    bg: colors.roseSoft,
-    fg: colors.roseDeep,
-    icon: MinusCircle,
-  },
-  {
-    key: 'SICK',
-    label: 'Болеет',
-    short: 'Бол.',
-    bg: colors.yellowSoft,
-    fg: colors.yellowDeep,
-    icon: Heart,
-  },
-  {
-    key: 'VACATION',
-    label: 'Отпуск',
-    short: 'Отп.',
-    bg: colors.lilacSoft,
-    fg: colors.lilacDeep,
-    icon: Sun,
-  },
+  { key: 'PRESENT', label: 'Здесь', solid: colors.primary, onSolid: '#FFFFFF' },
+  { key: 'ABSENT', label: 'Нет', solid: colors.text, onSolid: '#FFFFFF' },
+  { key: 'SICK', label: 'Болеет', solid: colors.coral, onSolid: colors.text },
+  { key: 'VACATION', label: 'Отпуск', solid: '#F6C46A', onSolid: colors.text },
 ]
 
 export default function TeacherAttendanceScreen() {
@@ -178,13 +149,16 @@ export default function TeacherAttendanceScreen() {
   }
 
   const counts = useMemo(() => {
-    const total = students.length
-    const marked = Object.keys(marks).length
-    const present = Object.values(marks).filter((s) => s === 'PRESENT').length
-    const absent = Object.values(marks).filter(
-      (s) => s === 'ABSENT' || s === 'SICK' || s === 'VACATION',
-    ).length
-    return { total, marked, present, absent }
+    const vals = Object.values(marks)
+    const of = (s: AttendanceStatus) => vals.filter((v) => v === s).length
+    return {
+      total: students.length,
+      marked: vals.length,
+      present: of('PRESENT'),
+      absent: of('ABSENT'),
+      sick: of('SICK'),
+      vacation: of('VACATION'),
+    }
   }, [marks, students])
 
   if (loading) {
@@ -215,32 +189,16 @@ export default function TeacherAttendanceScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.title}>Посещаемость</Text>
-            <Text style={styles.date}>{dayjs().format('dddd, D MMMM')}</Text>
-
-            <View style={styles.kpiRow}>
-              <Card padding={14} style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>Отмечено</Text>
-                <Text style={styles.kpiValue}>
-                  {counts.marked}
-                  <Text style={styles.kpiTotal}> / {counts.total}</Text>
-                </Text>
-              </Card>
-              <Card padding={14} style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>
-                  В {L.institution === 'школа' ? 'школе' : 'саду'}
-                </Text>
-                <Text style={[styles.kpiValue, { color: colors.primaryDeep }]}>
-                  {counts.present}
-                </Text>
-              </Card>
-              <Card padding={14} style={styles.kpiCard}>
-                <Text style={styles.kpiLabel}>Нет</Text>
-                <Text style={[styles.kpiValue, { color: colors.roseDeep }]}>
-                  {counts.absent}
-                </Text>
-              </Card>
+            <ScreenHeading eyebrow={dayjs().format('dddd, D MMMM')} title="Посещаемость" />
+            <View style={styles.counters}>
+              <Chip tone="solid" label={`Здесь ${counts.present}`} />
+              <Chip tone="glass" label={`Нет ${counts.absent}`} />
+              <Chip tone="coral" label={`Болеет ${counts.sick}`} />
+              <Chip tone="glass" label={`Отпуск ${counts.vacation}`} />
             </View>
+            <Text style={styles.autosave}>
+              Отмечено {counts.marked} из {counts.total} · сохраняется сразу, родители видят отметку
+            </Text>
           </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -335,68 +293,46 @@ function StudentRow({
   onOpenNote,
 }: RowProps) {
   const fullName = `${student.firstName} ${student.lastName}`.trim()
-  const current = STATUSES.find((s) => s.key === status)
+  const initials = `${student.firstName[0] ?? ''}${student.lastName[0] ?? ''}`.toUpperCase()
 
   return (
-    <Card padding={14}>
+    <Card padding={10} elevation="none" style={{ gap: 6 }}>
       <View style={styles.rowTop}>
-        <Avatar name={fullName} size={42} />
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.name} numberOfLines={1}>
-            {fullName}
-          </Text>
-          <Text style={styles.subtitle}>
-            {current ? current.label : 'Не отмечен'}
-            {saving ? ' · сохраняем…' : ''}
-          </Text>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initials}</Text>
         </View>
+        <Text style={styles.name} numberOfLines={1}>
+          {fullName}
+          {saving ? '  …' : ''}
+        </Text>
         <Pressable
           onPress={onOpenNote}
           hitSlop={8}
-          style={[
-            styles.noteBtn,
-            hasNote && { backgroundColor: colors.primarySoft },
-          ]}
+          accessibilityRole="button"
+          accessibilityLabel={`Заметка о ${fullName}`}
+          style={[styles.noteBtn, hasNote && { backgroundColor: colors.primarySoft }]}
         >
-          <StickyNote
-            size={16}
-            color={hasNote ? colors.primaryDeep : colors.muted}
-          />
+          <StickyNote size={16} color={hasNote ? colors.primaryDeep : colors.muted} />
         </Pressable>
       </View>
 
-      <View style={styles.chipRow}>
+      <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel="Статус">
         {STATUSES.map((s) => {
           const active = status === s.key
-          const Icon = s.icon
           return (
             <Pressable
               key={s.key}
               onPress={() => onChange(s.key)}
               disabled={saving}
-              style={({ pressed }) => [
-                styles.chip,
-                {
-                  backgroundColor: active ? s.bg : colors.surfaceSolid,
-                  borderColor: active ? s.fg : colors.border,
-                  opacity: saving ? 0.6 : 1,
-                },
-                pressed && { transform: [{ scale: 0.97 }] },
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={s.label}
+              style={[
+                styles.segBtn,
+                { backgroundColor: active ? s.solid : 'rgba(16,40,42,0.06)', opacity: saving ? 0.6 : 1 },
               ]}
             >
-              <Icon
-                size={14}
-                color={active ? s.fg : colors.muted}
-                strokeWidth={2.4}
-              />
-              <Text
-                style={[
-                  styles.chipText,
-                  { color: active ? s.fg : colors.textMid },
-                ]}
-              >
-                {s.short}
-              </Text>
+              <Text style={[styles.segText, { color: active ? s.onSolid : colors.textMid }]}>{s.label}</Text>
             </Pressable>
           )
         })}
@@ -407,50 +343,24 @@ function StudentRow({
 
 const styles = StyleSheet.create({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 20, paddingBottom: 40 },
-  header: { marginBottom: 16 },
-  title: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  date: {
-    fontSize: 13,
-    color: colors.muted,
-    marginTop: 2,
-    marginBottom: 14,
-  },
-  kpiRow: { flexDirection: 'row', gap: 10 },
-  kpiCard: { flex: 1, ...shadow.sm },
-  kpiLabel: { fontSize: 11, color: colors.muted, fontWeight: '600' },
-  kpiValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    marginTop: 2,
-    letterSpacing: -0.5,
-  },
-  kpiTotal: { fontSize: 13, color: colors.muted, fontWeight: '600' },
-  rowTop: { flexDirection: 'row', alignItems: 'center' },
-  name: { fontSize: 15, fontWeight: '700', color: colors.text },
-  subtitle: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    marginTop: 12,
-  },
-  chip: {
-    flexDirection: 'row',
+  list: { padding: 16, paddingBottom: 24 },
+  header: { marginBottom: 12, gap: 10 },
+  counters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  autosave: { fontSize: 12, color: colors.textMid },
+  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#9EDDD9',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    borderWidth: 1,
+    justifyContent: 'center',
   },
-  chipText: { fontSize: 12, fontWeight: '700' },
+  avatarText: { fontSize: 12, fontWeight: '700', color: colors.text },
+  name: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+  seg: { flexDirection: 'row', gap: 6 },
+  segBtn: { flex: 1, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  segText: { fontSize: 12, fontWeight: '600' },
   empty: { paddingVertical: 60, alignItems: 'center' },
   emptyText: {
     fontSize: 13,

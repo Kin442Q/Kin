@@ -38,6 +38,8 @@ import { chatApi } from '../../api/chatApi'
 import { getSocket } from '../../lib/socket'
 import { SP } from '../sprout'
 import { initialsOf, roleLabel } from '../../lib/roles'
+import LanguageSwitcher from '../LanguageSwitcher'
+import { useT } from '../../i18n'
 
 const { Header } = Layout
 
@@ -48,6 +50,7 @@ interface Props {
 
 export default function AppHeader({ collapsed, onToggle }: Props) {
   const navigate = useNavigate()
+  const t = useT()
   const mode = useThemeStore((s) => s.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
   const user = useAuthStore((s) => s.user)
@@ -111,13 +114,13 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
     {
       key: 'settings',
       icon: <SettingsIcon size={14} />,
-      label: 'Настройки',
+      label: t('nav.settings'),
       onClick: () => navigate('/admin/settings'),
     },
     {
       key: 'logout',
       icon: <LogOut size={14} />,
-      label: 'Выйти',
+      label: t('nav.logout'),
       onClick: () => {
         logout()
         navigate('/login', { replace: true })
@@ -167,7 +170,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             borderRadius: 13,
             background: SP.surfaceAlt,
           }}
-          aria-label={collapsed ? 'Развернуть меню' : 'Свернуть меню'}
+          aria-label={collapsed ? t('header.expand') : t('header.collapse')}
           icon={collapsed ? <MenuIcon size={18} /> : <PanelLeftClose size={18} />}
         />
 
@@ -182,8 +185,8 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
           />
           <Input
-            placeholder="Поиск ученика, класса…"
-            aria-label="Поиск"
+            placeholder={t('header.searchPlaceholder')}
+            aria-label={t('header.search')}
             style={{
               paddingLeft: 38,
               background: SP.surfaceAlt,
@@ -234,7 +237,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
                 fontWeight: 700,
                 maxWidth: 180,
               }}
-              title="Текущий класс"
+              title={t('header.currentClass')}
             >
               <GraduationCap size={16} />
               <span
@@ -254,8 +257,11 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
           </Dropdown>
         )}
 
+        {/* Язык */}
+        <LanguageSwitcher />
+
         {/* Theme */}
-        <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
+        <Tooltip title={mode === 'dark' ? t('theme.light') : t('theme.dark')}>
           <Button
             type="text"
             onClick={toggleTheme}
@@ -268,13 +274,13 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               borderRadius: 13,
               background: SP.surfaceAlt,
             }}
-            aria-label={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+            aria-label={mode === 'dark' ? t('theme.light') : t('theme.dark')}
             icon={mode === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           />
         </Tooltip>
 
         {/* Сообщения чата — бейдж с числом непрочитанных, иконка «дрожит» когда есть новые */}
-        <Tooltip title="Сообщения">
+        <Tooltip title={t('header.messages')}>
           <Badge count={chatUnread} size="small" offset={[-4, 4]}>
             <motion.div
               animate={
@@ -302,7 +308,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
                   background: chatUnread > 0 ? SP.primaryGhost : SP.surfaceAlt,
                   color: chatUnread > 0 ? SP.primaryDeep : undefined,
                 }}
-                aria-label="Сообщения"
+                aria-label={t('header.messages')}
                 icon={<MessageCircle size={17} />}
               />
             </motion.div>
@@ -323,7 +329,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               borderRadius: 13,
               background: SP.surfaceAlt,
             }}
-            aria-label="Уведомления"
+            aria-label={t('header.notifications')}
             icon={<Bell size={17} />}
           />
         </Badge>
@@ -368,18 +374,18 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
       </motion.div>
 
       <Drawer
-        title="Уведомления"
+        title={t('header.notifications')}
         placement="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         extra={
           <Button size="small" type="link" onClick={markAllRead}>
-            Прочитать все
+            {t('header.markAllRead')}
           </Button>
         }
       >
         {notifications.length === 0 ? (
-          <Empty description="Нет уведомлений" />
+          <Empty description={t('header.noNotifications')} />
         ) : (
           <List
             dataSource={notifications}

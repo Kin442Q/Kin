@@ -21,8 +21,7 @@ import {
   type LucideIcon,
 } from 'lucide-react-native'
 
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-
+import FloatingTabBar from '../components/FloatingTabBar'
 import { useAuthStore } from '../store/authStore'
 import { hasFeature, type FeatureKey } from '../lib/features'
 import { colors } from '../theme/colors'
@@ -116,8 +115,9 @@ function buildTabs(role: TabRole): TabConfig[] {
   }
   if (role === 'admin') {
     return [
-      // «Сводка» целиком про деньги (доходы/расходы) — это раздел «Аналитика».
-      { name: 'AdminDashboard', label: 'Сводка', icon: BarChart3, component: AdminDashboardScreen, feature: 'analytics' },
+      // «Сводка школы»: ученики, посещаемость, классы, на что обратить внимание.
+      // Денежные плитки на ней показываются только при включённой «Аналитике».
+      { name: 'AdminDashboard', label: 'Сводка', icon: BarChart3, component: AdminDashboardScreen },
       { name: 'AdminGroups', label: L.groups, icon: LayoutGrid, component: AdminGroupsScreen, feature: 'groups' },
       { name: 'AdminPayments', label: 'Оплаты', icon: CreditCard, component: AdminPaymentsScreen, feature: 'payments' },
       { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
@@ -145,10 +145,6 @@ function buildTabs(role: TabRole): TabConfig[] {
 
 function MainTabs() {
   const user = useAuthStore((s) => s.user)
-  // Нижний отступ под системную панель: кнопки Android (3 кнопки / жесты) и «домик» iOS.
-  // Высота панели вкладок НЕ фиксирована: 56 + отступ, иначе вкладки уезжают под системные кнопки.
-  const insets = useSafeAreaInsets()
-  const bottomInset = Math.max(insets.bottom, 8)
   const r = String(user?.role ?? '').toUpperCase()
   const role: TabRole =
     r === 'SUPER_ADMIN' || r === 'ADMIN'
@@ -166,45 +162,13 @@ function MainTabs() {
       (!t.anyFeature || t.anyFeature.some((f) => hasFeature(user, f))),
   )
 
+  // Иконки вкладок для плавающей панели (по имени маршрута).
+  const icons = Object.fromEntries(tabs.map((t) => [t.name, t.icon])) as Record<string, LucideIcon>
+
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => {
-        const tab = tabs.find((t) => t.name === route.name)
-        const Icon = tab?.icon ?? Home
-        return {
-          headerShown: false,
-          tabBarShowLabel: true,
-          tabBarActiveTintColor: colors.primaryDeep,
-          tabBarInactiveTintColor: colors.muted,
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontFamily: 'Inter_600SemiBold',
-            marginTop: -2,
-          },
-          tabBarStyle: {
-            backgroundColor: colors.surfaceSolid,
-            borderTopColor: colors.glassBorder,
-            borderTopWidth: 1,
-            borderTopLeftRadius: 22,
-            borderTopRightRadius: 22,
-            height: 56 + bottomInset,
-            paddingTop: 8,
-            paddingBottom: bottomInset,
-            shadowColor: '#10282A',
-            shadowOffset: { width: 0, height: -6 },
-            shadowOpacity: 0.08,
-            shadowRadius: 14,
-            elevation: 12,
-          },
-          tabBarIcon: ({ color, focused }) => (
-            <Icon
-              size={22}
-              color={color}
-              strokeWidth={focused ? 2.4 : 2}
-            />
-          ),
-        }
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={(p) => <FloatingTabBar {...p} icons={icons} />}
     >
       {tabs.map((t) => (
         <Tab.Screen
