@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, App as AntdApp, Button, Form, Input, Modal, Popconfirm, Space, Spin, Tag, Typography } from 'antd'
+import { Alert, App as AntdApp, Button, Input, Modal, Popconfirm, Space, Spin, Tag, Typography } from 'antd'
 import { CopyOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
-import {
-  studentAccountApi,
-  type IssuedAccount,
-  type StudentAccount,
-} from '../api/schoolApi'
+import { studentAccountApi, type StudentAccount } from '../api/schoolApi'
+import { qrDataUrl } from '../lib/studentCards'
 
 const { Text } = Typography
 
@@ -17,17 +14,16 @@ interface Props {
 }
 
 /**
- * Вход ученика в свой кабинет. Админ или классный руководитель создаёт
- * аккаунт и передаёт ученику логин и пароль. Пароль показывается один
- * раз — на сервере хранится только хеш.
+ * Вход ученика в свой кабинет. Логина и пароля у ученика нет: админ или классный
+ * руководитель выдаёт личную ссылку (её можно скопировать или показать QR-кодом).
+ * Перевыпуск убивает старую ссылку сразу, «Отключить доступ» удаляет аккаунт.
  */
 export default function StudentAccountModal({ student, onClose }: Props) {
   const { message } = AntdApp.useApp()
   const [account, setAccount] = useState<StudentAccount | null>(null)
-  const [issued, setIssued] = useState<IssuedAccount | null>(null)
+  const [qr, setQr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [form] = Form.useForm()
 
   const errorText = (e: any, fallback: string) => e?.response?.data?.message || fallback
 
@@ -44,23 +40,35 @@ export default function StudentAccountModal({ student, onClose }: Props) {
   }, [student, message])
 
   useEffect(() => {
-    setIssued(null)
     setAccount(null)
-    form.resetFields()
     if (student) load()
-  }, [student, load, form])
+  }, [student, load])
 
-  const run = async (fn: () => Promise<IssuedAccount | void>, okText: string) => {
+  // QR рисуется в браузере из самой ссылки
+  const link = account?.link ?? null
+  useEffect(() => {
+    let cancelled = false
+    setQr(null)
+    if (link) {
+      qrDataUrl(link).then(
+        (url) => {
+          if (!cancelled) setQr(url)
+        },
+        () => {
+          /* QR не обязателен: ссылка остаётся доступной текстом */
+        },
+      )
+    }
+    return () => {
+      cancelled = true
+    }
+  }, [link])
+
+  const run = async (fn: () => Promise<StudentAccount | void>, okText: string) => {
     setBusy(true)
     try {
       const r = await fn()
-      if (r) {
-        setIssued(r)
-        setAccount(r.account)
-      } else {
-        setAccount(null)
-        setIssued(null)
-      }
+      setAccount(r ?? null)
       message.success(okText)
     } catch (e) {
       message.error(errorText(e, 'Не удалось выполнить'))
@@ -76,19 +84,6 @@ export default function StudentAccountModal({ student, onClose }: Props) {
     )
   }
 
-  const create = async () => {
-    if (!student) return
-    const v = await form.validateFields()
-    await run(
-      () =>
-        studentAccountApi.create(student.id, {
-          login: v.login?.trim() || undefined,
-          password: v.password || undefined,
-        }),
-      'Доступ создан',
-    )
-  }
-
   return (
     <Modal
       open={!!student}
@@ -98,90 +93,76 @@ export default function StudentAccountModal({ student, onClose }: Props) {
       destroyOnClose
     >
       <Spin spinning={loading}>
-        {issued && (
-          <Alert
-            type="success"
-            showIcon
-            style={{ marginBottom: 16 }}
-            message="Передайте ученику эти данные — пароль больше не будет показан"
-            description={
-              <div style={{ marginTop: 6 }}>
-                <div>
-                  Логин: <Text strong code>{issued.account.login}</Text>{' '}
-                  <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => copy(issued.account.login)} />
-                </div>
-                <div>
-                  Пароль: <Text strong code>{issued.password}</Text>{' '}
-                  <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => copy(issued.password)} />
-                </div>
-              </div>
-            }
-          />
-        )}
-
-        {account ? (
+        {account?.link ? (
           <div>
             <p style={{ marginTop: 0 }}>
-              Логин: <Text strong code>{account.login}</Text>{' '}
-              <Tag color={account.isActive ? 'green' : 'red'}>{account.isActive ? 'активен' : 'отключён'}</Tag>
+              Личная ссылка ученика{' '}
+              <Tag color={account.isActive ? 'green' : 'red'}>{account.isActive ? 'работает' : 'отключена'}</Tag>
             </p>
+            <Space.Compact style={{ width: '100%' }}>
+              <Input readOnly value={account.link} aria-label="Личная ссылка ученика" onFocus={(e) => e.target.select()} />
+              <Button icon={<CopyOutlined />} onClick={() => copy(account.link!)}>
+                Скопировать
+              </Button>
+            </Space.Compact>
+
+            {qr && (
+              <div style={{ textAlign: 'center', margin: '16px 0 4px' }}>
+                <img src={qr} alt="QR-код ссылки" width={168} height={168} />
+                <div style={{ color: '#8c8c8c', fontSize: 13 }}>Наведите камеру телефона на код</div>
+              </div>
+            )}
+
+            <Alert
+              type="info"
+              showIcon
+              style={{ margin: '12px 0' }}
+              message="Ссылка личная: кто её откроет, тот попадёт в кабинет ученика. Передайте её только ему."
+            />
             <p style={{ color: '#8c8c8c' }}>
               {account.lastLoginAt
-                ? `Последний вход: ${dayjs(account.lastLoginAt).format('DD.MM.YYYY HH:mm')}`
-                : 'Ещё ни разу не входил'}
+                ? `Заходил: ${dayjs(account.lastLoginAt).format('DD.MM.YYYY HH:mm')}`
+                : 'Ещё не заходил'}
             </p>
             <Space wrap>
               <Popconfirm
-                title="Сбросить пароль?"
-                description="Старый пароль перестанет работать, ученика выкинет из всех сессий."
-                okText="Сбросить"
+                title="Перевыпустить ссылку?"
+                description="Старая ссылка сразу перестанет работать, ученик выйдет на всех устройствах."
+                okText="Перевыпустить"
                 cancelText="Отмена"
-                onConfirm={() => run(() => studentAccountApi.resetPassword(student!.id), 'Пароль сброшен')}
+                onConfirm={() => run(() => studentAccountApi.regenerate(student!.id), 'Новая ссылка готова')}
               >
-                <Button loading={busy}>Сбросить пароль</Button>
+                <Button loading={busy}>Перевыпустить</Button>
               </Popconfirm>
               <Popconfirm
-                title="Отобрать доступ?"
-                description="Аккаунт удалится, ученик и его оценки останутся."
-                okText="Отобрать"
+                title="Отключить доступ?"
+                description="Ссылка перестанет работать. Ученик и его оценки останутся."
+                okText="Отключить"
                 okButtonProps={{ danger: true }}
                 cancelText="Отмена"
                 onConfirm={() =>
                   run(async () => {
                     await studentAccountApi.remove(student!.id)
-                  }, 'Доступ отобран')
+                  }, 'Доступ отключён')
                 }
               >
                 <Button danger loading={busy}>
-                  Отобрать доступ
+                  Отключить доступ
                 </Button>
               </Popconfirm>
             </Space>
           </div>
         ) : (
           !loading && (
-            <Form form={form} layout="vertical">
+            <div>
               <p style={{ marginTop: 0 }}>
-                У ученика пока нет входа. Логин и пароль можно не заполнять — они придумаются сами.
+                У ученика пока нет доступа в кабинет. Выдайте <Text strong>личную ссылку</Text> — по ней он войдёт
+                сам, логин и пароль не нужны.
               </p>
-              <Form.Item
-                name="login"
-                label="Логин (необязательно)"
-                tooltip="Латиница, цифры, точка, дефис. Например: ali.karimov"
-              >
-                <Input placeholder="придумается автоматически" />
-              </Form.Item>
-              <Form.Item
-                name="password"
-                label="Пароль (необязательно)"
-                rules={[{ min: 6, message: 'Минимум 6 символов' }]}
-              >
-                <Input.Password placeholder="сгенерируется автоматически" />
-              </Form.Item>
-              <Button type="primary" loading={busy} onClick={create}>
-                Создать доступ
+              <Button type="primary" loading={busy} onClick={() => run(() => studentAccountApi.issue(student!.id), 'Ссылка выдана')}>
+                Выдать ссылку
               </Button>
-            </Form>
+            </div>
           )
         )}
       </Spin>

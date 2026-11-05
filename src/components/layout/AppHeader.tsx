@@ -11,6 +11,8 @@ import {
   Empty,
   Tag,
   Input,
+  Modal,
+  Tabs,
 } from 'antd'
 import {
   Bell,
@@ -20,12 +22,15 @@ import {
   PanelLeftClose,
   Moon,
   Search,
+  KeyRound,
   Settings as SettingsIcon,
   Sun,
   GraduationCap,
   User as UserIcon,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import ChangePasswordForm from '../ChangePasswordForm'
+import ChangeEmailForm from '../ChangeEmailForm'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -55,6 +60,8 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
   const toggleTheme = useThemeStore((s) => s.toggle)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  // «Пароль и вход»: свой пароль и email человек меняет сам (ученики входят по ссылке — им не нужно)
+  const [securityOpen, setSecurityOpen] = useState(false)
   const notifications = useDataStore((s) => s.notifications)
   const markAllRead = useDataStore((s) => s.markAllNotificationsRead)
   const groups = useDataStore((s) => s.groups)
@@ -117,6 +124,16 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
       label: t('nav.settings'),
       onClick: () => navigate('/admin/settings'),
     },
+    ...(user && user.role !== 'STUDENT'
+      ? [
+          {
+            key: 'security',
+            icon: <KeyRound size={14} />,
+            label: 'Пароль и вход',
+            onClick: () => setSecurityOpen(true),
+          },
+        ]
+      : []),
     {
       key: 'logout',
       icon: <LogOut size={14} />,
@@ -412,6 +429,15 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
           />
         )}
       </Drawer>
+
+      <Modal open={securityOpen} onCancel={() => setSecurityOpen(false)} title="Пароль и вход" footer={null} destroyOnClose>
+        <Tabs
+          items={[
+            { key: 'password', label: 'Пароль', children: <ChangePasswordForm onDone={() => setSecurityOpen(false)} /> },
+            { key: 'email', label: 'Email для входа', children: <ChangeEmailForm /> },
+          ]}
+        />
+      </Modal>
     </Header>
   )
 }

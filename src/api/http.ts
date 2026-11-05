@@ -110,7 +110,9 @@ http.interceptors.response.use(
     const status = error?.response?.status
     const url = config?.url || ''
     const isAuthCall =
-      url.includes('/auth/login') || url.includes('/auth/refresh')
+      url.includes('/auth/login') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/auth/student-link')
 
     // 401 во время работы → пробуем обновить токен и повторить запрос один раз.
     if (

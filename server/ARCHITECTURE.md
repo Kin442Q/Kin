@@ -98,7 +98,7 @@ server/
 │  │     └─ telegram.service.ts
 │  │
 │  ├─ modules/                 # Доменные модули (feature-based)
-│  │  ├─ auth/                 # Login, refresh, logout, register
+│  │  ├─ auth/                 # Login, refresh, logout, пароль по ссылке из письма
 │  │  │  ├─ auth.module.ts
 │  │  │  ├─ auth.controller.ts
 │  │  │  ├─ auth.service.ts

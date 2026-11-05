@@ -99,7 +99,7 @@ export default function OnboardingChecklist() {
         title: t('onb.teachers'),
         hint: t('onb.teachersHint'),
         done: (teacherCount ?? 0) > 0,
-        to: '/admin/teachers',
+        to: '/admin/staff',
       },
     ]
   }, [inst, groups.length, children.length, teacherCount, isSchool, t])

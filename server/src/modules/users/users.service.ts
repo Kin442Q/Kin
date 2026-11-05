@@ -5,14 +5,18 @@ import {
   NotFoundException,
   ForbiddenException,
 } from "@nestjs/common";
-import bcrypt from "bcryptjs";
 import { PrismaService } from "../../infrastructure/prisma/prisma.service";
+import {
+  AccessService,
+  assertNoPassword,
+  requireInviteEmail,
+} from "../access/access.service";
 
 interface CreateTeacherDto {
   fullName: string;
   phone: string;
-  email?: string;
-  password: string;
+  /** Обязателен: на него уходит приглашение со ссылкой, по которой учитель сам задаёт пароль. */
+  email: string;
   groupId?: string;
   /** Доп. классы, которые ведёт (many-to-many). */
   teachingGroupIds?: string[];
@@ -22,7 +26,6 @@ interface UpdateTeacherDto {
   fullName?: string;
   phone?: string;
   email?: string;
-  password?: string;
   groupId?: string | null;
   /** Полный набор классов учителя (заменяет текущий). */
   teachingGroupIds?: string[];
@@ -35,7 +38,10 @@ interface ActorContext {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: AccessService,
+  ) {}
 
   /** Список пользователей текущего садика. */
   list(actor: ActorContext) {
@@ -97,14 +103,9 @@ export class UsersService {
     if (!dto.phone?.trim()) {
       throw new BadRequestException("phone обязателен");
     }
-    if (!dto.password || dto.password.length < 6) {
-      throw new BadRequestException("Пароль минимум 6 символов");
-    }
-
-    const phoneNorm = this.normalizePhone(dto.phone);
-    const email =
-      dto.email?.trim().toLowerCase() ||
-      `teacher-${phoneNorm}@kindergarten.local`;
+    assertNoPassword(dto);
+    // Доступ только письмом: без настоящей почты учителя не создаём.
+    const email = requireInviteEmail(dto.email);
 
     // Email уникален глобально
     const existsEmail = await this.prisma.user.findUnique({ where: { email } });
@@ -135,11 +136,12 @@ export class UsersService {
       }
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10);
+    // Пароль админ не вводит и не видит: человек задаёт его сам по ссылке из письма.
+    const secret = await this.access.newSecret();
     const user = await this.prisma.user.create({
       data: {
         email,
-        passwordHash,
+        passwordHash: secret.hash,
         fullName: dto.fullName.trim(),
         phone: dto.phone.trim(),
         role: "TEACHER",
@@ -159,7 +161,8 @@ export class UsersService {
       },
     });
 
-    return user;
+    const access = await this.access.deliver(user);
+    return { ...user, access };
   }
 
   /** Обновление учителя. */
@@ -168,6 +171,7 @@ export class UsersService {
     teacherId: string,
     dto: UpdateTeacherDto,
   ) {
+    assertNoPassword(dto);
     const teacher = await this.prisma.user.findUnique({
       where: { id: teacherId },
     });
@@ -187,9 +191,6 @@ export class UsersService {
     if (dto.fullName !== undefined) data.fullName = dto.fullName.trim();
     if (dto.phone !== undefined) data.phone = dto.phone.trim();
     if (dto.email !== undefined) data.email = dto.email.trim().toLowerCase();
-    if (dto.password) {
-      data.passwordHash = await bcrypt.hash(dto.password, 10);
-    }
     if (dto.groupId !== undefined) data.groupId = dto.groupId || null;
     if (dto.teachingGroupIds !== undefined) {
       const ids = Array.from(new Set(dto.teachingGroupIds.filter(Boolean)));

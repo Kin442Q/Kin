@@ -8,9 +8,20 @@ import { JwtStrategy } from './strategies/jwt.strategy'
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy'
 import { NotificationsModule } from '../notifications/notifications.module'
 import { FeaturesModule } from '../features/features.module'
+import { MailModule } from '../mail/mail.module'
+import { PasswordTokensModule } from '../password-tokens/password-tokens.module'
+import { StudentLinksModule } from '../student-links/student-links.module'
 
 @Module({
-  imports: [PassportModule, JwtModule.register({}), NotificationsModule, FeaturesModule],
+  imports: [
+    PassportModule,
+    JwtModule.register({}),
+    NotificationsModule,
+    FeaturesModule,
+    MailModule,
+    PasswordTokensModule,
+    StudentLinksModule,
+  ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, JwtRefreshStrategy],
   exports: [AuthService],

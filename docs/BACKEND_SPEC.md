@@ -132,7 +132,6 @@ name=refreshToken; httpOnly; secure(prod); sameSite=strict; path=/api/v1/auth; e
 | POST | `/refresh` | Public (cookie) | Ротация (см. выше). Возвращает `{ accessToken, user }` + новый cookie. 200. |
 | POST | `/logout` | Auth | Отзыв (см. выше). 204. |
 | GET | `/me` | Auth | `{ ...user, institution }`, где institution = `{ id, name, type, latitude, longitude, checkInRadiusMeters }` или null. |
-| POST | `/register` | SUPER_ADMIN | `RegisterDto` (см. §8). Нельзя создать SUPER_ADMIN не будучи им. Email уникален. |
 
 Сериализация пользователя (везде, где возвращается «user»):
 `{ id, email, fullName, role, kindergartenId, groupId, childId, avatarUrl, phone }`.

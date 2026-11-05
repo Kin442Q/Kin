@@ -16,14 +16,16 @@ import {
 } from 'antd'
 import {
   DeleteOutlined,
+  KeyOutlined,
   MailOutlined,
   PhoneOutlined,
   PlusOutlined,
-  ReloadOutlined,
   UserOutlined,
 } from '@ant-design/icons'
 
 import { http } from '../api'
+import { accessApi, type AccessGrant } from '../api/accessApi'
+import AccessResultModal from './AccessResultModal'
 
 const { Text } = Typography
 
@@ -53,11 +55,8 @@ export default function ChildParentsModal({
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [credentialsModal, setCredentialsModal] = useState<{
-    fullName: string
-    email: string
-    password: string
-  } | null>(null)
+  // Итог выдачи доступа: письмо ушло или не ушло (тогда можно отправить ещё раз)
+  const [access, setAccess] = useState<{ grant: AccessGrant; userId: string } | null>(null)
   const [form] = Form.useForm()
 
   const load = async () => {
@@ -84,31 +83,23 @@ export default function ChildParentsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, childId])
 
-  const generatePassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-    let pwd = ''
-    for (let i = 0; i < 10; i++) {
-      pwd += chars[Math.floor(Math.random() * chars.length)]
-    }
-    form.setFieldsValue({ password: pwd })
-  }
-
   const submit = async () => {
     try {
       const v = await form.validateFields()
       if (!childId) return
       setSubmitting(true)
-      await http.post(`/v1/students/${childId}/parents`, {
-        fullName: v.fullName,
-        email: v.email?.trim().toLowerCase(),
-        phone: v.phone || undefined,
-        password: v.password,
+      const email = v.email.trim().toLowerCase()
+      // «+992 » без цифр — это пустое поле, а не номер
+      const rawPhone = v.phone?.trim()
+      const phone = rawPhone && rawPhone.replace(/\D/g, '').length > 3 ? rawPhone : undefined
+      const res = await http.post<{ id?: string; access?: AccessGrant }>(`/v1/students/${childId}/parents`, {
+        fullName: v.fullName.trim(),
+        email,
+        phone,
       })
-      setCredentialsModal({
-        fullName: v.fullName,
-        email: v.email?.trim().toLowerCase() ?? '',
-        password: v.password,
-      })
+      if (res.data?.access && res.data.id) {
+        setAccess({ grant: res.data.access, userId: res.data.id })
+      }
       setShowForm(false)
       form.resetFields()
       await load()
@@ -119,6 +110,15 @@ export default function ChildParentsModal({
       )
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const sendLink = async (p: ParentDto) => {
+    try {
+      const grant = await accessApi.sendLink(p.id)
+      setAccess({ grant, userId: p.id })
+    } catch (e: any) {
+      message.error(e?.response?.data?.message || 'Не удалось отправить письмо')
     }
   }
 
@@ -168,6 +168,25 @@ export default function ChildParentsModal({
             <List.Item
               actions={[
                 <Popconfirm
+                  key="link"
+                  title="Отправить ссылку для пароля?"
+                  description="Родителю уйдёт письмо со ссылкой: он сам задаст новый пароль. Вам пароль не показывается."
+                  okText="Отправить"
+                  cancelText="Отмена"
+                  disabled={/\.local$/i.test(p.email)}
+                  onConfirm={() => sendLink(p)}
+                >
+                  <Tooltip title={/\.local$/i.test(p.email) ? 'У родителя не указан email' : 'Отправить ссылку для пароля'}>
+                    <Button
+                      size="small"
+                      type="text"
+                      icon={<KeyOutlined />}
+                      aria-label="Отправить ссылку для пароля"
+                      disabled={/\.local$/i.test(p.email)}
+                    />
+                  </Tooltip>
+                </Popconfirm>,
+                <Popconfirm
                   key="del"
                   title="Отвязать родителя?"
                   description="Аккаунт сохранится, но потеряет доступ к этому ребёнку."
@@ -201,10 +220,14 @@ export default function ChildParentsModal({
                 }
                 description={
                   <Space size="small">
-                    <MailOutlined /> <Text>{p.email}</Text>
+                    {!/\.local$/i.test(p.email) && (
+                      <>
+                        <MailOutlined /> <Text>{p.email}</Text>
+                      </>
+                    )}
                     {p.phone && (
                       <>
-                        · <PhoneOutlined /> <Text>{p.phone}</Text>
+                        {!/\.local$/i.test(p.email) && '·'} <PhoneOutlined /> <Text>{p.phone}</Text>
                       </>
                     )}
                   </Space>
@@ -223,7 +246,6 @@ export default function ChildParentsModal({
               setShowForm(true)
               form.resetFields()
               form.setFieldsValue({ phone: '+992 ' })
-              generatePassword()
             }}
             style={{ marginTop: 8 }}
           >
@@ -254,8 +276,9 @@ export default function ChildParentsModal({
               <Form.Item
                 name="email"
                 label="Email"
+                extra="На этот адрес придёт письмо со ссылкой: родитель сам придумает пароль. Пароль вы не задаёте и не видите."
                 rules={[
-                  { required: true, message: 'Укажите email' },
+                  { required: true, message: 'Укажите email: на него придёт приглашение' },
                   { type: 'email', message: 'Некорректный email' },
                 ]}
               >
@@ -264,31 +287,6 @@ export default function ChildParentsModal({
 
               <Form.Item name="phone" label="Телефон (необязательно)">
                 <Input prefix={<PhoneOutlined />} placeholder="+992 ..." />
-              </Form.Item>
-
-              <Form.Item
-                name="password"
-                label="Пароль"
-                rules={[
-                  { required: true, message: 'Укажите пароль' },
-                  { min: 6, message: 'Минимум 6 символов' },
-                ]}
-                extra="Будет показан один раз после создания"
-              >
-                <Input.Password
-                  addonAfter={
-                    <Tooltip title="Сгенерировать новый">
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={generatePassword}
-                      >
-                        Создать
-                      </Button>
-                    </Tooltip>
-                  }
-                />
               </Form.Item>
 
               <Space>
@@ -302,57 +300,11 @@ export default function ChildParentsModal({
         )}
       </Modal>
 
-      <Modal
-        title="✅ Учётные данные родителя"
-        open={!!credentialsModal}
-        onCancel={() => setCredentialsModal(null)}
-        footer={[
-          <Button
-            key="copy"
-            onClick={() => {
-              if (!credentialsModal) return
-              const text =
-                `Мактаби ман — доступ родителя\n\n` +
-                `👤 ${credentialsModal.fullName}\n` +
-                `📧 ${credentialsModal.email}\n` +
-                `🔑 ${credentialsModal.password}\n\n` +
-                `Зайти можно в веб-версии или в мобильном приложении.`
-              navigator.clipboard.writeText(text)
-              message.success('Скопировано')
-            }}
-          >
-            Скопировать
-          </Button>,
-          <Button
-            key="close"
-            type="primary"
-            onClick={() => setCredentialsModal(null)}
-          >
-            Готово
-          </Button>,
-        ]}
-      >
-        <Alert
-          type="warning"
-          showIcon
-          message="Сохраните пароль сейчас!"
-          description="После закрытия пароль увидеть нельзя — только сбросить."
-          style={{ marginBottom: 14 }}
-        />
-        {credentialsModal && (
-          <div>
-            <p>
-              <Text strong>{credentialsModal.fullName}</Text>
-            </p>
-            <p>
-              <MailOutlined /> <Text copyable>{credentialsModal.email}</Text>
-            </p>
-            <p>
-              🔑 <Text copyable>{credentialsModal.password}</Text>
-            </p>
-          </div>
-        )}
-      </Modal>
+      <AccessResultModal
+        grant={access?.grant ?? null}
+        onRetry={access ? () => accessApi.sendLink(access.userId) : undefined}
+        onClose={() => setAccess(null)}
+      />
     </>
   )
 }

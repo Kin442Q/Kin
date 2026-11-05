@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Param,
   Post,
   Req,
   Res,
@@ -11,21 +12,27 @@ import {
 import { ApiBearerAuth, ApiCookieAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { Request, Response } from 'express'
 import { AuthGuard } from '@nestjs/passport'
+import { Throttle } from '@nestjs/throttler'
 
 import { AuthService } from './auth.service'
 import { LoginDto } from './dto/login.dto'
-import { RegisterDto } from './dto/register.dto'
 import { ForgotPasswordDto } from './dto/forgot-password.dto'
+import { SetPasswordDto } from './dto/set-password.dto'
+import { StudentLinkDto } from './dto/student-link.dto'
+import { ChangePasswordDto } from './dto/change-password.dto'
+import { ChangeEmailDto } from './dto/change-email.dto'
+import { PasswordTokensService } from '../password-tokens/password-tokens.service'
 import { Public } from '../../common/decorators/public.decorator'
-import { Roles } from '../../common/decorators/roles.decorator'
-import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly passwordTokens: PasswordTokensService,
+  ) {}
 
   // ---------------- Login --------------------------------------
   @Public()
@@ -49,6 +56,26 @@ export class AuthController {
     }
   }
 
+  // ---------------- Вход ученика по личной ссылке --------------
+  @Public()
+  // Мягкий лимит: без trust proxy счётчик общий для всех клиентов за прокси.
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Post('student-link')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Вход ученика по личной ссылке от классного руководителя' })
+  async studentLink(
+    @Body() dto: StudentLinkDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.loginWithStudentLink(dto.token, {
+      userAgent: req.headers['user-agent'],
+      ip: req.ip,
+    })
+    this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
+    return { user: result.user, accessToken: result.accessToken }
+  }
+
   // ---------------- Demo login (живое демо) --------------------
   @Public()
   @Post('demo-login')
@@ -66,13 +93,34 @@ export class AuthController {
     return { user: result.user, accessToken: result.accessToken }
   }
 
-  // ---------------- Forgot password (запрос админу) ------------
+  // ---------------- Forgot password ----------------------------
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('forgot-password')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Запросить сброс пароля — уведомление администратору' })
+  @ApiOperation({
+    summary: 'Забыли пароль: ссылка на email, а без email — запрос администратору',
+  })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.auth.requestPasswordReset(dto)
+  }
+
+  // ---------------- Пароль по ссылке из письма -----------------
+  @Public()
+  @Throttle({ default: { limit: 60, ttl: 60_000 } })
+  @Get('password-token/:token')
+  @ApiOperation({ summary: 'Проверить ссылку из письма (приглашение или сброс пароля)' })
+  checkPasswordToken(@Param('token') token: string) {
+    return this.passwordTokens.inspect(token)
+  }
+
+  @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Post('set-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Задать пароль по одноразовой ссылке из письма' })
+  setPassword(@Body() dto: SetPasswordDto) {
+    return this.passwordTokens.consume(dto.token, dto.password)
   }
 
   // ---------------- Refresh ------------------------------------
@@ -128,13 +176,44 @@ export class AuthController {
     return this.auth.me(user.sub)
   }
 
-  // ---------------- Register (only super admin) ----------------
+  // ---------------- Смена своего пароля ------------------------
   @ApiBearerAuth()
-  @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN')
-  @Post('register')
-  register(@Body() dto: RegisterDto, @CurrentUser() user: AuthUser) {
-    return this.auth.register({ role: user.role }, dto)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('change-password')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Сменить свой пароль (нужен текущий). Остальные устройства выходят.' })
+  async changePassword(
+    @Body() dto: ChangePasswordDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.changePassword(user.sub, dto, {
+      userAgent: req.headers['user-agent'],
+      ip: req.ip,
+    })
+    this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
+    return { user: result.user, accessToken: result.accessToken }
+  }
+
+  // ---------------- Смена своего email (логина) ----------------
+  @ApiBearerAuth()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('change-email')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Сменить свой email (логин): нужен текущий пароль' })
+  async changeEmail(
+    @Body() dto: ChangeEmailDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.auth.changeEmail(user.sub, dto, {
+      userAgent: req.headers['user-agent'],
+      ip: req.ip,
+    })
+    this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
+    return { user: result.user, accessToken: result.accessToken }
   }
 
   // ============================================================

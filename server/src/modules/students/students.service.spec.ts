@@ -2,6 +2,9 @@ import { Test } from '@nestjs/testing'
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
 
 import { StudentsService } from './students.service'
+import { StudentLinkService } from '../student-links/student-link.service'
+import { AccessService } from '../access/access.service'
+import { createAccessMock } from '../../test-utils/access-mock'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 import type { AuthUser } from '../../common/types/jwt-payload'
@@ -46,6 +49,8 @@ describe('StudentsService', () => {
     const ref = await Test.createTestingModule({
       providers: [
         StudentsService,
+        { provide: StudentLinkService, useValue: { link: jest.fn() } },
+        { provide: AccessService, useValue: createAccessMock() },
         { provide: PrismaService, useValue: prisma },
       ],
     }).compile()

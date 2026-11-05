@@ -1,8 +1,8 @@
 import {
   Injectable,
   UnauthorizedException,
+  BadRequestException,
   ConflictException,
-  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -15,11 +15,17 @@ import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
 import type { JwtPayload, RefreshJwtPayload } from '../../common/types/jwt-payload'
 import { LoginDto } from './dto/login.dto'
-import { RegisterDto } from './dto/register.dto'
 import { ForgotPasswordDto } from './dto/forgot-password.dto'
 import { NotificationsService } from '../notifications/notifications.service'
 import { FeaturesService } from '../features/features.service'
 import type { FeatureKey } from '../features/feature-registry'
+import { MailService } from '../mail/mail.service'
+import { resetEmail } from '../mail/mail-templates'
+import { PasswordTokensService, isRealEmail } from '../password-tokens/password-tokens.service'
+import { StudentLinkService } from '../student-links/student-link.service'
+
+const STUDENT_USE_LINK = 'Ученики входят по личной ссылке от классного руководителя'
+const LINK_DEAD = 'Ссылка не работает. Попросите классного руководителя выдать новую.'
 
 export interface TokenPair {
   accessToken: string
@@ -36,6 +42,9 @@ export class AuthService {
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly features: FeaturesService,
+    private readonly mail: MailService,
+    private readonly passwordTokens: PasswordTokensService,
+    private readonly studentLinks: StudentLinkService,
   ) {}
 
   // -------------------------------------------------------------------
@@ -54,6 +63,8 @@ export class AuthService {
       if (!found || !found.isActive) {
         throw new UnauthorizedException('Неверный логин или пароль')
       }
+      // Ученики входят по личной ссылке; подсказываем, а не мучаем неверным паролем.
+      if (found.role === 'STUDENT') throw new UnauthorizedException(STUDENT_USE_LINK)
       const ok = await bcrypt.compare(dto.password, found.passwordHash)
       if (!ok) throw new UnauthorizedException('Неверный логин или пароль')
       user = found
@@ -78,10 +89,8 @@ export class AuthService {
       user = matched[0]
     }
 
-    // Кабинет ученика можно выключить для школы — тогда ученики не входят.
-    if (user.role === 'STUDENT' && !(await this.features.isEnabled(user.kindergartenId, 'portal'))) {
-      throw new UnauthorizedException('Кабинет ученика отключён для вашей школы')
-    }
+    // Защита от обхода: по логину и паролю ученик не входит ни по email, ни по телефону.
+    if (user.role === 'STUDENT') throw new UnauthorizedException(STUDENT_USE_LINK)
 
     const tokens = await this.issueTokens(user, meta)
 
@@ -90,6 +99,40 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     })
 
+    return tokens
+  }
+
+  // -------------------------------------------------------------------
+  // Вход ученика по личной ссылке (вместо логина и пароля)
+  // -------------------------------------------------------------------
+  async loginWithStudentLink(token: string, meta: { userAgent?: string; ip?: string }) {
+    const dead = () => new UnauthorizedException(LINK_DEAD)
+
+    const parsed = this.studentLinks.parse(token)
+    if (!parsed) throw dead()
+
+    const user = await this.prisma.user.findUnique({ where: { id: parsed.userId } })
+    // Одинаковый отказ для «нет такого», «не ученик», «отключён», «ссылка отозвана» и
+    // «подпись не та»: ничего лишнего не раскрываем.
+    if (!user || user.role !== 'STUDENT' || !user.isActive || user.linkVersion == null) throw dead()
+    if (!this.studentLinks.verify(token, user.linkVersion)) throw dead()
+
+    // Ученик ушёл из школы (архив) — ссылка больше не пускает.
+    if (user.studentId) {
+      const student = await this.prisma.student.findUnique({
+        where: { id: user.studentId },
+        select: { status: true },
+      })
+      if (!student || student.status !== 'ACTIVE') throw dead()
+    }
+
+    // Кабинет ученика можно выключить для школы — тогда ученики не входят.
+    if (!(await this.features.isEnabled(user.kindergartenId, 'portal'))) {
+      throw new UnauthorizedException('Кабинет ученика отключён для вашей школы')
+    }
+
+    const tokens = await this.issueTokens(user, meta)
+    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
     return tokens
   }
 
@@ -122,39 +165,18 @@ export class AuthService {
   }
 
   // -------------------------------------------------------------------
-  // Register (только SUPER_ADMIN дёргает)
-  // -------------------------------------------------------------------
-  async register(actor: { role: Role }, dto: RegisterDto) {
-    if (actor.role !== 'SUPER_ADMIN' && dto.role === 'SUPER_ADMIN') {
-      throw new ForbiddenException('Нельзя создать SUPER_ADMIN')
-    }
-    const exists = await this.prisma.user.findUnique({ where: { email: dto.email } })
-    if (exists) throw new ConflictException('Email уже занят')
-
-    const passwordHash = await bcrypt.hash(dto.password, 10)
-    const u = await this.prisma.user.create({
-      data: {
-        email: dto.email,
-        passwordHash,
-        fullName: dto.fullName,
-        role: dto.role,
-        groupId: dto.groupId,
-      },
-    })
-    return this.serialize(u)
-  }
-
-  // -------------------------------------------------------------------
-  // Forgot password — восстановление доступа через администратора.
-  // Email/SMS-инфраструктуры нет, доступ выдаёт админ, поэтому здесь мы
-  // лишь шлём ему уведомление; сам сброс пароля делается в карточке
-  // пользователя. Ответ всегда одинаковый — не раскрываем, есть ли аккаунт.
+  // Forgot password — восстановление доступа.
+  // Если у пользователя настоящий email и почта настроена — шлём ему письмо
+  // со ссылкой на смену пароля. Иначе (нет email, ученик, почта выключена или
+  // письмо не ушло) — запасной путь: уведомление администратору, он отправляет
+  // человеку ссылку из карточки пользователя (пароль админ не видит и не задаёт). Ответ всегда одинаковый — не раскрываем,
+  // есть ли аккаунт и что именно сработало.
   // -------------------------------------------------------------------
   async requestPasswordReset(dto: ForgotPasswordDto) {
     const generic = {
       ok: true,
       message:
-        'Если аккаунт найден, администратор получит запрос и сбросит пароль.',
+        'Если аккаунт найден, на его email отправлена ссылка для смены пароля. Если email не указан, запрос получит администратор.',
     }
     try {
       const email = dto.email?.toLowerCase().trim()
@@ -165,6 +187,22 @@ export class AuthService {
         ? await this.prisma.user.findUnique({ where: { email } })
         : await this.prisma.user.findFirst({ where: { phone } })
       if (!user || !user.isActive) return generic
+
+      if (isRealEmail(user.email) && this.mail.isConfigured()) {
+        try {
+          // Не чаще раза в минуту на пользователя: нельзя заспамить чужую почту.
+          if (await this.passwordTokens.hasRecent(user.id, 'RESET')) return generic
+          const { link, hours } = await this.passwordTokens.issue(user.id, 'RESET')
+          const sent = await this.mail.send({
+            to: user.email,
+            ...resetEmail({ name: user.fullName, link, hours }),
+          })
+          if (sent.sent) return generic
+        } catch {
+          // сбой базы при выдаче ссылки — не повод оставить человека без помощи
+        }
+        // письмо не ушло — продолжаем запасным путём (уведомление админам)
+      }
 
       // Кому слать: админам того же учреждения (+ супер-админам); если у
       // пользователя нет учреждения — всем супер-админам.
@@ -192,7 +230,7 @@ export class AuthService {
         admins.map((a) =>
           this.notifications.send(a.id, {
             title: 'Запрос на сброс пароля',
-            description: `${user.fullName} (${contact}) запросил восстановление доступа. Сбросьте пароль в карточке пользователя.`,
+            description: `${user.fullName} (${contact}) запросил восстановление доступа. Отправьте ему ссылку для пароля в карточке пользователя: пароль вы не видите, человек задаёт его сам.`,
             channel: 'IN_APP',
           }),
         ),
@@ -249,6 +287,73 @@ export class AuthService {
         15 * 60, // совпадает с TTL access-token
       )
     }
+  }
+
+  // -------------------------------------------------------------------
+  // Смена своего пароля (все роли, кроме учеников: у них пароля нет)
+  // -------------------------------------------------------------------
+  async changePassword(
+    userId: string,
+    dto: { currentPassword: string; newPassword: string },
+    meta: { userAgent?: string; ip?: string },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } })
+    if (!user || !user.isActive) throw new UnauthorizedException('Пользователь не найден')
+    if (user.role === 'STUDENT') {
+      throw new BadRequestException('У учеников нет пароля: они входят по личной ссылке')
+    }
+    // Неверный текущий пароль — 400, а не 401: иначе клиент решит, что сессия умерла, и выбросит из системы.
+    if (!(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
+      throw new BadRequestException('Текущий пароль неверный')
+    }
+    if (!dto.newPassword || dto.newPassword.length < 8) {
+      throw new BadRequestException('Пароль минимум 8 символов')
+    }
+    if (dto.newPassword === dto.currentPassword) {
+      throw new BadRequestException('Новый пароль должен отличаться от текущего')
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, 10)
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash, mustChangePassword: false },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ])
+    // Остальные устройства выходят; это остаётся в системе с новой сессией.
+    return this.issueTokens({ ...user, passwordHash, mustChangePassword: false }, meta)
+  }
+
+  // -------------------------------------------------------------------
+  // Смена своего email (он же логин). Нужен текущий пароль.
+  // -------------------------------------------------------------------
+  async changeEmail(
+    userId: string,
+    dto: { currentPassword: string; newEmail: string },
+    meta: { userAgent?: string; ip?: string },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } })
+    if (!user || !user.isActive) throw new UnauthorizedException('Пользователь не найден')
+    if (user.role === 'STUDENT') {
+      throw new BadRequestException('У учеников нет логина: они входят по личной ссылке')
+    }
+    if (!(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
+      throw new BadRequestException('Текущий пароль неверный')
+    }
+    const email = (dto.newEmail ?? '').trim().toLowerCase()
+    if (!isRealEmail(email)) throw new BadRequestException('Укажите настоящий email')
+    if (email === user.email) throw new BadRequestException('Это уже ваш email')
+    if (await this.prisma.user.findUnique({ where: { email } })) {
+      throw new ConflictException('Этот email уже занят')
+    }
+
+    const updated = await this.prisma.user.update({ where: { id: user.id }, data: { email } })
+    // В токене лежит email — выдаём новый, чтобы он не отставал от аккаунта.
+    return this.issueTokens(updated, meta)
   }
 
   // ===================================================================
@@ -333,6 +438,8 @@ export class AuthService {
       studentId: user.studentId,
       avatarUrl: user.avatarUrl,
       phone: user.phone,
+      /** true — пароль нужно сменить сразу (остаток прежних временных паролей; новых система не выдаёт). */
+      mustChangePassword: user.mustChangePassword,
     }
   }
 

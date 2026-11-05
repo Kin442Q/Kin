@@ -41,6 +41,8 @@ import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { formatDate, formatMoney } from '../lib/format'
 import { http } from '../api'
+import { accessApi, type AccessGrant } from '../api/accessApi'
+import AccessResultModal from '../components/AccessResultModal'
 import {
   toBackendPosition,
   toRussianPosition,
@@ -95,6 +97,8 @@ export default function StaffPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Staff | null>(null)
   const [form] = Form.useForm()
+  // Итог выдачи доступа: письмо ушло или не ушло (тогда можно отправить ещё раз)
+  const [access, setAccess] = useState<{ grant: AccessGrant; userId: string } | null>(null)
 
   const loadStaff = async () => {
     try {
@@ -216,7 +220,6 @@ export default function StaffPage() {
       if (v.canLogin) {
         body.canLogin = true
         body.role = v.role || 'TEACHER'
-        if (v.password) body.password = v.password
         body.salaryMode = v.salaryMode || 'HOURLY'
         if (v.hourlyRate !== undefined && v.hourlyRate !== null)
           body.hourlyRate = Number(v.hourlyRate)
@@ -226,15 +229,19 @@ export default function StaffPage() {
         if (v.terminalCode) body.terminalCode = v.terminalCode
       }
 
+      let saved: { access?: AccessGrant | null; user?: { id: string } | null } | undefined
       if (editing) {
-        await http.patch(`/v1/staff/${editing.id}`, body)
+        saved = (await http.patch(`/v1/staff/${editing.id}`, body)).data
         message.success('Сотрудник обновлён')
       } else {
-        await http.post('/v1/staff', body)
+        saved = (await http.post('/v1/staff', body)).data
         message.success('Сотрудник добавлен')
       }
 
       setDrawerOpen(false)
+      if (saved?.access && saved.user?.id) {
+        setAccess({ grant: saved.access, userId: saved.user.id })
+      }
       await loadStaff()
     } catch (err: any) {
       if (err?.errorFields) return
@@ -245,6 +252,20 @@ export default function StaffPage() {
       message.error(msg)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  /** id аккаунта редактируемого сотрудника (если у него есть вход в систему). */
+  const editingUserId = editing ? staffApi.find((row) => row.id === editing.id)?.user?.id : undefined
+
+  const sendLink = async () => {
+    if (!editing || !editingUserId) return
+    try {
+      const grant = await accessApi.sendLink(editingUserId)
+      setDrawerOpen(false)
+      setAccess({ grant, userId: editingUserId })
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || 'Не удалось отправить письмо')
     }
   }
 
@@ -482,7 +503,21 @@ export default function StaffPage() {
           <Form.Item name="phone" label="Телефон" rules={[{ required: true }]}>
             <Input prefix={<PhoneOutlined />} placeholder="+992 ..." />
           </Form.Item>
-          <Form.Item name="email" label="Email">
+          <Form.Item
+            name="email"
+            label="Email"
+            dependencies={['canLogin']}
+            extra="Если сотруднику нужен вход в систему, на этот адрес придёт письмо со ссылкой: пароль он придумает сам. Пароль вы не задаёте и не видите."
+            rules={[
+              { type: 'email', message: 'Некорректный email' },
+              ({ getFieldValue }) => ({
+                validator: (_, value) =>
+                  getFieldValue('canLogin') && !editing && !value?.trim()
+                    ? Promise.reject(new Error('Укажите email — на него придёт приглашение со ссылкой'))
+                    : Promise.resolve(),
+              }),
+            ]}
+          >
             <Input prefix={<MailOutlined />} placeholder="optional@example.com" />
           </Form.Item>
           <Row gutter={12}>
@@ -518,38 +553,26 @@ export default function StaffPage() {
             {({ getFieldValue }) =>
               getFieldValue('canLogin') ? (
                 <>
-                  <Row gutter={12}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="role"
-                        label="Роль"
-                        rules={[{ required: true }]}
-                      >
-                        <Select
-                          options={[
-                            { value: 'TEACHER', label: '👨‍🏫 Воспитатель' },
-                            { value: 'ADMIN', label: '👤 Администратор' },
-                          ]}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="password"
-                        label={editing ? 'Новый пароль (опц.)' : 'Пароль'}
-                        rules={
-                          editing
-                            ? []
-                            : [
-                                { required: true, message: 'Введите пароль' },
-                                { min: 6, message: 'Минимум 6 символов' },
-                              ]
-                        }
-                      >
-                        <Input.Password placeholder="Минимум 6 символов" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                  <Form.Item name="role" label="Роль" rules={[{ required: true }]}>
+                    <Select
+                      options={[
+                        { value: 'TEACHER', label: '👨‍🏫 Учитель' },
+                        { value: 'ADMIN', label: '👤 Администратор' },
+                      ]}
+                    />
+                  </Form.Item>
+
+                  {editing && editingUserId && (
+                    <Popconfirm
+                      title="Отправить ссылку для пароля?"
+                      description="Человеку уйдёт письмо со ссылкой: он сам задаст новый пароль. Вам пароль не показывается."
+                      okText="Отправить"
+                      cancelText="Отмена"
+                      onConfirm={sendLink}
+                    >
+                      <Button style={{ marginBottom: 16 }}>Отправить ссылку для пароля</Button>
+                    </Popconfirm>
+                  )}
 
                   <Divider style={{ margin: '8px 0 14px' }} orientation="left">
                     Зарплата (для табеля)
@@ -609,6 +632,12 @@ export default function StaffPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <AccessResultModal
+        grant={access?.grant ?? null}
+        onRetry={access ? () => accessApi.sendLink(access.userId) : undefined}
+        onClose={() => setAccess(null)}
+      />
     </div>
   )
 }

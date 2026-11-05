@@ -34,10 +34,12 @@ import {
   ManOutlined,
   TeamOutlined,
   KeyOutlined,
+  LinkOutlined,
 } from '@ant-design/icons'
 import { Baby } from 'lucide-react'
 import ChildParentsModal from '../components/ChildParentsModal'
 import StudentAccountModal from '../components/StudentAccountModal'
+import ClassLinksModal from '../components/ClassLinksModal'
 import ImportStudentsModal from '../components/ImportStudentsModal'
 import ClassFilter, {
   EMPTY_SELECTION,
@@ -93,11 +95,26 @@ export default function ChildrenPage() {
     portalOn &&
     (isAdmin || (isTeacher && !!user?.homeroomGroups?.some((g) => g.id === c.groupId)))
   const [importOpen, setImportOpen] = useState(false)
+  const [linksOpen, setLinksOpen] = useState(false)
   const isAdmin = user?.role === 'admin' || user?.role === 'SUPER_ADMIN'
   // Роль с бэкенда приходит в верхнем регистре (TEACHER); поддерживаем оба.
   const isTeacher = user?.role === 'TEACHER' || user?.role === 'teacher'
   const L = useLabels()
   const isSchool = L.group === 'класс'
+  const homeroomIds = user?.homeroomGroups?.map((g) => g.id) ?? []
+  // Класс для печати ссылок — тот, что выбран в фильтре «параллель → буква»
+  const pickedGroupId = sel.groupId ?? undefined
+  const linksGroupId = isAdmin
+    ? pickedGroupId
+    : isTeacher
+      ? pickedGroupId && homeroomIds.includes(pickedGroupId)
+        ? pickedGroupId
+        : homeroomIds[0]
+      : undefined
+  const linksGroup = linksGroupId
+    ? { id: linksGroupId, name: groups.find((g) => g.id === linksGroupId)?.name ?? '' }
+    : null
+  const canClassLinks = portalOn && (isAdmin || (isTeacher && homeroomIds.length > 0))
   // Плата за обучение — часть раздела «Оплата»: выключен — нигде не показываем.
   const showFees = useFeature('payments') && !isTeacher
 
@@ -397,7 +414,7 @@ export default function ChildrenPage() {
               </Tooltip>
             )}
             {canGiveAccess(c) && (
-              <Tooltip title="Доступ ученика в кабинет">
+              <Tooltip title="Личная ссылка ученика">
                 <Button
                   size="small"
                   type="text"
@@ -463,6 +480,13 @@ export default function ChildrenPage() {
         }
         actions={
           <Space>
+            {canClassLinks && (
+              <Tooltip title={linksGroup ? '' : 'Выберите класс в фильтре'}>
+                <Button icon={<LinkOutlined />} disabled={!linksGroup} onClick={() => setLinksOpen(true)}>
+                  Ссылки класса
+                </Button>
+              </Tooltip>
+            )}
             <Button
               icon={<DownloadOutlined />}
               onClick={exportToExcel}
@@ -886,6 +910,7 @@ export default function ChildrenPage() {
       </Drawer>
 
       <StudentAccountModal student={accountFor} onClose={() => setAccountFor(null)} />
+      <ClassLinksModal group={linksOpen ? linksGroup : null} onClose={() => setLinksOpen(false)} />
 
       <ChildParentsModal
         open={!!parentsModal}

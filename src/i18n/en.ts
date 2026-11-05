@@ -31,21 +31,23 @@ export const en: Record<keyof typeof ru, Msg> = {
   'login.loginPlaceholder': 'email or +992 90 123 45 67',
   'login.passwordLabel': 'Password',
   'login.passwordRequired': 'Enter your password',
-  'login.forgot': 'Forgot?',
+  'login.forgot': 'Forgot password?',
   'login.submit': 'Sign in',
   'login.hint':
-    'Your login and password are issued by the school administrator. Parents sign in with the phone number registered at school.',
+    'The school administrator sends an invitation to your email: you choose your own password from the link in the message. The administrator never knows it.',
   'login.forgotTitle': 'Restore access',
   'login.forgotBody':
-    'The administrator restores access. Enter the email or phone you sign in with — the administrator will receive your request and reset your password.',
+    'Enter the email you sign in with: we will send a link for a new password. If your account has no email, the school administrator receives the request.',
   'login.forgotPlaceholder': 'email or phone',
-  'login.forgotSend': 'Send request',
+  'login.forgotSend': 'Send link',
   'login.forgotEnter': 'Enter your email or phone',
-  'login.forgotOk': 'Request sent. The administrator will reset your password and tell you the new one.',
+  'login.forgotOk': 'If the account exists, a link to change the password has been sent to its email.',
   'login.forgotFail': 'Could not send the request. Please try again later.',
   'login.badResponse': 'Server error: unexpected response',
   'login.welcome': 'Welcome, {name}',
   'login.failed': 'Sign-in failed. Check your details',
+  'login.studentHint':
+    'Student? Open your personal link or scan the QR code on the card from your homeroom teacher.',
 
   'role.director': 'Principal',
   'role.owner': 'Platform owner',

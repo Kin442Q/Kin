@@ -28,6 +28,7 @@ import Card from '../components/Card'
 import Btn from '../components/Btn'
 import Avatar from '../components/Avatar'
 import BottomModal from '../components/BottomModal'
+import ChangePasswordForm from '../components/ChangePasswordForm'
 import { colors, radius } from '../theme/colors'
 import { http } from '../api/http'
 import { useAuthStore } from '../store/authStore'
@@ -72,12 +73,9 @@ export default function ProfileScreen() {
     }
   }
 
-  const openSecurity = () => {
-    Alert.alert(
-      'Безопасность',
-      'Вход защищён паролем. На приходе/уходе используется Face ID / Touch ID вашего телефона — биометрия не покидает устройство.\n\nЧтобы сменить пароль, обратитесь к администратору учреждения.',
-    )
-  }
+  // Свой пароль человек меняет сам: админ чужие пароли не вводит
+  const [securityModal, setSecurityModal] = useState(false)
+  const openSecurity = () => setSecurityModal(true)
 
   const openSettings = () => {
     const inst = user?.institution
@@ -218,6 +216,10 @@ export default function ProfileScreen() {
           <Text style={{ color: colors.danger, fontWeight: '700' }}>Выйти</Text>
         </Btn>
       </ScrollView>
+
+      <BottomModal visible={securityModal} onClose={() => setSecurityModal(false)} title="Сменить пароль">
+        <ChangePasswordForm onDone={() => setSecurityModal(false)} />
+      </BottomModal>
 
       <BottomModal
         visible={notifModal}

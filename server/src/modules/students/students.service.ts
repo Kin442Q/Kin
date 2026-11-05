@@ -12,6 +12,9 @@ import { randomInt } from 'node:crypto'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { CreateStudentDto, UpdateStudentDto } from './dto/student.dto'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { randomPassword } from '../../common/random-password'
+import { StudentLinkService } from '../student-links/student-link.service'
+import { AccessService, assertNoPassword, requireInviteEmail } from '../access/access.service'
 
 /**
  * Превращает Prisma Decimal/строку/число в чистый number или null
@@ -36,10 +39,18 @@ function normalizeStudent<T extends Record<string, unknown> | null>(s: T): T {
   return { ...s, monthlyFee: decimalToNumber(s.monthlyFee) } as T
 }
 
+/** Какие поля аккаунта ученика нужны для выдачи ссылок. */
+const ACCOUNT_SELECT = { id: true, isActive: true, lastLoginAt: true, linkVersion: true } as const
+type AccountRow = { id: string; isActive: boolean; lastLoginAt: Date | null; linkVersion: number | null }
+
 @Injectable()
 export class StudentsService {
   private readonly logger = new Logger(StudentsService.name)
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly links: StudentLinkService,
+    private readonly access: AccessService,
+  ) {}
 
   /** Все классы, которые ведёт учитель: основная группа + M:N teachingGroups. */
   private async teacherGroupIds(user: AuthUser): Promise<string[]> {
@@ -414,9 +425,9 @@ export class StudentsService {
     studentId: string,
     dto: {
       fullName?: string
+      /** Обязателен при создании нового родителя: на него приходит приглашение со ссылкой для пароля */
       email?: string
       phone?: string
-      password?: string
       existingUserId?: string
     },
     user: AuthUser,
@@ -424,6 +435,7 @@ export class StudentsService {
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Только администратор может управлять родителями')
     }
+    assertNoPassword(dto)
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },
     })
@@ -459,27 +471,20 @@ export class StudentsService {
     if (!dto.fullName?.trim()) {
       throw new BadRequestException('ФИО родителя обязательно')
     }
-    if (!dto.email?.trim() && !dto.phone?.trim()) {
-      throw new BadRequestException('Нужен email или телефон')
-    }
-    if (!dto.password || dto.password.length < 6) {
-      throw new BadRequestException('Пароль минимум 6 символов')
-    }
-
-    const email = dto.email
-      ? dto.email.trim().toLowerCase()
-      : `parent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}@no-email.local`
+    // Доступ только письмом: без настоящей почты родителя не создаём.
+    const email = requireInviteEmail(dto.email)
     const existing = await this.prisma.user.findUnique({ where: { email } })
     if (existing) {
       throw new ConflictException('Email уже используется')
     }
 
-    const passwordHash = await bcrypt.hash(dto.password, 10)
+    // Пароль админ не вводит и не видит: родитель задаёт его сам по ссылке из письма.
+    const secret = await this.access.newSecret()
 
     const created = await this.prisma.user.create({
       data: {
         email,
-        passwordHash,
+        passwordHash: secret.hash,
         fullName: dto.fullName.trim(),
         phone: dto.phone?.trim() || null,
         role: 'PARENT',
@@ -496,7 +501,8 @@ export class StudentsService {
       data: { parents: { connect: { id: created.id } } },
     })
 
-    return this.serializeParent(created)
+    const access = await this.access.deliver(created)
+    return { ...this.serializeParent(created), access }
   }
 
   async removeParent(studentId: string, parentId: string, user: AuthUser) {
@@ -527,7 +533,11 @@ export class StudentsService {
     }
   }
 
-  // ─── Аккаунт ученика (вход в кабинет ученика) ───────────────────────
+  // ─── Доступ ученика по личной ссылке ────────────────────────────────
+  // У учеников нет логина и пароля: классный руководитель (или админ школы)
+  // выдаёт личную ссылку, по ней ученик попадает в свой кабинет. Ссылка
+  // подписана (HMAC от id аккаунта и версии) и нигде не хранится, поэтому её
+  // можно показать снова; перевыпуск увеличивает версию и убивает старую.
 
   /**
    * Доступ ученику выдают админ школы или классный руководитель его класса.
@@ -543,7 +553,7 @@ export class StudentsService {
         status: true,
         kindergartenId: true,
         group: { select: { homeroomTeacherId: true } },
-        account: { select: { id: true, email: true, isActive: true, lastLoginAt: true } },
+        account: { select: ACCOUNT_SELECT },
       },
     })
     if (!student) throw new NotFoundException('Ученик не найден')
@@ -558,34 +568,17 @@ export class StudentsService {
     return student
   }
 
-  private serializeAccount(a: {
-    id: string
-    email: string
-    isActive: boolean
-    lastLoginAt: Date | null
-  }) {
-    return { id: a.id, login: a.email, isActive: a.isActive, lastLoginAt: a.lastLoginAt }
-  }
-
-  /** Пароль без похожих символов (0/O, 1/l/I), чтобы его можно было продиктовать. */
-  private generatePassword(length = 8) {
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-    return Array.from({ length }, () => alphabet[randomInt(alphabet.length)]).join('')
-  }
-
-  /** Логин ученика — email-вида, чтобы входить той же формой, что и все. */
-  private async uniqueStudentLogin(wanted?: string) {
-    if (wanted?.trim()) {
-      let login = wanted.trim().toLowerCase()
-      if (!login.includes('@')) login = `${login}@students.local`
-      if (!/^[a-z0-9._-]{2,40}@[a-z0-9.-]+$/.test(login)) {
-        throw new BadRequestException('Логин: латиница, цифры, точка, дефис, подчёркивание')
-      }
-      if (await this.prisma.user.findUnique({ where: { email: login } })) {
-        throw new ConflictException('Такой логин уже занят')
-      }
-      return login
+  private serializeAccount(a: AccountRow) {
+    return {
+      id: a.id,
+      isActive: a.isActive,
+      lastLoginAt: a.lastLoginAt,
+      link: a.linkVersion ? this.links.link(a.id, a.linkVersion) : null,
     }
+  }
+
+  /** Служебный логин аккаунта (вводить его не нужно): email-вида, уникальный. */
+  private async uniqueStudentLogin() {
     const chars = '0123456789abcdefghjkmnpqrstuvwxyz'
     for (let attempt = 0; attempt < 10; attempt++) {
       const suffix = Array.from({ length: 6 }, () => chars[randomInt(chars.length)]).join('')
@@ -600,58 +593,65 @@ export class StudentsService {
     return s.account ? this.serializeAccount(s.account) : null
   }
 
-  /** Создать вход ученику. Пароль возвращается один раз — его нужно передать ученику. */
-  async createAccount(
-    studentId: string,
-    dto: { login?: string; password?: string },
-    user: AuthUser,
-  ) {
+  /**
+   * Выдать ссылку: создаёт аккаунт, если его нет; если аккаунт есть без ссылки —
+   * выдаёт её; если ссылка уже есть — просто возвращает (повторный вызов безопасен).
+   */
+  async createAccount(studentId: string, user: AuthUser) {
     const s = await this.studentForAccount(studentId, user)
     if (s.status !== 'ACTIVE') {
-      throw new BadRequestException('Аккаунт можно создать только действующему ученику')
+      throw new BadRequestException('Доступ можно выдать только действующему ученику')
     }
-    if (s.account) throw new ConflictException('У ученика уже есть аккаунт')
-    if (dto.password !== undefined && dto.password.length < 6) {
-      throw new BadRequestException('Пароль минимум 6 символов')
-    }
+    return this.serializeAccount(await this.ensureLink(s))
+  }
 
-    const login = await this.uniqueStudentLogin(dto.login)
-    const password = dto.password ?? this.generatePassword()
-    const created = await this.prisma.user.create({
+  private async ensureLink(s: {
+    id: string
+    firstName: string
+    lastName: string
+    kindergartenId: string | null
+    account: AccountRow | null
+  }): Promise<AccountRow> {
+    if (s.account) {
+      if (s.account.linkVersion) return s.account
+      return this.prisma.user.update({
+        where: { id: s.account.id },
+        data: { linkVersion: 1, isActive: true },
+        select: ACCOUNT_SELECT,
+      })
+    }
+    return this.prisma.user.create({
       data: {
-        email: login,
-        passwordHash: await bcrypt.hash(password, 10),
+        email: await this.uniqueStudentLogin(),
+        // пароль случайный и никому не известен: вход ученика только по ссылке
+        passwordHash: await bcrypt.hash(randomPassword(24), 10),
         fullName: `${s.firstName} ${s.lastName}`.trim(),
         role: 'STUDENT',
         studentId: s.id,
         kindergartenId: s.kindergartenId,
         isActive: true,
+        linkVersion: 1,
       },
-      select: { id: true, email: true, isActive: true, lastLoginAt: true },
+      select: ACCOUNT_SELECT,
     })
-    return { account: this.serializeAccount(created), password }
   }
 
-  /** Новый пароль ученику (старый перестаёт работать). Возвращается один раз. */
-  async resetAccountPassword(studentId: string, dto: { password?: string }, user: AuthUser) {
+  /** Перевыпустить ссылку: старая сразу перестаёт работать, сессии ученика закрываются. */
+  async regenerateLink(studentId: string, user: AuthUser) {
     const s = await this.studentForAccount(studentId, user)
-    if (!s.account) throw new NotFoundException('У ученика нет аккаунта')
-    if (dto.password !== undefined && dto.password.length < 6) {
-      throw new BadRequestException('Пароль минимум 6 символов')
-    }
-    const password = dto.password ?? this.generatePassword()
-    await this.prisma.$transaction([
+    if (!s.account) throw new NotFoundException('У ученика нет доступа — сначала выдайте ссылку')
+    const [updated] = await this.prisma.$transaction([
       this.prisma.user.update({
         where: { id: s.account.id },
-        data: { passwordHash: await bcrypt.hash(password, 10), isActive: true },
+        data: { linkVersion: (s.account.linkVersion ?? 0) + 1, isActive: true },
+        select: ACCOUNT_SELECT,
       }),
-      // старые сессии ученика закрываем
       this.prisma.refreshToken.updateMany({
         where: { userId: s.account.id, revokedAt: null },
         data: { revokedAt: new Date() },
       }),
     ])
-    return { account: this.serializeAccount({ ...s.account, isActive: true }), password }
+    return this.serializeAccount(updated)
   }
 
   /** Отобрать доступ: аккаунт удаляется, ученик и его данные остаются. */
@@ -659,6 +659,66 @@ export class StudentsService {
     const s = await this.studentForAccount(studentId, user)
     if (!s.account) return
     await this.prisma.user.delete({ where: { id: s.account.id } })
+  }
+
+  // ── Ссылки класса (для печати карточек) ──
+
+  private async groupForLinks(groupId: string | undefined, user: AuthUser) {
+    if (!groupId) throw new BadRequestException('Укажите класс (groupId)')
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { id: true, name: true, kindergartenId: true, homeroomTeacherId: true },
+    })
+    if (!group) throw new NotFoundException('Класс не найден')
+    if (user.kindergartenId && group.kindergartenId !== user.kindergartenId) {
+      throw new ForbiddenException('Класс из другой школы')
+    }
+    const isAdmin = user.role === 'ADMIN' || user.role === 'SUPER_ADMIN'
+    const isHomeroom = user.role === 'TEACHER' && group.homeroomTeacherId === user.sub
+    if (!isAdmin && !isHomeroom) {
+      throw new ForbiddenException('Ссылки класса выдаёт администратор или классный руководитель')
+    }
+    return group
+  }
+
+  private activeStudentsWithAccount(groupId: string) {
+    return this.prisma.student.findMany({
+      where: { groupId, status: 'ACTIVE' },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        kindergartenId: true,
+        account: { select: ACCOUNT_SELECT },
+      },
+    })
+  }
+
+  /** Ученики класса со ссылками (null — ссылка ещё не выдана). */
+  async classLinks(groupId: string | undefined, user: AuthUser) {
+    const group = await this.groupForLinks(groupId, user)
+    const students = await this.activeStudentsWithAccount(group.id)
+    return {
+      group: { id: group.id, name: group.name },
+      students: students.map((s) => ({
+        studentId: s.id,
+        firstName: s.firstName,
+        lastName: s.lastName,
+        lastLoginAt: s.account?.lastLoginAt ?? null,
+        link: s.account?.linkVersion ? this.links.link(s.account.id, s.account.linkVersion) : null,
+      })),
+    }
+  }
+
+  /** Выдать ссылки всем ученикам класса, у кого их ещё нет, и вернуть полный список. */
+  async issueClassLinks(groupId: string | undefined, user: AuthUser) {
+    const group = await this.groupForLinks(groupId, user)
+    const students = await this.activeStudentsWithAccount(group.id)
+    for (const s of students) {
+      if (!s.account?.linkVersion) await this.ensureLink(s)
+    }
+    return this.classLinks(group.id, user)
   }
 
   private serializeParent(u: {

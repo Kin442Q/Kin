@@ -32,13 +32,6 @@ describe('buildLoginPayload', () => {
       password: 'pw',
     })
   })
-
-  it('логин ученика (email-вида) уходит как email', () => {
-    expect(buildLoginPayload('st4f9k2a@students.local', 'pw')).toEqual({
-      email: 'st4f9k2a@students.local',
-      password: 'pw',
-    })
-  })
 })
 
 describe('LoginPage', () => {

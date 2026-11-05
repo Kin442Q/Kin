@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { App as AntdApp, Avatar, Button, Input, Modal, Segmented, Space, Spin, Table, Tag, Tooltip } from 'antd'
-import { MessageOutlined } from '@ant-design/icons'
+import { LinkOutlined, MessageOutlined } from '@ant-design/icons'
 import { Users } from 'lucide-react'
 
 import { SP, SproutCard, SproutEmpty, SproutPageHeader } from '../components/sprout'
 import ClassFilter, { EMPTY_SELECTION, selectionFor, type ClassSelection } from '../components/ClassFilter'
+import ClassLinksModal from '../components/ClassLinksModal'
+import { useFeature } from '../hooks/useFeature'
 import {
   homeroomApi,
   type HomeroomClass,
@@ -34,6 +36,9 @@ export default function HomeroomPage() {
   const [data, setData] = useState<HomeroomOverview | null>(null)
   const [loading, setLoading] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
+  // Личные ссылки входа учеников класса (кабинет ученика должен быть включён)
+  const portalOn = useFeature('portal')
+  const [linksOpen, setLinksOpen] = useState(false)
 
   const [writeOpen, setWriteOpen] = useState(false)
   const [text, setText] = useState('')
@@ -152,6 +157,11 @@ export default function HomeroomPage() {
             >
               Написать родителям ({selected.length})
             </Button>
+            {portalOn && (
+              <Button icon={<LinkOutlined />} disabled={!groupId} onClick={() => setLinksOpen(true)}>
+                Ссылки класса
+              </Button>
+            )}
             {data && sections?.homework && (
               <span style={{ color: SP.muted, fontSize: 13 }}>
                 Заданий за период: {data.homeworkCount}
@@ -279,6 +289,11 @@ export default function HomeroomPage() {
           placeholder="Текст сообщения"
         />
       </Modal>
+
+      <ClassLinksModal
+        group={linksOpen && groupId ? { id: groupId, name: classes?.find((c) => c.id === groupId)?.name ?? '' } : null}
+        onClose={() => setLinksOpen(false)}
+      />
     </div>
   )
 }

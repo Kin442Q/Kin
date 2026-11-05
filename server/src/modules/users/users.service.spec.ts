@@ -9,17 +9,22 @@ import {
 import { UsersService } from './users.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
+import { AccessService } from '../access/access.service'
+import { createAccessMock, AccessMock, SECRET_HASH } from '../../test-utils/access-mock'
 
 describe('UsersService', () => {
   let service: UsersService
   let prisma: PrismaMock
+  let access: AccessMock
 
   beforeEach(async () => {
     prisma = createPrismaMock()
+    access = createAccessMock()
     const ref = await Test.createTestingModule({
       providers: [
         UsersService,
         { provide: PrismaService, useValue: prisma },
+        { provide: AccessService, useValue: access },
       ],
     }).compile()
     service = ref.get(UsersService)
@@ -53,7 +58,7 @@ describe('UsersService', () => {
     const validDto = {
       fullName: 'Учитель Тест',
       phone: '+992901112233',
-      password: 'secret123',
+      email: 'teacher@school.tj',
     }
 
     it('403 если у админа нет kindergartenId', async () => {
@@ -62,13 +67,66 @@ describe('UsersService', () => {
       ).rejects.toThrow(ForbiddenException)
     })
 
-    it('400 если пароль короче 6 символов', async () => {
+    it('пароль админ не вводит: в базу уходит хеш случайного секрета', async () => {
+      prisma.user.findUnique.mockResolvedValue(null)
+      prisma.user.findFirst.mockResolvedValue(null)
+      prisma.user.create.mockResolvedValue({ id: 't1', email: 'ivan@school.tj', fullName: 'Учитель Тест', role: 'TEACHER' })
+
+      await service.createTeacher({ kindergartenId: 'k1' }, { ...validDto, email: 'ivan@school.tj' })
+
+      expect(prisma.user.create.mock.calls[0][0].data.passwordHash).toBe(SECRET_HASH)
+    })
+
+    it('email в нижнем регистре, доступ уходит письмом, пароля в ответе нет', async () => {
+      prisma.user.findUnique.mockResolvedValue(null)
+      prisma.user.findFirst.mockResolvedValue(null)
+      prisma.user.create.mockResolvedValue({ id: 't1', email: 'ivan@school.tj', fullName: 'Учитель Тест', role: 'TEACHER' })
+
+      const res = await service.createTeacher({ kindergartenId: 'k1' }, { ...validDto, email: 'Ivan@School.TJ' })
+
+      expect(prisma.user.create.mock.calls[0][0].data.email).toBe('ivan@school.tj')
+      expect(access.deliver).toHaveBeenCalledWith(expect.objectContaining({ id: 't1' }))
+      expect(res.access).toEqual({ sent: true, email: 'ivan@school.tj' })
+      expect(JSON.stringify(res)).not.toMatch(/password/i)
+    })
+
+    it('без настоящей почты учителя не создаём: служебные адреса не выдумываются', async () => {
+      for (const email of [undefined, '', 'не-почта', 'teacher-1@kindergarten.local']) {
+        await expect(service.createTeacher({ kindergartenId: 'k1' }, { ...validDto, email: email as never })).rejects.toThrow(/Укажите email/)
+      }
+      expect(prisma.user.create).not.toHaveBeenCalled()
+      expect(access.deliver).not.toHaveBeenCalled()
+    })
+
+    it('письмо не ушло: учитель создан, пароль не выдаётся, причина видна', async () => {
+      prisma.user.findUnique.mockResolvedValue(null)
+      prisma.user.findFirst.mockResolvedValue(null)
+      prisma.user.create.mockResolvedValue({ id: 't1', email: 'teacher@school.tj', fullName: 'Учитель Тест', role: 'TEACHER' })
+      access.deliver.mockResolvedValue({ sent: false, email: 'teacher@school.tj', reason: 'NOT_CONFIGURED' })
+
+      const res = await service.createTeacher({ kindergartenId: 'k1' }, validDto)
+
+      expect(res.access).toMatchObject({ sent: false, reason: 'NOT_CONFIGURED' })
+      expect(JSON.stringify(res)).not.toMatch(/password/i)
+    })
+
+    it('ошибки проверок (нет ФИО, занятый email) возникают до создания секрета и аккаунта', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'existing' })
+      await expect(service.createTeacher({ kindergartenId: 'k1' }, { ...validDto, email: 'taken@kg.tj' })).rejects.toThrow(ConflictException)
+      expect(prisma.user.create).not.toHaveBeenCalled()
+      expect(access.deliver).not.toHaveBeenCalled()
+    })
+
+    it('старый клиент прислал пароль → понятный отказ, аккаунт не создаётся', async () => {
       await expect(
-        service.createTeacher(
-          { kindergartenId: 'k1' },
-          { ...validDto, password: '123' },
-        ),
-      ).rejects.toThrow(BadRequestException)
+        service.createTeacher({ kindergartenId: 'k1' }, { ...validDto, email: 'a@b.tj', password: 'hack-123456' } as never),
+      ).rejects.toThrow(/Пароль не задаётся/)
+      expect(prisma.user.create).not.toHaveBeenCalled()
+    })
+
+    it('при правке учителя пароль тоже не принимается', async () => {
+      await expect(service.updateTeacher({ kindergartenId: 'k1' }, 'u2', { password: 'hack-123456' } as never)).rejects.toThrow(/Пароль не задаётся/)
+      expect(prisma.user.update).not.toHaveBeenCalled()
     })
 
     it('400 если нет ФИО', async () => {
@@ -125,7 +183,7 @@ describe('UsersService', () => {
       prisma.user.findFirst.mockResolvedValue(null)
       prisma.user.create.mockResolvedValue({
         id: 'new-teacher',
-        email: 'teacher-992901112233@kindergarten.local',
+        email: 'teacher@school.tj',
         fullName: 'Учитель Тест',
         role: 'TEACHER',
         phone: '+992901112233',
@@ -148,22 +206,6 @@ describe('UsersService', () => {
         }),
       )
       expect(result.role).toBe('TEACHER')
-    })
-
-    it('генерирует email из телефона если не указан', async () => {
-      prisma.user.findUnique.mockResolvedValue(null)
-      prisma.user.findFirst.mockResolvedValue(null)
-      prisma.user.create.mockResolvedValue({})
-
-      await service.createTeacher({ kindergartenId: 'k1' }, validDto)
-
-      expect(prisma.user.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            email: 'teacher-992901112233@kindergarten.local',
-          }),
-        }),
-      )
     })
   })
 

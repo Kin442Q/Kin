@@ -22,7 +22,6 @@ import {
   IsOptional,
   IsString,
   Min,
-  MinLength,
 } from 'class-validator'
 
 import { StaffService } from './staff.service'
@@ -54,8 +53,8 @@ class CreateStaffBody {
   @IsDateString() hireDate!: string
 
   // ─── Логин в систему ────────────────────────────────────────
+  // Нужен email: на него придёт приглашение со ссылкой, по которой человек сам задаст пароль
   @IsOptional() @IsBoolean() canLogin?: boolean
-  @IsOptional() @IsString() @MinLength(6) password?: string
   @IsOptional() @IsEnum(RoleDto) role?: RoleDto
 
   // ─── Параметры зарплаты для тех у кого учётка ────────────────
@@ -78,7 +77,6 @@ class UpdateStaffBody {
   @IsOptional() @IsDateString() hireDate?: string
 
   @IsOptional() @IsBoolean() canLogin?: boolean
-  @IsOptional() @IsString() @MinLength(6) password?: string
   @IsOptional() @IsEnum(RoleDto) role?: RoleDto
 
   @IsOptional() @IsEnum(SalaryModeDto) salaryMode?: SalaryModeDto

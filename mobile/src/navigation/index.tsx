@@ -34,6 +34,7 @@ import ParentHomeScreen from '../screens/ParentHomeScreen'
 import ParentSchedulePlaceholder from '../screens/ParentSchedulePlaceholder'
 import ParentPaymentsPlaceholder from '../screens/ParentPaymentsPlaceholder'
 import ProfileScreen from '../screens/ProfileScreen'
+import MustChangePasswordScreen from '../screens/MustChangePasswordScreen'
 import AdminDashboardScreen from '../screens/AdminDashboardScreen'
 import AdminGroupsScreen from '../screens/AdminGroupsScreen'
 import AdminPaymentsScreen from '../screens/AdminPaymentsScreen'
@@ -293,7 +294,7 @@ export default function RootNavigator() {
 
   return (
     <NavigationContainer theme={navTheme} ref={navRef}>
-      {user ? <MainNavigator /> : <AuthNavigator />}
+      {user ? user.mustChangePassword ? <MustChangePasswordScreen /> : <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   )
 }

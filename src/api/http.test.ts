@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import axios from 'axios'
 import type { AxiosResponse } from 'axios'
 import { http } from './http'
 import { useAuthStore } from '../store/authStore'
@@ -62,6 +63,17 @@ describe('http interceptors', () => {
     }
     await http.get('/x')
     expect(seenAuth).toBe('Bearer jwt-123')
+  })
+
+  it('401 на входе по личной ссылке не запускает авто-рефреш (мёртвая ссылка — не протухший токен)', async () => {
+    useAuthStore.setState({ token: 'jwt-old' })
+    const refresh = vi.spyOn(axios, 'post').mockRejectedValue(new Error('не должен вызываться'))
+    mockAdapterReject(401)
+
+    await expect(http.post('/v1/auth/student-link', { token: 'x' })).rejects.toBeTruthy()
+
+    expect(refresh).not.toHaveBeenCalled()
+    refresh.mockRestore()
   })
 
   it('на 401 вызывает logout', async () => {
