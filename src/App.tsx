@@ -19,6 +19,7 @@ import ExpensesPage from "./pages/ExpensesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import StaffPage from "./pages/StaffPage";
 import TeachersPage from "./pages/TeachersPage";
+import TeacherAccessPage from "./pages/TeacherAccessPage";
 import SchoolsPage from "./pages/SchoolsPage";
 import HomeroomPage from "./pages/HomeroomPage";
 import StudentHomePage from "./pages/student/StudentHomePage";
@@ -289,6 +290,14 @@ export default function App() {
               element={
                 <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="teachers">
                   <TeachersPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="teacher-access"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="teachers">
+                  <TeacherAccessPage />
                 </RequireRole>
               }
             />
