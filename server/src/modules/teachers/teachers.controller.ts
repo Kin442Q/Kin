@@ -38,4 +38,13 @@ export class TeachersController {
   ) {
     return this.service.setClasses(user, id, body.groupIds || [])
   }
+
+  @Patch(':id/subjects')
+  setSubjects(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() body: { subjectIds: string[] },
+  ) {
+    return this.service.setSubjects(user, id, body.subjectIds || [])
+  }
 }

@@ -336,6 +336,11 @@ export const ru = {
   'access.noClassesHint': 'Сначала создайте классы в разделе «Классы».',
   'access.pickTeacher': 'Выберите учителя слева',
   'access.noAccess': 'нет классов',
+  'access.noSubjects': 'нет предметов',
+  'access.subjects': 'Предметы',
+  'access.subjectsN': 'предметов: {n}',
+  'access.subjectsHint': 'В журнале и ДЗ учитель видит только отмеченные предметы. Пока ничего не отмечено, журнал у него пуст.',
+  'access.noSubjectsSchool': 'В школе пока нет предметов. Добавьте их в разделе «Предметы».',
   'access.classesOf': {
     one: '{n} класс',
     few: '{n} класса',

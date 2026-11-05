@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   Pressable,
   StyleProp,
-  StyleSheet,
   View,
   ViewStyle,
 } from 'react-native'
 import { Text } from './Text'
 import { colors, radius, font } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 interface Props {
   children: ReactNode
   onPress?: () => void
@@ -97,7 +97,7 @@ export default function Btn({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   btn: {
     borderRadius: radius.md,
     justifyContent: 'center',
@@ -119,4 +119,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.1,
   },
-})
+}))

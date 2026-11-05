@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Pressable,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../Text'
@@ -10,6 +9,7 @@ import { colors, radius } from '../../theme/colors'
 import { createMemoryDeck, memoryScore } from '../../lib/games'
 import type { GameProps } from './types'
 
+import { themedStyles } from '../../theme/themedStyles'
 const PAIRS = 6
 
 /** «Найди пары»: открывай карточки по две. Меньше ходов и времени — больше очков. */
@@ -89,7 +89,7 @@ export default function MemoryGame({ onFinish }: GameProps) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   stats: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -112,4 +112,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   symbol: { fontSize: 30, color: '#fff' },
-})
+}))

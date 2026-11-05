@@ -75,7 +75,7 @@ class UpdateHomeworkDto {
 // ─── Service ──────────────────────────────────────────────────────────
 
 @Injectable()
-class SchoolService {
+export class SchoolService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
@@ -100,11 +100,32 @@ class SchoolService {
     )
   }
 
+  /** Предметы, которые администратор открыл учителю. */
+  private async teacherSubjectIds(user: AuthUser): Promise<string[]> {
+    const rows = await this.prisma.subject.findMany({
+      where: { teachers: { some: { id: user.sub } } },
+      select: { id: true },
+    })
+    return rows.map((r) => r.id)
+  }
+
+  /** Учитель работает только с предметами, которые ему выдали. Админу проверка не нужна. */
+  private async assertTeacherSubject(user: AuthUser, subjectId: string) {
+    if (user.role !== 'TEACHER') return
+    if (!(await this.teacherSubjectIds(user)).includes(subjectId)) {
+      throw new ForbiddenException('Этот предмет вам не выдан. Попросите администратора открыть доступ.')
+    }
+  }
+
   // ─── Subjects ───────────────────────────────────────────────────────
 
   async listSubjects(user: AuthUser) {
     return this.prisma.subject.findMany({
-      where: this.tenantFilter(user),
+      where: {
+        ...this.tenantFilter(user),
+        // Учитель видит только свои предметы, а не все предметы школы
+        ...(user.role === 'TEACHER' ? { teachers: { some: { id: user.sub } } } : {}),
+      },
       orderBy: { name: 'asc' },
     })
   }
@@ -163,6 +184,12 @@ class SchoolService {
     const where: Record<string, unknown> = {}
     if (params.studentId) where.studentId = params.studentId
     if (params.subjectId) where.subjectId = params.subjectId
+    if (user.role === 'TEACHER') {
+      // только выданные предметы: чужой предмет не показываем, даже если запросили по id
+      const subjectIds = await this.teacherSubjectIds(user)
+      if (params.subjectId ? !subjectIds.includes(params.subjectId) : subjectIds.length === 0) return []
+      if (!params.subjectId) where.subjectId = { in: subjectIds }
+    }
     if (params.from || params.to) {
       where.date = {
         ...(params.from ? { gte: new Date(params.from) } : {}),
@@ -208,6 +235,7 @@ class SchoolService {
       if (!student.groupId || !groups.includes(student.groupId)) {
         throw new ForbiddenException('Ученик не из ваших классов')
       }
+      await this.assertTeacherSubject(user, dto.subjectId)
     }
     if (
       user.kindergartenId &&
@@ -257,6 +285,7 @@ class SchoolService {
     ) {
       throw new ForbiddenException('Не ваш ученик')
     }
+    await this.assertTeacherSubject(user, g.subjectId)
     if (user.kindergartenId && g.student.kindergartenId !== user.kindergartenId) {
       throw new ForbiddenException('Из другого учреждения')
     }
@@ -329,6 +358,9 @@ class SchoolService {
       where.groupId = params.groupId && groups.includes(params.groupId)
         ? params.groupId
         : { in: groups }
+      const subjectIds = await this.teacherSubjectIds(user)
+      if (params.subjectId ? !subjectIds.includes(params.subjectId) : subjectIds.length === 0) return []
+      if (!params.subjectId) where.subjectId = { in: subjectIds }
     } else if (params.groupId) {
       where.groupId = params.groupId
     }
@@ -356,6 +388,7 @@ class SchoolService {
     ) {
       throw new ForbiddenException('Можно задавать только своим классам')
     }
+    await this.assertTeacherSubject(user, dto.subjectId)
     const [group, subject] = await Promise.all([
       this.prisma.group.findUnique({ where: { id: dto.groupId } }),
       this.prisma.subject.findUnique({ where: { id: dto.subjectId } }),
@@ -408,6 +441,7 @@ class SchoolService {
     ) {
       throw new ForbiddenException()
     }
+    await this.assertTeacherSubject(user, hw.subjectId)
     if (user.kindergartenId && hw.group.kindergartenId !== user.kindergartenId) {
       throw new ForbiddenException()
     }
@@ -434,6 +468,7 @@ class SchoolService {
     ) {
       throw new ForbiddenException()
     }
+    await this.assertTeacherSubject(user, hw.subjectId)
     if (user.kindergartenId && hw.group.kindergartenId !== user.kindergartenId) {
       throw new ForbiddenException()
     }

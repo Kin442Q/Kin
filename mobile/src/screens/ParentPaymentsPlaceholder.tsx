@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -20,6 +18,8 @@ import {
   type PaymentDto,
 } from '../api/parent'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 const MONTH_RU = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
@@ -45,7 +45,7 @@ export default function ParentPaymentsScreen() {
       if (list.length && !activeKidId) setActiveKidId(list[0].id)
       else if (!list.length) setLoading(false)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
       setLoading(false)
     }
   }, [activeKidId])
@@ -56,7 +56,7 @@ export default function ParentPaymentsScreen() {
       const list = await parentApi.payments(activeKidId)
       setPayments(list)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -255,7 +255,7 @@ function methodLabel(m: string): string {
   return m
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
@@ -312,4 +312,4 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderSoft,
     fontStyle: 'italic',
   },
-})
+}))

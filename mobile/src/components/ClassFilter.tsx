@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native'
+import { Pressable, ScrollView, View } from 'react-native'
 import { Text } from './Text'
 import { colors, radius } from '../theme/colors'
 import { classLetterOf, gradeKeyOf, groupByGrade, type GradeKey } from '../lib/classes'
 
+import { themedStyles } from '../theme/themedStyles'
 export interface ClassItem {
   id: string
   name: string
@@ -111,7 +112,7 @@ export default function ClassFilter({ groups, value, onChange, allowAllLetters =
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   label: {
     fontSize: 11,
     fontWeight: '700',
@@ -137,4 +138,4 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14, fontWeight: '700', color: colors.text },
   chipTextOn: { color: '#fff' },
   chipCount: { fontSize: 11, fontWeight: '600', color: colors.muted },
-})
+}))

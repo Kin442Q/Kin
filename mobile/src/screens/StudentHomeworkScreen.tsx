@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -24,6 +22,8 @@ import {
   type SubmissionStatus,
 } from '../api/student'
 
+import { themedStyles, themedValue } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 type Filter = 'open' | 'done' | 'past'
 
 const FILTERS: Array<{ key: Filter; label: string }> = [
@@ -32,12 +32,12 @@ const FILTERS: Array<{ key: Filter; label: string }> = [
   { key: 'past', label: 'Прошедшие' },
 ]
 
-const STATUS_TONE: Record<SubmissionStatus, { bg: string; fg: string }> = {
+const STATUS_TONE = themedValue<Record<SubmissionStatus, { bg: string; fg: string }>>(() => ({
   SUBMITTED: { bg: colors.blueSoft, fg: colors.blueDeep },
   DONE: { bg: colors.primarySoft, fg: colors.primaryDeep },
   PARTIAL: { bg: colors.yellowSoft, fg: colors.yellowDeep },
   NOT_DONE: { bg: colors.roseSoft, fg: colors.roseDeep },
-}
+}))
 
 const isVerdict = (s: SubmissionStatus | null | undefined) =>
   s === 'DONE' || s === 'PARTIAL' || s === 'NOT_DONE'
@@ -59,7 +59,7 @@ export default function StudentHomeworkScreen() {
         }),
       )
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить задания')
+      notifyError(e, 'Не удалось загрузить задания')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -100,7 +100,7 @@ export default function StudentHomeworkScreen() {
         ),
       )
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось отметить')
+      notifyError(e, 'Не удалось отметить')
     } finally {
       setBusyId(null)
     }
@@ -200,7 +200,7 @@ export default function StudentHomeworkScreen() {
                     <Text
                       style={[
                         styles.badge,
-                        { backgroundColor: STATUS_TONE[status].bg, color: STATUS_TONE[status].fg },
+                        { backgroundColor: STATUS_TONE()[status].bg, color: STATUS_TONE()[status].fg },
                       ]}
                     >
                       {submitted ? 'Ждёт проверки учителя' : STATUS_LABEL[status]}
@@ -228,7 +228,7 @@ export default function StudentHomeworkScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: 16, paddingTop: 12, gap: 10 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text },
@@ -252,4 +252,4 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
-})
+}))

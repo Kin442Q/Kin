@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -29,6 +28,8 @@ import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
 import { adminApi, type MeetingDto, type GroupDto } from '../api/admin'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 export default function AdminMeetingsScreen() {
   const navigation = useNavigation()
   const L = useLabels()
@@ -57,7 +58,7 @@ export default function AdminMeetingsScreen() {
       setGroups(gs)
       if (gs.length && !groupId) setGroupId(gs[0].id)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -110,7 +111,7 @@ export default function AdminMeetingsScreen() {
         `Родителям ${L.group === 'класс' ? 'класса' : 'группы'} будет отправлено уведомление в Telegram.`,
       )
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setSaving(false)
     }
@@ -298,7 +299,7 @@ export default function AdminMeetingsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: {
     flexDirection: 'row',
@@ -395,4 +396,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
-})
+}))

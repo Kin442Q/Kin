@@ -4,7 +4,6 @@ import {
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { ArrowRight, Eye, EyeOff, Info, Link2, Lock, User } from 'lucide-react-native'
@@ -17,7 +16,9 @@ import { colors, radius, font } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { extractStudentToken } from '../lib/studentLink'
 import { authApi } from '../api/auth'
+import { notifyError } from '../lib/notify'
 
+import { themedStyles } from '../theme/themedStyles'
 export default function LoginScreen() {
   const login = useAuthStore((s) => s.login)
   const loginWithLink = useAuthStore((s) => s.loginWithLink)
@@ -47,10 +48,9 @@ export default function LoginScreen() {
         : { phone: v, password }
       await login(creds)
     } catch (e: any) {
-      Alert.alert(
-        'Ошибка входа',
-        e?.response?.data?.message || 'Проверьте логин и пароль',
-      )
+      // нет связи — красивая плашка; ответ сервера (неверный пароль) — как раньше
+      if (!e?.response) notifyError(e)
+      else Alert.alert('Ошибка входа', e?.response?.data?.message || 'Проверьте логин и пароль')
     }
   }
 
@@ -66,7 +66,8 @@ export default function LoginScreen() {
       Alert.alert('Проверьте почту', res.message)
       setForgotMode(false)
     } catch (e: any) {
-      Alert.alert('Не получилось', e?.response?.data?.message || 'Не удалось отправить запрос. Попробуйте позже.')
+      if (!e?.response) notifyError(e)
+      else Alert.alert('Не получилось', e?.response?.data?.message || 'Не удалось отправить запрос. Попробуйте позже.')
     } finally {
       setForgotLoading(false)
     }
@@ -84,10 +85,12 @@ export default function LoginScreen() {
     try {
       await loginWithLink(token)
     } catch (e: any) {
-      Alert.alert(
-        'Не получилось войти',
-        e?.response?.data?.message || 'Ссылка не работает. Попросите классного руководителя выдать новую.',
-      )
+      if (!e?.response) notifyError(e)
+      else
+        Alert.alert(
+          'Не получилось войти',
+          e?.response?.data?.message || 'Ссылка не работает. Попросите классного руководителя выдать новую.',
+        )
     }
   }
 
@@ -297,7 +300,7 @@ export default function LoginScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     padding: 22,
     paddingTop: 20,
@@ -383,4 +386,4 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: colors.roseDeep,
   },
-})
+}))

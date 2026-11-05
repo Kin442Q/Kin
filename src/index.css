@@ -2166,6 +2166,9 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   height: 32px;
   font-size: 12px;
 }
+.ta-subjects {
+  margin-top: 10px;
+}
 .ta-foot {
   display: flex;
   justify-content: space-between;

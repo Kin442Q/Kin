@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   Pressable,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../Text'
@@ -10,6 +9,7 @@ import { colors, radius } from '../../theme/colors'
 import { checkSequence, extendSequence, sequenceScore } from '../../lib/games'
 import type { GameProps } from './types'
 
+import { themedStyles } from '../../theme/themedStyles'
 const PAD_COLORS = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B']
 type Phase = 'showing' | 'input' | 'over'
 
@@ -93,7 +93,7 @@ export default function SequenceGame({ onFinish }: GameProps) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   status: { color: colors.textMid, fontWeight: '700', fontSize: 14 },
   grid: {
     width: 260,
@@ -104,4 +104,4 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   pad: { width: 123, height: 110, borderRadius: radius.lg },
-})
+}))

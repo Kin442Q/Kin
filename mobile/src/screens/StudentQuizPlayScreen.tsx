@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -18,6 +16,8 @@ import EmptyState from '../components/EmptyState'
 import { colors, radius } from '../theme/colors'
 import { quizApi, type AttemptResult, type PlayQuiz } from '../api/learning'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 type Stage = 'intro' | 'run' | 'result'
 
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`
@@ -58,7 +58,7 @@ export default function StudentQuizPlayScreen() {
       setStage('result')
     } catch (e: any) {
       sent.current = false
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось отправить ответы')
+      notifyError(e, 'Не удалось отправить ответы')
     } finally {
       setSubmitting(false)
     }
@@ -269,7 +269,7 @@ export default function StudentQuizPlayScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   center: { flex: 1, padding: 16, justifyContent: 'center' },
   container: { padding: 16, paddingBottom: 40, gap: 12 },
@@ -298,4 +298,4 @@ const styles = StyleSheet.create({
   reviewQ: { fontSize: 14.5, fontWeight: '800', color: colors.text },
   reviewOpt: { fontSize: 13.5, paddingVertical: 5, paddingHorizontal: 8, borderRadius: 8, overflow: 'hidden' },
   explain: { fontSize: 13, color: colors.textMid, marginTop: 4 },
-})
+}))

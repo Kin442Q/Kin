@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -21,6 +20,8 @@ import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
 import { adminApi, type AdminPaymentDto } from '../api/admin'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 type Method = 'CASH' | 'CARD' | 'TRANSFER'
 
 type Filter = 'all' | 'paid' | 'unpaid'
@@ -41,7 +42,7 @@ export default function AdminPaymentsScreen() {
       const list = await adminApi.payments({ month })
       setItems(list)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -311,7 +312,7 @@ export default function AdminPaymentsScreen() {
                     setEditing(null)
                     reload()
                   } catch (e: any) {
-                    Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+                    notifyError(e)
                   } finally {
                     setSaving(false)
                   }
@@ -379,7 +380,7 @@ function methodLabel(m: string): string {
   return m
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 20, paddingBottom: 40 },
   title: {
@@ -422,4 +423,4 @@ const styles = StyleSheet.create({
   modalHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   modalName: { fontSize: 16, fontWeight: '800', color: colors.text },
   modalMeta: { fontSize: 13, color: colors.muted, marginTop: 2 },
-})
+}))

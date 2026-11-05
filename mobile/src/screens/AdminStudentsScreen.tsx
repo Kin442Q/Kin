@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text, TextInput } from '../components/Text'
@@ -25,6 +23,8 @@ import {
   type GroupDto,
 } from '../api/admin'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 export default function AdminStudentsScreen() {
   const navigation = useNavigation()
   const L = useLabels()
@@ -49,7 +49,7 @@ export default function AdminStudentsScreen() {
         setStudents([])
       }
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -253,7 +253,7 @@ function pluralizeStudent(n: number, base: string): string {
   return base
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: {
     flexDirection: 'row',
@@ -326,4 +326,4 @@ const styles = StyleSheet.create({
   phoneText: { fontSize: 12, color: colors.textMid },
   empty: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-})
+}))

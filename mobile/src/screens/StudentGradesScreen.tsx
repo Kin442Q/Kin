@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -17,6 +15,8 @@ import EmptyState from '../components/EmptyState'
 import { colors, radius } from '../theme/colors'
 import { studentApi, type StudentGrades } from '../api/student'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 const TYPE_LABEL: Record<string, string> = {
   CLASSWORK: 'Классная',
   HOMEWORK: 'Домашняя',
@@ -45,7 +45,7 @@ export default function StudentGradesScreen() {
     try {
       setData(await studentApi.grades())
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить оценки')
+      notifyError(e, 'Не удалось загрузить оценки')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -139,7 +139,7 @@ export default function StudentGradesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, paddingBottom: 32, gap: 12 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text },
@@ -166,4 +166,4 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 20, fontWeight: '800' },
   comment: { fontSize: 13, color: colors.textMid, marginTop: 4 },
-})
+}))

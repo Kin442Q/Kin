@@ -5,21 +5,25 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
 import dayjs from 'dayjs'
-import { ChevronLeft, Plus, BookMarked } from 'lucide-react-native'
+import { ChevronLeft, Plus, BookMarked, ListChecks, Lock } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import { ScreenHeading } from '../components/ui'
 import BottomModal from '../components/BottomModal'
 import Dropdown from '../components/Dropdown'
+import ClassPicker from '../components/ClassPicker'
+import EmptyState from '../components/EmptyState'
 import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
+import { themedStyles } from '../theme/themedStyles'
 import { gradeTone } from '../lib/gradeStyle'
+import { notifyError } from '../lib/notify'
+import { useMyClasses } from '../lib/useMyClasses'
 import { studentsApi, type StudentDto } from '../api/students'
 import {
   schoolApi,
@@ -38,19 +42,30 @@ const TYPE_LABELS: Record<GradeType, string> = {
   OTHER: 'Другое',
 }
 
+/**
+ * Журнал оценок. Начинается с выбора класса и предмета: пока они не выбраны, учеников нет —
+ * так оценка не попадёт не тому классу. Показываются только классы и предметы, к которым
+ * администратор открыл учителю доступ.
+ */
 export default function TeacherGradesScreen() {
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [])
+  const { classes, loading: classesLoading, reload: reloadClasses } = useMyClasses()
+
+  // Выбранные класс и предмет. Пока оба не выбраны, список учеников пуст.
+  const [groupId, setGroupId] = useState<string | null>(null)
+  const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null)
+
   // Выбранный ученик: оценка с клавиатуры внизу ставится ему и выбор переходит к следующему.
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const [students, setStudents] = useState<StudentDto[]>([])
   const [subjects, setSubjects] = useState<SubjectDto[]>([])
-  const [activeSubjectId, setActiveSubjectId] = useState<string | null>(null)
   const [grades, setGrades] = useState<GradeDto[]>([])
   const [month, setMonth] = useState(dayjs().format('YYYY-MM'))
   const [terms, setTerms] = useState<TermDto[]>([])
   const [activeTermId, setActiveTermId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [studentsLoading, setStudentsLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
   // Быстрый ввод
@@ -60,29 +75,69 @@ export default function TeacherGradesScreen() {
   const [comment, setComment] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const group = classes.find((c) => c.id === groupId) ?? null
+  const subject = subjects.find((s) => s.id === activeSubjectId) ?? null
+  const ready = !!group && !!subject
+
+  // Предметы учителя и четверти. Сервер отдаёт учителю только открытые ему предметы.
   const reload = useCallback(async () => {
     try {
-      const [list, subs, ts] = await Promise.all([
-        studentsApi.list({ status: 'ACTIVE' }),
+      const [subs, ts] = await Promise.all([
         schoolApi.listSubjects(),
         schoolApi.listTerms().catch(() => [] as TermDto[]),
       ])
-      setStudents(list)
       setSubjects(subs)
       setTerms(ts)
-      if (subs.length && !activeSubjectId) setActiveSubjectId(subs[0].id)
+      // Выбранный предмет, которого больше нет в списке, сбрасываем
+      setActiveSubjectId((cur) => (cur && subs.some((s) => s.id === cur) ? cur : subs.length === 1 ? subs[0].id : null))
       // авто-выбор текущей четверти
-      if (ts.length && !activeTermId) {
+      if (ts.length) {
         const cur = await schoolApi.currentTerm().catch(() => null)
-        if (cur) setActiveTermId(cur.id)
+        if (cur) setActiveTermId((t) => t ?? cur.id)
       }
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+    } catch (e) {
+      notifyError(e, { fallback: 'Не удалось загрузить предметы', retry: () => void reload() })
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeSubjectId, activeTermId])
+  }, [])
+
+  useEffect(() => {
+    void reload()
+  }, [reload])
+
+  // Единственный класс выбираем сам: перепутать нечего
+  useEffect(() => {
+    if (classes.length === 1) setGroupId((cur) => cur ?? classes[0].id)
+    else if (groupId && !classes.some((c) => c.id === groupId)) setGroupId(null)
+  }, [classes, groupId])
+
+  // Ученики выбранного класса
+  const loadStudents = useCallback(async () => {
+    if (!groupId) {
+      setStudents([])
+      return
+    }
+    try {
+      setStudentsLoading(true)
+      setStudents(await studentsApi.list({ status: 'ACTIVE', groupId }))
+    } catch (e) {
+      notifyError(e, { fallback: 'Не удалось загрузить учеников', retry: () => void loadStudents() })
+    } finally {
+      setStudentsLoading(false)
+    }
+  }, [groupId])
+
+  useEffect(() => {
+    setSelectedId(null)
+    setEditingStudent(null)
+    void loadStudents()
+  }, [loadStudents])
+
+  useEffect(() => {
+    setSelectedId(null)
+  }, [activeSubjectId])
 
   // Диапазон дат: четверть или месяц
   const range = useMemo(() => {
@@ -100,7 +155,10 @@ export default function TeacherGradesScreen() {
   }, [terms, activeTermId, month])
 
   const reloadGrades = useCallback(async () => {
-    if (!activeSubjectId) return
+    if (!activeSubjectId || !groupId) {
+      setGrades([])
+      return
+    }
     try {
       const g = await schoolApi.listGrades({
         subjectId: activeSubjectId,
@@ -108,17 +166,13 @@ export default function TeacherGradesScreen() {
         to: range.to,
       })
       setGrades(g)
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+    } catch (e) {
+      notifyError(e, { retry: () => void reloadGrades() })
     }
-  }, [activeSubjectId, range.from, range.to])
+  }, [activeSubjectId, groupId, range.from, range.to])
 
   useEffect(() => {
-    reload()
-  }, [reload])
-
-  useEffect(() => {
-    reloadGrades()
+    void reloadGrades()
   }, [reloadGrades])
 
   const gradesByStudent = useMemo(() => {
@@ -141,7 +195,7 @@ export default function TeacherGradesScreen() {
 
   /** Мгновенно ставит оценку value текущему editingStudent. */
   const quickSave = async (value: number) => {
-    if (!editingStudent || !activeSubjectId) return
+    if (!editingStudent || !activeSubjectId || !ready) return
     setSaving(true)
     try {
       await schoolApi.createGrade({
@@ -155,9 +209,9 @@ export default function TeacherGradesScreen() {
       setEditingStudent(null)
       setComment('')
       setType('CLASSWORK')
-      reloadGrades()
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      void reloadGrades()
+    } catch (e) {
+      notifyError(e)
     } finally {
       setSaving(false)
     }
@@ -165,7 +219,7 @@ export default function TeacherGradesScreen() {
 
   /** Оценка с клавиатуры: сегодняшняя оценка за урок выбранному ученику, затем — следующий по списку. */
   const padSave = async (value: number) => {
-    if (!selectedId || !activeSubjectId) return
+    if (!selectedId || !activeSubjectId || !ready) return
     setSaving(true)
     try {
       await schoolApi.createGrade({
@@ -178,8 +232,8 @@ export default function TeacherGradesScreen() {
       await reloadGrades()
       const i = students.findIndex((s) => s.id === selectedId)
       setSelectedId(students[Math.min(i + 1, students.length - 1)]?.id ?? selectedId)
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+    } catch (e) {
+      notifyError(e)
     } finally {
       setSaving(false)
     }
@@ -197,9 +251,9 @@ export default function TeacherGradesScreen() {
           onPress: async () => {
             try {
               await schoolApi.deleteGrade(g.id)
-              reloadGrades()
-            } catch (e: any) {
-              Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+              void reloadGrades()
+            } catch (e) {
+              notifyError(e)
             }
           },
         },
@@ -207,7 +261,7 @@ export default function TeacherGradesScreen() {
     )
   }
 
-  if (loading) {
+  if (loading || classesLoading) {
     return (
       <Screen>
         <View style={styles.loader}>
@@ -217,115 +271,116 @@ export default function TeacherGradesScreen() {
     )
   }
 
+  const noAccess = classes.length === 0
+  const noSubjects = subjects.length === 0
+
   return (
     <Screen>
       <View style={styles.topBar}>
         <ScreenHeading
-          eyebrow={`${subjects.find((s) => s.id === activeSubjectId)?.name ?? 'Журнал'} · ${dayjs().format('D MMMM')}`}
+          eyebrow={ready ? `${group?.name} · ${subject?.name}` : dayjs().format('D MMMM')}
           title="Журнал оценок"
         />
       </View>
 
-      {subjects.length === 0 ? (
-        <View style={styles.empty}>
-          <BookMarked size={36} color={colors.muted} />
-          <Text style={styles.emptyText}>
-            Сначала администратор должен добавить предметы в веб-версии.
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          data={students}
-          keyExtractor={(s) => s.id}
-          contentContainerStyle={styles.list}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true)
-                Promise.all([reload(), reloadGrades()])
-              }}
-              tintColor={colors.primary}
-            />
-          }
-          ListHeaderComponent={
-            <View style={{ marginBottom: 12 }}>
-              <Text style={styles.section}>Предмет</Text>
-              <Dropdown
-                value={activeSubjectId}
-                onChange={setActiveSubjectId}
-                placeholder="Выберите предмет"
-                options={subjects.map((s) => ({
-                  value: s.id,
-                  label: s.name,
-                  color: s.color,
-                }))}
-              />
+      <FlatList
+        data={ready ? students : []}
+        keyExtractor={(s) => s.id}
+        contentContainerStyle={styles.list}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={() => {
+              setRefreshing(true)
+              void Promise.all([reload(), reloadClasses(), loadStudents(), reloadGrades()])
+            }}
+            tintColor={colors.primary}
+          />
+        }
+        ListHeaderComponent={
+          <View style={{ marginBottom: 12, gap: 14 }}>
+            {!noAccess && (
+              <View>
+                <Text style={styles.section}>Класс</Text>
+                <ClassPicker classes={classes} value={groupId} onChange={setGroupId} />
+              </View>
+            )}
 
-              {terms.length > 0 && (
-                <>
-                  <Text style={[styles.section, { marginTop: 12 }]}>Четверть</Text>
-                  <Dropdown
-                    value={activeTermId ?? '__month__'}
-                    onChange={(v) =>
-                      setActiveTermId(v === '__month__' ? null : v)
-                    }
-                    options={[
-                      { value: '__month__', label: 'По месяцу' },
-                      ...terms.map((t) => ({ value: t.id, label: t.name })),
-                    ]}
-                  />
-                </>
-              )}
+            {!noSubjects && (
+              <View>
+                <Text style={styles.section}>Предмет</Text>
+                <View style={styles.chipRow}>
+                  {subjects.map((s) => {
+                    const on = s.id === activeSubjectId
+                    return (
+                      <Pressable
+                        key={s.id}
+                        onPress={() => setActiveSubjectId(on ? null : s.id)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: on }}
+                        style={[styles.subjectChip, on && styles.subjectChipOn]}
+                      >
+                        <View style={[styles.dot, { backgroundColor: s.color }]} />
+                        <Text style={[styles.subjectText, on && styles.subjectTextOn]}>{s.name}</Text>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+              </View>
+            )}
 
-              {!activeTermId && (
-                <>
-                  <Text style={[styles.section, { marginTop: 12 }]}>Месяц</Text>
-                  <View style={styles.dayBar}>
-                    <Pressable
-                      onPress={() =>
-                        setMonth(dayjs(month + '-01').subtract(1, 'month').format('YYYY-MM'))
-                      }
-                      hitSlop={10}
-                      style={styles.dayBtn}
-                    >
-                      <ChevronLeft size={20} color={colors.text} />
-                    </Pressable>
-                    <Text style={styles.dayLabel}>
-                      {dayjs(month + '-01').format('MMMM YYYY')}
-                    </Text>
-                    <Pressable
-                      onPress={() =>
-                        setMonth(dayjs(month + '-01').add(1, 'month').format('YYYY-MM'))
-                      }
-                      hitSlop={10}
-                      style={styles.dayBtn}
-                    >
-                      <ChevronLeft
-                        size={20}
-                        color={colors.text}
-                        style={{ transform: [{ rotate: '180deg' }] }}
-                      />
-                    </Pressable>
-                  </View>
-                </>
-              )}
-            </View>
-          }
-          ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-          renderItem={({ item }) => {
-            const fullName = `${item.firstName} ${item.lastName}`.trim()
-            const stuGrades = gradesByStudent[item.id] ?? []
-            const avg = avgByStudent[item.id] ?? 0
-            const selected = selectedId === item.id
-            const initials = `${item.firstName[0] ?? ''}${item.lastName[0] ?? ''}`.toUpperCase()
-            return (
-              <Pressable
-                onPress={() => setSelectedId(item.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                accessibilityLabel={`Выбрать: ${fullName}`}
-              >
+            {ready && terms.length > 0 && (
+              <View>
+                <Text style={styles.section}>Четверть</Text>
+                <Dropdown
+                  value={activeTermId ?? '__month__'}
+                  onChange={(v) => setActiveTermId(v === '__month__' ? null : v)}
+                  options={[
+                    { value: '__month__', label: 'По месяцу' },
+                    ...terms.map((t) => ({ value: t.id, label: t.name })),
+                  ]}
+                />
+              </View>
+            )}
+
+            {ready && !activeTermId && (
+              <View>
+                <Text style={styles.section}>Месяц</Text>
+                <View style={styles.dayBar}>
+                  <Pressable
+                    onPress={() => setMonth(dayjs(month + '-01').subtract(1, 'month').format('YYYY-MM'))}
+                    hitSlop={10}
+                    style={styles.dayBtn}
+                  >
+                    <ChevronLeft size={20} color={colors.text} />
+                  </Pressable>
+                  <Text style={styles.dayLabel}>{dayjs(month + '-01').format('MMMM YYYY')}</Text>
+                  <Pressable
+                    onPress={() => setMonth(dayjs(month + '-01').add(1, 'month').format('YYYY-MM'))}
+                    hitSlop={10}
+                    style={styles.dayBtn}
+                  >
+                    <ChevronLeft size={20} color={colors.text} style={{ transform: [{ rotate: '180deg' }] }} />
+                  </Pressable>
+                </View>
+              </View>
+            )}
+          </View>
+        }
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        renderItem={({ item }) => {
+          const fullName = `${item.firstName} ${item.lastName}`.trim()
+          const stuGrades = gradesByStudent[item.id] ?? []
+          const avg = avgByStudent[item.id] ?? 0
+          const selected = selectedId === item.id
+          const initials = `${item.firstName[0] ?? ''}${item.lastName[0] ?? ''}`.toUpperCase()
+          return (
+            <Pressable
+              onPress={() => setSelectedId(item.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`Выбрать: ${fullName}`}
+            >
               <Card padding={12} style={selected ? styles.cardOn : undefined}>
                 <View style={styles.row}>
                   <View style={styles.initial}>
@@ -336,9 +391,7 @@ export default function TeacherGradesScreen() {
                     <View style={styles.gradeStrip}>
                       {stuGrades.map((g) => (
                         <Pressable key={g.id} onPress={() => removeGrade(g)}>
-                          <View
-                            style={[styles.gradeBubble, { backgroundColor: gradeColor(g.value) }]}
-                          >
+                          <View style={[styles.gradeBubble, { backgroundColor: gradeColor(g.value) }]}>
                             <Text style={styles.gradeBubbleText}>{g.value}</Text>
                           </View>
                         </Pressable>
@@ -350,9 +403,7 @@ export default function TeacherGradesScreen() {
                   {avg > 0 && (
                     <View style={styles.avgBox}>
                       <Text style={styles.avgLabel}>ср.</Text>
-                      <Text style={[styles.avgValue, { color: gradeColor(Math.round(avg)) }]}>
-                        {avg.toFixed(1)}
-                      </Text>
+                      <Text style={[styles.avgValue, { color: gradeColor(Math.round(avg)) }]}>{avg.toFixed(1)}</Text>
                     </View>
                   )}
 
@@ -369,19 +420,40 @@ export default function TeacherGradesScreen() {
                   </Pressable>
                 </View>
               </Card>
-              </Pressable>
-            )
-          }}
-          ListEmptyComponent={
+            </Pressable>
+          )
+        }}
+        ListEmptyComponent={
+          noAccess ? (
+            <EmptyState
+              icon={<Lock size={34} color={colors.muted} />}
+              title="Нет доступа к классам"
+              hint="Администратор ещё не открыл вам классы. Попросите его в разделе «Доступ учителей»."
+            />
+          ) : noSubjects ? (
+            <EmptyState
+              icon={<BookMarked size={34} color={colors.muted} />}
+              title="Нет доступа к предметам"
+              hint="Администратор ещё не открыл вам предметы. Попросите его в разделе «Доступ учителей»."
+            />
+          ) : !ready ? (
+            <EmptyState
+              icon={<ListChecks size={34} color={colors.muted} />}
+              title={!group ? 'Выберите класс' : 'Выберите предмет'}
+              hint="Пока класс и предмет не выбраны, список учеников скрыт — так оценка не попадёт не тому классу."
+            />
+          ) : studentsLoading ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>В вашем классе пока никого нет.</Text>
+              <ActivityIndicator color={colors.primary} />
             </View>
-          }
-        />
-      )}
+          ) : (
+            <EmptyState title="В этом классе пока никого нет" />
+          )
+        }
+      />
 
       {/* Клавиатура оценок: выбрали ученика — нажали оценку — она сохранилась, выбран следующий */}
-      {subjects.length > 0 && selectedId && (
+      {ready && selectedId && (
         <View style={styles.keypad}>
           <Text style={styles.keypadFor} numberOfLines={1}>
             Оценка для:{' '}
@@ -391,6 +463,7 @@ export default function TeacherGradesScreen() {
                 return s ? `${s.firstName} ${s.lastName}` : ''
               })()}
             </Text>
+            {` · ${group?.name} · ${subject?.name}`}
           </Text>
           <View style={styles.keys}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => {
@@ -456,11 +529,7 @@ export default function TeacherGradesScreen() {
             hitSlop={8}
             style={styles.dayBtn}
           >
-            <ChevronLeft
-              size={18}
-              color={colors.text}
-              style={{ transform: [{ rotate: '180deg' }] }}
-            />
+            <ChevronLeft size={18} color={colors.text} style={{ transform: [{ rotate: '180deg' }] }} />
           </Pressable>
         </View>
 
@@ -525,7 +594,7 @@ function gradeColor(v: number): string {
   return colors.roseDeep
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: {
     flexDirection: 'row',
@@ -535,15 +604,6 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 8,
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-  },
-  topTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
   list: { padding: 16, paddingBottom: 40 },
   section: {
     fontSize: 12,
@@ -554,13 +614,22 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginLeft: 2,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 14 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   subjectChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.field,
+    borderWidth: 1.5,
+    borderColor: colors.border,
   },
+  subjectChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  dot: { width: 10, height: 10, borderRadius: 5 },
+  subjectText: { fontSize: 14, fontWeight: '700', color: colors.text },
+  subjectTextOn: { color: colors.onPrimary },
   dayBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -607,7 +676,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   empty: { paddingVertical: 60, alignItems: 'center', gap: 12 },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
   // modal
   modalDayBar: {
     flexDirection: 'row',
@@ -639,12 +707,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   gradeKeyText: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  cardOn: { borderWidth: 2, borderColor: colors.primary, backgroundColor: '#FFFFFF' },
+  cardOn: { borderWidth: 2, borderColor: colors.primary, backgroundColor: colors.surfaceStrong },
   initial: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#9EDDD9',
+    backgroundColor: colors.avatarBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -655,9 +723,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     padding: 12,
     borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: colors.surfaceStrong,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
+    borderColor: colors.glassBorder,
     gap: 8,
     ...shadow.md,
   },
@@ -674,4 +742,4 @@ const styles = StyleSheet.create({
   },
   keyText: { fontSize: 22, fontWeight: '800' },
   more: { fontSize: 13, fontWeight: '700', color: colors.primaryDeep, textAlign: 'center', paddingVertical: 2 },
-})
+}))

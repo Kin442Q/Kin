@@ -22,6 +22,7 @@ export class TeachersService {
       select: {
         id: true, fullName: true, email: true, phone: true, groupId: true, isActive: true,
         teachingGroups: { select: { id: true, name: true } },
+        teachingSubjects: { select: { id: true, name: true, color: true } },
       },
       orderBy: { fullName: 'asc' },
     })
@@ -54,6 +55,30 @@ export class TeachersService {
         id: true,
         groupId: true,
         teachingGroups: { select: { id: true, name: true } },
+      },
+    })
+  }
+
+  /**
+   * Открыть учителю набор предметов (many-to-many): только их он видит в журнале и ДЗ
+   * и только по ним ставит оценки. Пустой список — предметов нет, журнал пуст.
+   */
+  async setSubjects(actor: AuthUser, id: string, subjectIds: string[]) {
+    const teacher = await this.findTeacher(actor, id)
+    const ids = Array.from(new Set((subjectIds || []).filter(Boolean)))
+    if (ids.length) {
+      const found = await this.prisma.subject.findMany({
+        where: { id: { in: ids }, kindergartenId: teacher.kindergartenId },
+        select: { id: true },
+      })
+      if (found.length !== ids.length) throw new NotFoundException('Предмет не найден')
+    }
+    return this.prisma.user.update({
+      where: { id },
+      data: { teachingSubjects: { set: ids.map((sid) => ({ id: sid })) } },
+      select: {
+        id: true,
+        teachingSubjects: { select: { id: true, name: true, color: true } },
       },
     })
   }

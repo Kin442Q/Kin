@@ -3,13 +3,13 @@ import {
   FlatList,
   Modal,
   Pressable,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from './Text'
 import { ChevronDown, Check } from 'lucide-react-native'
 import { colors, radius, shadow } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 export interface DropdownOption<T extends string> {
   value: T
   label: string
@@ -108,7 +108,7 @@ export default function Dropdown<T extends string>({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6 },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,30,25,0.4)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     padding: 28,
   },
@@ -143,4 +143,4 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderSoft,
   },
   optionText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
-})
+}))

@@ -19,16 +19,27 @@ interface TeacherDto {
   groupId: string | null
   isActive: boolean
   teachingGroups?: { id: string; name: string }[]
+  teachingSubjects?: { id: string; name: string; color?: string }[]
+}
+
+interface SubjectDto {
+  id: string
+  name: string
+  color: string
 }
 
 /** Классы, к которым у учителя уже есть доступ: набор teachingGroups плюс основной класс. */
 const savedSelection = (t: TeacherDto): Set<string> =>
   new Set([...(t.teachingGroups ?? []).map((g) => g.id), ...(t.groupId ? [t.groupId] : [])])
 
+/** Предметы, которые администратор уже открыл учителю. */
+const savedSubjects = (t: TeacherDto): Set<string> => new Set((t.teachingSubjects ?? []).map((x) => x.id))
+
 /**
  * Доступ учителей к классам. Слева — учителя, справа — классы по параллелям
  * (1 класс → А, Б, В): отмечаем, к каким классам у выбранного учителя есть доступ.
- * Один учитель может иметь несколько классов.
+ * Один учитель может иметь несколько классов. Ниже отмечаются предметы: в журнале и ДЗ
+ * учитель видит только их.
  */
 export default function TeacherAccessPage() {
   const t = useT()
@@ -41,13 +52,19 @@ export default function TeacherAccessPage() {
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState<Set<string>>(new Set())
+  const [subjects, setSubjects] = useState<SubjectDto[]>([])
+  const [subjectDraft, setSubjectDraft] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
 
   const load = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await http.get<TeacherDto[]>('/v1/teachers')
+      const [res, subs] = await Promise.all([
+        http.get<TeacherDto[]>('/v1/teachers'),
+        http.get<SubjectDto[]>('/v1/subjects').catch(() => ({ data: [] as SubjectDto[] })),
+      ])
       setTeachers(Array.isArray(res.data) ? res.data : [])
+      setSubjects(Array.isArray(subs.data) ? subs.data : [])
     } catch (e: any) {
       message.error(e?.response?.data?.message || t('access.loadFail'))
     } finally {
@@ -65,12 +82,18 @@ export default function TeacherAccessPage() {
 
   const selected = teachers.find((x) => x.id === selectedId) ?? null
   const saved = useMemo(() => (selected ? savedSelection(selected) : new Set<string>()), [selected])
-  const dirty = !!selected && !sameSelection(draft, saved)
+  const savedSubs = useMemo(() => (selected ? savedSubjects(selected) : new Set<string>()), [selected])
+  const classesDirty = !!selected && !sameSelection(draft, saved)
+  const subjectsDirty = !!selected && !sameSelection(subjectDraft, savedSubs)
+  const dirty = classesDirty || subjectsDirty
 
   // При выборе учителя (и после сохранения) черновик берётся из его текущего доступа
   useEffect(() => {
     setDraft(new Set(saved))
   }, [saved, selectedId])
+  useEffect(() => {
+    setSubjectDraft(new Set(savedSubs))
+  }, [savedSubs, selectedId])
 
   // Первый учитель выбран сразу — не надо искать, куда нажать
   useEffect(() => {
@@ -87,16 +110,27 @@ export default function TeacherAccessPage() {
     if (!selected) return
     try {
       setSaving(true)
-      const ids = orderForSave(draft, schoolOrder, selected.groupId)
-      const res = await http.patch<{ id: string; groupId: string | null; teachingGroups: { id: string; name: string }[] }>(
-        `/v1/teachers/${selected.id}/classes`,
-        { groupIds: ids },
-      )
-      setTeachers((list) =>
-        list.map((x) =>
-          x.id === selected.id ? { ...x, groupId: res.data.groupId, teachingGroups: res.data.teachingGroups } : x,
-        ),
-      )
+      if (classesDirty) {
+        const ids = orderForSave(draft, schoolOrder, selected.groupId)
+        const res = await http.patch<{ id: string; groupId: string | null; teachingGroups: { id: string; name: string }[] }>(
+          `/v1/teachers/${selected.id}/classes`,
+          { groupIds: ids },
+        )
+        setTeachers((list) =>
+          list.map((x) =>
+            x.id === selected.id ? { ...x, groupId: res.data.groupId, teachingGroups: res.data.teachingGroups } : x,
+          ),
+        )
+      }
+      if (subjectsDirty) {
+        const res = await http.patch<{ id: string; teachingSubjects: { id: string; name: string; color?: string }[] }>(
+          `/v1/teachers/${selected.id}/subjects`,
+          { subjectIds: subjects.filter((x) => subjectDraft.has(x.id)).map((x) => x.id) },
+        )
+        setTeachers((list) =>
+          list.map((x) => (x.id === selected.id ? { ...x, teachingSubjects: res.data.teachingSubjects } : x)),
+        )
+      }
       message.success(t('access.saved'))
     } catch (e: any) {
       message.error(e?.response?.data?.message || t('access.saveFail'))
@@ -184,6 +218,11 @@ export default function TeacherAccessPage() {
                             {names.length > 4 ? ` ${t('access.moreClasses', { n: names.length - 4 })}` : ''}
                           </span>
                         )}
+                        {(x.teachingSubjects?.length ?? 0) === 0 ? (
+                          <span className="ta-none">{t('access.noSubjects')}</span>
+                        ) : (
+                          <span className="ta-mini">{t('access.subjectsN', { n: x.teachingSubjects?.length ?? 0 })}</span>
+                        )}
                       </span>
                       <span className="ta-count">{ids.size}</span>
                     </button>
@@ -257,10 +296,52 @@ export default function TeacherAccessPage() {
                     })}
                   </div>
 
+                  <div className="ta-grade ta-subjects">
+                    <div className="ta-grade-top">
+                      <b>{t('access.subjects')}</b>
+                      <span className="sp-chip" style={{ background: SP.primarySoft, color: SP.primaryDeep, padding: '4px 12px' }}>
+                        {t('access.subjectsN', { n: subjectDraft.size })}
+                      </span>
+                      <Button size="small" onClick={() => setSubjectDraft(new Set(subjects.map((x) => x.id)))} disabled={!subjects.length}>
+                        {t('access.selectAll')}
+                      </Button>
+                      <Button size="small" onClick={() => setSubjectDraft(new Set())} disabled={subjectDraft.size === 0}>
+                        {t('access.clear')}
+                      </Button>
+                    </div>
+                    {subjects.length === 0 ? (
+                      <span className="ta-hint">{t('access.noSubjectsSchool')}</span>
+                    ) : (
+                      <div className="cf-chips">
+                        {subjects.map((sub) => {
+                          const on = subjectDraft.has(sub.id)
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              className={`cf-chip${on ? ' is-on' : ''}`}
+                              aria-pressed={on}
+                              onClick={() => setSubjectDraft((d) => toggleId(d, sub.id))}
+                            >
+                              {sub.name}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                    <span className="ta-hint">{t('access.subjectsHint')}</span>
+                  </div>
+
                   <div className="ta-foot">
                     <span className="ta-hint">{dirty ? t('access.unsaved') : t('access.mainHint')}</span>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <Button onClick={() => setDraft(new Set(saved))} disabled={!dirty || saving}>
+                      <Button
+                        onClick={() => {
+                          setDraft(new Set(saved))
+                          setSubjectDraft(new Set(savedSubs))
+                        }}
+                        disabled={!dirty || saving}
+                      >
                         {t('access.reset')}
                       </Button>
                       <Button type="primary" onClick={save} disabled={!dirty} loading={saving}>

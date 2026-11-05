@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  StyleSheet,
+  
   View,
 } from 'react-native'
 import { Text, TextInput } from '../Text'
@@ -9,6 +9,7 @@ import { colors, radius } from '../../theme/colors'
 import { MAX_SCORE, makeProblem, parseAnswer } from '../../lib/games'
 import type { GameProps } from './types'
 
+import { themedStyles } from '../../theme/themedStyles'
 const DURATION = 60
 
 /** «Устный счёт»: 60 секунд, каждый верный ответ — очко. Сложность растёт сама. */
@@ -94,7 +95,7 @@ export default function MathGame({ onFinish }: GameProps) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   stats: { flexDirection: 'row', gap: 24 },
   stat: { color: colors.textMid, fontWeight: '700', fontSize: 14 },
   problem: { fontSize: 44, fontWeight: '800', marginVertical: 24 },
@@ -110,4 +111,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.text,
   },
-})
+}))

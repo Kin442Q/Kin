@@ -1,7 +1,6 @@
 import {
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -21,6 +20,7 @@ import { colors } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { hasFeature, type FeatureKey } from '../lib/features'
 
+import { themedStyles, themedValue } from '../theme/themedStyles'
 interface Section {
   route: string
   title: string
@@ -31,18 +31,18 @@ interface Section {
   feature: FeatureKey
 }
 
-const SECTIONS: Section[] = [
+const SECTIONS = themedValue<Section[]>(() => ([
   { route: 'StudentLibrary', title: 'Библиотека', text: 'Книги, статьи, видео и ссылки от учителей', icon: Library, bg: colors.blueSoft, fg: colors.blueDeep, feature: 'library' },
   { route: 'StudentQuizzes', title: 'Квизы', text: 'Тесты с мгновенной проверкой и разбором ответов', icon: ListChecks, bg: colors.primarySoft, fg: colors.primaryDeep, feature: 'quiz' },
   { route: 'StudentExam', title: 'Подготовка к экзаменам', text: 'Направления подготовки и твой прогресс', icon: Target, bg: colors.yellowSoft, fg: colors.yellowDeep, feature: 'exam_prep' },
   { route: 'StudentGames', title: 'Игры для мозга', text: 'Память, счёт и внимание. Рейтинг класса', icon: Gamepad2, bg: colors.lilacSoft, fg: colors.lilacDeep, feature: 'games' },
-]
+]))
 
 /** Вкладка «Учёба»: библиотека, квизы, подготовка к экзаменам и игры (что включено у школы). */
 export default function StudentLearnScreen() {
   const navigation = useNavigation<any>()
   const user = useAuthStore((s) => s.user)
-  const sections = SECTIONS.filter((s) => hasFeature(user, s.feature))
+  const sections = SECTIONS().filter((s) => hasFeature(user, s.feature))
 
   return (
     <Screen>
@@ -70,11 +70,11 @@ export default function StudentLearnScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { padding: 16, paddingBottom: 32, gap: 12 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text },
   row: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   icon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   rowTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
   rowText: { fontSize: 12.5, color: colors.muted, marginTop: 2, lineHeight: 17 },
-})
+}))

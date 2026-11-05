@@ -1,8 +1,9 @@
-import { StyleSheet, View } from 'react-native'
+import { View } from 'react-native'
 import Svg, { Circle, G, Path } from 'react-native-svg'
 import { Text } from './Text'
 import { colors } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 /** Знак «Офтоб»: солнце над раскрытой книгой (тот же, что в вебе). */
 export function BrandMark({ width = 44, page2 = '#075B5D' }: { width?: number; page2?: string }) {
   return (
@@ -35,8 +36,8 @@ export default function Logo({ size = 22 }: { size?: number }) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   word: { fontFamily: 'Montserrat_800ExtraBold', color: colors.text, letterSpacing: -0.2 },
   man: { color: colors.primary },
-})
+}))

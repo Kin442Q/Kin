@@ -305,6 +305,8 @@ model User {
   /// Учитель может преподавать в нескольких классах; основная группа выше —
   /// одна из них (для совместимости со старой логикой посещаемости и т.п.).
   teachingGroups Group[]  @relation("TeacherClasses")
+  /// Предметы, которые админ открыл учителю в журнале и ДЗ (M:N).
+  teachingSubjects Subject[] @relation("TeacherSubjects")
 
   /// Для PARENT — id ребёнка.
   childId       String?
@@ -904,6 +906,8 @@ model Subject {
   homework        Homework[]
   libraryItems    LibraryItem[]
   quizzes         Quiz[]
+  /// Учителя, которым открыт этот предмет.
+  teachers        User[]   @relation("TeacherSubjects")
 
   @@unique([kindergartenId, name])
   @@index([kindergartenId])

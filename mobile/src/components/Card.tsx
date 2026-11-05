@@ -1,7 +1,8 @@
 import { ReactNode } from 'react'
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
+import { StyleProp, View, ViewStyle } from 'react-native'
 import { colors, radius, shadow } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 interface Props {
   children: ReactNode
   style?: StyleProp<ViewStyle>
@@ -30,11 +31,11 @@ export default function Card({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.glassBorder,
   },
-})
+}))

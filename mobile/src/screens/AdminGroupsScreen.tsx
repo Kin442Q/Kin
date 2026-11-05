@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -18,6 +16,8 @@ import { useLabels } from '../theme/useLabels'
 import { classLetterOf, groupByGrade, plural } from '../lib/classes'
 import { adminApi, type GroupDto } from '../api/admin'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 export default function AdminGroupsScreen() {
   const L = useLabels()
   const [groups, setGroups] = useState<GroupDto[]>([])
@@ -31,7 +31,7 @@ export default function AdminGroupsScreen() {
       const list = await adminApi.groups()
       setGroups(list)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -222,7 +222,7 @@ function pluralizeTeacher(n: number, base: string): string {
   return base
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   gradeBadge: {
     width: 40,
     height: 40,
@@ -278,4 +278,4 @@ const styles = StyleSheet.create({
   archivedText: { fontSize: 11, color: colors.muted, fontWeight: '700' },
   empty: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-})
+}))
