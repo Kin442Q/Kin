@@ -7,9 +7,9 @@ import {
   ConflictException,
 } from '@nestjs/common'
 import { StaffPosition, Prisma } from '@prisma/client'
-import * as bcrypt from 'bcryptjs'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { AccessService, requireInviteEmail } from '../access/access.service'
 
 interface CreateStaffDto {
   firstName: string
@@ -23,10 +23,8 @@ interface CreateStaffDto {
   hireDate: string
 
   // ─── Опции учётки для входа в систему ─────────────────────────
-  /** Создать связанную User-запись для входа в систему */
+  /** Создать связанную User-запись для входа в систему (нужен email: на него придёт приглашение) */
   canLogin?: boolean
-  /** Пароль для входа (нужен если canLogin=true и нет существующего User) */
-  password?: string
   /** Роль: по умолчанию TEACHER */
   role?: 'TEACHER' | 'ADMIN'
 
@@ -50,7 +48,6 @@ interface UpdateStaffDto {
   hireDate?: string
 
   canLogin?: boolean
-  password?: string
   role?: 'TEACHER' | 'ADMIN'
   salaryMode?: 'HOURLY' | 'FIXED'
   hourlyRate?: number
@@ -63,7 +60,10 @@ interface UpdateStaffDto {
 export class StaffService {
   private readonly logger = new Logger(StaffService.name)
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly access: AccessService,
+  ) {}
 
   async findAll(user: AuthUser, params: { position?: StaffPosition }) {
     return this.prisma.staff.findMany({
@@ -113,17 +113,13 @@ export class StaffService {
       }
     }
 
-    // Если просят создать учётку — сначала создаём User, потом Staff с userId
+    // Если просят создать учётку — сначала создаём User, потом Staff с userId.
+    // Пароль админ не вводит и не видит: человек задаёт его сам по ссылке из письма.
     let userId: string | null = null
+    let account: { id: string; email: string; fullName: string } | null = null
+    let secret: { hash: string } | null = null
     if (dto.canLogin) {
-      if (!dto.password || dto.password.length < 6) {
-        throw new BadRequestException(
-          'Для входа нужен пароль не короче 6 символов',
-        )
-      }
-      const email =
-        dto.email?.trim() ||
-        `staff-${Date.now()}@kindergarten.local`
+      const email = requireInviteEmail(dto.email)
 
       const existing = await this.prisma.user.findUnique({ where: { email } })
       if (existing) {
@@ -132,12 +128,12 @@ export class StaffService {
         )
       }
 
-      const passwordHash = await bcrypt.hash(dto.password, 10)
+      secret = await this.access.newSecret()
       const newUser = await this.prisma.user.create({
         data: {
           email,
           phone: dto.phone.trim(),
-          passwordHash,
+          passwordHash: secret.hash,
           fullName:
             `${dto.lastName.trim()} ${dto.firstName.trim()}`.trim(),
           role: dto.role || 'TEACHER',
@@ -152,6 +148,7 @@ export class StaffService {
         },
       })
       userId = newUser.id
+      account = newUser
     }
 
     const staff = await this.prisma.staff.create({
@@ -185,13 +182,15 @@ export class StaffService {
       },
     })
 
+    const access = account && secret ? await this.access.deliver(account) : null
+
     this.logger.log(
       `[staff] created ${staff.firstName} ${staff.lastName} (${staff.position})${
         userId ? ` + login user ${userId}` : ''
       }`,
     )
 
-    return staff
+    return { ...staff, access }
   }
 
   async update(user: AuthUser, id: string, dto: UpdateStaffDto) {
@@ -220,18 +219,12 @@ export class StaffService {
       }
     }
 
-    // Если включают canLogin — создаём связанную учётку
+    // Если включают canLogin — создаём связанную учётку (пароль админ не вводит и не видит)
     let userIdToSet: string | null | undefined = undefined
+    let account: { id: string; email: string; fullName: string } | null = null
+    let secret: { hash: string } | null = null
     if (dto.canLogin && !existing.userId) {
-      if (!dto.password || dto.password.length < 6) {
-        throw new BadRequestException(
-          'Для включения входа нужен пароль не короче 6 символов',
-        )
-      }
-      const email =
-        dto.email?.trim() ||
-        existing.email ||
-        `staff-${Date.now()}@kindergarten.local`
+      const email = requireInviteEmail(dto.email?.trim() || existing.email)
 
       const existingUser = await this.prisma.user.findUnique({
         where: { email },
@@ -242,12 +235,12 @@ export class StaffService {
         )
       }
 
-      const passwordHash = await bcrypt.hash(dto.password, 10)
+      secret = await this.access.newSecret()
       const newUser = await this.prisma.user.create({
         data: {
           email,
           phone: dto.phone?.trim() || existing.phone,
-          passwordHash,
+          passwordHash: secret.hash,
           fullName: `${dto.lastName?.trim() || existing.lastName} ${dto.firstName?.trim() || existing.firstName}`.trim(),
           role: dto.role || 'TEACHER',
           kindergartenId: existing.kindergartenId,
@@ -261,6 +254,7 @@ export class StaffService {
         },
       })
       userIdToSet = newUser.id
+      account = newUser
     }
 
     // Если уже есть связанная учётка — обновляем её параметры
@@ -286,9 +280,6 @@ export class StaffService {
           ? { connect: { id: dto.groupId } }
           : { disconnect: true }
       }
-      if (dto.password && dto.password.length >= 6) {
-        userUpdate.passwordHash = await bcrypt.hash(dto.password, 10)
-      }
       if (Object.keys(userUpdate).length > 0) {
         await this.prisma.user.update({
           where: { id: existing.userId },
@@ -297,7 +288,7 @@ export class StaffService {
       }
     }
 
-    return this.prisma.staff.update({
+    const updated = await this.prisma.staff.update({
       where: { id },
       data: {
         firstName: dto.firstName?.trim(),
@@ -328,6 +319,9 @@ export class StaffService {
         },
       },
     })
+
+    const access = account && secret ? await this.access.deliver(account) : null
+    return { ...updated, access }
   }
 
   async remove(user: AuthUser, id: string) {

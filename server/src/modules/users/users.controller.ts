@@ -51,8 +51,8 @@ export class UsersController {
     dto: {
       fullName: string
       phone: string
-      email?: string
-      password: string
+      /** Обязателен: на него приходит приглашение со ссылкой для пароля */
+      email: string
       groupId?: string
     },
   ) {
@@ -72,7 +72,6 @@ export class UsersController {
       fullName?: string
       phone?: string
       email?: string
-      password?: string
       groupId?: string | null
       teachingGroupIds?: string[]
     },

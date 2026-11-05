@@ -4,7 +4,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -30,6 +29,8 @@ import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
 import { diaryApi, type DiaryEntryDto } from '../api/diary'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 export default function TeacherDiaryScreen() {
   const user = useAuthStore((s) => s.user)
   const L = useLabels()
@@ -62,7 +63,7 @@ export default function TeacherDiaryScreen() {
       setActivities(e?.activities ?? '')
       setNote(e?.note ?? '')
     } catch (err: any) {
-      Alert.alert('Ошибка', err?.response?.data?.message || String(err))
+      notifyError(err)
     } finally {
       setLoading(false)
     }
@@ -91,7 +92,7 @@ export default function TeacherDiaryScreen() {
       Alert.alert('Сохранено', 'Родители увидят запись в своём приложении.')
       reload()
     } catch (err: any) {
-      Alert.alert('Ошибка', err?.response?.data?.message || String(err))
+      notifyError(err)
     } finally {
       setSaving(false)
     }
@@ -274,7 +275,7 @@ function Divider() {
   return <View style={styles.divider} />
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { padding: 20, paddingBottom: 60, gap: 12 },
   loader: { padding: 40, alignItems: 'center' },
   empty: {
@@ -350,4 +351,4 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontStyle: 'italic',
   },
-})
+}))

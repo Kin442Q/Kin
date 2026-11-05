@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
 import dayjs from 'dayjs'
-import { StickyNote } from 'lucide-react-native'
+import { ListChecks, Lock, StickyNote } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import { Chip, ScreenHeading } from '../components/ui'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
+import ClassPicker from '../components/ClassPicker'
+import EmptyState from '../components/EmptyState'
 import { Field, Select } from '../components/Field'
 import { colors } from '../theme/colors'
 import { useLabels } from '../theme/useLabels'
@@ -28,27 +28,35 @@ import {
   type AttendanceStatus,
 } from '../api/attendance'
 
+import { themedStyles, themedValue } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
+import { useMyClasses } from '../lib/useMyClasses'
 interface Row {
   student: StudentDto
   status: AttendanceStatus | null
 }
 
 /** Четыре статуса из макета: выбранный — залитая плашка своего цвета. */
-const STATUSES: Array<{
+const STATUSES = themedValue<Array<{
   key: AttendanceStatus
   label: string
   solid: string
   onSolid: string
-}> = [
+}>>(() => ([
   { key: 'PRESENT', label: 'Здесь', solid: colors.primary, onSolid: '#FFFFFF' },
-  { key: 'ABSENT', label: 'Нет', solid: colors.text, onSolid: '#FFFFFF' },
-  { key: 'SICK', label: 'Болеет', solid: colors.coral, onSolid: colors.text },
-  { key: 'VACATION', label: 'Отпуск', solid: '#F6C46A', onSolid: colors.text },
-]
+  { key: 'ABSENT', label: 'Нет', solid: colors.text, onSolid: colors.bg },
+  { key: 'SICK', label: 'Болеет', solid: colors.coral, onSolid: '#10282A' },
+  { key: 'VACATION', label: 'Отпуск', solid: '#F6C46A', onSolid: '#10282A' },
+]))
 
 export default function TeacherAttendanceScreen() {
   const L = useLabels()
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [])
+
+  const { classes, loading: classesLoading, reload: reloadClasses } = useMyClasses()
+  // Класс выбирается первым: пока он не выбран, список пуст и отметить некого
+  const [groupId, setGroupId] = useState<string | null>(null)
+  const [studentsLoading, setStudentsLoading] = useState(false)
 
   const [students, setStudents] = useState<StudentDto[]>([])
   const [marks, setMarks] = useState<Record<string, AttendanceStatus>>({})
@@ -65,35 +73,48 @@ export default function TeacherAttendanceScreen() {
   const [noteSaving, setNoteSaving] = useState(false)
 
   const reload = useCallback(async () => {
+    if (!groupId) {
+      setStudents([])
+      setMarks({})
+      setKidNotes({})
+      setLoading(false)
+      setRefreshing(false)
+      return
+    }
     try {
+      setStudentsLoading(true)
       const [list, attendance] = await Promise.all([
-        studentsApi.list({ status: 'ACTIVE' }),
-        attendanceApi.listByDay(today),
+        studentsApi.list({ status: 'ACTIVE', groupId }),
+        attendanceApi.listByDay(today, groupId),
       ])
       setStudents(list)
       const map: Record<string, AttendanceStatus> = {}
       for (const a of attendance) map[a.studentId] = a.status
       setMarks(map)
 
-      // Подтянем kid-notes за день (по группе первого ребёнка — учитель привязан к одной группе).
-      const groupId = list[0]?.groupId
-      if (groupId) {
-        try {
-          const notes = await diaryApi.kidNotesForGroup(groupId, today)
-          const noteMap: Record<string, KidNoteDto> = {}
-          for (const n of notes) noteMap[n.studentId] = n
-          setKidNotes(noteMap)
-        } catch {
-          // некритично
-        }
+      // Заметки о детях за день для выбранного класса
+      try {
+        const notes = await diaryApi.kidNotesForGroup(groupId, today)
+        const noteMap: Record<string, KidNoteDto> = {}
+        for (const n of notes) noteMap[n.studentId] = n
+        setKidNotes(noteMap)
+      } catch {
+        // некритично
       }
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+    } catch (e) {
+      notifyError(e, { retry: () => void reload() })
     } finally {
       setLoading(false)
+      setStudentsLoading(false)
       setRefreshing(false)
     }
-  }, [today])
+  }, [today, groupId])
+
+  // Единственный класс выбираем сам: перепутать нечего
+  useEffect(() => {
+    if (classes.length === 1) setGroupId((cur) => cur ?? classes[0].id)
+    else if (groupId && !classes.some((c) => c.id === groupId)) setGroupId(null)
+  }, [classes, groupId])
 
   const openNoteModal = (student: StudentDto) => {
     const existing = kidNotes[student.id]
@@ -117,7 +138,7 @@ export default function TeacherAttendanceScreen() {
       setKidNotes((m) => ({ ...m, [noteFor.id]: saved }))
       setNoteFor(null)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setNoteSaving(false)
     }
@@ -142,7 +163,7 @@ export default function TeacherAttendanceScreen() {
         else delete next[studentId]
         return next
       })
-      Alert.alert('Не сохранилось', e?.response?.data?.message || String(e))
+      notifyError(e, { title: 'Не сохранилось' })
     } finally {
       setSavingId(null)
     }
@@ -161,7 +182,7 @@ export default function TeacherAttendanceScreen() {
     }
   }, [marks, students])
 
-  if (loading) {
+  if (loading || classesLoading) {
     return (
       <Screen>
         <View style={styles.loader}>
@@ -174,7 +195,7 @@ export default function TeacherAttendanceScreen() {
   return (
     <Screen>
       <FlatList
-        data={students}
+        data={groupId ? students : []}
         keyExtractor={(s) => s.id}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -182,23 +203,36 @@ export default function TeacherAttendanceScreen() {
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true)
-              reload()
+              void Promise.all([reload(), reloadClasses()])
             }}
             tintColor={colors.primary}
           />
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <ScreenHeading eyebrow={dayjs().format('dddd, D MMMM')} title="Посещаемость" />
-            <View style={styles.counters}>
-              <Chip tone="solid" label={`Здесь ${counts.present}`} />
-              <Chip tone="glass" label={`Нет ${counts.absent}`} />
-              <Chip tone="coral" label={`Болеет ${counts.sick}`} />
-              <Chip tone="glass" label={`Отпуск ${counts.vacation}`} />
-            </View>
-            <Text style={styles.autosave}>
-              Отмечено {counts.marked} из {counts.total} · сохраняется сразу, родители видят отметку
-            </Text>
+            <ScreenHeading
+              eyebrow={groupId ? `${classes.find((c) => c.id === groupId)?.name ?? ''} · ${dayjs().format('D MMMM')}` : dayjs().format('dddd, D MMMM')}
+              title="Посещаемость"
+            />
+            {classes.length > 0 && (
+              <View style={{ gap: 6 }}>
+                <Text style={styles.section}>Класс</Text>
+                <ClassPicker classes={classes} value={groupId} onChange={setGroupId} />
+              </View>
+            )}
+            {!!groupId && (
+              <>
+                <View style={styles.counters}>
+                  <Chip tone="solid" label={`Здесь ${counts.present}`} />
+                  <Chip tone="glass" label={`Нет ${counts.absent}`} />
+                  <Chip tone="coral" label={`Болеет ${counts.sick}`} />
+                  <Chip tone="glass" label={`Отпуск ${counts.vacation}`} />
+                </View>
+                <Text style={styles.autosave}>
+                  Отмечено {counts.marked} из {counts.total} · сохраняется сразу, родители видят отметку
+                </Text>
+              </>
+            )}
           </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -213,11 +247,25 @@ export default function TeacherAttendanceScreen() {
           />
         )}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>
-              В вашем {L.group === 'класс' ? 'классе' : 'группе'} пока никого нет.
-            </Text>
-          </View>
+          classes.length === 0 ? (
+            <EmptyState
+              icon={<Lock size={34} color={colors.muted} />}
+              title="Нет доступа к классам"
+              hint="Администратор ещё не открыл вам классы. Попросите его в разделе «Доступ учителей»."
+            />
+          ) : !groupId ? (
+            <EmptyState
+              icon={<ListChecks size={34} color={colors.muted} />}
+              title="Выберите класс"
+              hint="Пока класс не выбран, список скрыт — так отметка не попадёт не тому классу."
+            />
+          ) : studentsLoading ? (
+            <View style={styles.empty}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : (
+            <EmptyState title="В этом классе пока никого нет" />
+          )
         }
       />
 
@@ -317,7 +365,7 @@ function StudentRow({
       </View>
 
       <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel="Статус">
-        {STATUSES.map((s) => {
+        {STATUSES().map((s) => {
           const active = status === s.key
           return (
             <Pressable
@@ -329,7 +377,7 @@ function StudentRow({
               accessibilityLabel={s.label}
               style={[
                 styles.segBtn,
-                { backgroundColor: active ? s.solid : 'rgba(16,40,42,0.06)', opacity: saving ? 0.6 : 1 },
+                { backgroundColor: active ? s.solid : colors.surfaceAlt, opacity: saving ? 0.6 : 1 },
               ]}
             >
               <Text style={[styles.segText, { color: active ? s.onSolid : colors.textMid }]}>{s.label}</Text>
@@ -341,10 +389,18 @@ function StudentRow({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16, paddingBottom: 24 },
   header: { marginBottom: 12, gap: 10 },
+  section: {
+    fontSize: 12,
+    color: colors.muted,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginLeft: 2,
+  },
   counters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   autosave: { fontSize: 12, color: colors.textMid },
   rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -352,7 +408,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 17,
-    backgroundColor: '#9EDDD9',
+    backgroundColor: colors.avatarBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -376,4 +432,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAlt,
     marginLeft: 8,
   },
-})
+}))

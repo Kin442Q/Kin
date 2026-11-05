@@ -4,7 +4,6 @@ import {
   Alert,
   FlatList,
   Pressable,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -29,11 +28,13 @@ import {
   type StaffStatus,
 } from '../api/homeroom'
 
-const STAFF_OPTIONS: Array<{ value: StaffStatus; label: string; bg: string; fg: string }> = [
+import { themedStyles, themedValue } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
+const STAFF_OPTIONS = themedValue<Array<{ value: StaffStatus; label: string; bg: string; fg: string }>>(() => ([
   { value: 'DONE', label: 'Выполнено', bg: colors.primarySoft, fg: colors.primaryDeep },
   { value: 'PARTIAL', label: 'Частично', bg: colors.yellowSoft, fg: colors.yellowDeep },
   { value: 'NOT_DONE', label: 'Не сделано', bg: colors.roseSoft, fg: colors.roseDeep },
-]
+]))
 
 type TemplateChoice = 'auto' | NoticeTemplate
 
@@ -67,7 +68,7 @@ export default function TeacherHomeworkRosterScreen() {
     try {
       setRoster(await homeworkStatusApi.roster(homeworkId))
     } catch (e) {
-      Alert.alert('Ошибка', errorText(e, 'Не удалось загрузить статусы'))
+      notifyError(e, 'Не удалось загрузить статусы')
     } finally {
       setLoading(false)
     }
@@ -84,7 +85,7 @@ export default function TeacherHomeworkRosterScreen() {
     try {
       setRoster(await homeworkStatusApi.setStatuses(homeworkId, items))
     } catch (e) {
-      Alert.alert('Ошибка', errorText(e, 'Не удалось сохранить'))
+      notifyError(e, 'Не удалось сохранить')
     } finally {
       setSaving(false)
     }
@@ -119,7 +120,7 @@ export default function TeacherHomeworkRosterScreen() {
       setNote('')
       setSelected([])
     } catch (e) {
-      Alert.alert('Ошибка', errorText(e, 'Не удалось отправить'))
+      notifyError(e, 'Не удалось отправить')
     } finally {
       setNotifying(false)
     }
@@ -214,7 +215,7 @@ export default function TeacherHomeworkRosterScreen() {
                     </View>
                   </Pressable>
                   <View style={styles.statusRow}>
-                    {STAFF_OPTIONS.map((o) => {
+                    {STAFF_OPTIONS().map((o) => {
                       const active = r.status === o.value
                       return (
                         <Pressable
@@ -290,7 +291,7 @@ export default function TeacherHomeworkRosterScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   head: { paddingHorizontal: 16, gap: 6 },
   hwTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
@@ -333,4 +334,4 @@ const styles = StyleSheet.create({
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill },
   chipText: { fontSize: 12.5, fontWeight: '700' },
   warn: { fontSize: 12.5, color: colors.yellowDeep, marginBottom: 12 },
-})
+}))

@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
@@ -24,6 +22,8 @@ import { http } from '../api/http'
 import { adminApi, type AdminStudentDto, type DashboardDto, type GroupDto } from '../api/admin'
 import { attendanceApi, type AttendanceDto } from '../api/attendance'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Параллели, объединённые в столбцы диаграммы посещаемости (как в макете). */
 const BUCKETS: { label: string; grades: number[] }[] = [
   { label: '1–2', grades: [1, 2] },
@@ -67,7 +67,7 @@ export default function AdminDashboardScreen() {
       setStaffCount(staff)
       setFinance(fin)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -229,7 +229,7 @@ export default function AdminDashboardScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, gap: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
@@ -257,4 +257,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   linkText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
-})
+}))

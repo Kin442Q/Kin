@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -27,6 +26,8 @@ import {
   type HomeroomRow,
 } from '../api/homeroom'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Быстрые заготовки — текст можно править перед отправкой. */
 const QUICK_TEXTS = [
   'Здравствуйте! Ваш ребёнок в последнее время не выполняет домашние задания. Просим обратить внимание.',
@@ -70,7 +71,7 @@ export default function TeacherHomeroomScreen() {
       .catch((e) => {
         setClasses([])
         setLoading(false)
-        Alert.alert('Ошибка', errorText(e, 'Не удалось загрузить классы'))
+        notifyError(e, 'Не удалось загрузить классы')
       })
   }, [])
 
@@ -80,7 +81,7 @@ export default function TeacherHomeroomScreen() {
       setData(await homeroomApi.overview(groupId, days))
       setSelected([])
     } catch (e) {
-      Alert.alert('Ошибка', errorText(e, 'Не удалось загрузить сводку'))
+      notifyError(e, 'Не удалось загрузить сводку')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -117,7 +118,7 @@ export default function TeacherHomeroomScreen() {
       setText('')
       setSelected([])
     } catch (e) {
-      Alert.alert('Ошибка', errorText(e, 'Не удалось отправить'))
+      notifyError(e, 'Не удалось отправить')
     } finally {
       setSending(false)
     }
@@ -301,7 +302,7 @@ export default function TeacherHomeroomScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   head: { paddingHorizontal: 16, gap: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -337,4 +338,4 @@ const styles = StyleSheet.create({
   quick: { padding: 10, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt },
   quickText: { fontSize: 12.5, color: colors.textMid, lineHeight: 17 },
   warn: { fontSize: 12.5, color: colors.yellowDeep, marginBottom: 12 },
-})
+}))

@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
@@ -29,6 +27,8 @@ import {
   type StudentProfile,
 } from '../api/student'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 const minutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + (m || 0)
@@ -102,7 +102,7 @@ export default function StudentHomeScreen() {
         ),
       )
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не получилось сохранить')
+      notifyError(e, 'Не получилось сохранить')
     }
   }
 
@@ -235,7 +235,7 @@ export default function StudentHomeScreen() {
                       <Text style={[styles.todoText, done && { opacity: 0.55 }]} numberOfLines={2}>
                         {h.subject.name}: {h.title}
                       </Text>
-                      <Text style={[styles.due, due.soon && !done && { color: '#8A2E12', fontWeight: '700' }]}>{due.text}</Text>
+                      <Text style={[styles.due, due.soon && !done && { color: colors.roseDeep, fontWeight: '700' }]}>{due.text}</Text>
                     </Pressable>
                   )
                 })}
@@ -264,22 +264,22 @@ export default function StudentHomeScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, gap: 12 },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#9EDDD9',
+    backgroundColor: colors.avatarBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: { fontSize: 15, fontWeight: '700', color: colors.text },
   muted: { fontSize: 14, color: colors.textMid },
   lessonChip: { width: 104, padding: 12, borderRadius: 16, gap: 2 },
-  lessonPast: { backgroundColor: 'rgba(16,40,42,0.06)', opacity: 0.6 },
-  lessonNext: { backgroundColor: 'rgba(255,255,255,0.9)' },
+  lessonPast: { backgroundColor: colors.surfaceAlt, opacity: 0.6 },
+  lessonNext: { backgroundColor: colors.surfaceStrong },
   lessonTime: { fontSize: 12, color: colors.textMid },
   lessonName: { fontSize: 14, fontWeight: '700', color: colors.text },
   todoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
@@ -299,4 +299,4 @@ const styles = StyleSheet.create({
   tiles: { flexDirection: 'row', gap: 8 },
   tileValue: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   tileLabel: { fontSize: 12, fontWeight: '600', color: colors.text },
-})
+}))

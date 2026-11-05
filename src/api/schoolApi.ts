@@ -143,31 +143,48 @@ export const studentApi = {
   schedule: () => http.get<StudentLesson[]>('/v1/student/schedule').then((r) => r.data),
 }
 
-// ─── Доступ ученика (вход в кабинет) ──────────────────────────
+// ─── Доступ ученика (вход в кабинет по личной ссылке) ────────
+// У учеников нет логина и пароля: классный руководитель выдаёт личную ссылку.
 
 export interface StudentAccount {
   id: string
-  login: string
   isActive: boolean
   lastLoginAt: string | null
+  /** Личная ссылка входа; null — аккаунт есть, а ссылки нет. */
+  link: string | null
 }
 
-export interface IssuedAccount {
-  account: StudentAccount
-  /** Показывается один раз — на сервере хранится только хеш. */
-  password: string
+export interface ClassLinkRow {
+  studentId: string
+  firstName: string
+  lastName: string
+  lastLoginAt: string | null
+  /** null — ссылка ещё не выдана. */
+  link: string | null
+}
+
+export interface ClassLinks {
+  group: { id: string; name: string }
+  students: ClassLinkRow[]
 }
 
 export const studentAccountApi = {
+  /** null — доступа нет. */
   get: (studentId: string) =>
     http.get<StudentAccount | null>(`/v1/students/${studentId}/account`).then((r) => r.data),
-  create: (studentId: string, body: { login?: string; password?: string } = {}) =>
-    http.post<IssuedAccount>(`/v1/students/${studentId}/account`, body).then((r) => r.data),
-  resetPassword: (studentId: string, body: { password?: string } = {}) =>
-    http
-      .post<IssuedAccount>(`/v1/students/${studentId}/account/reset-password`, body)
-      .then((r) => r.data),
+  /** Выдать ссылку (аккаунт создаётся, если его нет). Повторный вызов вернёт ту же ссылку. */
+  issue: (studentId: string) =>
+    http.post<StudentAccount>(`/v1/students/${studentId}/account`).then((r) => r.data),
+  /** Новая ссылка: старая сразу перестаёт работать. */
+  regenerate: (studentId: string) =>
+    http.post<StudentAccount>(`/v1/students/${studentId}/account/regenerate-link`).then((r) => r.data),
+  /** Отключить доступ: аккаунт удаляется, ученик и его данные остаются. */
   remove: (studentId: string) => http.delete(`/v1/students/${studentId}/account`),
+
+  classLinks: (groupId: string) =>
+    http.get<ClassLinks>('/v1/students/links', { params: { groupId } }).then((r) => r.data),
+  issueClassLinks: (groupId: string) =>
+    http.post<ClassLinks>('/v1/students/links/issue', { groupId }).then((r) => r.data),
 }
 
 // ─── Классный руководитель ────────────────────────────────────

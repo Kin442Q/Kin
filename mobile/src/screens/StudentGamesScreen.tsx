@@ -1,10 +1,8 @@
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -20,6 +18,8 @@ import { colors } from '../theme/colors'
 import { gamesApi, type GameInfo } from '../api/learning'
 import { GAME_EMOJI } from '../lib/games'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Игры для развития мозга: карточки с рекордом ученика. */
 export default function StudentGamesScreen() {
   const navigation = useNavigation<any>()
@@ -31,7 +31,7 @@ export default function StudentGamesScreen() {
     try {
       setGames(await gamesApi.list())
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить игры')
+      notifyError(e, 'Не удалось загрузить игры')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -93,7 +93,7 @@ export default function StudentGamesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16, paddingBottom: 32, flexGrow: 1 },
   emoji: { fontSize: 34 },
@@ -102,4 +102,4 @@ const styles = StyleSheet.create({
   desc: { fontSize: 13, color: colors.textMid, marginTop: 6, lineHeight: 18 },
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
   meta: { fontSize: 12, color: colors.muted },
-})
+}))

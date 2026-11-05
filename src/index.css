@@ -2030,3 +2030,158 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   border: 1px solid var(--sp-border);
   font-size: 13px;
 }
+
+/* ============================================================
+   Доступ учителей к классам
+   ============================================================ */
+.ta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 560px;
+  overflow-y: auto;
+}
+.ta-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  text-align: left;
+  border-radius: 16px;
+  border: 1px solid var(--sp-border-soft);
+  background: var(--sp-surface-alt);
+  color: var(--sp-text);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+.ta-item:hover {
+  background: var(--sp-nav-hover);
+}
+.ta-item.is-on {
+  background: var(--sp-surface);
+  border-color: var(--sp-primary);
+  box-shadow: 0 8px 18px -12px rgba(13, 122, 124, 0.7);
+}
+.ta-avatar {
+  width: 38px;
+  height: 38px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sp-primary-solid);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.ta-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ta-body b {
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ta-body b em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--sp-muted);
+}
+.ta-mini {
+  font-size: 12px;
+  color: var(--sp-text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ta-none {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sp-rose-deep);
+}
+.ta-count {
+  flex: none;
+  min-width: 28px;
+  padding: 3px 8px;
+  text-align: center;
+  border-radius: 999px;
+  background: var(--sp-primary-soft);
+  color: var(--sp-primary-deep);
+  font-size: 12px;
+  font-weight: 800;
+}
+.ta-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+.ta-name {
+  font: 800 20px 'Montserrat', 'Inter', sans-serif;
+  color: var(--sp-text);
+}
+.ta-contact {
+  font-size: 13px;
+  color: var(--sp-text-mid);
+}
+.ta-bulk {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ta-grades {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ta-grade {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--sp-surface-alt);
+  border: 1px solid var(--sp-border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ta-grade-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ta-grade-top > b {
+  flex: 1;
+  font-size: 14px;
+}
+.ta-whole {
+  height: 32px;
+  font-size: 12px;
+}
+.ta-subjects {
+  margin-top: 10px;
+}
+.ta-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--sp-border-soft);
+}
+.ta-hint {
+  flex: 1;
+  min-width: 200px;
+  font-size: 12.5px;
+  color: var(--sp-muted);
+}

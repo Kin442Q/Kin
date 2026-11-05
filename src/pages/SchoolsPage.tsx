@@ -5,14 +5,11 @@ import {
   Avatar,
   Button,
   Card,
-  Col,
   Drawer,
   Form,
   Grid,
   Input,
-  Modal,
   Popconfirm,
-  Row,
   Space,
   Table,
   Tag,
@@ -28,12 +25,9 @@ import {
   EditOutlined,
   DeleteOutlined,
   MailOutlined,
-  LockOutlined,
   PhoneOutlined,
   EnvironmentOutlined,
-  KeyOutlined,
-  ReloadOutlined,
-  CopyOutlined,
+  SendOutlined,
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 
@@ -41,9 +35,17 @@ import { School } from 'lucide-react'
 import { SproutPageHeader } from '../components/sprout'
 import { http } from '../api'
 import FeaturesModal from '../components/FeaturesModal'
+import AccessResultModal from '../components/AccessResultModal'
+import type { AccessGrant } from '../api/accessApi'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
+
+/** Ответ POST /v1/kindergartens: директору всегда уходит приглашение со ссылкой, пароля нет. */
+interface CreateSchoolResponse {
+  kindergarten: { id: string }
+  invite: AccessGrant
+}
 
 interface KindergartenApi {
   id: string
@@ -60,6 +62,10 @@ interface KindergartenApi {
   }
 }
 
+/** Приглашение директору школы ещё раз (или ссылка для смены пароля, если он уже входил). */
+const resendOwnerInvite = (kindergartenId: string) =>
+  http.post<AccessGrant>(`/v1/kindergartens/${kindergartenId}/resend-invite`).then((r) => r.data)
+
 export default function SchoolsPage() {
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
@@ -72,13 +78,8 @@ export default function SchoolsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
 
-  // Модалка с учётными данными после создания
-  const [credentialsModal, setCredentialsModal] = useState<{
-    kindergartenName: string
-    ownerName: string
-    email: string
-    password: string
-  } | null>(null)
+  // Итог приглашения директору: письмо ушло или не ушло (тогда можно отправить ещё раз)
+  const [access, setAccess] = useState<{ grant: AccessGrant; kindergartenId: string } | null>(null)
 
   // Школа, чьи разделы редактируются в модалке
   const [featuresFor, setFeaturesFor] = useState<KindergartenApi | null>(null)
@@ -102,16 +103,6 @@ export default function SchoolsPage() {
   useEffect(() => {
     load()
   }, [])
-
-  const generatePassword = () => {
-    const chars =
-      'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-    let pwd = ''
-    for (let i = 0; i < 10; i++) {
-      pwd += chars[Math.floor(Math.random() * chars.length)]
-    }
-    form.setFieldsValue({ ownerPassword: pwd })
-  }
 
   const openCreate = () => {
     setEditing(null)
@@ -143,22 +134,18 @@ export default function SchoolsPage() {
         })
         message.success('Школа обновлена')
       } else {
-        await http.post('/v1/kindergartens', {
+        const ownerEmail = v.ownerEmail.trim().toLowerCase()
+        const res = await http.post<CreateSchoolResponse>('/v1/kindergartens', {
           name: v.name,
           address: v.address || undefined,
           phone: v.phone || undefined,
-          owner: {
-            fullName: v.ownerFullName,
-            email: v.ownerEmail.trim().toLowerCase(),
-            password: v.ownerPassword,
-          },
+          // Пароль не задаётся: директору уйдёт письмо со ссылкой, и он придумает его сам.
+          owner: { fullName: v.ownerFullName, email: ownerEmail },
         })
-        setCredentialsModal({
-          kindergartenName: v.name,
-          ownerName: v.ownerFullName,
-          email: v.ownerEmail.trim().toLowerCase(),
-          password: v.ownerPassword,
-        })
+        const created = res.data
+        if (created?.invite && created.kindergarten?.id) {
+          setAccess({ grant: created.invite, kindergartenId: created.kindergarten.id })
+        }
         message.success('Школа создана')
       }
 
@@ -173,6 +160,15 @@ export default function SchoolsPage() {
       message.error(msg)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const resendInvite = async (k: KindergartenApi) => {
+    try {
+      const grant = await resendOwnerInvite(k.id)
+      setAccess({ grant, kindergartenId: k.id })
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || 'Не удалось отправить письмо')
     }
   }
 
@@ -309,6 +305,22 @@ export default function SchoolsPage() {
                         onClick={() => setFeaturesFor(k)}
                       />
                     </Tooltip>
+                    <Popconfirm
+                      title="Отправить директору ссылку?"
+                      description="Директору уйдёт письмо со ссылкой: он сам задаст пароль. Вам пароль не показывается."
+                      okText="Отправить"
+                      cancelText="Отмена"
+                      onConfirm={() => resendInvite(k)}
+                    >
+                      <Tooltip title="Отправить директору ссылку для пароля">
+                        <Button
+                          size="small"
+                          type="text"
+                          icon={<SendOutlined />}
+                          aria-label="Отправить директору ссылку для пароля"
+                        />
+                      </Tooltip>
+                    </Popconfirm>
                     <Tooltip title="Редактировать">
                       <Button
                         size="small"
@@ -386,7 +398,7 @@ export default function SchoolsPage() {
                 type="info"
                 showIcon
                 message="Это будет директор школы"
-                description="Передайте ему email и пароль — он сможет управлять своей школой."
+                description="Ему придёт письмо со ссылкой на 48 часов: по ней он сам придумает пароль и войдёт. Пароль вы не задаёте, не видите и не передаёте."
                 style={{ marginBottom: 12 }}
               />
 
@@ -409,186 +421,16 @@ export default function SchoolsPage() {
                 <Input prefix={<MailOutlined />} placeholder="owner@example.com" />
               </Form.Item>
 
-              <Form.Item
-                name="ownerPassword"
-                label="Пароль"
-                rules={[
-                  { required: true, message: 'Введите пароль' },
-                  { min: 6, message: 'Минимум 6 символов' },
-                ]}
-                extra={
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    💡 Сгенерируйте пароль или придумайте свой. Будет показан один раз.
-                  </Text>
-                }
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="••••••••"
-                  addonAfter={
-                    <Tooltip title="Сгенерировать">
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={generatePassword}
-                        style={{
-                          border: 'none',
-                          height: 'auto',
-                          padding: '0 4px',
-                        }}
-                      >
-                        Создать
-                      </Button>
-                    </Tooltip>
-                  }
-                />
-              </Form.Item>
             </>
           )}
         </Form>
       </Drawer>
 
-      <Modal
-        title={
-          <Space>
-            <KeyOutlined style={{ color: '#0D7A7C' }} />
-            <span>Учётные данные директора школы</span>
-          </Space>
-        }
-        open={!!credentialsModal}
-        onCancel={() => setCredentialsModal(null)}
-        footer={[
-          <Button
-            key="copy"
-            icon={<CopyOutlined />}
-            onClick={() => {
-              if (!credentialsModal) return
-              const text =
-                `Мактаби ман — доступ к школе "${credentialsModal.kindergartenName}"\n\n` +
-                `👤 ${credentialsModal.ownerName}\n` +
-                `📧 Email: ${credentialsModal.email}\n` +
-                `🔑 Пароль: ${credentialsModal.password}\n\n` +
-                `На странице входа выберите вкладку "Администратор".`
-              navigator.clipboard.writeText(text)
-              message.success('Скопировано')
-            }}
-          >
-            Скопировать всё
-          </Button>,
-          <Button
-            key="close"
-            type="primary"
-            onClick={() => setCredentialsModal(null)}
-          >
-            Готово
-          </Button>,
-        ]}
-        width={isMobile ? '100%' : 500}
-      >
-        {credentialsModal && (
-          <div>
-            <Alert
-              type="warning"
-              showIcon
-              message="Сохраните пароль сейчас!"
-              description="После закрытия окна пароль увидеть нельзя — только сбросить."
-              style={{ marginBottom: 16 }}
-            />
-
-            <div
-              style={{
-                background: 'rgba(99,102,241,0.05)',
-                border: '1px solid rgba(99,102,241,0.2)',
-                borderRadius: 12,
-                padding: 16,
-              }}
-            >
-              <Row gutter={[8, 12]}>
-                <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <BankOutlined /> Школа
-                  </Text>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>
-                    {credentialsModal.kindergartenName}
-                  </div>
-                </Col>
-
-                <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <UserOutlined /> Владелец
-                  </Text>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>
-                    {credentialsModal.ownerName}
-                  </div>
-                </Col>
-
-                <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <MailOutlined /> Email (логин)
-                  </Text>
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      background: '#fff',
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      border: '1px solid var(--sp-border)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span>{credentialsModal.email}</span>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<CopyOutlined />}
-                      onClick={() => {
-                        navigator.clipboard.writeText(credentialsModal.email)
-                        message.success('Скопировано')
-                      }}
-                    />
-                  </div>
-                </Col>
-
-                <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <LockOutlined /> Пароль
-                  </Text>
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      background: '#fff',
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      border: '1px solid var(--sp-border)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span>{credentialsModal.password}</span>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<CopyOutlined />}
-                      onClick={() => {
-                        navigator.clipboard.writeText(credentialsModal.password)
-                        message.success('Скопировано')
-                      }}
-                    />
-                  </div>
-                </Col>
-              </Row>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <AccessResultModal
+        grant={access?.grant ?? null}
+        onRetry={access ? () => resendOwnerInvite(access.kindergartenId) : undefined}
+        onClose={() => setAccess(null)}
+      />
 
       <FeaturesModal school={featuresFor} onClose={() => setFeaturesFor(null)} />
     </div>

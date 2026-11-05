@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -22,6 +21,8 @@ import { colors, radius, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { schoolApi, type HomeworkDto, type SubjectDto } from '../api/school'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 export default function TeacherHomeworkScreen() {
   const navigation = useNavigation<any>()
   const user = useAuthStore((s) => s.user)
@@ -56,7 +57,7 @@ export default function TeacherHomeworkScreen() {
       setSubjects(subs)
       if (subs.length && !subjectId) setSubjectId(subs[0].id)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -97,7 +98,7 @@ export default function TeacherHomeworkScreen() {
       setDescription('')
       reload()
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setSaving(false)
     }
@@ -114,7 +115,7 @@ export default function TeacherHomeworkScreen() {
             await schoolApi.deleteHomework(h.id)
             reload()
           } catch (e: any) {
-            Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+            notifyError(e)
           }
         },
       },
@@ -290,7 +291,7 @@ export default function TeacherHomeworkScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: {
     flexDirection: 'row',
@@ -344,4 +345,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-})
+}))

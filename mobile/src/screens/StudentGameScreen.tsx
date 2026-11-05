@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState, type ComponentType } from 'react'
 import {
-  Alert,
+  
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -21,6 +20,8 @@ import { colors, radius } from '../theme/colors'
 import { gamesApi, type GameKey, type LeaderRow } from '../api/learning'
 import { GAME_EMOJI } from '../lib/games'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 const GAME_COMPONENTS: Record<GameKey, ComponentType<GameProps>> = {
   memory: MemoryGame,
   math: MathGame,
@@ -51,7 +52,7 @@ export default function StudentGameScreen() {
       try {
         setResult(await gamesApi.submit(game, res))
       } catch (e: any) {
-        Alert.alert('Результат не сохранился', e?.response?.data?.message || 'Проверьте интернет')
+        notifyError(e, { fallback: 'Проверьте интернет', title: 'Результат не сохранился' })
         setResult({ score: res.score, best: res.score, isRecord: false })
       }
       loadBoard()
@@ -127,7 +128,7 @@ export default function StudentGameScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { padding: 16, paddingBottom: 40, gap: 14 },
   meta: { fontSize: 13, color: colors.muted },
   score: { fontSize: 54, fontWeight: '800', color: colors.primaryDeep },
@@ -146,4 +147,4 @@ const styles = StyleSheet.create({
   rank: { width: 26, textAlign: 'center', fontWeight: '700', color: colors.textMid },
   name: { flex: 1, fontSize: 14, color: colors.text },
   points: { fontSize: 14, fontWeight: '700', color: colors.text },
-})
+}))

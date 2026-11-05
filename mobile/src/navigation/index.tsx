@@ -3,6 +3,7 @@ import {
   NavigationContainer,
   DefaultTheme,
   createNavigationContainerRef,
+  type NavigationState,
 } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
@@ -34,6 +35,7 @@ import ParentHomeScreen from '../screens/ParentHomeScreen'
 import ParentSchedulePlaceholder from '../screens/ParentSchedulePlaceholder'
 import ParentPaymentsPlaceholder from '../screens/ParentPaymentsPlaceholder'
 import ProfileScreen from '../screens/ProfileScreen'
+import MustChangePasswordScreen from '../screens/MustChangePasswordScreen'
 import AdminDashboardScreen from '../screens/AdminDashboardScreen'
 import AdminGroupsScreen from '../screens/AdminGroupsScreen'
 import AdminPaymentsScreen from '../screens/AdminPaymentsScreen'
@@ -59,8 +61,11 @@ import StudentExamScreen from '../screens/StudentExamScreen'
 import StudentGamesScreen from '../screens/StudentGamesScreen'
 import StudentGameScreen from '../screens/StudentGameScreen'
 
-const navTheme = {
+import { themedValue } from '../theme/themedStyles'
+import { getScheme } from '../theme/colors'
+const navTheme = themedValue(() => ({
   ...DefaultTheme,
+  dark: getScheme() === 'dark',
   colors: {
     ...DefaultTheme.colors,
     background: colors.bg,
@@ -69,7 +74,7 @@ const navTheme = {
     primary: colors.primary,
     border: colors.borderSoft,
   },
-}
+}))
 
 const AuthStack = createNativeStackNavigator()
 function AuthNavigator() {
@@ -227,6 +232,10 @@ function MainNavigator() {
 
 const navRef = createNavigationContainerRef<any>()
 
+// Смена темы перемонтирует дерево: запоминаем, где был человек, чтобы вернуть его на тот же экран.
+let savedNavState: NavigationState | undefined
+let savedNavUser: string | undefined
+
 /**
  * Куда переходить при тапе по уведомлению — на основе data.kind:
  *   meeting | payment | diary  → главная родителя
@@ -292,8 +301,16 @@ export default function RootNavigator() {
   }, [user?.role])
 
   return (
-    <NavigationContainer theme={navTheme} ref={navRef}>
-      {user ? <MainNavigator /> : <AuthNavigator />}
+    <NavigationContainer
+      theme={navTheme()}
+      ref={navRef}
+      initialState={savedNavUser === user?.id ? savedNavState : undefined}
+      onStateChange={(state) => {
+        savedNavState = state
+        savedNavUser = user?.id
+      }}
+    >
+      {user ? user.mustChangePassword ? <MustChangePasswordScreen /> : <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   )
 }

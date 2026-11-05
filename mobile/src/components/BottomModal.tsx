@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from './Text'
@@ -13,6 +12,7 @@ import { X } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors, radius, shadow } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 interface Props {
   visible: boolean
   onClose: () => void
@@ -55,8 +55,8 @@ export default function BottomModal({ visible, onClose, title, children }: Props
   )
 }
 
-const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(15,30,25,0.45)' },
+const styles = themedStyles(() => ({
+  backdrop: { flex: 1, backgroundColor: colors.overlay },
   backdropFill: { flex: 1 },
   sheet: {
     backgroundColor: colors.surfaceSolid,
@@ -82,4 +82,4 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 18, fontWeight: '800', color: colors.text, letterSpacing: -0.3 },
   body: { padding: 20, paddingTop: 8, gap: 14, paddingBottom: 32 },
-})
+}))

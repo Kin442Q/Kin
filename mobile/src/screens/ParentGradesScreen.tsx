@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import dayjs from 'dayjs'
 import { ChevronDown } from 'lucide-react-native'
 
@@ -20,6 +20,8 @@ import {
   type ParentHomeworkDto,
 } from '../api/parent'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Оценки и домашние задания ребёнка: средний балл, предметы с последними оценками. */
 export default function ParentGradesScreen() {
   const user = useAuthStore((s) => s.user)
@@ -41,7 +43,7 @@ export default function ParentGradesScreen() {
       if (list.length && !activeKidId) setActiveKidId(list[0].id)
       else if (!list.length) setLoading(false)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
       setLoading(false)
     }
   }, [activeKidId])
@@ -58,7 +60,7 @@ export default function ParentGradesScreen() {
       setStats(s)
       setHomework(h)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -224,7 +226,7 @@ export default function ParentGradesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, gap: 12 },
   switch: {
@@ -234,10 +236,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: colors.surface,
   },
   switchText: { fontSize: 13, fontWeight: '700', color: colors.text },
-  seg: { flexDirection: 'row', gap: 6, padding: 4, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.7)' },
+  seg: { flexDirection: 'row', gap: 6, padding: 4, borderRadius: 16, backgroundColor: colors.surface },
   segItem: { flex: 1, paddingVertical: 9, borderRadius: 12, alignItems: 'center' },
   segOn: { backgroundColor: colors.primary },
   segText: { fontSize: 13, fontWeight: '700', color: colors.text },
@@ -260,7 +262,7 @@ const styles = StyleSheet.create({
   markText: { fontSize: 13, fontWeight: '800' },
   avg: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
   hwHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
-  due: { fontSize: 12, fontWeight: '700', color: '#8A2E12' },
+  due: { fontSize: 12, fontWeight: '700', color: colors.roseDeep },
   hwText: { fontSize: 14, color: colors.text, lineHeight: 20 },
   hwDesc: { fontSize: 13, color: colors.textMid, lineHeight: 18 },
-})
+}))

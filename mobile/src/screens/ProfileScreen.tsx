@@ -4,7 +4,6 @@ import {
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -28,6 +27,8 @@ import Card from '../components/Card'
 import Btn from '../components/Btn'
 import Avatar from '../components/Avatar'
 import BottomModal from '../components/BottomModal'
+import ChangePasswordForm from '../components/ChangePasswordForm'
+import ThemeSwitch from '../components/ThemeSwitch'
 import { colors, radius } from '../theme/colors'
 import { http } from '../api/http'
 import { useAuthStore } from '../store/authStore'
@@ -35,6 +36,7 @@ import { hasFeature } from '../lib/features'
 import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
 
+import { themedStyles } from '../theme/themedStyles'
 interface NotificationDto {
   id: string
   title: string
@@ -72,12 +74,9 @@ export default function ProfileScreen() {
     }
   }
 
-  const openSecurity = () => {
-    Alert.alert(
-      'Безопасность',
-      'Вход защищён паролем. На приходе/уходе используется Face ID / Touch ID вашего телефона — биометрия не покидает устройство.\n\nЧтобы сменить пароль, обратитесь к администратору учреждения.',
-    )
-  }
+  // Свой пароль человек меняет сам: админ чужие пароли не вводит
+  const [securityModal, setSecurityModal] = useState(false)
+  const openSecurity = () => setSecurityModal(true)
 
   const openSettings = () => {
     const inst = user?.institution
@@ -185,6 +184,9 @@ export default function ProfileScreen() {
           </>
         )}
 
+        <Text style={styles.section}>Оформление</Text>
+        <ThemeSwitch />
+
         <Text style={styles.section}>Аккаунт</Text>
         <View style={styles.list}>
           <ListRow
@@ -218,6 +220,10 @@ export default function ProfileScreen() {
           <Text style={{ color: colors.danger, fontWeight: '700' }}>Выйти</Text>
         </Btn>
       </ScrollView>
+
+      <BottomModal visible={securityModal} onClose={() => setSecurityModal(false)} title="Сменить пароль">
+        <ChangePasswordForm onDone={() => setSecurityModal(false)} />
+      </BottomModal>
 
       <BottomModal
         visible={notifModal}
@@ -278,7 +284,7 @@ function ListRow({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { padding: 20, gap: 12 },
   name: {
     fontSize: 20,
@@ -351,4 +357,4 @@ const styles = StyleSheet.create({
   notifTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
   notifBody: { fontSize: 13, color: colors.textMid, marginTop: 2, lineHeight: 18 },
   notifTime: { fontSize: 11, color: colors.muted, marginTop: 4 },
-})
+}))

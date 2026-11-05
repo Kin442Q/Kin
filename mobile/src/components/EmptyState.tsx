@@ -1,12 +1,13 @@
 import { ReactNode } from 'react'
 import {
-  StyleSheet,
+  
   View,
 } from 'react-native'
 import { Text } from './Text'
 
 import { colors } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 interface Props {
   icon?: ReactNode
   title: string
@@ -24,8 +25,8 @@ export default function EmptyState({ icon, title, hint }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   wrap: { paddingVertical: 48, paddingHorizontal: 24, alignItems: 'center', gap: 8 },
   title: { fontSize: 15, fontWeight: '700', color: colors.textMid, textAlign: 'center' },
   hint: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-})
+}))

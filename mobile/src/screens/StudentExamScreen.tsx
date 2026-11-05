@@ -1,11 +1,9 @@
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -19,6 +17,8 @@ import EmptyState from '../components/EmptyState'
 import { colors, radius } from '../theme/colors'
 import { examTrackApi, type ExamTrack } from '../api/learning'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Подготовка к экзаменам: направления школы и прогресс ученика по каждому. */
 export default function StudentExamScreen() {
   const navigation = useNavigation<any>()
@@ -30,7 +30,7 @@ export default function StudentExamScreen() {
     try {
       setTracks(await examTrackApi.list())
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить направления')
+      notifyError(e, 'Не удалось загрузить направления')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -104,7 +104,7 @@ export default function StudentExamScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16, paddingBottom: 32, flexGrow: 1 },
   tTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
@@ -118,4 +118,4 @@ const styles = StyleSheet.create({
   },
   barFill: { height: 8, borderRadius: radius.pill, backgroundColor: colors.primary },
   meta: { fontSize: 12, color: colors.muted, marginTop: 6 },
-})
+}))

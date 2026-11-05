@@ -45,8 +45,9 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm()
 
-  // «Забыли пароль?» — доступ восстанавливает администратор. Отправляем ему
-  // запрос (in-app уведомление), сам сброс пароля он делает в карточке юзера.
+  // «Забыли пароль?» — если у аккаунта есть email, сервер шлёт на него ссылку для
+  // смены пароля; иначе запрос уходит администратору (in-app уведомление), и он
+  // отправляет человеку ссылку из карточки пользователя. Пароль не называет никто.
   const [forgotOpen, setForgotOpen] = useState(false)
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotValue, setForgotValue] = useState('')
@@ -67,8 +68,8 @@ export default function LoginPage() {
       : { phone: v }
     try {
       setForgotLoading(true)
-      await http.post('/v1/auth/forgot-password', payload)
-      message.success(t('login.forgotOk'))
+      const res = await http.post('/v1/auth/forgot-password', payload)
+      message.success(res?.data?.message ?? t('login.forgotOk'), 6)
       setForgotOpen(false)
     } catch (error: any) {
       message.error(error?.response?.data?.message || t('login.forgotFail'))
@@ -279,6 +280,8 @@ export default function LoginPage() {
           <Info size={20} style={{ flex: 'none' }} />
           <span>{t('login.hint')}</span>
         </div>
+
+        <p style={{ color: SP.muted, fontSize: 12.5, margin: 0, textAlign: 'center' }}>{t('login.studentHint')}</p>
 
         <Modal
           open={forgotOpen}

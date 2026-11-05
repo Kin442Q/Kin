@@ -41,9 +41,9 @@ http.interceptors.response.use(
   async (error) => {
     if (error?.response?.status === 401) {
       // Токен протух/невалиден — чистим хранилище и уводим на логин.
-      // Эндпоинты логина исключаем, чтобы неверный пароль не «выкидывал».
+      // Эндпоинты входа исключаем, чтобы неверный пароль или мёртвая ссылка не «выкидывали».
       const url: string = error?.config?.url ?? ''
-      if (!url.includes('/auth/login')) {
+      if (!url.includes('/auth/login') && !url.includes('/auth/student-link')) {
         await AsyncStorage.removeItem('kg_token')
         await AsyncStorage.removeItem('kg_user')
         unauthorizedHandler?.()

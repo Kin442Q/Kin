@@ -1,11 +1,9 @@
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -19,6 +17,8 @@ import EmptyState from '../components/EmptyState'
 import { colors, radius } from '../theme/colors'
 import { quizApi, type QuizSummary } from '../api/learning'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /**
  * Список квизов. Если открыт из «Подготовки к экзаменам», приходит
  * `examTrackId` и `title` направления — показываем только его квизы.
@@ -37,7 +37,7 @@ export default function StudentQuizzesScreen() {
     try {
       setItems(await quizApi.list(examTrackId ? { examTrackId } : undefined))
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить квизы')
+      notifyError(e, 'Не удалось загрузить квизы')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -128,7 +128,7 @@ export default function StudentQuizzesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16, paddingBottom: 32, flexGrow: 1 },
   qTitle: { fontSize: 15, fontWeight: '800', color: colors.text },
@@ -143,4 +143,4 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
-})
+}))

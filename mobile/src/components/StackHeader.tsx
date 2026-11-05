@@ -1,6 +1,5 @@
 import {
   Pressable,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from './Text'
@@ -9,6 +8,7 @@ import { ChevronLeft } from 'lucide-react-native'
 
 import { colors, shadow } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 interface Props {
   title: string
   /** Что показать справа (кнопка, счётчик). По умолчанию — пустое место для симметрии. */
@@ -36,7 +36,7 @@ export default function StackHeader({ title, right }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -57,4 +57,4 @@ const styles = StyleSheet.create({
   },
   title: { flex: 1, fontSize: 18, fontWeight: '800', color: colors.text, textAlign: 'center' },
   right: { minWidth: 36, alignItems: 'flex-end' },
-})
+}))

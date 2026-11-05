@@ -6,7 +6,6 @@ import {
   Linking,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text, TextInput } from '../components/Text'
@@ -25,6 +24,8 @@ import {
   type LibraryType,
 } from '../api/learning'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Открываем только http(s): ссылку вводит учитель, но схему всё равно проверяем. */
 async function openLink(url: string) {
   if (!/^https?:\/\//i.test(url)) {
@@ -55,7 +56,7 @@ export default function StudentLibraryScreen() {
         }),
       )
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить библиотеку')
+      notifyError(e, 'Не удалось загрузить библиотеку')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -157,7 +158,7 @@ export default function StudentLibraryScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tools: { paddingHorizontal: 16, gap: 10 },
   search: {
@@ -179,4 +180,4 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 15, fontWeight: '800', color: colors.text },
   desc: { fontSize: 13, color: colors.textMid, marginTop: 3, lineHeight: 18 },
   meta: { fontSize: 12, color: colors.muted, marginTop: 4 },
-})
+}))

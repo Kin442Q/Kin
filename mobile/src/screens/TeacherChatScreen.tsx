@@ -6,7 +6,6 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text, TextInput } from '../components/Text'
@@ -22,6 +21,7 @@ import { useAuthStore } from '../store/authStore'
 import { connectSocket } from '../lib/socket'
 import { chatApi, type ChatMessage, type StaffConversation } from '../api/chat'
 
+import { themedStyles } from '../theme/themedStyles'
 export default function TeacherChatScreen() {
   const user = useAuthStore((s) => s.user)
   const [conversations, setConversations] = useState<StaffConversation[]>([])
@@ -245,7 +245,7 @@ export default function TeacherChatScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
@@ -317,4 +317,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-})
+}))

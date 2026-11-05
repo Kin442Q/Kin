@@ -33,6 +33,8 @@ import { useThemeStore } from '../store/themeStore'
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import InstitutionMap from '../components/InstitutionMap'
+import { ChangePasswordCard } from '../components/ChangePasswordForm'
+import { ChangeEmailCard } from '../components/ChangeEmailForm'
 import { http } from '../api'
 import { LANGS, useLangStore, useT, type Lang } from '../i18n'
 
@@ -432,6 +434,18 @@ export default function SettingsPage() {
           </motion.div>
         </Col>
       </Row>
+
+      {/* Свой пароль человек меняет сам: админ чужие пароли не вводит */}
+      {user && user.role !== 'STUDENT' && (
+        <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+          <Col xs={24} md={12}>
+            <ChangePasswordCard />
+          </Col>
+          <Col xs={24} md={12}>
+            <ChangeEmailCard />
+          </Col>
+        </Row>
+      )}
     </div>
   )
 }

@@ -33,6 +33,24 @@ export class StudentsController {
     return this.service.findAll(user, { groupId, status })
   }
 
+  // ─── Ссылки входа учеников класса (для печати карточек) ───────
+  // Выдают админ школы или классный руководитель этого класса (проверяет сервис).
+
+  @Get('links')
+  @Feature('students', 'portal')
+  @ApiQuery({ name: 'groupId', required: true })
+  @ApiOperation({ summary: 'Ссылки входа учеников класса: у кого выдана, когда заходил' })
+  classLinks(@Query('groupId') groupId: string, @CurrentUser() user: AuthUser) {
+    return this.service.classLinks(groupId, user)
+  }
+
+  @Post('links/issue')
+  @Feature('students', 'portal')
+  @ApiOperation({ summary: 'Выдать ссылки всем ученикам класса, у кого их ещё нет' })
+  issueClassLinks(@Body() dto: { groupId?: string }, @CurrentUser() user: AuthUser) {
+    return this.service.issueClassLinks(dto?.groupId, user)
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.service.findOne(id, user)
@@ -100,9 +118,9 @@ export class StudentsController {
     @Body()
     dto: {
       fullName?: string
+      /** Обязателен при создании нового родителя: на него придёт приглашение со ссылкой для пароля */
       email?: string
       phone?: string
-      password?: string
       /** Если задан — привязать существующего пользователя-родителя */
       existingUserId?: string
     },
@@ -116,7 +134,7 @@ export class StudentsController {
 
   @Get(':id/account')
   @Feature('students', 'portal')
-  @ApiOperation({ summary: 'Аккаунт ученика (вход в кабинет ученика) или null' })
+  @ApiOperation({ summary: 'Доступ ученика: есть ли аккаунт, личная ссылка, когда заходил (или null)' })
   getAccount(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.service.getAccount(id, user)
   }
@@ -124,25 +142,17 @@ export class StudentsController {
   @Post(':id/account')
   @Feature('students', 'portal')
   @ApiOperation({
-    summary: 'Создать вход ученику. Пароль возвращается один раз (если не задан — генерируется).',
+    summary: 'Выдать ученику личную ссылку (аккаунт создаётся сам; повторный вызов отдаёт текущую)',
   })
-  createAccount(
-    @Param('id') id: string,
-    @Body() dto: { login?: string; password?: string },
-    @CurrentUser() user: AuthUser,
-  ) {
-    return this.service.createAccount(id, dto ?? {}, user)
+  createAccount(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.createAccount(id, user)
   }
 
-  @Post(':id/account/reset-password')
+  @Post(':id/account/regenerate-link')
   @Feature('students', 'portal')
-  @ApiOperation({ summary: 'Сбросить пароль ученика (новый возвращается один раз)' })
-  resetAccountPassword(
-    @Param('id') id: string,
-    @Body() dto: { password?: string },
-    @CurrentUser() user: AuthUser,
-  ) {
-    return this.service.resetAccountPassword(id, dto ?? {}, user)
+  @ApiOperation({ summary: 'Перевыпустить ссылку: старая сразу перестаёт работать' })
+  regenerateLink(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.regenerateLink(id, user)
   }
 
   @Delete(':id/account')

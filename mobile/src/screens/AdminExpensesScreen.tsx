@@ -5,7 +5,6 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
   View,
 } from 'react-native'
 import { Text } from '../components/Text'
@@ -44,12 +43,16 @@ import {
   type GroupDto,
 } from '../api/admin'
 
-const CATEGORIES: Array<{
+import { themedStyles, themedValue } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
+interface CategoryMeta {
   value: ExpenseCategory
   label: string
   icon: typeof Briefcase
   color: string
-}> = [
+}
+
+const CATEGORIES = themedValue<CategoryMeta[]>(() => ([
   { value: 'SALARIES', label: 'Зарплаты', icon: Briefcase, color: colors.primaryDeep },
   { value: 'TAXES', label: 'Налоги', icon: Receipt, color: colors.roseDeep },
   { value: 'RENT', label: 'Аренда', icon: HomeIcon, color: colors.lilacDeep },
@@ -62,11 +65,11 @@ const CATEGORIES: Array<{
   { value: 'REPAIRS', label: 'Ремонт', icon: Hammer, color: colors.yellowDeep },
   { value: 'EDUCATION', label: 'Обучение', icon: BookOpen, color: colors.primary },
   { value: 'OTHER', label: 'Прочее', icon: CircleDashed, color: colors.muted },
-]
+]))
 
-const CAT_META = Object.fromEntries(
-  CATEGORIES.map((c) => [c.value, c]),
-) as Record<ExpenseCategory, (typeof CATEGORIES)[number]>
+const CAT_META = themedValue(
+  () => Object.fromEntries(CATEGORIES().map((c) => [c.value, c])) as Record<ExpenseCategory, CategoryMeta>,
+)
 
 export default function AdminExpensesScreen() {
   const navigation = useNavigation()
@@ -95,7 +98,7 @@ export default function AdminExpensesScreen() {
       setItems(list)
       setGroups(gs)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -134,7 +137,7 @@ export default function AdminExpensesScreen() {
       setGroupId(null)
       reload()
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setSaving(false)
     }
@@ -151,7 +154,7 @@ export default function AdminExpensesScreen() {
             await adminApi.deleteExpense(e.id)
             reload()
           } catch (err: any) {
-            Alert.alert('Ошибка', err?.response?.data?.message || String(err))
+            notifyError(err)
           }
         },
       },
@@ -212,7 +215,7 @@ export default function AdminExpensesScreen() {
         }
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
         renderItem={({ item }) => {
-          const meta = CAT_META[item.category]
+          const meta = CAT_META()[item.category]
           const Icon = meta?.icon ?? CircleDashed
           const g = item.groupId ? groupsById[item.groupId] : null
           return (
@@ -275,7 +278,7 @@ export default function AdminExpensesScreen() {
           label="Категория"
           value={category}
           onChange={setCategory}
-          options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
+          options={CATEGORIES().map((c) => ({ value: c.value, label: c.label }))}
           columns={3}
         />
 
@@ -315,7 +318,7 @@ export default function AdminExpensesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   topBar: {
     flexDirection: 'row',
@@ -378,4 +381,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-})
+}))

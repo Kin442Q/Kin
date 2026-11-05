@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   View,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
@@ -29,14 +27,16 @@ import {
 } from '../api/parent'
 import type { AttendanceStatus } from '../api/attendance'
 
+import { themedStyles, themedValue } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Карточка-статус «Малика в школе»: цвет и подпись по отметке посещаемости. */
-const STATUS: Record<AttendanceStatus | 'NONE', { title: string; bg: string; fg: string; sub: string }> = {
+const STATUS = themedValue<Record<AttendanceStatus | 'NONE', { title: string; bg: string; fg: string; sub: string }>>(() => ({
   PRESENT: { title: 'в школе', bg: colors.primary, fg: '#FFFFFF', sub: '#DDF1F0' },
-  ABSENT: { title: 'нет в школе', bg: colors.coral, fg: colors.text, sub: '#4A2A20' },
-  SICK: { title: 'болеет', bg: '#F6C46A', fg: colors.text, sub: '#4A2A20' },
-  VACATION: { title: 'в отпуске', bg: '#CFC6F2', fg: colors.text, sub: '#3F3478' },
-  NONE: { title: 'пока не отмечен', bg: 'rgba(255,255,255,0.84)', fg: colors.text, sub: colors.textMid },
-}
+  ABSENT: { title: 'нет в школе', bg: colors.coral, fg: '#10282A', sub: '#4A2A20' },
+  SICK: { title: 'болеет', bg: '#F6C46A', fg: '#10282A', sub: '#4A2A20' },
+  VACATION: { title: 'в отпуске', bg: '#CFC6F2', fg: '#10282A', sub: '#3F3478' },
+  NONE: { title: 'пока не отмечен', bg: colors.surface, fg: colors.text, sub: colors.textMid },
+}))
 
 function greeting(): string {
   const h = new Date().getHours()
@@ -80,7 +80,7 @@ export default function ParentHomeScreen() {
       if (list.length && !activeKidId) setActiveKidId(list[0].id)
       else if (!list.length) setLoading(false)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
       setLoading(false)
     }
   }, [activeKidId])
@@ -98,7 +98,7 @@ export default function ParentHomeScreen() {
       setGrades(g)
       setHomework(hw)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -137,7 +137,7 @@ export default function ParentHomeScreen() {
   }
 
   const kid = today?.kid ?? kids.find((k) => k.id === activeKidId) ?? kids[0]
-  const status = STATUS[today?.today.attendance?.status ?? 'NONE']
+  const status = STATUS()[today?.today.attendance?.status ?? 'NONE']
   const lessons = [...(today?.today.schedule ?? [])].sort((a, b) => a.startTime.localeCompare(b.startTime))
   const nowMin = dayjs().hour() * 60 + dayjs().minute()
   const nextHomework = [...homework]
@@ -275,7 +275,7 @@ export default function ParentHomeScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 14 },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 19 },
   container: { padding: 16, gap: 12 },
@@ -288,15 +288,15 @@ const styles = StyleSheet.create({
     paddingLeft: 6,
     paddingRight: 12,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.9)',
+    borderColor: colors.glassBorder,
   },
   kidAvatar: {
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#9EDDD9',
+    backgroundColor: colors.avatarBg,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     gap: 8,
     height: 50,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    backgroundColor: colors.surface,
   },
   chatBtnText: { fontSize: 15, fontWeight: '700', color: colors.primaryDeep },
-})
+}))

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import dayjs from 'dayjs'
 import { ChevronDown } from 'lucide-react-native'
 
@@ -10,6 +10,8 @@ import { ScreenHeading } from '../components/ui'
 import { colors, radius } from '../theme/colors'
 import { parentApi, type KidDto, type ScheduleItemDto } from '../api/parent'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Цветная полоса урока по порядку в дне (палитра макета). */
 const BAR = ['#0D7A7C', '#FF8A65', '#9EDDD9', '#F6C46A', '#0D7A7C', '#FF8A65', '#9EDDD9', '#F6C46A']
 const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
@@ -32,7 +34,7 @@ export default function ParentScheduleScreen() {
       if (list.length && !activeKidId) setActiveKidId(list[0].id)
       else if (!list.length) setLoading(false)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
       setLoading(false)
     }
   }, [activeKidId])
@@ -42,7 +44,7 @@ export default function ParentScheduleScreen() {
     try {
       setSchedule(await parentApi.schedule(activeKidId))
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -147,7 +149,7 @@ export default function ParentScheduleScreen() {
             {dayLessons.map((l, i) => {
               const live = activeDay === todayDow && nowMin >= toMin(l.startTime) && nowMin < toMin(l.endTime)
               return (
-                <View key={l.id} style={[styles.lesson, live && { backgroundColor: '#FFFFFF' }]}>
+                <View key={l.id} style={[styles.lesson, live && { backgroundColor: colors.surfaceStrong }]}>
                   <View style={{ width: 54 }}>
                     <Text style={styles.t1}>{l.startTime}</Text>
                     <Text style={styles.t2}>{l.endTime}</Text>
@@ -169,7 +171,7 @@ export default function ParentScheduleScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   container: { padding: 16, gap: 14 },
   switch: {
@@ -179,7 +181,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: radius.pill,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: colors.surface,
   },
   switchText: { fontSize: 13, fontWeight: '700', color: colors.text },
   days: { flexDirection: 'row', gap: 6 },
@@ -193,13 +195,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.84)',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.9)',
+    borderColor: colors.glassBorder,
   },
   t1: { fontSize: 14, fontWeight: '700', color: colors.text },
   t2: { fontSize: 12, color: colors.textMid },
   bar: { width: 4, height: 36, borderRadius: 4 },
   subject: { fontSize: 15, fontWeight: '700', color: colors.text },
   liveTag: { fontSize: 12, color: colors.primaryDeep, fontWeight: '600', marginTop: 2 },
-})
+}))

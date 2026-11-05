@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react'
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
 
@@ -15,6 +15,7 @@ import { notificationsApi, type NoticeDto } from '../api/notifications'
 import { adminApi, type GroupDto } from '../api/admin'
 import { attendanceApi } from '../api/attendance'
 
+import { themedStyles } from '../theme/themedStyles'
 const minutes = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + (m || 0)
@@ -102,6 +103,10 @@ export default function TeacherHomeScreen() {
     .join('')
     .toUpperCase()
 
+  // Пустые блоки не показываем: если нечего показать, остаётся одна спокойная плашка
+  const isQuiet =
+    !loading && !focus && todayLessons.length === 0 && classesToday.length === 0 && !classPresent && notices.length === 0
+
   const markRead = () => {
     notificationsApi
       .markAllRead()
@@ -155,7 +160,7 @@ export default function TeacherHomeScreen() {
                   accessibilityRole="button"
                   style={[styles.nowBtn, { backgroundColor: '#FFFFFF' }]}
                 >
-                  <Text style={[styles.nowBtnText, { color: colors.primaryDeep }]}>Отметить</Text>
+                  <Text style={[styles.nowBtnText, { color: '#075B5D' }]}>Отметить</Text>
                 </Pressable>
               )}
               {hasFeature(user, 'grades') && (
@@ -171,12 +176,10 @@ export default function TeacherHomeScreen() {
           </View>
         )}
 
-        {hasFeature(user, 'schedule') && (
+        {hasFeature(user, 'schedule') && todayLessons.length > 0 && (
           <Card padding={16}>
-            <CardTitle title="Уроки сегодня" right={todayLessons.length ? `${todayLessons.length} ${lessonsWord(todayLessons.length)}` : undefined} />
-            {todayLessons.length === 0 ? (
-              <Text style={styles.muted}>{loading ? 'Загрузка…' : 'Сегодня уроков нет'}</Text>
-            ) : (
+            <CardTitle title="Уроки сегодня" right={`${todayLessons.length} ${lessonsWord(todayLessons.length)}`} />
+            {(
               <View style={{ gap: 10 }}>
                 {todayLessons.map((l, i) => {
                   const done = nowMin >= minutes(l.endTime)
@@ -230,11 +233,10 @@ export default function TeacherHomeScreen() {
           </View>
         )}
 
+        {notices.length > 0 && (
         <Card padding={16}>
           <CardTitle title="Оповещения" />
-          {notices.length === 0 ? (
-            <Text style={styles.muted}>Новых оповещений нет</Text>
-          ) : (
+          {(
             <View style={{ gap: 10 }}>
               {notices.map((n) => (
                 <View key={n.id} style={styles.noticeRow}>
@@ -254,12 +256,20 @@ export default function TeacherHomeScreen() {
             </View>
           )}
         </Card>
+        )}
+
+        {isQuiet && (
+          <Card padding={20} style={{ alignItems: 'center', gap: 6 }}>
+            <Text style={styles.quietTitle}>Сегодня спокойно</Text>
+            <Text style={styles.muted}>Ни уроков, ни новых оповещений. Всё важное появится здесь.</Text>
+          </Card>
+        )}
       </ScrollView>
     </Screen>
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { padding: 16, gap: 12 },
   avatar: {
     width: 44,
@@ -277,13 +287,14 @@ const styles = StyleSheet.create({
   nowActions: { flexDirection: 'row', gap: 8, marginTop: 8 },
   nowBtn: { flex: 1, alignItems: 'center', paddingVertical: 11, borderRadius: 14 },
   nowBtnText: { fontSize: 14, fontWeight: '700' },
-  muted: { fontSize: 14, color: colors.textMid },
+  muted: { fontSize: 14, color: colors.textMid, textAlign: 'center' },
+  quietTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
   lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   lessonTime: { width: 52, fontSize: 13, fontWeight: '700', color: colors.text },
   lessonName: { flex: 1, fontSize: 14, color: colors.text },
   lessonHint: { fontSize: 12, color: colors.textMid },
   nowBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, backgroundColor: colors.coral },
-  nowBadgeText: { fontSize: 11, fontWeight: '700', color: colors.text },
+  nowBadgeText: { fontSize: 11, fontWeight: '700', color: '#10282A' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   classChip: {
     paddingHorizontal: 12,
@@ -301,4 +312,4 @@ const styles = StyleSheet.create({
   noticeText: { fontSize: 13, color: colors.textMid, lineHeight: 18 },
   noticeTime: { fontSize: 11, color: colors.muted, marginTop: 2 },
   link: { fontSize: 13, fontWeight: '700', color: colors.primaryDeep, paddingVertical: 4 },
-})
+}))

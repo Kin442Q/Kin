@@ -1,13 +1,13 @@
 import { ReactNode, useState } from 'react'
 import {
   Pressable,
-  StyleSheet,
   TextInputProps,
   View,
 } from 'react-native'
 import { Text, TextInput } from './Text'
 import { colors, radius } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 interface InputProps extends TextInputProps {
   label: string
   hint?: string
@@ -88,7 +88,7 @@ export function Select<T extends string>({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   label: {
     fontSize: 12,
     color: colors.muted,
@@ -117,4 +117,4 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
   },
-})
+}))

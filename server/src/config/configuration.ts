@@ -41,11 +41,22 @@ export const configuration = () => ({
     refreshSecret: process.env.JWT_REFRESH_SECRET!,
     accessTtl: process.env.JWT_ACCESS_TTL ?? '15m',
     refreshTtl: process.env.JWT_REFRESH_TTL ?? '30d',
+    /** Секрет подписи личных ссылок учеников; не задан — производная от refresh-секрета. */
+    studentLinkSecret: process.env.STUDENT_LINK_SECRET || undefined,
   },
 
   throttle: {
     ttl: parseInt(process.env.THROTTLE_TTL ?? '60', 10),
     limit: parseInt(process.env.THROTTLE_LIMIT ?? '120', 10),
+  },
+
+  // Письма (приглашения и сброс пароля) — через HTTP API Resend.
+  mail: {
+    resendApiKey: process.env.RESEND_API_KEY || undefined,
+    apiUrl: process.env.RESEND_API_URL || 'https://api.resend.com/emails',
+    from: process.env.MAIL_FROM || 'Мактаби ман <no-reply@tahlilgar.cyou>',
+    /** Адрес сайта для ссылок в письмах, без слэша на конце. */
+    appUrl: (process.env.APP_URL || 'https://tahlilgar.cyou').replace(/\/+$/, ''),
   },
 
   telegram: {

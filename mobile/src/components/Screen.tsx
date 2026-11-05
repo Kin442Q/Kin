@@ -1,10 +1,11 @@
 import { ReactNode, useContext } from 'react'
-import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native'
+import { StyleProp, View, ViewStyle } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { BottomTabBarHeightContext } from '@react-navigation/bottom-tabs'
 import Backdrop from './Backdrop'
 import { colors } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 interface Props {
   children: ReactNode
   style?: StyleProp<ViewStyle>
@@ -40,7 +41,7 @@ export default function Screen({ children, style, noSafe, bg, variant = 'inner' 
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   root: { flex: 1 },
   fill: { flex: 1 },
-})
+}))

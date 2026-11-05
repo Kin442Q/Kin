@@ -24,6 +24,7 @@ import {
   Target,
   Gamepad2,
   MessageCircle,
+  KeyRound,
   LogOut,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -167,6 +168,16 @@ const NAV: NavEntry[] = [
     labelKey: 'nav.students',
     icon: <Baby size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
+    roles: ['SUPER_ADMIN', 'admin'],
+    hiddenForGlobalOwner: true,
+    section: 'composition',
+  },
+  {
+    key: '/admin/teacher-access',
+    feature: 'teachers',
+    labelKey: 'nav.teacherAccess',
+    icon: <KeyRound size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-lilac',
     roles: ['SUPER_ADMIN', 'admin'],
     hiddenForGlobalOwner: true,
     section: 'composition',

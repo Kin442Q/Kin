@@ -9,6 +9,7 @@ import { useTenantSync } from '../../hooks/useTenantSync'
 import { useAuthStore } from '../../store/authStore'
 import { useT } from '../../i18n'
 import { SP } from '../sprout'
+import MustChangePasswordGate from '../MustChangePasswordGate'
 
 const { Content, Sider } = Layout
 const { useBreakpoint } = Grid
@@ -42,6 +43,7 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      <MustChangePasswordGate />
       {!isMobile && (
         <Sider
           breakpoint="md"

@@ -3,7 +3,7 @@
  * (палитра «Помир»: бирюзовый + коралловый, мягкое стекло на закате).
  * Ключи сохранены от прежней темы, чтобы экраны менялись без правок.
  */
-export const colors = {
+const lightPalette = {
   /** Основа экрана (под фоновым слоем «закат») */
   bg: '#FFE4D6',
   /** Карточка-«стекло»: слегка прозрачный белый поверх фона */
@@ -47,7 +47,95 @@ export const colors = {
   glassBorder: 'rgba(255,255,255,0.75)',
 
   danger: '#C0392B',
-} as const
+  /** Текст на залитых акцентных кнопках и плашках */
+  onPrimary: '#FFFFFF',
+  /** Нижняя панель вкладок */
+  tabBar: 'rgba(255,255,255,0.94)',
+  /** Поля ввода и плотные белые подложки внутри карточек */
+  field: '#FFFFFF',
+  /** Круглый аватар с инициалами */
+  avatarBg: '#9EDDD9',
+  /** Усиленное «стекло»: клавиатура оценок, всплывающие плашки */
+  surfaceStrong: 'rgba(255,255,255,0.96)',
+  /** Затемнение за окнами */
+  overlay: 'rgba(15,30,25,0.45)',
+}
+
+export type Palette = { [K in keyof typeof lightPalette]: string }
+
+const darkPalette: Palette = {
+  bg: '#0A2A2C',
+  surface: 'rgba(255,255,255,0.07)',
+  surfaceSolid: '#123C3E',
+  surfaceAlt: 'rgba(255,255,255,0.07)',
+
+  primary: '#139A9C',
+  primaryDeep: '#7FE0DB',
+  primarySoft: 'rgba(95,208,203,0.18)',
+  primaryGhost: 'rgba(95,208,203,0.10)',
+
+  coral: '#FF8A65',
+
+  blue: '#5BB0E0',
+  blueDeep: '#9AD0F0',
+  blueSoft: 'rgba(91,176,224,0.20)',
+
+  yellow: '#FFB020',
+  yellowDeep: '#FFD27A',
+  yellowSoft: 'rgba(255,176,32,0.20)',
+
+  rose: '#FF8A65',
+  roseDeep: '#FFB59C',
+  roseSoft: 'rgba(255,138,101,0.20)',
+
+  lilac: '#A99BEA',
+  lilacDeep: '#CBC2F5',
+  lilacSoft: 'rgba(169,155,234,0.20)',
+
+  text: '#F2F7F6',
+  textMid: '#A9C2C3',
+  muted: '#8FA9AA',
+
+  border: 'rgba(255,255,255,0.16)',
+  borderSoft: 'rgba(255,255,255,0.10)',
+  glassBorder: 'rgba(255,255,255,0.14)',
+
+  danger: '#FF7A6B',
+
+  onPrimary: '#FFFFFF',
+  tabBar: 'rgba(14,50,53,0.94)',
+  field: 'rgba(255,255,255,0.06)',
+  avatarBg: 'rgba(95,208,203,0.30)',
+  surfaceStrong: 'rgba(16,52,55,0.96)',
+  overlay: 'rgba(0,0,0,0.6)',
+}
+
+export type Scheme = 'light' | 'dark'
+let currentScheme: Scheme = 'light'
+
+/** Включить палитру. Вызывает хранилище темы до перерисовки дерева. */
+export function setScheme(next: Scheme) {
+  currentScheme = next
+}
+export function getScheme(): Scheme {
+  return currentScheme
+}
+
+/**
+ * Текущая палитра. Это «живой» объект: каждое чтение берёт цвет активной темы, поэтому
+ * `colors.text` в экранах и компонентах работает без правок. Стили пересоздаются
+ * через themedStyles (см. theme/themedStyles.ts), а дерево перемонтируется при смене темы.
+ */
+export const colors: Palette = new Proxy({} as Palette, {
+  get: (_t, key: string) => (currentScheme === 'dark' ? darkPalette : lightPalette)[key as keyof Palette],
+  has: (_t, key: string) => key in lightPalette,
+  ownKeys: () => Reflect.ownKeys(lightPalette),
+  getOwnPropertyDescriptor: (_t, key: string) =>
+    key in lightPalette
+      ? { enumerable: true, configurable: true, value: (currentScheme === 'dark' ? darkPalette : lightPalette)[key as keyof Palette] }
+      : undefined,
+})
+
 
 export const radius = {
   sm: 10,
