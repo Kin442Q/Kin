@@ -9,6 +9,8 @@ import { http } from '../api'
 import { useAuthStore } from '../store/authStore'
 import { useDataStore } from '../store/dataStore'
 import { useFeature } from '../hooks/useFeature'
+import WeekSchedule from '../components/WeekSchedule'
+import { teacherLessons } from '../lib/scheduleWeek'
 import { useT } from '../i18n'
 import type { AppNotification } from '../types'
 
@@ -98,14 +100,14 @@ export default function TeacherDashboard() {
 
   const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups])
 
-  // Уроки на сегодня: если уроки закреплены за учителями — только мои, иначе все уроки моих классов.
+  // Мои уроки на неделю: если уроки закреплены за учителями — только мои, иначе все уроки моих классов.
+  const myWeek = useMemo(() => teacherLessons(lessons, user?.id), [lessons, user?.id])
+
+  // Уроки на сегодня — из той же недели
   const todayLessons = useMemo(() => {
     const dow = dayjs().day() === 0 ? 7 : dayjs().day()
-    const assigned = lessons.some((l) => l.teacherId)
-    return lessons
-      .filter((l) => l.dayOfWeek === dow && (!assigned || l.teacherId === user?.id))
-      .sort((a, b) => a.startTime.localeCompare(b.startTime))
-  }, [lessons, user?.id])
+    return myWeek.filter((l) => l.dayOfWeek === dow).sort((a, b) => a.startTime.localeCompare(b.startTime))
+  }, [myWeek])
 
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const currentIdx = todayLessons.findIndex((l) => nowMin >= toMin(l.startTime) && nowMin < toMin(l.endTime))
@@ -163,6 +165,20 @@ export default function TeacherDashboard() {
           </>
         }
       />
+
+      {/* Неделя целиком: в каких классах и в какие дни у меня уроки */}
+      {showSchedule && myWeek.length > 0 && (
+        <SproutCard style={{ marginBottom: 16 }} delay={0.05}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>{t('teacher.weekTitle')}</div>
+          <div style={{ fontSize: 12, color: SP.muted, marginBottom: 12 }}>{t('teacher.weekSub')}</div>
+          <WeekSchedule
+            lessons={myWeek}
+            groupName={(id) => groupById.get(id)?.name}
+            emptyDayText={t('teacher.weekDayEmpty')}
+            todayText={t('teacher.weekToday')}
+          />
+        </SproutCard>
+      )}
 
       <Row gutter={[16, 16]} align="stretch">
         <Col xs={24} lg={15} style={{ display: 'flex' }}>
