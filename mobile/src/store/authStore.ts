@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { authApi, type LoginResponse, type User } from '../api/auth'
-import { setUnauthorizedHandler } from '../api/http'
+import { REFRESH_KEY, TOKEN_KEY, USER_KEY, setTokenRefreshedHandler, setUnauthorizedHandler } from '../api/http'
 import { disconnectSocket } from '../lib/socket'
 import {
   registerForPushNotificationsAsync,
@@ -37,7 +37,9 @@ async function startSession(
   res: LoginResponse,
   set: (patch: Partial<AuthState>) => void,
 ) {
-  await AsyncStorage.setItem('kg_token', res.accessToken)
+  await AsyncStorage.setItem(TOKEN_KEY, res.accessToken)
+  // Refresh-токен: по нему сессия продлевается без повторного ввода пароля (30 дней)
+  if (res.refreshToken) await AsyncStorage.setItem(REFRESH_KEY, res.refreshToken)
   // Сразу после логина дотягиваем /me чтобы получить institution.type
   let user: User = res.user
   try {
@@ -112,7 +114,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   changePassword: async (currentPassword, newPassword) => {
     const res = await authApi.changePassword({ currentPassword, newPassword })
-    await AsyncStorage.setItem('kg_token', res.accessToken)
+    await AsyncStorage.setItem(TOKEN_KEY, res.accessToken)
+    // Смена пароля отзывает все старые refresh-токены: сохраняем новый, иначе сессия оборвётся при продлении
+    if (res.refreshToken) await AsyncStorage.setItem(REFRESH_KEY, res.refreshToken)
     const user = useAuthStore.getState().user
     if (user) {
       const next = { ...user, mustChangePassword: false }
@@ -139,11 +143,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     await unregisterPushTokenOnServer().catch(() => {})
     disconnectSocket()
     try {
-      await authApi.logout()
+      await authApi.logout(await AsyncStorage.getItem(REFRESH_KEY))
     } catch {
       // ignore — even if request fails, clear local
     }
-    await AsyncStorage.multiRemove(['kg_token', 'kg_user'])
+    await AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_KEY, USER_KEY])
     set({ user: null, token: null })
   },
 }))
@@ -151,5 +155,11 @@ export const useAuthStore = create<AuthState>((set) => ({
 // Когда любой запрос вернёт 401 (токен протух) — сбрасываем сессию в сторе,
 // и RootNavigator автоматически покажет экран логина.
 setUnauthorizedHandler(() => {
+  disconnectSocket()
   useAuthStore.setState({ user: null, token: null })
+})
+
+// Access-токен обновился: держим его и в сторе
+setTokenRefreshedHandler((accessToken) => {
+  useAuthStore.setState({ token: accessToken })
 })
