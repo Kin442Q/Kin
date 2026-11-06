@@ -2,8 +2,8 @@ import { ApiProperty } from '@nestjs/swagger'
 import { IsOptional, IsString, MinLength } from 'class-validator'
 
 /**
- * Поддерживается логин по email ИЛИ по телефону.
- * Должно быть указано одно из двух.
+ * Поддерживается вход по email, по телефону ИЛИ по логину ученика (его выдаёт классный руководитель).
+ * Должно быть указано одно из трёх.
  */
 export class LoginDto {
   @ApiProperty({ example: 'admin@kindergarten.tj', required: false })
@@ -15,6 +15,11 @@ export class LoginDto {
   @IsOptional()
   @IsString()
   phone?: string
+
+  @ApiProperty({ example: 'st4k9x2m', required: false, description: 'Логин ученика' })
+  @IsOptional()
+  @IsString()
+  login?: string
 
   @ApiProperty({ example: 'Admin123456!' })
   @IsString()

@@ -32,9 +32,9 @@ export const ru = {
   'login.feat.appsSub': 'одно приложение',
   'login.cardTitle': 'Вход в систему',
   'login.cardSub': 'Директор, учитель, родитель или ученик',
-  'login.loginLabel': 'Email или телефон',
-  'login.loginRequired': 'Введите email или номер телефона',
-  'login.loginPlaceholder': 'email или +992 90 123 45 67',
+  'login.loginLabel': 'Email, телефон или логин',
+  'login.loginRequired': 'Введите email, телефон или логин',
+  'login.loginPlaceholder': 'email, телефон или логин',
   'login.passwordLabel': 'Пароль',
   'login.passwordRequired': 'Введите пароль',
   'login.forgot': 'Забыли пароль?',
@@ -53,7 +53,7 @@ export const ru = {
   'login.welcome': 'Добро пожаловать, {name}',
   'login.failed': 'Ошибка входа. Проверьте данные',
   'login.studentHint':
-    'Ученик? Откройте личную ссылку или наведите камеру на QR-код с карточки от классного руководителя.',
+    'Ученик? Введите логин и пароль от классного руководителя или откройте личную ссылку, наведя камеру на QR-код с карточки.',
 
   // ── Роли ───────────────────────────────────────────────
   'role.director': 'Директор',

@@ -9,3 +9,13 @@ export function randomPassword(length = 14): string {
   for (let i = 0; i < length; i++) out += ALPHABET[randomInt(ALPHABET.length)]
   return out
 }
+
+/** Для учеников: только строчные буквы и цифры без похожих (i, l, o, 0, 1), удобно набирать на телефоне. */
+const READABLE = 'abcdefghjkmnpqrstuvwxyz23456789'
+
+/** Короткий пароль для ученика, который выдаёт классный руководитель (8 знаков ≈ 40 бит). */
+export function readablePassword(length = 8): string {
+  let out = ''
+  for (let i = 0; i < length; i++) out += READABLE[randomInt(READABLE.length)]
+  return out
+}

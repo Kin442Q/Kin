@@ -3,7 +3,14 @@ import { render, screen, fireEvent, waitFor, configure } from '@testing-library/
 import { App as AntdApp } from 'antd'
 
 vi.mock('../api/schoolApi', () => ({
-  studentAccountApi: { get: vi.fn(), issue: vi.fn(), regenerate: vi.fn(), remove: vi.fn() },
+  studentAccountApi: {
+    get: vi.fn(),
+    issue: vi.fn(),
+    regenerate: vi.fn(),
+    remove: vi.fn(),
+    issuePassword: vi.fn(),
+    revokePassword: vi.fn(),
+  },
 }))
 vi.mock('../lib/studentCards', () => ({ qrDataUrl: vi.fn().mockResolvedValue('data:image/svg+xml;utf8,%3Csvg%2F%3E') }))
 
@@ -12,7 +19,15 @@ import StudentAccountModal from './StudentAccountModal'
 
 const student = { id: 'st1', firstName: 'Али', lastName: 'Каримов' }
 const LINK = 'https://tahlilgar.cyou/s/u1.AbCdEfGhIjKlMnOpQrStUv'
-const account = (patch: Record<string, unknown> = {}) => ({ id: 'u1', isActive: true, lastLoginAt: null, link: LINK, ...patch })
+const account = (patch: Record<string, unknown> = {}) => ({
+  id: 'u1',
+  isActive: true,
+  lastLoginAt: null,
+  link: LINK,
+  login: 'st4k9x2m',
+  passwordIssued: false,
+  ...patch,
+})
 
 // antd-окна и подтверждения в jsdom рисуются небыстро
 vi.setConfig({ testTimeout: 20_000 })
@@ -28,17 +43,19 @@ function renderModal() {
   )
 }
 
-describe('StudentAccountModal — личная ссылка ученика', () => {
+describe('StudentAccountModal — доступ ученика: ссылка и логин с паролем', () => {
   beforeEach(() => {
     Object.values(api).forEach((fn) => fn.mockReset())
   })
 
-  it('доступа нет: объяснение и «Выдать ссылку»; полей логина и пароля нет', async () => {
+  it('доступа нет: два способа — «Выдать ссылку» и «Выдать логин и пароль»; вводить пароль самому нельзя', async () => {
     api.get.mockResolvedValue(null)
     renderModal()
 
     expect(await screen.findByRole('button', { name: 'Выдать ссылку' })).toBeInTheDocument()
-    expect(screen.getByText(/логин и пароль не нужны/)).toBeInTheDocument()
+    expect(screen.getByText(/Выберите, как он будет входить/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Выдать логин и пароль' })).toBeInTheDocument()
+    expect(document.querySelectorAll('input[type="password"]')).toHaveLength(0)
     expect(screen.queryByPlaceholderText(/придумается автоматически|сгенерируется автоматически/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Сбросить пароль/)).not.toBeInTheDocument()
   })
@@ -112,5 +129,58 @@ describe('StudentAccountModal — личная ссылка ученика', () 
     renderModal()
 
     expect(await screen.findByRole('button', { name: 'Выдать ссылку' })).toBeInTheDocument()
+  })
+
+  describe('логин и пароль', () => {
+    it('«Выдать логин и пароль»: ученику создаётся аккаунт, логин и пароль показаны один раз с предупреждением', async () => {
+      api.get.mockResolvedValue(null)
+      api.issuePassword.mockResolvedValue({ ...account({ passwordIssued: true }), password: 'k7m2p9xw' } as never)
+      renderModal()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Выдать логин и пароль' }))
+
+      expect(await screen.findByText('k7m2p9xw')).toBeInTheDocument()
+      expect(api.issuePassword).toHaveBeenCalledWith('st1')
+      expect(screen.getAllByText('st4k9x2m').length).toBeGreaterThan(0)
+      expect(screen.getByText(/Пароль виден только сейчас/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Скопировать логин и пароль/ })).toBeInTheDocument()
+      // ссылка и QR при этом тоже есть
+      expect(await screen.findByDisplayValue(LINK)).toBeInTheDocument()
+    })
+
+    it('пароль выдан раньше: сам пароль не показан, есть «Новый пароль» и «Забрать пароль»', async () => {
+      api.get.mockResolvedValue(account({ passwordIssued: true }) as never)
+      renderModal()
+
+      expect(await screen.findByText(/посмотреть его нельзя/)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Новый пароль' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Забрать пароль' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Выдать логин и пароль' })).not.toBeInTheDocument()
+    })
+
+    it('«Новый пароль»: сначала подтверждение, потом новый пароль виден один раз', async () => {
+      api.get.mockResolvedValue(account({ passwordIssued: true }) as never)
+      api.issuePassword.mockResolvedValue({ ...account({ passwordIssued: true }), password: 'new5pass' } as never)
+      renderModal()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Новый пароль' }))
+      expect(api.issuePassword).not.toHaveBeenCalled()
+      fireEvent.click(await screen.findByRole('button', { name: 'Выдать новый' }))
+
+      expect(await screen.findByText('new5pass')).toBeInTheDocument()
+      expect(api.issuePassword).toHaveBeenCalledWith('st1')
+    })
+
+    it('«Забрать пароль»: после подтверждения остаётся вход по ссылке, пароль «не выдан»', async () => {
+      api.get.mockResolvedValue(account({ passwordIssued: true }) as never)
+      api.revokePassword.mockResolvedValue(account({ passwordIssued: false }) as never)
+      renderModal()
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Забрать пароль' }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Забрать' }))
+
+      await waitFor(() => expect(api.revokePassword).toHaveBeenCalledWith('st1'))
+      expect(await screen.findByRole('button', { name: 'Выдать логин и пароль' })).toBeInTheDocument()
+    })
   })
 })

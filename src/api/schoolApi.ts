@@ -152,7 +152,14 @@ export interface StudentAccount {
   lastLoginAt: string | null
   /** Личная ссылка входа; null — аккаунт есть, а ссылки нет. */
   link: string | null
+  /** Логин для входа вместе с паролем (без служебного домена) */
+  login: string | null
+  /** Классный руководитель выдал пароль (сам пароль нигде не хранится в открытом виде) */
+  passwordIssued: boolean
 }
+
+/** Ответ на выдачу пароля: пароль есть только здесь и показывается один раз. */
+export type StudentPasswordIssued = StudentAccount & { password: string }
 
 export interface ClassLinkRow {
   studentId: string
@@ -161,6 +168,23 @@ export interface ClassLinkRow {
   lastLoginAt: string | null
   /** null — ссылка ещё не выдана. */
   link: string | null
+  login: string | null
+  passwordIssued: boolean
+}
+
+export interface ClassPasswordRow {
+  studentId: string
+  firstName: string
+  lastName: string
+  login: string | null
+  passwordIssued: boolean
+  /** Есть только у тех, кому пароль выдан сейчас; null — выдан раньше, показать его нельзя. */
+  password: string | null
+}
+
+export interface ClassPasswords {
+  group: { id: string; name: string }
+  students: ClassPasswordRow[]
 }
 
 export interface ClassLinks {
@@ -180,6 +204,16 @@ export const studentAccountApi = {
     http.post<StudentAccount>(`/v1/students/${studentId}/account/regenerate-link`).then((r) => r.data),
   /** Отключить доступ: аккаунт удаляется, ученик и его данные остаются. */
   remove: (studentId: string) => http.delete(`/v1/students/${studentId}/account`),
+
+  /** Логин и пароль (пароль создаёт система и показывает один раз). */
+  issuePassword: (studentId: string) =>
+    http.post<StudentPasswordIssued>(`/v1/students/${studentId}/account/password`).then((r) => r.data),
+  /** Забрать пароль: ученик входит только по ссылке. */
+  revokePassword: (studentId: string) =>
+    http.delete<StudentAccount>(`/v1/students/${studentId}/account/password`).then((r) => r.data),
+  /** Логины и пароли всему классу. По умолчанию только тем, у кого пароля ещё нет; onlyMissing=false — заново всем. */
+  issueClassPasswords: (groupId: string, onlyMissing = true) =>
+    http.post<ClassPasswords>('/v1/students/class-passwords', { groupId, onlyMissing }).then((r) => r.data),
 
   classLinks: (groupId: string) =>
     http.get<ClassLinks>('/v1/students/links', { params: { groupId } }).then((r) => r.data),

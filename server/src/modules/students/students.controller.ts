@@ -51,6 +51,18 @@ export class StudentsController {
     return this.service.issueClassLinks(dto?.groupId, user)
   }
 
+  @Post('class-passwords')
+  @Feature('students', 'portal')
+  @ApiOperation({
+    summary: 'Выдать логины и пароли ученикам класса (пароль виден только в ответе). onlyMissing=false — заново всем',
+  })
+  issueClassPasswords(
+    @Body() dto: { groupId?: string; onlyMissing?: boolean },
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.service.issueClassPasswords(dto?.groupId, dto?.onlyMissing !== false, user)
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.service.findOne(id, user)
@@ -153,6 +165,20 @@ export class StudentsController {
   @ApiOperation({ summary: 'Перевыпустить ссылку: старая сразу перестаёт работать' })
   regenerateLink(@Param('id') id: string, @CurrentUser() user: AuthUser) {
     return this.service.regenerateLink(id, user)
+  }
+
+  @Post(':id/account/password')
+  @Feature('students', 'portal')
+  @ApiOperation({ summary: 'Выдать ученику логин и пароль (или новый пароль). Пароль виден только в ответе' })
+  issuePassword(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.issuePassword(id, user)
+  }
+
+  @Delete(':id/account/password')
+  @Feature('students', 'portal')
+  @ApiOperation({ summary: 'Забрать пароль: ученик входит только по ссылке' })
+  revokePassword(@Param('id') id: string, @CurrentUser() user: AuthUser) {
+    return this.service.revokePassword(id, user)
   }
 
   @Delete(':id/account')

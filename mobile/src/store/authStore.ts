@@ -18,7 +18,7 @@ interface AuthState {
   /** Загрузка сохранённой сессии из AsyncStorage при старте */
   hydrate: () => Promise<void>
   /** Логин по email или phone */
-  login: (creds: { email?: string; phone?: string; password: string }) => Promise<void>
+  login: (creds: { email?: string; phone?: string; login?: string; password: string }) => Promise<void>
   /** Вход ученика по личной ссылке (токен — хвост ссылки после /s/) */
   loginWithLink: (token: string) => Promise<void>
   /** Смена своего пароля: новая сессия, флаг «сменить пароль» снят */

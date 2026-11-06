@@ -27,6 +27,14 @@ const subjects = [
   { id: 's2', name: 'Рисование', color: '#FF8A65' },
 ]
 
+/** Ждём, пока выбранный учитель подхватит сохранённый доступ (черновик заполняется отдельным эффектом). */
+async function renderReady() {
+  renderPage()
+  const math = await screen.findByRole('button', { name: 'Математика' })
+  await waitFor(() => expect(math).toHaveAttribute('aria-pressed', 'true'))
+  return math
+}
+
 function renderPage() {
   return render(
     <MemoryRouter>
@@ -47,21 +55,18 @@ describe('Доступ учителей — предметы', () => {
   })
 
   it('показывает предметы школы; выданные учителю отмечены', async () => {
-    renderPage()
+    await renderReady()
 
-    const math = await screen.findByRole('button', { name: 'Математика' })
-    const art = screen.getByRole('button', { name: 'Рисование' })
-    expect(math).toHaveAttribute('aria-pressed', 'true')
-    expect(art).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'Рисование' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('выдать ещё один предмет: уходит только список предметов, классы не трогаются', async () => {
     vi.mocked(http.patch).mockResolvedValue({
       data: { id: 't1', teachingSubjects: subjects },
     } as never)
-    renderPage()
+    await renderReady()
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Рисование' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Рисование' }))
     fireEvent.click(screen.getByRole('button', { name: 'Сохранить доступ' }))
 
     await waitFor(() => expect(http.patch).toHaveBeenCalledTimes(1))
@@ -70,9 +75,7 @@ describe('Доступ учителей — предметы', () => {
 
   it('снять все предметы: уходит пустой список', async () => {
     vi.mocked(http.patch).mockResolvedValue({ data: { id: 't1', teachingSubjects: [] } } as never)
-    renderPage()
-
-    await screen.findByRole('button', { name: 'Математика' })
+    await renderReady()
     // «Снять все» относится и к классам, и к предметам; блок предметов — второй
     const clearButtons = screen.getAllByRole('button', { name: 'Снять все' })
     fireEvent.click(clearButtons[clearButtons.length - 1])
@@ -83,8 +86,7 @@ describe('Доступ учителей — предметы', () => {
   })
 
   it('без изменений кнопка «Сохранить доступ» выключена', async () => {
-    renderPage()
-    await screen.findByRole('button', { name: 'Математика' })
-    expect(screen.getByRole('button', { name: 'Сохранить доступ' })).toBeDisabled()
+    await renderReady()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Сохранить доступ' })).toBeDisabled())
   })
 })

@@ -30,9 +30,9 @@ export const tg: Record<keyof typeof ru, Msg> = {
   'login.feat.appsSub': 'як барнома',
   'login.cardTitle': 'Воридшавӣ ба система',
   'login.cardSub': 'Директор, омӯзгор, падару модар ё хонанда',
-  'login.loginLabel': 'Email ё телефон',
-  'login.loginRequired': 'Email ё рақами телефонро ворид кунед',
-  'login.loginPlaceholder': 'email ё +992 90 123 45 67',
+  'login.loginLabel': 'Email, телефон ё логин',
+  'login.loginRequired': 'Email, телефон ё логинро ворид кунед',
+  'login.loginPlaceholder': 'email, телефон ё логин',
   'login.passwordLabel': 'Парол',
   'login.passwordRequired': 'Паролро ворид кунед',
   'login.forgot': 'Паролро фаромӯш кардед?',
@@ -51,7 +51,7 @@ export const tg: Record<keyof typeof ru, Msg> = {
   'login.welcome': 'Хуш омадед, {name}',
   'login.failed': 'Воридшавӣ нашуд. Маълумотро санҷед',
   'login.studentHint':
-    'Хонанда? Пайванди шахсиро кушоед ё камераро ба QR-коди корти роҳбари синф равона кунед.',
+    'Хонанда? Логин ва паролеро, ки роҳбари синф додааст, ворид кунед ё бо камера QR-коди кортро скан карда, пайванди шахсиро кушоед.',
 
   'role.director': 'Директор',
   'role.owner': 'Соҳиби платформа',
