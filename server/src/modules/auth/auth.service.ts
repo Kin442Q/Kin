@@ -24,7 +24,13 @@ import { resetEmail } from '../mail/mail-templates'
 import { PasswordTokensService, isRealEmail } from '../password-tokens/password-tokens.service'
 import { StudentLinkService } from '../student-links/student-link.service'
 
-const STUDENT_USE_LINK = 'Ученики входят по личной ссылке от классного руководителя'
+const STUDENT_USE_LINK = 'Ученики входят по логину и паролю или по личной ссылке от классного руководителя'
+const STUDENT_NO_PASSWORD =
+  'Пароль ещё не выдан. Войдите по личной ссылке или попросите классного руководителя выдать логин и пароль'
+const STUDENT_LOGIN_DOMAIN = 'students.local'
+/** Пароль ученика короткий, поэтому подбор ограничен: 10 неверных попыток за 15 минут закрывают вход. */
+const STUDENT_MAX_FAILS = 10
+const STUDENT_FAIL_TTL_SEC = 15 * 60
 const LINK_DEAD = 'Ссылка не работает. Попросите классного руководителя выдать новую.'
 
 export interface TokenPair {
@@ -51,8 +57,14 @@ export class AuthService {
   // Login — поддерживает вход по email ИЛИ по телефону
   // -------------------------------------------------------------------
   async login(dto: LoginDto, meta: { userAgent?: string; ip?: string }) {
-    if (!dto.email && !dto.phone) {
-      throw new UnauthorizedException('Введите email или телефон')
+    if (!dto.email && !dto.phone && !dto.login) {
+      throw new UnauthorizedException('Введите email, телефон или логин')
+    }
+
+    // Логин ученика («st4k9x2m»): служебный адрес в домене students.local
+    if (!dto.email && !dto.phone && dto.login) {
+      const raw = dto.login.toLowerCase().trim()
+      return this.loginStudentWithPassword(raw.includes('@') ? raw : `${raw}@${STUDENT_LOGIN_DOMAIN}`, dto.password, meta)
     }
 
     let user: User
@@ -63,8 +75,8 @@ export class AuthService {
       if (!found || !found.isActive) {
         throw new UnauthorizedException('Неверный логин или пароль')
       }
-      // Ученики входят по личной ссылке; подсказываем, а не мучаем неверным паролем.
-      if (found.role === 'STUDENT') throw new UnauthorizedException(STUDENT_USE_LINK)
+      // Ученик: вход по выданным логину и паролю (с лимитом попыток и проверкой кабинета)
+      if (found.role === 'STUDENT') return this.loginStudentWithPassword(found.email, dto.password, meta)
       const ok = await bcrypt.compare(dto.password, found.passwordHash)
       if (!ok) throw new UnauthorizedException('Неверный логин или пароль')
       user = found
@@ -89,7 +101,7 @@ export class AuthService {
       user = matched[0]
     }
 
-    // Защита от обхода: по логину и паролю ученик не входит ни по email, ни по телефону.
+    // По номеру телефона ученик не входит: у учеников есть только выданный логин.
     if (user.role === 'STUDENT') throw new UnauthorizedException(STUDENT_USE_LINK)
 
     const tokens = await this.issueTokens(user, meta)
@@ -117,19 +129,50 @@ export class AuthService {
     if (!user || user.role !== 'STUDENT' || !user.isActive || user.linkVersion == null) throw dead()
     if (!this.studentLinks.verify(token, user.linkVersion)) throw dead()
 
-    // Ученик ушёл из школы (архив) — ссылка больше не пускает.
+    await this.assertStudentMayEnter(user, dead)
+
+    const tokens = await this.issueTokens(user, meta)
+    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })
+    return tokens
+  }
+
+  /** Ученик ушёл из школы (архив) или кабинет учеников выключен для школы — вход закрыт. */
+  private async assertStudentMayEnter(user: User, refuse: () => Error) {
     if (user.studentId) {
       const student = await this.prisma.student.findUnique({
         where: { id: user.studentId },
         select: { status: true },
       })
-      if (!student || student.status !== 'ACTIVE') throw dead()
+      if (!student || student.status !== 'ACTIVE') throw refuse()
     }
-
-    // Кабинет ученика можно выключить для школы — тогда ученики не входят.
     if (!(await this.features.isEnabled(user.kindergartenId, 'portal'))) {
       throw new UnauthorizedException('Кабинет ученика отключён для вашей школы')
     }
+  }
+
+  // -------------------------------------------------------------------
+  // Вход ученика по логину и паролю, которые выдал классный руководитель
+  // -------------------------------------------------------------------
+  private async loginStudentWithPassword(email: string, password: string, meta: { userAgent?: string; ip?: string }) {
+    const bad = () => new UnauthorizedException('Неверный логин или пароль')
+    const user = await this.prisma.user.findUnique({ where: { email } })
+    if (!user || user.role !== 'STUDENT' || !user.isActive) throw bad()
+    if (!user.passwordIssuedAt) throw new UnauthorizedException(STUDENT_NO_PASSWORD)
+
+    const failKey = `student-login-fails:${user.id}`
+    const fails = (await this.redis.get<number>(failKey)) ?? 0
+    if (fails >= STUDENT_MAX_FAILS) {
+      throw new UnauthorizedException(
+        'Слишком много неверных попыток. Подождите 15 минут или попросите классного руководителя выдать новый пароль',
+      )
+    }
+    if (!(await bcrypt.compare(password, user.passwordHash))) {
+      await this.redis.set(failKey, fails + 1, STUDENT_FAIL_TTL_SEC)
+      throw bad()
+    }
+    await this.redis.del(failKey)
+
+    await this.assertStudentMayEnter(user, bad)
 
     const tokens = await this.issueTokens(user, meta)
     await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } })

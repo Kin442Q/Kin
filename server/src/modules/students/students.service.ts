@@ -12,7 +12,7 @@ import { randomInt } from 'node:crypto'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { CreateStudentDto, UpdateStudentDto } from './dto/student.dto'
 import type { AuthUser } from '../../common/types/jwt-payload'
-import { randomPassword } from '../../common/random-password'
+import { randomPassword, readablePassword } from '../../common/random-password'
 import { StudentLinkService } from '../student-links/student-link.service'
 import { AccessService, assertNoPassword, requireInviteEmail } from '../access/access.service'
 
@@ -40,8 +40,25 @@ function normalizeStudent<T extends Record<string, unknown> | null>(s: T): T {
 }
 
 /** Какие поля аккаунта ученика нужны для выдачи ссылок. */
-const ACCOUNT_SELECT = { id: true, isActive: true, lastLoginAt: true, linkVersion: true } as const
-type AccountRow = { id: string; isActive: boolean; lastLoginAt: Date | null; linkVersion: number | null }
+const ACCOUNT_SELECT = {
+  id: true,
+  email: true,
+  isActive: true,
+  lastLoginAt: true,
+  linkVersion: true,
+  passwordIssuedAt: true,
+} as const
+type AccountRow = {
+  id: string
+  email: string
+  isActive: boolean
+  lastLoginAt: Date | null
+  linkVersion: number | null
+  passwordIssuedAt: Date | null
+}
+
+/** Логин, который вводит ученик: служебный адрес без «@students.local». */
+const studentLoginOf = (email?: string | null) => (email ? email.replace(/@students\.local$/i, '') : null)
 
 @Injectable()
 export class StudentsService {
@@ -533,9 +550,9 @@ export class StudentsService {
     }
   }
 
-  // ─── Доступ ученика по личной ссылке ────────────────────────────────
-  // У учеников нет логина и пароля: классный руководитель (или админ школы)
-  // выдаёт личную ссылку, по ней ученик попадает в свой кабинет. Ссылка
+  // ─── Доступ ученика: личная ссылка и логин с паролем ────────────────
+  // У учеников нет почты: классный руководитель (или админ школы) выдаёт личную
+  // ссылку (или логин и пароль, см. ниже), по ним ученик попадает в свой кабинет. Ссылка
   // подписана (HMAC от id аккаунта и версии) и нигде не хранится, поэтому её
   // можно показать снова; перевыпуск увеличивает версию и убивает старую.
 
@@ -574,6 +591,10 @@ export class StudentsService {
       isActive: a.isActive,
       lastLoginAt: a.lastLoginAt,
       link: a.linkVersion ? this.links.link(a.id, a.linkVersion) : null,
+      /** Логин для входа вместе с паролем, который выдаёт классный руководитель */
+      login: studentLoginOf(a.email),
+      /** Пароль выдан (сам пароль не хранится в открытом виде и больше не показывается) */
+      passwordIssued: a.passwordIssuedAt != null,
     }
   }
 
@@ -661,6 +682,87 @@ export class StudentsService {
     await this.prisma.user.delete({ where: { id: s.account.id } })
   }
 
+  // ── Логин и пароль ученика ──
+  // Вторая возможность рядом со ссылкой и QR: классный руководитель выдаёт логин и пароль.
+  // Пароль создаёт система (его никто не придумывает вручную), показывается один раз и хранится
+  // только в виде хэша; новый пароль закрывает старые сессии ученика.
+
+  private async setStudentPassword(userId: string, password: string): Promise<AccountRow> {
+    const passwordHash = await bcrypt.hash(password, 10)
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash, passwordIssuedAt: new Date(), isActive: true, mustChangePassword: false },
+        select: ACCOUNT_SELECT,
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ])
+    return updated
+  }
+
+  /** Выдать (или выдать заново) логин и пароль. Пароль есть только в этом ответе. */
+  async issuePassword(studentId: string, user: AuthUser) {
+    const s = await this.studentForAccount(studentId, user)
+    if (s.status !== 'ACTIVE') {
+      throw new BadRequestException('Доступ можно выдать только действующему ученику')
+    }
+    const account = s.account ?? (await this.ensureLink(s))
+    const password = readablePassword()
+    const updated = await this.setStudentPassword(account.id, password)
+    return { ...this.serializeAccount(updated), password }
+  }
+
+  /** Забрать пароль: вход только по ссылке, старый пароль больше не подходит. */
+  async revokePassword(studentId: string, user: AuthUser) {
+    const s = await this.studentForAccount(studentId, user)
+    if (!s.account) throw new NotFoundException('У ученика нет доступа')
+    const [updated] = await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: s.account.id },
+        data: { passwordHash: await bcrypt.hash(randomPassword(24), 10), passwordIssuedAt: null },
+        select: ACCOUNT_SELECT,
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: s.account.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ])
+    return this.serializeAccount(updated)
+  }
+
+  /**
+   * Выдать логины и пароли всему классу (для печати карточек). По умолчанию — только тем, у кого
+   * пароля ещё нет: так не ломаются уже выданные. С onlyMissing = false пароли выдаются заново всем.
+   * Пароль в ответе есть только у тех, кому он выдан сейчас.
+   */
+  async issueClassPasswords(groupId: string | undefined, onlyMissing: boolean, user: AuthUser) {
+    const group = await this.groupForLinks(groupId, user)
+    const students = await this.activeStudentsWithAccount(group.id)
+    const out: Array<{
+      studentId: string
+      firstName: string
+      lastName: string
+      login: string | null
+      passwordIssued: boolean
+      password: string | null
+    }> = []
+    for (const s of students) {
+      const base = { studentId: s.id, firstName: s.firstName, lastName: s.lastName }
+      if (s.account?.passwordIssuedAt && onlyMissing) {
+        out.push({ ...base, login: studentLoginOf(s.account.email), passwordIssued: true, password: null })
+        continue
+      }
+      const account = s.account ?? (await this.ensureLink(s))
+      const password = readablePassword()
+      const updated = await this.setStudentPassword(account.id, password)
+      out.push({ ...base, login: studentLoginOf(updated.email), passwordIssued: true, password })
+    }
+    return { group: { id: group.id, name: group.name }, students: out }
+  }
+
   // ── Ссылки класса (для печати карточек) ──
 
   private async groupForLinks(groupId: string | undefined, user: AuthUser) {
@@ -707,6 +809,8 @@ export class StudentsService {
         lastName: s.lastName,
         lastLoginAt: s.account?.lastLoginAt ?? null,
         link: s.account?.linkVersion ? this.links.link(s.account.id, s.account.linkVersion) : null,
+        login: studentLoginOf(s.account?.email),
+        passwordIssued: s.account?.passwordIssuedAt != null,
       })),
     }
   }

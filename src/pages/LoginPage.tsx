@@ -28,13 +28,14 @@ interface LoginValues {
 
 /**
  * Одна форма для всех ролей: систему не интересует, кто входит —
- * роль берётся из аккаунта. Есть «@» — это email, иначе телефон.
+ * роль берётся из аккаунта. Есть «@» — это email; только цифры, «+» и скобки — телефон;
+ * всё остальное — логин ученика (его выдаёт классный руководитель).
  */
 export function buildLoginPayload(login: string, password: string) {
   const v = login.trim()
-  return v.includes('@')
-    ? { email: v.toLowerCase(), password }
-    : { phone: v, password }
+  if (v.includes('@')) return { email: v.toLowerCase(), password }
+  if (/^[+\d(][\d\s()-]*$/.test(v)) return { phone: v, password }
+  return { login: v.toLowerCase(), password }
 }
 
 export default function LoginPage() {

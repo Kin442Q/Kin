@@ -47,7 +47,7 @@ export interface LoginResponse {
 }
 
 export const authApi = {
-  login: (creds: { email?: string; phone?: string; password: string }) =>
+  login: (creds: { email?: string; phone?: string; login?: string; password: string }) =>
     http.post<LoginResponse>('/v1/auth/login', creds).then((r) => r.data),
 
   /** Вход ученика по личной ссылке от классного руководителя (токен — хвост ссылки после /s/). */

@@ -8,8 +8,11 @@ export async function qrDataUrl(text: string): Promise<string> {
 
 export interface StudentCard {
   name: string
-  /** data-URL картинки с QR-кодом. */
-  qr: string
+  /** data-URL картинки с QR-кодом; нет — на карточке только логин и пароль. */
+  qr?: string
+  /** Логин и пароль, выданные только что: печатаются на карточке. */
+  login?: string
+  password?: string
 }
 
 export function escapeHtml(s: string): string {
@@ -18,16 +21,28 @@ export function escapeHtml(s: string): string {
 
 export const CARD_CAPTION = 'Наведите камеру телефона на код'
 
-/** HTML страницы с карточками учеников для печати: имя, QR и подпись. */
-export function studentCardsHtml(className: string, cards: StudentCard[]): string {
+/** HTML страницы с карточками учеников для печати: имя, QR и подпись, логин и пароль. */
+export function studentCardsHtml(className: string, cards: StudentCard[], site?: string): string {
   const items = cards
-    .map(
-      (c) => `<div class="card">
+    .map((c) => {
+      const qr = c.qr
+        ? `  <img src="${escapeHtml(c.qr)}" alt="QR-код для входа" />
+  <div class="hint">${CARD_CAPTION}</div>`
+        : ''
+      const cred =
+        c.login && c.password
+          ? `  <div class="cred">
+    ${site ? `<div class="site">Сайт: ${escapeHtml(site)}</div>` : ''}
+    <div>Логин: <b>${escapeHtml(c.login)}</b></div>
+    <div>Пароль: <b>${escapeHtml(c.password)}</b></div>
+  </div>`
+          : ''
+      return `<div class="card">
   <div class="name">${escapeHtml(c.name)}</div>
-  <img src="${escapeHtml(c.qr)}" alt="QR-код для входа" />
-  <div class="hint">${CARD_CAPTION}</div>
-</div>`,
-    )
+${qr}
+${cred}
+</div>`
+    })
     .join('\n')
   return `<!doctype html>
 <html lang="ru">
@@ -43,11 +58,14 @@ export function studentCardsHtml(className: string, cards: StudentCard[]): strin
   .name { font-size: 15px; font-weight: 700; margin-bottom: 3mm; word-break: break-word; }
   .card img { width: 42mm; height: 42mm; display: block; margin: 0 auto 3mm; }
   .hint { font-size: 12px; color: #4b5d56; }
+  .cred { margin-top: 3mm; padding-top: 3mm; border-top: 1px dashed #8aa39a; font-size: 14px; line-height: 1.7; }
+  .cred b { font-family: ui-monospace, Consolas, monospace; font-size: 16px; letter-spacing: 0.04em; }
+  .site { font-size: 12px; color: #4b5d56; }
   @media print { body { padding: 8mm; } }
 </style>
 </head>
 <body>
-<h1>Мактаби ман · ${escapeHtml(className)} · личные ссылки для входа</h1>
+<h1>Мактаби ман · ${escapeHtml(className)} · карточки для входа</h1>
 <div class="grid">
 ${items}
 </div>
@@ -59,13 +77,23 @@ ${items}
  * Открывает окно с карточками и вызывает печать. Возвращает false, если браузер
  * не дал открыть окно (блокировщик всплывающих окон).
  */
-export async function printStudentCards(className: string, rows: Array<{ name: string; link: string }>): Promise<boolean> {
+export async function printStudentCards(
+  className: string,
+  rows: Array<{ name: string; link?: string | null; login?: string | null; password?: string | null }>,
+): Promise<boolean> {
   const cards: StudentCard[] = []
-  for (const r of rows) cards.push({ name: r.name, qr: await qrDataUrl(r.link) })
+  for (const r of rows) {
+    cards.push({
+      name: r.name,
+      qr: r.link ? await qrDataUrl(r.link) : undefined,
+      login: r.login ?? undefined,
+      password: r.password ?? undefined,
+    })
+  }
   const w = window.open('', '_blank')
   if (!w) return false
   w.document.open()
-  w.document.write(studentCardsHtml(className, cards))
+  w.document.write(studentCardsHtml(className, cards, window.location.origin))
   w.document.close()
   let printed = false
   const doPrint = () => {

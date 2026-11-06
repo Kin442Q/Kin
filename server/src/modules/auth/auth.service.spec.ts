@@ -19,7 +19,7 @@ describe('AuthService', () => {
   let service: AuthService
   let prisma: PrismaMock
   let jwt: { signAsync: jest.Mock }
-  let redis: { set: jest.Mock }
+  let redis: { set: jest.Mock; get: jest.Mock; del: jest.Mock }
   let notifications: { send: jest.Mock }
   let features: { enabledKeys: jest.Mock; isEnabled: jest.Mock }
   let mail: { isConfigured: jest.Mock; send: jest.Mock }
@@ -49,7 +49,7 @@ describe('AuthService', () => {
     jwt = {
       signAsync: jest.fn().mockResolvedValue('signed-token'),
     }
-    redis = { set: jest.fn() }
+    redis = { set: jest.fn(), get: jest.fn().mockResolvedValue(null), del: jest.fn() }
     notifications = { send: jest.fn() }
     features = {
       enabledKeys: jest.fn().mockResolvedValue(['groups', 'chat']),
@@ -173,32 +173,104 @@ describe('AuthService', () => {
       ).rejects.toThrow(UnauthorizedException)
     })
 
-    it('ученик по логину и паролю не входит даже с верным паролем: подсказка про ссылку, токены не выдаются', async () => {
-      const hash = await bcrypt.hash('pw1234', 4)
-      prisma.user.findUnique.mockResolvedValue({
+    describe('ученик входит по логину и паролю, которые выдал классный руководитель', () => {
+      const studentRow = async (patch: Record<string, unknown> = {}) => ({
         ...fakeUser,
+        id: 'stu1',
+        email: 'st4k9x2m@students.local',
         role: 'STUDENT',
         studentId: 'st1',
-        email: 'st1@students.local',
-        passwordHash: hash,
+        passwordHash: await bcrypt.hash('abcd2345', 4),
+        passwordIssuedAt: new Date(),
+        ...patch,
       })
 
-      await expect(service.login({ email: 'st1@students.local', password: 'pw1234' }, {})).rejects.toThrow(
-        /Ученики входят по личной ссылке от классного руководителя/,
-      )
-      expect(jwt.signAsync).not.toHaveBeenCalled()
-      expect(prisma.user.update).not.toHaveBeenCalled()
-    })
+      beforeEach(() => {
+        prisma.student.findUnique.mockResolvedValue({ status: 'ACTIVE' })
+        prisma.user.update.mockResolvedValue({})
+        prisma.refreshToken.create.mockResolvedValue({})
+      })
 
-    it('ученику с неверным паролем — та же подсказка (а не «неверный пароль»); и по телефону тоже не войти', async () => {
-      const hash = await bcrypt.hash('pw1234', 4)
-      const studentRow = { ...fakeUser, role: 'STUDENT', studentId: 'st1', passwordHash: hash }
-      prisma.user.findUnique.mockResolvedValue(studentRow)
-      await expect(service.login({ email: 'admin@kg.tj', password: 'wrong' }, {})).rejects.toThrow(/личной ссылке/)
+      it('по логину без домена: токены выданы, lastLoginAt обновлён, ищется служебный адрес', async () => {
+        prisma.user.findUnique.mockResolvedValue(await studentRow())
 
-      prisma.user.findMany.mockResolvedValue([studentRow])
-      await expect(service.login({ phone: '+992901112233', password: 'pw1234' }, {})).rejects.toThrow(/личной ссылке/)
-      expect(jwt.signAsync).not.toHaveBeenCalled()
+        const res = await service.login({ login: ' ST4K9X2M ', password: 'abcd2345' }, {})
+
+        expect(prisma.user.findUnique.mock.calls[0][0].where).toEqual({ email: 'st4k9x2m@students.local' })
+        expect(res.user.role).toBe('STUDENT')
+        expect(jwt.signAsync.mock.calls[0][0]).toMatchObject({ role: 'STUDENT', studentId: 'st1', sub: 'stu1' })
+        expect(prisma.user.update.mock.calls[0][0].data.lastLoginAt).toBeInstanceOf(Date)
+        expect(redis.del).toHaveBeenCalledWith('student-login-fails:stu1')
+      })
+
+      it('служебный адрес целиком в поле email тоже работает', async () => {
+        prisma.user.findUnique.mockResolvedValue(await studentRow())
+        const res = await service.login({ email: 'st4k9x2m@students.local', password: 'abcd2345' }, {})
+        expect(res.accessToken).toBe('signed-token')
+      })
+
+      it('неверный пароль: 401 и счётчик попыток растёт', async () => {
+        prisma.user.findUnique.mockResolvedValue(await studentRow())
+        redis.get.mockResolvedValue(3)
+
+        await expect(service.login({ login: 'st4k9x2m', password: 'wrong' }, {})).rejects.toThrow(
+          /Неверный логин или пароль/,
+        )
+        expect(redis.set).toHaveBeenCalledWith('student-login-fails:stu1', 4, 900)
+        expect(jwt.signAsync).not.toHaveBeenCalled()
+      })
+
+      it('10 неверных попыток закрывают вход даже с верным паролем', async () => {
+        prisma.user.findUnique.mockResolvedValue(await studentRow())
+        redis.get.mockResolvedValue(10)
+
+        await expect(service.login({ login: 'st4k9x2m', password: 'abcd2345' }, {})).rejects.toThrow(
+          /Слишком много неверных попыток/,
+        )
+        expect(jwt.signAsync).not.toHaveBeenCalled()
+      })
+
+      it('пароль не выдан: подсказка про ссылку и выдачу, токены не выдаются', async () => {
+        prisma.user.findUnique.mockResolvedValue(await studentRow({ passwordIssuedAt: null }))
+
+        await expect(service.login({ login: 'st4k9x2m', password: 'abcd2345' }, {})).rejects.toThrow(
+          /Пароль ещё не выдан/,
+        )
+        expect(jwt.signAsync).not.toHaveBeenCalled()
+      })
+
+      it('не ученик по такому «логину» или нет такого логина — одинаковый отказ', async () => {
+        prisma.user.findUnique.mockResolvedValue(null)
+        await expect(service.login({ login: 'nope', password: 'x' }, {})).rejects.toThrow(/Неверный логин или пароль/)
+
+        prisma.user.findUnique.mockResolvedValue({ ...fakeUser, email: 'st4k9x2m@students.local', role: 'TEACHER' })
+        await expect(service.login({ login: 'st4k9x2m', password: 'x' }, {})).rejects.toThrow(/Неверный логин или пароль/)
+      })
+
+      it('ученик в архиве и выключенный кабинет — вход закрыт', async () => {
+        prisma.user.findUnique.mockResolvedValue(await studentRow())
+        prisma.student.findUnique.mockResolvedValue({ status: 'ARCHIVED' })
+        await expect(service.login({ login: 'st4k9x2m', password: 'abcd2345' }, {})).rejects.toThrow(
+          /Неверный логин или пароль/,
+        )
+
+        prisma.student.findUnique.mockResolvedValue({ status: 'ACTIVE' })
+        features.isEnabled = jest.fn().mockResolvedValue(false)
+        await expect(service.login({ login: 'st4k9x2m', password: 'abcd2345' }, {})).rejects.toThrow(
+          /Кабинет ученика отключён/,
+        )
+        expect(jwt.signAsync).not.toHaveBeenCalled()
+      })
+
+      it('по телефону ученик по-прежнему не входит', async () => {
+        prisma.user.findMany.mockResolvedValue([await studentRow()])
+        await expect(service.login({ phone: '+992901112233', password: 'abcd2345' }, {})).rejects.toThrow(/личной ссылке/)
+        expect(jwt.signAsync).not.toHaveBeenCalled()
+      })
+
+      it('пустой запрос без email, телефона и логина — отказ', async () => {
+        await expect(service.login({ password: 'x' } as never, {})).rejects.toThrow(/Введите email, телефон или логин/)
+      })
     })
 
     it('выключенный кабинет ученика не мешает входить учителям и админам', async () => {

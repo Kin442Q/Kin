@@ -24,9 +24,11 @@ const adminOtherSchool: AuthUser = { ...base, sub: 'adm2', role: 'ADMIN', kinder
 
 const account = (patch: Record<string, unknown> = {}) => ({
   id: 'u1',
+  email: 'stab12cd@students.local',
   isActive: true,
   lastLoginAt: null,
   linkVersion: 1,
+  passwordIssuedAt: null,
   ...patch,
 })
 
@@ -81,6 +83,8 @@ describe('StudentsService — доступ ученика по личной сс
       ['createAccount', (u) => service.createAccount('st1', u)],
       ['regenerateLink', (u) => service.regenerateLink('st1', u)],
       ['removeAccount', (u) => service.removeAccount('st1', u)],
+      ['issuePassword', (u) => service.issuePassword('st1', u)],
+      ['revokePassword', (u) => service.revokePassword('st1', u)],
     ]
 
     it.each(actions)('%s: админ школы и классный руководитель — можно', async (_name, run) => {
@@ -109,7 +113,7 @@ describe('StudentsService — доступ ученика по личной сс
       expect(await service.getAccount('st1', admin)).toBeNull()
     })
 
-    it('есть ссылка: в ответе подписанная ссылка, а не логин и пароль', async () => {
+    it('есть ссылка: в ответе подписанная ссылка и логин (без служебного домена), пароля нет', async () => {
       prisma.student.findUnique.mockResolvedValue(student({ account: account({ linkVersion: 2 }) }))
       const res = await service.getAccount('st1', admin)
 
@@ -117,7 +121,8 @@ describe('StudentsService — доступ ученика по личной сс
       expect(res?.link).toMatch(/^https:\/\/tahlilgar\.cyou\/s\/u1\./)
       expect(links.verify(tokenOf(res!.link!), 2)).toBe(true)
       expect(links.verify(tokenOf(res!.link!), 1)).toBe(false) // это ссылка версии 2
-      expect(res).not.toHaveProperty('login')
+      expect(res).toMatchObject({ login: 'stab12cd', passwordIssued: false })
+      expect(JSON.stringify(res)).not.toContain('students.local')
       expect(res).not.toHaveProperty('password')
     })
 
@@ -211,6 +216,128 @@ describe('StudentsService — доступ ученика по личной сс
       prisma.student.findUnique.mockResolvedValue(student())
       await service.removeAccount('st1', admin)
       expect(prisma.user.delete).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('логин и пароль ученика (вместо ссылки)', () => {
+    beforeEach(() => {
+      prisma.user.update.mockImplementation(
+        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) =>
+          account({
+            id: where.id,
+            email: `st-${where.id}@students.local`,
+            linkVersion: data.linkVersion ?? 1,
+            passwordIssuedAt: data.passwordIssuedAt ?? null,
+          }),
+      )
+    })
+
+    const READABLE = /^[abcdefghjkmnpqrstuvwxyz23456789]{8}$/
+
+    it('выдача: аккаунт создаётся сам, пароль короткий и есть только в ответе, в базе хэш, сессии закрыты', async () => {
+      const res = await service.issuePassword('st1', homeroom)
+
+      expect(prisma.user.create).toHaveBeenCalledTimes(1)
+      expect(res.password).toMatch(READABLE)
+      expect(res.login).toBe('st-u-new')
+      expect(res.passwordIssued).toBe(true)
+
+      const data = prisma.user.update.mock.calls[0][0].data
+      expect(data.passwordHash).not.toContain(res.password)
+      expect(await bcrypt.compare(res.password, data.passwordHash)).toBe(true)
+      expect(data.passwordIssuedAt).toBeInstanceOf(Date)
+      expect(data).toMatchObject({ isActive: true, mustChangePassword: false })
+      expect(prisma.refreshToken.updateMany.mock.calls[0][0].where).toEqual({ userId: 'u-new', revokedAt: null })
+    })
+
+    it('повторная выдача даёт другой пароль и закрывает сессии, аккаунт второй раз не создаётся', async () => {
+      prisma.student.findUnique.mockResolvedValue(student({ account: account({ passwordIssuedAt: new Date() }) }))
+
+      const a = await service.issuePassword('st1', admin)
+      const b = await service.issuePassword('st1', admin)
+
+      expect(a.password).not.toBe(b.password)
+      expect(prisma.user.create).not.toHaveBeenCalled()
+      expect(prisma.refreshToken.updateMany).toHaveBeenCalledTimes(2)
+    })
+
+    it('архивному ученику пароль не выдаём (400)', async () => {
+      prisma.student.findUnique.mockResolvedValue(student({ status: 'ARCHIVED' }))
+      await expect(service.issuePassword('st1', admin)).rejects.toThrow(BadRequestException)
+      expect(prisma.user.create).not.toHaveBeenCalled()
+      expect(prisma.user.update).not.toHaveBeenCalled()
+    })
+
+    it('забрать пароль: пароль неизвестный, passwordIssuedAt = null, вход только по ссылке, сессии закрыты', async () => {
+      prisma.student.findUnique.mockResolvedValue(student({ account: account({ passwordIssuedAt: new Date() }) }))
+
+      const res = await service.revokePassword('st1', homeroom)
+
+      const data = prisma.user.update.mock.calls[0][0].data
+      expect(data.passwordIssuedAt).toBeNull()
+      expect(data.passwordHash).toMatch(/^\$2[aby]\$/)
+      expect(prisma.refreshToken.updateMany.mock.calls[0][0].where).toEqual({ userId: 'u1', revokedAt: null })
+      expect(res.passwordIssued).toBe(false)
+      expect(res).not.toHaveProperty('password')
+    })
+
+    it('забрать пароль у ученика без аккаунта — 404', async () => {
+      await expect(service.revokePassword('st1', admin)).rejects.toThrow(NotFoundException)
+    })
+  })
+
+  describe('логины и пароли всего класса (карточки)', () => {
+    const group = { id: 'g1', name: '7А', kindergartenId: 'k1', homeroomTeacherId: 't1' }
+    const row = (id: string, last: string, acc: unknown) => ({ id, firstName: 'Имя', lastName: last, kindergartenId: 'k1', account: acc })
+    const READABLE = /^[abcdefghjkmnpqrstuvwxyz23456789]{8}$/
+
+    beforeEach(() => {
+      prisma.group.findUnique.mockResolvedValue(group)
+      prisma.student.findMany.mockResolvedValue([
+        row('s1', 'Алиев', account({ id: 'u1', email: 'st-one@students.local', passwordIssuedAt: new Date() })),
+        row('s2', 'Бобоев', null),
+        row('s3', 'Саидов', account({ id: 'u3', email: 'st-three@students.local', passwordIssuedAt: null })),
+      ])
+      prisma.user.update.mockImplementation(
+        async ({ where, data }: { where: { id: string }; data: Record<string, unknown> }) =>
+          account({ id: where.id, email: `st-${where.id}@students.local`, linkVersion: data.linkVersion ?? 1, passwordIssuedAt: data.passwordIssuedAt ?? null }),
+      )
+    })
+
+    it('по умолчанию только тем, у кого пароля нет: у кого выдан, остаётся прежним и в ответе без пароля', async () => {
+      const res = await service.issueClassPasswords('g1', true, homeroom)
+
+      expect(res.group).toEqual({ id: 'g1', name: '7А' })
+      const [s1, s2, s3] = res.students
+      expect(s1).toMatchObject({ studentId: 's1', login: 'st-one', passwordIssued: true, password: null })
+      expect(s2.password).toMatch(READABLE)
+      expect(s3.password).toMatch(READABLE)
+      expect(s2.password).not.toBe(s3.password)
+      expect(s2.login).toBe('st-u-new')
+      expect(s3.login).toBe('st-u3')
+      expect(prisma.user.create).toHaveBeenCalledTimes(1) // s2
+    })
+
+    it('«заново всем»: пароль у каждого, включая тех, у кого он уже был', async () => {
+      const res = await service.issueClassPasswords('g1', false, admin)
+      expect(res.students.every((x) => READABLE.test(x.password ?? ''))).toBe(true)
+      expect(new Set(res.students.map((x) => x.password)).size).toBe(3)
+    })
+
+    it('чужой учитель и админ другой школы — отказ, ничего не пишется; без класса — 400', async () => {
+      await expect(service.issueClassPasswords('g1', true, otherTeacher)).rejects.toThrow(ForbiddenException)
+      await expect(service.issueClassPasswords('g1', true, adminOtherSchool)).rejects.toThrow(ForbiddenException)
+      await expect(service.issueClassPasswords(undefined, true, admin)).rejects.toThrow(BadRequestException)
+      expect(prisma.user.create).not.toHaveBeenCalled()
+      expect(prisma.user.update).not.toHaveBeenCalled()
+    })
+
+    it('список класса показывает логин и «пароль выдан», но не пароль', async () => {
+      const res = await service.classLinks('g1', homeroom)
+      expect(res.students[0]).toMatchObject({ login: 'st-one', passwordIssued: true })
+      expect(res.students[1]).toMatchObject({ login: null, passwordIssued: false })
+      expect(JSON.stringify(res)).not.toContain('students.local')
+      expect(JSON.stringify(res)).not.toMatch(/"password":/)
     })
   })
 

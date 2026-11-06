@@ -26,9 +26,9 @@ export const en: Record<keyof typeof ru, Msg> = {
   'login.feat.appsSub': 'one app',
   'login.cardTitle': 'Sign in',
   'login.cardSub': 'Principal, teacher, parent or student',
-  'login.loginLabel': 'Email or phone',
-  'login.loginRequired': 'Enter your email or phone number',
-  'login.loginPlaceholder': 'email or +992 90 123 45 67',
+  'login.loginLabel': 'Email, phone or username',
+  'login.loginRequired': 'Enter your email, phone or username',
+  'login.loginPlaceholder': 'email, phone or username',
   'login.passwordLabel': 'Password',
   'login.passwordRequired': 'Enter your password',
   'login.forgot': 'Forgot password?',
@@ -47,7 +47,7 @@ export const en: Record<keyof typeof ru, Msg> = {
   'login.welcome': 'Welcome, {name}',
   'login.failed': 'Sign-in failed. Check your details',
   'login.studentHint':
-    'Student? Open your personal link or scan the QR code on the card from your homeroom teacher.',
+    'Student? Enter the username and password from your homeroom teacher, or open your personal link by scanning the QR code on the card.',
 
   'role.director': 'Principal',
   'role.owner': 'Platform owner',

@@ -37,15 +37,18 @@ export default function LoginScreen() {
 
   const onSubmit = async () => {
     if (!emailOrPhone.trim() || !password) {
-      Alert.alert('Заполните поля', 'Введите телефон/email и пароль')
+      Alert.alert('Заполните поля', 'Введите email, телефон или логин и пароль')
       return
     }
     try {
-      // Одна форма для всех ролей: роль берётся из аккаунта. Есть «@» — email, иначе телефон.
+      // Одна форма для всех ролей: роль берётся из аккаунта. Есть «@» — email; только цифры и «+» — телефон;
+      // остальное — логин ученика (его выдаёт классный руководитель).
       const v = emailOrPhone.trim()
       const creds = v.includes('@')
         ? { email: v.toLowerCase(), password }
-        : { phone: v, password }
+        : /^[+\d(][\d\s()-]*$/.test(v)
+          ? { phone: v, password }
+          : { login: v.toLowerCase(), password }
       await login(creds)
     } catch (e: any) {
       // нет связи — красивая плашка; ответ сервера (неверный пароль) — как раньше
@@ -215,13 +218,13 @@ export default function LoginScreen() {
             <Text style={styles.cardTitle}>Вход в систему</Text>
             <Text style={styles.cardSub}>Директор, учитель или родитель</Text>
 
-            <Text style={styles.label}>Email или телефон</Text>
+            <Text style={styles.label}>Email, телефон или логин</Text>
             <View style={[styles.inputWrap, focused === 'login' && styles.inputWrapFocus]}>
               <User size={18} color={colors.muted} />
               <TextInput
                 value={emailOrPhone}
                 onChangeText={setEmailOrPhone}
-                placeholder="email или +992 90 123 45 67"
+                placeholder="email, телефон или логин"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -280,7 +283,7 @@ export default function LoginScreen() {
             <View style={styles.hint}>
               <Info size={18} color={colors.roseDeep} />
               <Text style={styles.hintText}>
-                Доступ приходит приглашением на вашу почту: откройте письмо, перейдите по ссылке и задайте свой пароль.
+                Доступ приходит приглашением на вашу почту: откройте письмо, перейдите по ссылке и задайте свой пароль. Ученику логин и пароль выдаёт классный руководитель.
               </Text>
             </View>
 

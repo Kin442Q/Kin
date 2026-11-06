@@ -51,6 +51,33 @@ describe('studentCardsHtml', () => {
   })
 })
 
+describe('карточки с логином и паролем', () => {
+  it('логин и пароль печатаются рядом с QR; без выданных — только QR; без QR — только логин и пароль', () => {
+    const html = studentCardsHtml(
+      '5А',
+      [
+        { name: 'Каримов Али', qr: 'data:image/svg+xml;utf8,AAA', login: 'st4k9x2m', password: 'k7m2p9xw' },
+        { name: 'Рахимова Мадина', qr: 'data:image/svg+xml;utf8,BBB' },
+        { name: 'Саидов Фаррух', login: 'st7q8r3t', password: 'n4b6v2c5' },
+      ],
+      'https://tahlilgar.cyou',
+    )
+
+    expect(html).toContain('Логин: <b>st4k9x2m</b>')
+    expect(html).toContain('Пароль: <b>k7m2p9xw</b>')
+    expect(html).toContain('Сайт: https://tahlilgar.cyou')
+    expect(html.match(/<img /g)).toHaveLength(2) // у Саидова QR нет
+    expect(html.match(/Пароль: <b>/g)).toHaveLength(2) // у Рахимовой пароля нет
+    expect(html).toContain('Логин: <b>st7q8r3t</b>')
+  })
+
+  it('логин и пароль экранируются', () => {
+    const html = studentCardsHtml('5А', [{ name: 'X', login: '<b>l</b>', password: '"><script>' }])
+    expect(html).not.toContain('<script>')
+    expect(html).toContain('&lt;b&gt;l&lt;/b&gt;')
+  })
+})
+
 describe('escapeHtml', () => {
   it('экранирует служебные символы', () => {
     expect(escapeHtml(`<a href="x">Tom & 'Jerry'</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;Tom &amp; &#39;Jerry&#39;&lt;/a&gt;')

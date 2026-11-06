@@ -26,6 +26,14 @@ describe('buildLoginPayload', () => {
     })
   })
 
+  it('буквы без «@» — это логин ученика: обрезаем пробелы, приводим к нижнему регистру', () => {
+    expect(buildLoginPayload('  ST4K9X2M ', 'abcd2345')).toEqual({ login: 'st4k9x2m', password: 'abcd2345' })
+  })
+
+  it('номер телефона с пробелами, скобками и дефисами остаётся телефоном', () => {
+    expect(buildLoginPayload('(90) 123-45-67', 'pw')).toEqual({ phone: '(90) 123-45-67', password: 'pw' })
+  })
+
   it('нет «@» — это телефон: отправляем как введён, без изменения регистра', () => {
     expect(buildLoginPayload(' +992 90 123 45 67 ', 'pw')).toEqual({
       phone: '+992 90 123 45 67',
@@ -51,15 +59,15 @@ describe('LoginPage', () => {
     }
   })
 
-  it('одно поле «Email или телефон» и пароль', () => {
+  it('одно поле «Email, телефон или логин» и пароль', () => {
     renderLogin()
-    expect(screen.getByPlaceholderText('email или +992 90 123 45 67')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('email, телефон или логин')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument()
   })
 
   it('email в поле → в запрос уходит email', async () => {
     renderLogin()
-    fireEvent.change(screen.getByPlaceholderText('email или +992 90 123 45 67'), {
+    fireEvent.change(screen.getByPlaceholderText('email, телефон или логин'), {
       target: { value: 'Teacher@School.tj' },
     })
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'secret1' } })
@@ -75,7 +83,7 @@ describe('LoginPage', () => {
 
   it('телефон в поле → в запрос уходит phone', async () => {
     renderLogin()
-    fireEvent.change(screen.getByPlaceholderText('email или +992 90 123 45 67'), {
+    fireEvent.change(screen.getByPlaceholderText('email, телефон или логин'), {
       target: { value: '+992901112233' },
     })
     fireEvent.change(screen.getByPlaceholderText('••••••••'), { target: { value: 'secret1' } })
@@ -93,7 +101,7 @@ describe('LoginPage', () => {
     renderLogin()
     fireEvent.click(screen.getByRole('button', { name: /Войти/ }))
     await waitFor(() =>
-      expect(screen.getByText(/Введите email или номер телефона/)).toBeInTheDocument(),
+      expect(screen.getByText(/Введите email, телефон или логин/)).toBeInTheDocument(),
     )
     expect(http.post).not.toHaveBeenCalled()
   })
