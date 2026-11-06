@@ -7,6 +7,7 @@ import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 
 import { AppModule } from './app.module'
+import { parseTrustProxy } from './common/trust-proxy'
 import { HttpExceptionFilter } from './common/filters/http-exception.filter'
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
 import { TransformInterceptor } from './common/interceptors/transform.interceptor'
@@ -22,6 +23,10 @@ async function bootstrap() {
 
   // Логи через nestjs-pino — JSON в stdout, удобно для Loki/Datadog.
   app.useLogger(app.get(Logger))
+
+  // За прокси (Railway) настоящий адрес клиента приходит в X-Forwarded-For. Без этого req.ip у всех — адрес
+  // прокси, и лимит запросов (throttler) считает всех пользователей одним. TRUST_PROXY: число прокси (по умолчанию 1).
+  app.getHttpAdapter().getInstance().set('trust proxy', parseTrustProxy(config.get<string>('TRUST_PROXY')))
 
   // Безопасность HTTP-заголовков
   app.use(helmet())

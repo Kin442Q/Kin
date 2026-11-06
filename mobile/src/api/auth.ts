@@ -44,6 +44,8 @@ export interface User {
 export interface LoginResponse {
   user: User
   accessToken: string
+  /** Приходит приложению в теле ответа (заголовок X-Client: mobile); по нему продлевается сессия. */
+  refreshToken?: string
 }
 
 export const authApi = {
@@ -63,11 +65,13 @@ export const authApi = {
 
   /** Сменить свой пароль. Остальные устройства выходят, это остаётся с новой сессией. */
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
-    http.post<{ accessToken: string }>('/v1/auth/change-password', body).then((r) => r.data),
+    http.post<{ accessToken: string; refreshToken?: string }>('/v1/auth/change-password', body).then((r) => r.data),
 
   me: () => http.get<User>('/v1/auth/me').then((r) => r.data),
 
-  logout: () => http.post('/v1/auth/logout', {}).then((r) => r.data),
+  /** Выход: сервер отзывает и refresh-токен этого устройства. */
+  logout: (refreshToken?: string | null) =>
+    http.post('/v1/auth/logout', refreshToken ? { refreshToken } : {}).then((r) => r.data),
 
   updateMyInstitution: (dto: {
     name?: string

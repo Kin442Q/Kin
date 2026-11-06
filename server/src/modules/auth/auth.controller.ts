@@ -50,15 +50,12 @@ export class AuthController {
     })
 
     this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
-    return {
-      user: result.user,
-      accessToken: result.accessToken,
-    }
+    return this.tokenBody(req, result)
   }
 
   // ---------------- Вход ученика по личной ссылке --------------
   @Public()
-  // Мягкий лимит: без trust proxy счётчик общий для всех клиентов за прокси.
+  // Мягкий лимит: ученики класса входят с одного школьного адреса, поэтому он выше, чем у обычного входа.
   @Throttle({ default: { limit: 60, ttl: 60_000 } })
   @Post('student-link')
   @HttpCode(200)
@@ -73,7 +70,7 @@ export class AuthController {
       ip: req.ip,
     })
     this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
-    return { user: result.user, accessToken: result.accessToken }
+    return this.tokenBody(req, result)
   }
 
   // ---------------- Demo login (живое демо) --------------------
@@ -90,7 +87,7 @@ export class AuthController {
       ip: req.ip,
     })
     this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
-    return { user: result.user, accessToken: result.accessToken }
+    return this.tokenBody(req, result)
   }
 
   // ---------------- Forgot password ----------------------------
@@ -136,7 +133,7 @@ export class AuthController {
       ip: req.ip,
     })
     this.setRefreshCookie(res, tokens.refreshToken, tokens.refreshTokenExpiresAt)
-    return { accessToken: tokens.accessToken, user: tokens.user }
+    return this.tokenBody(req, tokens)
   }
 
   // ---------------- Logout -------------------------------------
@@ -144,8 +141,9 @@ export class AuthController {
   @Post('logout')
   @HttpCode(204)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response, @CurrentUser() user: AuthUser) {
-    // Если есть refresh-cookie — извлекаем jti (быстрая decode)
-    const refresh = req.cookies?.refreshToken
+    // Если есть refresh-токен (cookie у сайта, тело запроса у мобильного приложения) — извлекаем jti (быстрая decode)
+    const bodyToken = (req.body as { refreshToken?: unknown } | undefined)?.refreshToken
+    const refresh = req.cookies?.refreshToken ?? (typeof bodyToken === 'string' ? bodyToken : undefined)
     let jti: string | undefined
     if (refresh) {
       try {
@@ -193,7 +191,7 @@ export class AuthController {
       ip: req.ip,
     })
     this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
-    return { user: result.user, accessToken: result.accessToken }
+    return this.tokenBody(req, result)
   }
 
   // ---------------- Смена своего email (логина) ----------------
@@ -213,10 +211,25 @@ export class AuthController {
       ip: req.ip,
     })
     this.setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt)
-    return { user: result.user, accessToken: result.accessToken }
+    return this.tokenBody(req, result)
   }
 
   // ============================================================
+  /**
+   * Тело ответа с токенами. Сайт получает refresh-токен в httpOnly cookie, а мобильное приложение
+   * cookie не хранит: ему (заголовок `X-Client: mobile`) refresh-токен отдаётся в теле, и оно
+   * присылает его в теле запроса /auth/refresh и /auth/logout.
+   */
+  private tokenBody(
+    req: Request,
+    result: { user: unknown; accessToken: string; refreshToken: string; refreshTokenExpiresAt: Date },
+  ) {
+    const base = { user: result.user, accessToken: result.accessToken }
+    return req.headers['x-client'] === 'mobile'
+      ? { ...base, refreshToken: result.refreshToken, refreshTokenExpiresAt: result.refreshTokenExpiresAt }
+      : base
+  }
+
   private setRefreshCookie(res: Response, token: string, expiresAt: Date) {
     const isProd = process.env.NODE_ENV === 'production'
     res.cookie('refreshToken', token, {
