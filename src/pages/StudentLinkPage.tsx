@@ -72,38 +72,40 @@ export default function StudentLinkPage() {
         minHeight: '100vh',
         display: 'grid',
         placeItems: 'center',
-        padding: 24,
+        padding: 16,
         background: `linear-gradient(160deg, ${SP.primarySoft} 0%, ${SP.bg} 55%)`,
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: 420,
-          background: '#fff',
-          borderRadius: 24,
-          padding: '32px 32px 28px',
-          boxShadow: '0 20px 50px -20px rgba(15,42,34,0.25)',
+          maxWidth: 540,
+          // цвета темы: в тёмной теме карточка тёмная, а текст светлый
+          background: SP.solid,
+          border: `1px solid ${SP.borderSoft}`,
+          borderRadius: 28,
+          padding: 'clamp(28px, 6vw, 48px)',
+          boxShadow: '0 28px 70px -28px rgba(15,42,34,0.4)',
         }}
       >
-        <div style={{ marginBottom: 22 }}>
-          <SproutLogo size={20} />
+        <div style={{ marginBottom: 28 }}>
+          <SproutLogo size={28} />
         </div>
         {failed ? (
           <>
-            <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: SP.text }}>
+            <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em', color: SP.text }}>
               Не получилось войти
             </h2>
-            <p role="alert" style={{ color: SP.textMid, fontSize: 14, margin: '10px 0 22px' }}>
+            <p role="alert" style={{ color: SP.textMid, fontSize: 16, lineHeight: 1.5, margin: '12px 0 28px' }}>
               {failed}
             </p>
-            <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 13 }} onClick={() => navigate('/login')}>
+            <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 17, fontSize: 17 }} onClick={() => navigate('/login')}>
               На страницу входа
             </button>
           </>
         ) : (
           <>
-            <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: SP.text }}>Входим…</h2>
+            <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em', color: SP.text }}>Входим…</h2>
             <div style={{ textAlign: 'center', padding: '28px 0 8px' }}>
               <Spin />
             </div>
