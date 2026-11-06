@@ -86,25 +86,27 @@ export default function SetPasswordPage() {
         minHeight: '100vh',
         display: 'grid',
         placeItems: 'center',
-        padding: 24,
+        padding: 16,
         background: `linear-gradient(160deg, ${SP.primarySoft} 0%, ${SP.bg} 55%)`,
       }}
     >
       <div
         style={{
           width: '100%',
-          maxWidth: 420,
-          background: '#fff',
-          borderRadius: 24,
-          padding: '32px 32px 28px',
-          boxShadow: '0 20px 50px -20px rgba(15,42,34,0.25)',
+          maxWidth: 540,
+          // цвета темы: в тёмной теме карточка тёмная, а текст светлый
+          background: SP.solid,
+          border: `1px solid ${SP.borderSoft}`,
+          borderRadius: 28,
+          padding: 'clamp(28px, 6vw, 48px)',
+          boxShadow: '0 28px 70px -28px rgba(15,42,34,0.4)',
         }}
       >
-        <div style={{ marginBottom: 22 }}>
-          <SproutLogo size={20} />
+        <div style={{ marginBottom: 28 }}>
+          <SproutLogo size={28} />
         </div>
 
-        <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, letterSpacing: '-0.02em', color: SP.text }}>{title}</h2>
+        <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em', color: SP.text }}>{title}</h2>
 
         {state.status === 'loading' && (
           <div style={{ textAlign: 'center', padding: '36px 0' }}>
@@ -114,12 +116,12 @@ export default function SetPasswordPage() {
 
         {state.status === 'bad' && (
           <>
-            <p style={{ color: SP.textMid, fontSize: 14, margin: '10px 0 8px' }}>{BAD_TEXT[state.reason]}</p>
-            <p style={{ color: SP.muted, fontSize: 13, margin: '0 0 22px' }}>
+            <p style={{ color: SP.textMid, fontSize: 16, lineHeight: 1.5, margin: '12px 0 8px' }}>{BAD_TEXT[state.reason]}</p>
+            <p style={{ color: SP.muted, fontSize: 14, lineHeight: 1.5, margin: '0 0 26px' }}>
               Чтобы получить новую ссылку, нажмите «Забыли?» на странице входа или попросите администратора прислать
               приглашение заново.
             </p>
-            <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 13 }} onClick={() => navigate('/login')}>
+            <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 17, fontSize: 17 }} onClick={() => navigate('/login')}>
               На страницу входа
             </button>
           </>
@@ -127,26 +129,26 @@ export default function SetPasswordPage() {
 
         {state.status === 'ok' && (
           <>
-            <p style={{ color: SP.muted, fontSize: 14, margin: '6px 0 22px' }}>
+            <p style={{ color: SP.textMid, fontSize: 16, lineHeight: 1.5, margin: '10px 0 28px' }}>
               {state.purpose === 'INVITE'
                 ? 'Придумайте пароль, с которым вы будете входить в систему.'
                 : 'Придумайте новый пароль для входа.'}{' '}
-              Аккаунт: <b style={{ color: SP.textMid }}>{state.email}</b>
+              Аккаунт: <b style={{ color: SP.text }}>{state.email}</b>
             </p>
             <Form form={form} layout="vertical" requiredMark={false} onFinish={onFinish}>
               <Form.Item
                 name="password"
-                label={<span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>Новый пароль</span>}
+                label={<span style={{ fontSize: 14.5, fontWeight: 700, color: SP.text }}>Новый пароль</span>}
                 rules={[
                   { required: true, message: 'Введите пароль' },
                   { min: MIN_PASSWORD, message: `Минимум ${MIN_PASSWORD} символов` },
                 ]}
               >
-                <Input.Password placeholder="Минимум 8 символов" autoComplete="new-password" disabled={saving} style={{ height: 44 }} />
+                <Input.Password placeholder="Минимум 8 символов" autoComplete="new-password" disabled={saving} style={{ height: 54, fontSize: 16 }} />
               </Form.Item>
               <Form.Item
                 name="repeat"
-                label={<span style={{ fontSize: 12.5, fontWeight: 600, color: SP.textMid }}>Повторите пароль</span>}
+                label={<span style={{ fontSize: 14.5, fontWeight: 700, color: SP.text }}>Повторите пароль</span>}
                 dependencies={['password']}
                 rules={[
                   { required: true, message: 'Повторите пароль' },
@@ -158,9 +160,9 @@ export default function SetPasswordPage() {
                   }),
                 ]}
               >
-                <Input.Password placeholder="Ещё раз" autoComplete="new-password" disabled={saving} style={{ height: 44 }} />
+                <Input.Password placeholder="Ещё раз" autoComplete="new-password" disabled={saving} style={{ height: 54, fontSize: 16 }} />
               </Form.Item>
-              <button type="submit" className="sp-btn-primary" style={{ width: '100%', padding: 13, marginTop: 4 }} disabled={saving}>
+              <button type="submit" className="sp-btn-primary" style={{ width: '100%', padding: 17, marginTop: 8, fontSize: 17 }} disabled={saving}>
                 {saving ? 'Сохраняем…' : 'Сохранить пароль'}
               </button>
             </Form>
@@ -169,10 +171,10 @@ export default function SetPasswordPage() {
 
         {state.status === 'done' && (
           <>
-            <p style={{ color: SP.textMid, fontSize: 14, margin: '10px 0 22px' }}>
+            <p style={{ color: SP.textMid, fontSize: 16, lineHeight: 1.5, margin: '12px 0 28px' }}>
               Готово. Теперь можно войти с новым паролем. Ссылка из письма больше не действует.
             </p>
-            <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 13 }} onClick={() => navigate('/login')}>
+            <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 17, fontSize: 17 }} onClick={() => navigate('/login')}>
               Войти
             </button>
           </>
