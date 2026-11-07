@@ -16,68 +16,83 @@ import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
+import ClassPicker from '../components/ClassPicker'
 import { Field, Select } from '../components/Field'
-import { colors, radius, shadow } from '../theme/colors'
+import { colors, radius } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { schoolApi, type HomeworkDto, type SubjectDto } from '../api/school'
+import { useMyClasses } from '../lib/useMyClasses'
+import { dueLabel, splitHomework, submittedShare, type HomeworkTab } from '../lib/homework'
 
 import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
+
+const EMPTY: Record<HomeworkTab, string> = {
+  active: 'Нет активных заданий. Нажмите «Задать ДЗ».',
+  check: 'Нечего проверять: все сдачи проверены.',
+  archive: 'Архив пока пуст.',
+}
+
+/** Домашние задания по всем классам учителя: вкладки «Активные · Проверить · Архив» и сколько учеников сдали. */
 export default function TeacherHomeworkScreen() {
   const navigation = useNavigation<any>()
   const user = useAuthStore((s) => s.user)
-  const groupId = user?.groupId
+  const { classes, loading: classesLoading } = useMyClasses()
 
   const [items, setItems] = useState<HomeworkDto[]>([])
   const [subjects, setSubjects] = useState<SubjectDto[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [tab, setTab] = useState<HomeworkTab>('active')
+  // фильтр списка по классу: null — все классы
+  const [classFilter, setClassFilter] = useState<string | null>(null)
   const [modal, setModal] = useState(false)
 
   // form
   const [subjectId, setSubjectId] = useState<string | null>(null)
+  const [createGroupId, setCreateGroupId] = useState<string | null>(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [dueDate, setDueDate] = useState(
-    dayjs().add(1, 'day').format('YYYY-MM-DD'),
-  )
+  const [dueDate, setDueDate] = useState(dayjs().add(1, 'day').format('YYYY-MM-DD'))
   const [saving, setSaving] = useState(false)
 
   const reload = useCallback(async () => {
-    if (!groupId) {
-      setLoading(false)
-      return
-    }
     try {
-      const [hws, subs] = await Promise.all([
-        schoolApi.listHomework({ groupId }),
-        schoolApi.listSubjects(),
-      ])
+      // сервер сам отдаёт учителю только ДЗ его классов и выданных предметов
+      const [hws, subs] = await Promise.all([schoolApi.listHomework({}), schoolApi.listSubjects()])
       setItems(hws)
       setSubjects(subs)
-      if (subs.length && !subjectId) setSubjectId(subs[0].id)
+      setSubjectId((cur) => cur ?? subs[0]?.id ?? null)
     } catch (e: any) {
       notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [groupId, subjectId])
+  }, [])
 
   useEffect(() => {
     reload()
   }, [reload])
 
-  const grouped = useMemo(() => {
-    const now = Date.now()
-    const upcoming = items.filter((h) => new Date(h.dueDate).getTime() >= now - 86400000)
-    const past = items.filter((h) => new Date(h.dueDate).getTime() < now - 86400000)
-    return { upcoming, past }
-  }, [items])
+  const visible = useMemo(
+    () => (classFilter ? items.filter((h) => h.groupId === classFilter) : items),
+    [items, classFilter],
+  )
+  const tabs = useMemo(() => splitHomework(visible), [visible])
+  const data = tabs[tab]
+
+  const openCreate = () => {
+    // класс по умолчанию: выбранный в фильтре, единственный, либо свой классный
+    setCreateGroupId(
+      classFilter ?? (classes.length === 1 ? classes[0].id : classes.find((c) => c.id === user?.groupId)?.id ?? null),
+    )
+    setModal(true)
+  }
 
   const submit = async () => {
-    if (!subjectId || !title.trim() || !groupId) {
-      Alert.alert('Заполните', 'Нужны предмет, заголовок и срок')
+    if (!subjectId || !title.trim() || !createGroupId) {
+      Alert.alert('Заполните', 'Нужны класс, предмет, заголовок и срок')
       return
     }
     if (!dayjs(dueDate).isValid()) {
@@ -88,7 +103,7 @@ export default function TeacherHomeworkScreen() {
     try {
       await schoolApi.createHomework({
         subjectId,
-        groupId,
+        groupId: createGroupId,
         title: title.trim(),
         description: description.trim() || undefined,
         dueDate,
@@ -96,6 +111,7 @@ export default function TeacherHomeworkScreen() {
       setModal(false)
       setTitle('')
       setDescription('')
+      setTab('active')
       reload()
     } catch (e: any) {
       notifyError(e)
@@ -122,7 +138,7 @@ export default function TeacherHomeworkScreen() {
     ])
   }
 
-  if (loading) {
+  if (loading || classesLoading) {
     return (
       <Screen>
         <View style={styles.loader}>
@@ -132,24 +148,26 @@ export default function TeacherHomeworkScreen() {
     )
   }
 
-  if (!groupId) {
+  if (classes.length === 0) {
     return (
       <Screen>
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>Класс не назначен</Text>
+          <Text style={styles.emptyText}>Вам пока не открыт доступ ни к одному классу. Обратитесь к администратору школы.</Text>
         </View>
       </Screen>
     )
   }
 
+  const tabButtons: { key: HomeworkTab; label: string; count?: number }[] = [
+    { key: 'active', label: 'Активные', count: tabs.active.length },
+    { key: 'check', label: 'Проверить', count: tabs.toCheckTotal },
+    { key: 'archive', label: 'Архив' },
+  ]
+
   return (
     <Screen>
       <View style={styles.topBar}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.backBtn}
-        >
+        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Назад">
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.topTitle}>Домашние задания</Text>
@@ -157,7 +175,7 @@ export default function TeacherHomeworkScreen() {
       </View>
 
       <FlatList
-        data={[...grouped.upcoming, ...grouped.past]}
+        data={data}
         keyExtractor={(h) => h.id}
         contentContainerStyle={styles.list}
         refreshControl={
@@ -171,85 +189,97 @@ export default function TeacherHomeworkScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={{ marginBottom: 10 }}>
-            <Text style={styles.section}>
-              Активных: {grouped.upcoming.length}
-            </Text>
+          <View style={{ gap: 12, marginBottom: 12 }}>
+            <View style={styles.tabs} accessibilityRole="tablist">
+              {tabButtons.map((t) => {
+                const on = t.key === tab
+                return (
+                  <Pressable
+                    key={t.key}
+                    onPress={() => setTab(t.key)}
+                    accessibilityRole="tab"
+                    accessibilityState={{ selected: on }}
+                    style={[styles.tab, on && styles.tabOn]}
+                  >
+                    <Text style={[styles.tabText, on && styles.tabTextOn]} numberOfLines={1}>
+                      {t.label}
+                      {t.count ? ` · ${t.count}` : ''}
+                    </Text>
+                  </Pressable>
+                )
+              })}
+            </View>
+            {classes.length > 1 && <ClassPicker classes={classes} value={classFilter} onChange={setClassFilter} />}
           </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
-        renderItem={({ item, index }) => {
-          const overdue = new Date(item.dueDate).getTime() < Date.now() - 86400000
-          const showPastDivider =
-            index === grouped.upcoming.length && grouped.upcoming.length > 0 && overdue
+        renderItem={({ item }) => {
+          const share = submittedShare(item)
+          const toCheck = item.stats?.toCheck ?? 0
+          const soon = tab !== 'archive' && ['сегодня', 'завтра'].includes(dueLabel(item))
           return (
-            <View>
-              {showPastDivider && (
-                <Text style={styles.divider}>Прошедшие</Text>
-              )}
-              <Card padding={14} style={overdue ? { opacity: 0.6 } : undefined}>
-                <View style={styles.row}>
-                  <View
-                    style={[
-                      styles.dot,
-                      { backgroundColor: item.subject?.color ?? colors.primary },
-                    ]}
-                  />
-                  <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.title}>{item.title}</Text>
-                    <Text style={styles.meta}>
-                      {item.subject?.name ?? '—'} · до{' '}
-                      {dayjs(item.dueDate).format('D MMM')}
-                    </Text>
-                    {item.description && (
-                      <Text style={styles.desc}>{item.description}</Text>
-                    )}
-                  </View>
-                  <Pressable onPress={() => remove(item)} hitSlop={8}>
-                    <Trash2 size={16} color={colors.muted} />
-                  </Pressable>
+            <Card padding={14} style={tab === 'archive' ? { opacity: 0.7 } : undefined}>
+              <View style={styles.row}>
+                <View style={[styles.dot, { backgroundColor: item.subject?.color ?? colors.primary }]} />
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.meta}>
+                    {item.group?.name ?? '—'} · {item.subject?.name ?? '—'}
+                  </Text>
+                  <Text style={styles.title}>{item.title}</Text>
+                  {item.description ? <Text style={styles.desc} numberOfLines={2}>{item.description}</Text> : null}
                 </View>
+                <Pressable onPress={() => remove(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Удалить задание">
+                  <Trash2 size={16} color={colors.muted} />
+                </Pressable>
+              </View>
+
+              {item.stats ? (
+                <View style={styles.progressRow}>
+                  <View style={styles.bar}>
+                    <View style={[styles.barFill, { width: `${Math.round(share * 100)}%` }]} />
+                  </View>
+                  <Text style={styles.count}>
+                    {item.stats.submitted} / {item.stats.total}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={styles.footer}>
+                <View style={[styles.duePill, soon && styles.duePillSoon]}>
+                  <Text style={[styles.dueText, soon && styles.dueTextSoon]}>{dueLabel(item)}</Text>
+                </View>
+                {toCheck > 0 && <Text style={styles.toCheck}>ждут проверки: {toCheck}</Text>}
+                <View style={{ flex: 1 }} />
                 <Btn
                   size="sm"
                   variant="secondary"
                   icon={<ClipboardList size={14} color={colors.primaryDeep} />}
-                  onPress={() =>
-                    navigation.navigate('TeacherHomeworkRoster', { homeworkId: item.id })
-                  }
-                  style={{ marginTop: 10, alignSelf: 'flex-start' }}
+                  onPress={() => navigation.navigate('TeacherHomeworkRoster', { homeworkId: item.id })}
                 >
                   Кто сделал
                 </Btn>
-              </Card>
-            </View>
+              </View>
+            </Card>
           )
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
             <BookOpen size={36} color={colors.muted} />
-            <Text style={styles.emptyText}>
-              Пока нет заданий. Нажмите «+» чтобы создать.
-            </Text>
+            <Text style={styles.emptyText}>{EMPTY[tab]}</Text>
           </View>
         }
       />
 
-      <Pressable
-        onPress={() => setModal(true)}
-        style={({ pressed }) => [
-          styles.fab,
-          shadow.lg,
-          pressed && { opacity: 0.85 },
-        ]}
-      >
-        <Plus size={24} color="#fff" strokeWidth={2.5} />
-      </Pressable>
+      <View style={styles.bottom}>
+        <Btn block size="lg" icon={<Plus size={20} color="#fff" strokeWidth={2.5} />} onPress={openCreate}>
+          Задать ДЗ
+        </Btn>
+      </View>
 
-      <BottomModal
-        visible={modal}
-        onClose={() => setModal(false)}
-        title="Новое задание"
-      >
+      <BottomModal visible={modal} onClose={() => setModal(false)} title="Новое задание">
+        <Text style={styles.formLabel}>Класс</Text>
+        <ClassPicker classes={classes} value={createGroupId} onChange={setCreateGroupId} />
+
         {subjects.length > 0 && (
           <Select<string>
             label="Предмет"
@@ -260,12 +290,7 @@ export default function TeacherHomeworkScreen() {
           />
         )}
 
-        <Field
-          label="Заголовок"
-          value={title}
-          onChangeText={setTitle}
-          placeholder="Упр. 23, стр. 45"
-        />
+        <Field label="Заголовок" value={title} onChangeText={setTitle} placeholder="Упр. 23, стр. 45" />
 
         <Field
           label="Описание"
@@ -276,12 +301,7 @@ export default function TeacherHomeworkScreen() {
           style={{ minHeight: 80, textAlignVertical: 'top' }}
         />
 
-        <Field
-          label="Срок (YYYY-MM-DD)"
-          value={dueDate}
-          onChangeText={setDueDate}
-          placeholder="2026-05-20"
-        />
+        <Field label="Срок (YYYY-MM-DD)" value={dueDate} onChangeText={setDueDate} placeholder="2026-05-20" />
 
         <Btn block size="lg" loading={saving} onPress={submit}>
           Задать
@@ -311,38 +331,28 @@ const styles = themedStyles(() => ({
   },
   topTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
   list: { padding: 16, paddingBottom: 120 },
-  section: { fontSize: 13, fontWeight: '700', color: colors.text },
-  divider: {
-    fontSize: 11,
-    color: colors.muted,
-    fontWeight: '700',
-    marginTop: 10,
-    marginBottom: 6,
-    marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
+  tabs: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
+  tab: { flex: 1, minHeight: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  tabOn: { backgroundColor: colors.primary },
+  tabText: { fontSize: 13, fontWeight: '700', color: colors.textMid },
+  tabTextOn: { color: colors.onPrimary, fontWeight: '800' },
   row: { flexDirection: 'row', alignItems: 'flex-start' },
-  dot: { width: 10, height: 10, borderRadius: 5, marginTop: 6 },
-  title: { fontSize: 15, fontWeight: '800', color: colors.text },
-  meta: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  desc: {
-    fontSize: 13,
-    color: colors.textMid,
-    marginTop: 6,
-    lineHeight: 18,
-  },
-  empty: { paddingVertical: 60, alignItems: 'center', gap: 12 },
+  dot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
+  meta: { fontSize: 12, fontWeight: '700', color: colors.textMid },
+  title: { fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 2 },
+  desc: { fontSize: 13, color: colors.textMid, marginTop: 4, lineHeight: 18 },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
+  bar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },
+  count: { fontSize: 13, fontWeight: '800', color: colors.text, minWidth: 48, textAlign: 'right' },
+  footer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+  duePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },
+  duePillSoon: { backgroundColor: colors.roseSoft },
+  dueText: { fontSize: 12, fontWeight: '700', color: colors.textMid },
+  dueTextSoon: { color: colors.roseDeep },
+  toCheck: { fontSize: 12, fontWeight: '700', color: colors.primaryDeep },
+  empty: { paddingVertical: 60, paddingHorizontal: 24, alignItems: 'center', gap: 12 },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  bottom: { position: 'absolute', left: 16, right: 16, bottom: 16 },
+  formLabel: { fontSize: 13, fontWeight: '700', color: colors.textMid, marginBottom: 8 },
 }))

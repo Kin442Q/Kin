@@ -50,6 +50,17 @@ export interface HomeworkDto {
   subject?: { id: string; name: string; color: string }
   group?: { id: string; name: string }
   createdAt: string
+  /** Сколько учеников класса сдали это ДЗ (есть в списке для сотрудников). */
+  stats?: HomeworkStats
+}
+
+export interface HomeworkStats {
+  /** Учеников в классе. */
+  total: number
+  /** Отметили «сделал» или получили вердикт учителя «выполнено / частично». */
+  submitted: number
+  /** Отметили сами, учитель ещё не проверил. */
+  toCheck: number
 }
 
 export interface GradeStatsRow {

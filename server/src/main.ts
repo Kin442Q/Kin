@@ -8,8 +8,9 @@ import cookieParser from 'cookie-parser'
 
 import { AppModule } from './app.module'
 import { parseTrustProxy } from './common/trust-proxy'
-import { HttpExceptionFilter } from './common/filters/http-exception.filter'
-import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
+import { registerExceptionFilters } from './common/filters/register-filters'
+import { ErrorAlertsService } from './modules/monitoring/error-alerts.service'
+import { installProcessHandlers } from './modules/monitoring/process-handlers'
 import { TransformInterceptor } from './common/interceptors/transform.interceptor'
 
 /**
@@ -86,8 +87,11 @@ async function bootstrap() {
     }),
   )
 
-  // Глобальные фильтры исключений
-  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter())
+  // Глобальные фильтры исключений. Серьёзные ошибки (5xx, поломки базы, необработанные исключения)
+  // уходят в письма владельцу — см. ALERT_EMAIL.
+  const alerts = app.get(ErrorAlertsService)
+  registerExceptionFilters(app, alerts)
+  installProcessHandlers(alerts)
 
   // Глобальные интерсепторы
   app.useGlobalInterceptors(

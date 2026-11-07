@@ -34,6 +34,9 @@ export const envValidationSchema = Joi.object({
   /** Сколько прокси перед сервером (по умолчанию 1, как на Railway): от этого зависит настоящий адрес клиента для лимита запросов. */
   TRUST_PROXY: Joi.string().optional().allow(''),
 
+  /** Адреса (через запятую), куда писать об ошибках сервера. Нужен RESEND_API_KEY. */
+  ALERT_EMAIL: Joi.string().optional().allow(''),
+
   TELEGRAM_BOT_TOKEN: Joi.string().optional().allow(''),
   TELEGRAM_CHAT_ID: Joi.string().optional().allow(''),
 })

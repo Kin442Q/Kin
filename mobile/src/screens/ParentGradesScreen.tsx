@@ -10,6 +10,7 @@ import EmptyState from '../components/EmptyState'
 import { ScreenHeading } from '../components/ui'
 import { colors, radius } from '../theme/colors'
 import { averageColor, gradeTone } from '../lib/gradeStyle'
+import { trendLabel, weeklyTrend } from '../lib/gradeTrend'
 import { hasFeature } from '../lib/features'
 import { useAuthStore } from '../store/authStore'
 import {
@@ -89,6 +90,8 @@ export default function ParentGradesScreen() {
   const kid = kids.find((k) => k.id === activeKidId) ?? kids[0]
   const rows = stats.filter((s) => s.count > 0)
   const overall = rows.length ? rows.reduce((a, r) => a + r.average, 0) / rows.length : null
+  // Как изменился средний балл за неделю; null, если сравнивать не с чем или он не изменился
+  const trend = useMemo(() => weeklyTrend(grades), [grades])
   const upcoming = [...homework]
     .filter((h) => !dayjs(h.dueDate).isBefore(dayjs().startOf('day')))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
@@ -172,7 +175,9 @@ export default function ParentGradesScreen() {
               </View>
               <View style={styles.avgChip}>
                 <Text style={styles.avgChipText}>
-                  {grades.length} {grades.length === 1 ? 'оценка' : grades.length < 5 && grades.length > 0 ? 'оценки' : 'оценок'}
+                  {trend != null
+                    ? trendLabel(trend)
+                    : `${grades.length} ${grades.length === 1 ? 'оценка' : grades.length < 5 && grades.length > 0 ? 'оценки' : 'оценок'}`}
                 </Text>
               </View>
             </View>

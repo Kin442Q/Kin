@@ -22,6 +22,8 @@ export interface GroupDto {
   monthlyFee: string
   color: string
   isActive: boolean
+  /** Классный руководитель (сервер отдаёт его в списке классов); null — не назначен. */
+  homeroomTeacher?: { id: string; fullName: string } | null
   _count?: { students: number; teachers: number }
 }
 

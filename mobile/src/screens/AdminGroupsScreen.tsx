@@ -6,21 +6,40 @@ import {
   RefreshControl,
   View,
 } from 'react-native'
-import { Text } from '../components/Text'
-import { ChevronDown, ChevronRight, Users, GraduationCap } from 'lucide-react-native'
+import dayjs from 'dayjs'
+import { Text, TextInput } from '../components/Text'
+import { ChevronDown, ChevronRight, Users, GraduationCap, Search } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
+import { Chip } from '../components/ui'
 import { colors, radius } from '../theme/colors'
 import { useLabels } from '../theme/useLabels'
 import { classLetterOf, groupByGrade, plural } from '../lib/classes'
+import {
+  ATTENTION_BELOW_PERCENT,
+  attendancePercents,
+  CLASS_FILTERS,
+  matchesClassFilter,
+  matchesClassQuery,
+  needsAttention,
+  type ClassFilterKey,
+} from '../lib/classFilters'
+import { hasFeature } from '../lib/features'
+import { useAuthStore } from '../store/authStore'
 import { adminApi, type GroupDto } from '../api/admin'
+import { attendanceApi, type AttendanceDto } from '../api/attendance'
 
 import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
 export default function AdminGroupsScreen() {
   const L = useLabels()
+  const user = useAuthStore((s) => s.user)
   const [groups, setGroups] = useState<GroupDto[]>([])
+  // Отметки посещаемости за сегодня: из них считается процент по каждому классу
+  const [marks, setMarks] = useState<AttendanceDto[]>([])
+  const [filter, setFilter] = useState<ClassFilterKey>('all')
+  const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   // Раскрытые параллели: по умолчанию все свёрнуты (если параллель одна — раскрыта)
@@ -28,22 +47,41 @@ export default function AdminGroupsScreen() {
 
   const reload = useCallback(async () => {
     try {
-      const list = await adminApi.groups()
+      const day = dayjs().format('YYYY-MM-DD')
+      const [list, att] = await Promise.all([
+        adminApi.groups(),
+        // посещаемость — дополнение: если раздел выключен или запрос не прошёл, список классов всё равно показываем
+        hasFeature(user, 'attendance') ? attendanceApi.listByDay(day).catch(() => [] as AttendanceDto[]) : Promise.resolve([] as AttendanceDto[]),
+      ])
       setGroups(list)
+      setMarks(att)
     } catch (e: any) {
       notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [user])
 
   useEffect(() => {
     reload()
   }, [reload])
 
-  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups])
-  const openKeys = open ?? (grades.length === 1 ? [String(grades[0].key)] : [])
+  const percents = useMemo(() => attendancePercents(marks), [marks])
+  const shown = useMemo(
+    () => groups.filter((g) => matchesClassFilter(g, filter, percents.get(g.id)) && matchesClassQuery(g.name, query)),
+    [groups, filter, query, percents],
+  )
+  const attentionCount = useMemo(
+    () => groups.filter((g) => needsAttention(g, percents.get(g.id))).length,
+    [groups, percents],
+  )
+  const grades = useMemo(() => groupByGrade(shown, (g) => g.name), [shown])
+  // С фильтром или поиском параллели раскрыты сразу: иначе найденный класс пришлось бы искать вручную
+  const searching = filter !== 'all' || query.trim() !== ''
+  const openKeys = searching
+    ? grades.map((g) => String(g.key))
+    : (open ?? (grades.length === 1 ? [String(grades[0].key)] : []))
   type Row =
     | { kind: 'head'; key: string; label: string; grade: number | null; classes: GroupDto[]; kids: number }
     | { kind: 'item'; key: string; item: GroupDto }
@@ -105,8 +143,32 @@ export default function AdminGroupsScreen() {
           <View style={{ marginBottom: 14 }}>
             <Text style={styles.title}>{L.groups}</Text>
             <Text style={styles.subtitle}>
-              {groups.length} · {totalKids} {L.students.toLowerCase() === 'дети' ? 'детей' : 'учеников'}
+              {searching ? `${shown.length} из ${groups.length}` : groups.length} · {totalKids}{' '}
+              {L.students.toLowerCase() === 'дети' ? 'детей' : 'учеников'}
             </Text>
+            <View style={styles.search}>
+              <Search size={18} color={colors.muted} />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Поиск класса"
+                placeholderTextColor={colors.muted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel="Поиск класса"
+                style={styles.searchInput}
+              />
+            </View>
+            <View style={styles.filters}>
+              {CLASS_FILTERS.map((f) => (
+                <Chip
+                  key={f.key}
+                  label={f.key === 'attention' && attentionCount > 0 ? `${f.label} · ${attentionCount}` : f.label}
+                  tone={filter === f.key ? 'solid' : f.key === 'attention' && attentionCount > 0 ? 'coral' : 'glass'}
+                  onPress={() => setFilter(filter === f.key ? 'all' : f.key)}
+                />
+              ))}
+            </View>
           </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -149,18 +211,36 @@ export default function AdminGroupsScreen() {
                 />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>{item.name}</Text>
-                  <Text style={styles.meta}>
-                    {item.ageRange} · до {item.capacity} мест
+                  <Text style={[styles.meta, item.homeroomTeacher === null && { color: colors.roseDeep, fontWeight: '700' }]}>
+                    {item.homeroomTeacher
+                      ? item.homeroomTeacher.fullName
+                      : item.homeroomTeacher === null
+                        ? 'нет классного руководителя'
+                        : `${item.ageRange} · до ${item.capacity} мест`}
                   </Text>
                 </View>
-                <Text
-                  style={[
-                    styles.fee,
-                    { color: item.isActive ? colors.text : colors.muted },
-                  ]}
-                >
-                  {Math.round(Number(item.monthlyFee)).toLocaleString('ru-RU')} с
-                </Text>
+                {percents.has(item.id) ? (
+                  <View
+                    style={[
+                      styles.pct,
+                      (percents.get(item.id) ?? 100) < ATTENTION_BELOW_PERCENT && { backgroundColor: colors.roseSoft },
+                    ]}
+                    accessibilityLabel={`В школе сегодня: ${percents.get(item.id)} процентов`}
+                  >
+                    <Text
+                      style={[
+                        styles.pctText,
+                        (percents.get(item.id) ?? 100) < ATTENTION_BELOW_PERCENT && { color: colors.roseDeep },
+                      ]}
+                    >
+                      {percents.get(item.id)}%
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.fee, { color: item.isActive ? colors.text : colors.muted }]}>
+                    {Math.round(Number(item.monthlyFee)).toLocaleString('ru-RU')} с
+                  </Text>
+                )}
               </View>
 
               <View style={styles.bar}>
@@ -260,6 +340,22 @@ const styles = themedStyles(() => ({
     overflow: 'hidden',
   },
   barFill: { height: '100%', borderRadius: 3 },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    paddingHorizontal: 14,
+    minHeight: 46,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceSolid,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  searchInput: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: 10 },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  pct: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: colors.primarySoft },
+  pctText: { fontSize: 13, fontWeight: '800', color: colors.primaryDeep },
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',

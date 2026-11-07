@@ -68,7 +68,18 @@ export interface StudentLesson {
   subject: SubjectRef | null
 }
 
+/** Серия дней, очки и уровень ученика (считает сервер из квизов, игр и отметок «сделал»). */
+export interface StudentProgress {
+  xp: number
+  level: number
+  /** XP внутри текущего уровня и сколько их в уровне. */
+  xpIntoLevel: number
+  levelSize: number
+  streakDays: number
+}
+
 export const studentApi = {
+  progress: () => http.get<StudentProgress>('/v1/student/progress').then((r) => r.data),
   me: () => http.get<StudentProfile>('/v1/student/me').then((r) => r.data),
   homework: (params?: { from?: string; to?: string }) =>
     http

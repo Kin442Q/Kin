@@ -59,6 +59,14 @@ export const configuration = () => ({
     appUrl: (process.env.APP_URL || 'https://tahlilgar.cyou').replace(/\/+$/, ''),
   },
 
+  // Письма владельцу, когда на сервере случается ошибка (через запятую). Пусто — оповещения выключены.
+  alerts: {
+    emails: (process.env.ALERT_EMAIL ?? '')
+      .split(/[\s,;]+/)
+      .map((s) => s.trim())
+      .filter(Boolean),
+  },
+
   telegram: {
     botToken: process.env.TELEGRAM_BOT_TOKEN,
     chatId: process.env.TELEGRAM_CHAT_ID,

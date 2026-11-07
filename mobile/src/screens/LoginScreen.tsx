@@ -6,7 +6,7 @@ import {
   ScrollView,
   View,
 } from 'react-native'
-import { ArrowRight, Eye, EyeOff, Info, Link2, Lock, User } from 'lucide-react-native'
+import { ArrowRight, BookOpen, Eye, EyeOff, GraduationCap, Info, Link2, Lock, User, Users } from 'lucide-react-native'
 import { Text, TextInput } from '../components/Text'
 import Screen from '../components/Screen'
 import Btn from '../components/Btn'
@@ -19,6 +19,14 @@ import { authApi } from '../api/auth'
 import { notifyError } from '../lib/notify'
 
 import { themedStyles } from '../theme/themedStyles'
+type Role = 'teacher' | 'parent' | 'student'
+
+const ROLES: { key: Role; label: string; Icon: typeof User }[] = [
+  { key: 'teacher', label: 'Учитель', Icon: BookOpen },
+  { key: 'parent', label: 'Родитель', Icon: Users },
+  { key: 'student', label: 'Ученик', Icon: GraduationCap },
+]
+
 export default function LoginScreen() {
   const login = useAuthStore((s) => s.login)
   const loginWithLink = useAuthStore((s) => s.loginWithLink)
@@ -28,8 +36,10 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [focused, setFocused] = useState<'login' | 'password' | null>(null)
-  // Ученики входят не по паролю, а по личной ссылке от классного руководителя
-  const [studentMode, setStudentMode] = useState(false)
+  // Кто входит: от этого зависят подписи и подсказки. Сама роль берётся из аккаунта.
+  const [role, setRole] = useState<Role>('parent')
+  // Ученик может войти и по личной ссылке от классного руководителя вместо логина и пароля
+  const [linkMode, setLinkMode] = useState(false)
   const [linkText, setLinkText] = useState('')
   // «Забыли пароль»: ссылка для нового пароля приходит на почту
   const [forgotMode, setForgotMode] = useState(false)
@@ -41,14 +51,16 @@ export default function LoginScreen() {
       return
     }
     try {
-      // Одна форма для всех ролей: роль берётся из аккаунта. Есть «@» — email; только цифры и «+» — телефон;
-      // остальное — логин ученика (его выдаёт классный руководитель).
+      // Вкладка «Ученик» — всегда логин. Иначе: есть «@» — email; только цифры и «+» — телефон; остальное — логин.
       const v = emailOrPhone.trim()
-      const creds = v.includes('@')
-        ? { email: v.toLowerCase(), password }
-        : /^[+\d(][\d\s()-]*$/.test(v)
-          ? { phone: v, password }
-          : { login: v.toLowerCase(), password }
+      const creds =
+        role === 'student'
+          ? { login: v.toLowerCase(), password }
+          : v.includes('@')
+            ? { email: v.toLowerCase(), password }
+            : /^[+\d(][\d\s()-]*$/.test(v)
+              ? { phone: v, password }
+              : { login: v.toLowerCase(), password }
       await login(creds)
     } catch (e: any) {
       // нет связи — красивая плашка; ответ сервера (неверный пароль) — как раньше
@@ -119,6 +131,28 @@ export default function LoginScreen() {
           </Text>
 
           <Card padding={22} style={styles.card}>
+            {!forgotMode && (
+              <View style={styles.roles} accessibilityRole="tablist" accessibilityLabel="Кто входит">
+                {ROLES.map(({ key, label, Icon }) => {
+                  const on = role === key
+                  return (
+                    <Pressable
+                      key={key}
+                      onPress={() => {
+                        setRole(key)
+                        setLinkMode(false)
+                      }}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: on }}
+                      style={[styles.roleBtn, on && styles.roleBtnOn]}
+                    >
+                      <Icon size={18} color={on ? colors.onPrimary : colors.textMid} />
+                      <Text style={[styles.roleText, on && styles.roleTextOn]}>{label}</Text>
+                    </Pressable>
+                  )
+                })}
+              </View>
+            )}
             {forgotMode ? (
               <>
                 <Text style={styles.cardTitle}>Забыли пароль</Text>
@@ -167,7 +201,7 @@ export default function LoginScreen() {
                   <Text style={styles.switchLink}>Вернуться ко входу</Text>
                 </Pressable>
               </>
-            ) : studentMode ? (
+            ) : role === 'student' && linkMode ? (
               <>
                 <Text style={styles.cardTitle}>Вход для ученика</Text>
                 <Text style={styles.cardSub}>По личной ссылке от классного руководителя</Text>
@@ -209,23 +243,29 @@ export default function LoginScreen() {
                   </Text>
                 </View>
 
-                <Pressable onPress={() => setStudentMode(false)} accessibilityRole="button">
-                  <Text style={styles.switchLink}>Войти по почте и паролю</Text>
+                <Pressable onPress={() => setLinkMode(false)} accessibilityRole="button">
+                  <Text style={styles.switchLink}>Войти по логину и паролю</Text>
                 </Pressable>
               </>
             ) : (
               <>
             <Text style={styles.cardTitle}>Вход в систему</Text>
-            <Text style={styles.cardSub}>Директор, учитель или родитель</Text>
+            <Text style={styles.cardSub}>
+              {role === 'student'
+                ? 'Логин и пароль выдаёт классный руководитель'
+                : role === 'teacher'
+                  ? 'Учитель или директор школы'
+                  : 'Родитель'}
+            </Text>
 
-            <Text style={styles.label}>Email, телефон или логин</Text>
+            <Text style={styles.label}>{role === 'student' ? 'Логин ученика' : 'Email или телефон'}</Text>
             <View style={[styles.inputWrap, focused === 'login' && styles.inputWrapFocus]}>
               <User size={18} color={colors.muted} />
               <TextInput
                 value={emailOrPhone}
                 onChangeText={setEmailOrPhone}
-                placeholder="email, телефон или логин"
-                keyboardType="email-address"
+                placeholder={role === 'student' ? 'например, st4k9x2m' : 'email или +992 90 123 45 67'}
+                keyboardType={role === 'student' ? 'default' : 'email-address'}
                 autoCapitalize="none"
                 autoCorrect={false}
                 autoComplete="username"
@@ -283,17 +323,21 @@ export default function LoginScreen() {
             <View style={styles.hint}>
               <Info size={18} color={colors.roseDeep} />
               <Text style={styles.hintText}>
-                Доступ приходит приглашением на вашу почту: откройте письмо, перейдите по ссылке и задайте свой пароль. Ученику логин и пароль выдаёт классный руководитель.
+                {role === 'student'
+                  ? 'Логин и пароль на листочке или в карточке от классного руководителя. Если их нет, войдите по личной ссылке.'
+                  : 'Доступ приходит приглашением на вашу почту: откройте письмо, перейдите по ссылке и задайте свой пароль.'}
               </Text>
             </View>
 
-            <Pressable onPress={() => setForgotMode(true)} accessibilityRole="button">
-              <Text style={styles.switchLink}>Забыли пароль?</Text>
-            </Pressable>
-
-            <Pressable onPress={() => setStudentMode(true)} accessibilityRole="button">
-              <Text style={styles.switchLink}>Я ученик: войти по ссылке</Text>
-            </Pressable>
+            {role === 'student' ? (
+              <Pressable onPress={() => setLinkMode(true)} accessibilityRole="button">
+                <Text style={styles.switchLink}>Войти по личной ссылке</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => setForgotMode(true)} accessibilityRole="button">
+                <Text style={styles.switchLink}>Забыли пароль?</Text>
+              </Pressable>
+            )}
               </>
             )}
           </Card>
@@ -329,6 +373,26 @@ const styles = themedStyles(() => ({
   card: {
     borderRadius: radius.xl,
   },
+  roles: {
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceAlt,
+    marginBottom: 20,
+  },
+  roleBtn: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: radius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  roleBtnOn: { backgroundColor: colors.primary },
+  roleText: { fontSize: 13, fontWeight: '700', color: colors.textMid },
+  roleTextOn: { color: colors.onPrimary, fontWeight: '800' },
   cardTitle: {
     fontSize: 24,
     fontWeight: '800',

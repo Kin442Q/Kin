@@ -28,6 +28,7 @@ import { MenuModule } from './modules/menu/menu.module'
 import { AnalyticsModule } from './modules/analytics/analytics.module'
 import { NotificationsModule } from './modules/notifications/notifications.module'
 import { HealthModule } from './modules/health/health.module'
+import { MonitoringModule } from './modules/monitoring/monitoring.module'
 import { TelegramModule } from './modules/telegram/telegram.module'
 import { MeetingsModule } from './modules/meetings/meetings.module'
 import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module'
@@ -80,6 +81,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     PrismaModule,
     RedisModule,
     BullInfraModule,
+    MonitoringModule,
 
     // Доменные модули
     AuthModule,
