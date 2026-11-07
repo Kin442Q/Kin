@@ -8,7 +8,7 @@ import {
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
-import { Check } from 'lucide-react-native'
+import { Check, Flame, Trophy, Zap } from 'lucide-react-native'
 
 import { Text } from '../components/Text'
 import Screen from '../components/Screen'
@@ -19,12 +19,14 @@ import { colors } from '../theme/colors'
 import { averageColor } from '../lib/gradeStyle'
 import { useAuthStore } from '../store/authStore'
 import { hasFeature } from '../lib/features'
+import { streakLabel, xpLabel } from '../lib/progress'
 import {
   studentApi,
   type StudentGrades,
   type StudentHomework,
   type StudentLesson,
   type StudentProfile,
+  type StudentProgress,
 } from '../api/student'
 
 import { themedStyles } from '../theme/themedStyles'
@@ -54,6 +56,7 @@ export default function StudentHomeScreen() {
   const [homework, setHomework] = useState<StudentHomework[]>([])
   const [lessons, setLessons] = useState<StudentLesson[]>([])
   const [grades, setGrades] = useState<StudentGrades | null>(null)
+  const [progress, setProgress] = useState<StudentProgress | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -65,7 +68,7 @@ export default function StudentHomeScreen() {
       // не должен ронять главную.
       const me = await studentApi.me()
       setProfile(me)
-      const [hw, sch, gr] = await Promise.all([
+      const [hw, sch, gr, pr] = await Promise.all([
         showHomework
           ? studentApi.homework({ from: dayjs().format('YYYY-MM-DD') }).catch(() => [] as StudentHomework[])
           : Promise.resolve([] as StudentHomework[]),
@@ -73,10 +76,13 @@ export default function StudentHomeScreen() {
           ? studentApi.schedule().catch(() => [] as StudentLesson[])
           : Promise.resolve([] as StudentLesson[]),
         hasFeature(user, 'grades') ? studentApi.grades().catch(() => null) : Promise.resolve(null),
+        // серия, XP и уровень: необязательны, их сбой главную не роняет
+        studentApi.progress().catch(() => null),
       ])
       setHomework(hw)
       setLessons(sch)
       setGrades(gr)
+      setProgress(pr)
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Не удалось загрузить данные')
     } finally {
@@ -173,6 +179,39 @@ export default function StudentHomeScreen() {
         />
 
         {error && !profile ? <EmptyState title="Не получилось загрузить" hint={error} /> : null}
+
+        {progress && (
+          <View>
+            <View style={styles.pills}>
+              <View style={[styles.pill, progress.streakDays > 0 && styles.pillHot]}>
+                <Flame size={16} color={progress.streakDays > 0 ? colors.roseDeep : colors.muted} />
+                <Text style={[styles.pillText, progress.streakDays > 0 && { color: colors.roseDeep }]}>
+                  {streakLabel(progress.streakDays)}
+                </Text>
+              </View>
+              <View style={styles.pill}>
+                <Zap size={16} color={colors.primaryDeep} />
+                <Text style={styles.pillText}>{xpLabel(progress.xp)}</Text>
+              </View>
+              <View style={styles.pill}>
+                <Trophy size={16} color={colors.yellowDeep} />
+                <Text style={styles.pillText}>Уровень {progress.level}</Text>
+              </View>
+            </View>
+            <View
+              style={styles.levelBar}
+              accessibilityRole="progressbar"
+              accessibilityLabel={`До уровня ${progress.level + 1}: ${progress.levelSize - progress.xpIntoLevel} XP`}
+            >
+              <View
+                style={[
+                  styles.levelFill,
+                  { width: `${Math.round((progress.xpIntoLevel / Math.max(1, progress.levelSize)) * 100)}%` },
+                ]}
+              />
+            </View>
+          </View>
+        )}
 
         {showSchedule && (
           <Card padding={16}>
@@ -277,6 +316,20 @@ const styles = themedStyles(() => ({
   },
   avatarText: { fontSize: 15, fontWeight: '700', color: colors.text },
   muted: { fontSize: 14, color: colors.textMid },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: colors.surface,
+  },
+  pillHot: { backgroundColor: colors.roseSoft },
+  pillText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  levelBar: { height: 6, borderRadius: 3, backgroundColor: colors.surfaceAlt, marginTop: 10, overflow: 'hidden' },
+  levelFill: { height: '100%', borderRadius: 3, backgroundColor: colors.primary },
   lessonChip: { width: 104, padding: 12, borderRadius: 16, gap: 2 },
   lessonPast: { backgroundColor: colors.surfaceAlt, opacity: 0.6 },
   lessonNext: { backgroundColor: colors.surfaceStrong },

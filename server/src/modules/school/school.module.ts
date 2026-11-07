@@ -368,13 +368,52 @@ export class SchoolService {
       where.group = { kindergartenId: user.kindergartenId }
     }
 
-    return this.prisma.homework.findMany({
+    const list = await this.prisma.homework.findMany({
       where,
       orderBy: { dueDate: 'asc' },
       include: {
         subject: { select: { id: true, name: true, color: true } },
         group: { select: { id: true, name: true } },
       },
+    })
+    return this.withSubmissionStats(list)
+  }
+
+  /**
+   * Сколько учеников класса сдали каждое ДЗ: `total` — учеников в классе, `submitted` — отметили «сделал» или
+   * получили вердикт учителя (выполнено / частично), `toCheck` — отметили сами, а учитель ещё не проверил.
+   */
+  private async withSubmissionStats<T extends { id: string; groupId: string }>(list: T[]) {
+    if (list.length === 0) return list.map((h) => ({ ...h, stats: { total: 0, submitted: 0, toCheck: 0 } }))
+    const [byStatus, sizes] = await Promise.all([
+      this.prisma.homeworkSubmission.groupBy({
+        by: ['homeworkId', 'status'],
+        where: { homeworkId: { in: list.map((h) => h.id) } },
+        _count: { _all: true },
+      }),
+      this.prisma.student.groupBy({
+        by: ['groupId'],
+        where: { groupId: { in: [...new Set(list.map((h) => h.groupId))] }, status: 'ACTIVE' },
+        _count: { _all: true },
+      }),
+    ])
+    const total = new Map(sizes.map((s) => [s.groupId, s._count._all]))
+    const counts = new Map<string, Record<string, number>>()
+    for (const row of byStatus) {
+      const cur = counts.get(row.homeworkId) ?? {}
+      cur[row.status] = row._count._all
+      counts.set(row.homeworkId, cur)
+    }
+    return list.map((h) => {
+      const c = counts.get(h.id) ?? {}
+      return {
+        ...h,
+        stats: {
+          total: total.get(h.groupId) ?? 0,
+          submitted: (c.SUBMITTED ?? 0) + (c.DONE ?? 0) + (c.PARTIAL ?? 0),
+          toCheck: c.SUBMITTED ?? 0,
+        },
+      }
     })
   }
 

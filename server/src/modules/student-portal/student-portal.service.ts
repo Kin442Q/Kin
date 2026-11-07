@@ -7,6 +7,7 @@ import {
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { levelOf, STREAK_LOOKBACK_DAYS, streakDays, totalXp } from './student-progress'
 
 /** Календарная дата «сегодня» как UTC-полночь (так хранятся @db.Date). */
 function today(): Date {
@@ -155,5 +156,47 @@ export class StudentPortalService {
       orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
       include: { subject: { select: { id: true, name: true, color: true } } },
     })
+  }
+
+  /**
+   * Серия дней, XP и уровень. Считается из квизов, игр и отметок «сделал» (см. student-progress.ts), без отдельных
+   * таблиц. Верные ответы в квизах — сумма `score` по всем попыткам.
+   */
+  async progress(user: AuthUser) {
+    const s = await this.me(user)
+    const since = new Date(Date.now() - STREAK_LOOKBACK_DAYS * DAY_MS)
+    const done = { in: ['SUBMITTED', 'DONE', 'PARTIAL'] as Array<'SUBMITTED' | 'DONE' | 'PARTIAL'> }
+
+    const [quizSum, quizRecent, homeworkCount, homeworkRecent, gameCount, gameRecent] = await Promise.all([
+      this.prisma.quizAttempt.aggregate({ where: { studentId: s.id }, _sum: { score: true } }),
+      this.prisma.quizAttempt.findMany({
+        where: { studentId: s.id, createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+      this.prisma.homeworkSubmission.count({ where: { studentId: s.id, status: done } }),
+      this.prisma.homeworkSubmission.findMany({
+        where: { studentId: s.id, status: done, createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+      this.prisma.gameScore.count({ where: { studentId: s.id } }),
+      this.prisma.gameScore.findMany({
+        where: { studentId: s.id, createdAt: { gte: since } },
+        select: { createdAt: true },
+      }),
+    ])
+
+    const xp = totalXp({
+      correctAnswers: quizSum._sum.score ?? 0,
+      homework: homeworkCount,
+      games: gameCount,
+    })
+    const level = levelOf(xp)
+    return {
+      xp,
+      level: level.level,
+      xpIntoLevel: level.intoLevel,
+      levelSize: level.levelSize,
+      streakDays: streakDays([...quizRecent, ...homeworkRecent, ...gameRecent].map((r) => r.createdAt)),
+    }
   }
 }

@@ -143,6 +143,62 @@ describe('StudentPortalService', () => {
     })
   })
 
+  describe('progress — серия, XP и уровень', () => {
+    const justNow = () => new Date()
+
+    it('складывает XP из квизов, ДЗ и игр и считает уровень', async () => {
+      prisma.quizAttempt.aggregate.mockResolvedValue({ _sum: { score: 100 } }) // 100 верных ответов = 1000 XP
+      prisma.quizAttempt.findMany.mockResolvedValue([])
+      prisma.homeworkSubmission.count.mockResolvedValue(10) // 200 XP
+      prisma.homeworkSubmission.findMany.mockResolvedValue([])
+      prisma.gameScore.count.mockResolvedValue(8) // 40 XP
+      prisma.gameScore.findMany.mockResolvedValue([])
+
+      const r = await service.progress(studentUser)
+
+      expect(r).toEqual({ xp: 1240, level: 7, xpIntoLevel: 40, levelSize: 200, streakDays: 0 })
+    })
+
+    it('серия считается по занятиям сегодня и в прошлые дни', async () => {
+      const day = 24 * 3600_000
+      prisma.quizAttempt.aggregate.mockResolvedValue({ _sum: { score: null } })
+      prisma.quizAttempt.findMany.mockResolvedValue([{ createdAt: justNow() }])
+      prisma.homeworkSubmission.count.mockResolvedValue(0)
+      prisma.homeworkSubmission.findMany.mockResolvedValue([{ createdAt: new Date(Date.now() - day) }])
+      prisma.gameScore.count.mockResolvedValue(0)
+      prisma.gameScore.findMany.mockResolvedValue([{ createdAt: new Date(Date.now() - 2 * day) }])
+
+      const r = await service.progress(studentUser)
+
+      expect(r.streakDays).toBe(3)
+      expect(r.xp).toBe(0)
+      expect(r.level).toBe(1)
+    })
+
+    it('считает только свои занятия и только «сделанные» ДЗ', async () => {
+      prisma.quizAttempt.aggregate.mockResolvedValue({ _sum: { score: 0 } })
+      prisma.quizAttempt.findMany.mockResolvedValue([])
+      prisma.homeworkSubmission.count.mockResolvedValue(0)
+      prisma.homeworkSubmission.findMany.mockResolvedValue([])
+      prisma.gameScore.count.mockResolvedValue(0)
+      prisma.gameScore.findMany.mockResolvedValue([])
+
+      await service.progress(studentUser)
+
+      expect(prisma.quizAttempt.aggregate.mock.calls[0][0].where).toEqual({ studentId: 'st1' })
+      expect(prisma.gameScore.count.mock.calls[0][0].where).toEqual({ studentId: 'st1' })
+      // «не выполнено» опыта не даёт
+      expect(prisma.homeworkSubmission.count.mock.calls[0][0].where).toEqual({
+        studentId: 'st1',
+        status: { in: ['SUBMITTED', 'DONE', 'PARTIAL'] },
+      })
+    })
+
+    it('аккаунт без привязки к ученику → 403', async () => {
+      await expect(service.progress({ ...studentUser, studentId: undefined })).rejects.toThrow(ForbiddenException)
+    })
+  })
+
   it('schedule: расписание моего класса', async () => {
     prisma.scheduleItem.findMany.mockResolvedValue([])
     await service.schedule(studentUser)

@@ -14,6 +14,7 @@ import { scheduleApi, type ScheduleLesson } from '../api/schedule'
 import { notificationsApi, type NoticeDto } from '../api/notifications'
 import { adminApi, type GroupDto } from '../api/admin'
 import { attendanceApi } from '../api/attendance'
+import { schoolApi, type HomeworkDto } from '../api/school'
 
 import { themedStyles } from '../theme/themedStyles'
 const minutes = (hhmm: string) => {
@@ -43,6 +44,8 @@ export default function TeacherHomeScreen() {
   const [groups, setGroups] = useState<GroupDto[]>([])
   const [notices, setNotices] = useState<NoticeDto[]>([])
   const [classPresent, setClassPresent] = useState<{ here: number; total: number } | null>(null)
+  // Ближайшее ДЗ моего класса: сколько учеников его уже сдали
+  const [classHomework, setClassHomework] = useState<HomeworkDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(new Date())
@@ -51,18 +54,23 @@ export default function TeacherHomeScreen() {
 
   const reload = useCallback(async () => {
     const day = dayjs().format('YYYY-MM-DD')
-    const [sch, grp, nt, att] = await Promise.all([
+    const [sch, grp, nt, att, hw] = await Promise.all([
       hasFeature(user, 'schedule') ? scheduleApi.list().catch(() => [] as ScheduleLesson[]) : Promise.resolve([] as ScheduleLesson[]),
       adminApi.groups().catch(() => [] as GroupDto[]),
       notificationsApi.list().catch(() => [] as NoticeDto[]),
       homeroomId && hasFeature(user, 'attendance')
         ? attendanceApi.listByDay(day, homeroomId).catch(() => null)
         : Promise.resolve(null),
+      homeroomId && hasFeature(user, 'homework')
+        ? schoolApi.listHomework({ groupId: homeroomId, from: day }).catch(() => [] as HomeworkDto[])
+        : Promise.resolve([] as HomeworkDto[]),
     ])
     setLessons(sch)
     setGroups(grp)
     setNotices(Array.isArray(nt) ? nt.slice(0, 5) : [])
     setClassPresent(att && att.length ? { here: att.filter((a) => a.status === 'PRESENT').length, total: att.length } : null)
+    // сервер отдаёт ДЗ по возрастанию срока: первое с данными о классе — ближайшее
+    setClassHomework(hw.find((h) => h.stats && h.stats.total > 0) ?? null)
     setLoading(false)
     setRefreshing(false)
   }, [user, homeroomId])
@@ -105,7 +113,13 @@ export default function TeacherHomeScreen() {
 
   // Пустые блоки не показываем: если нечего показать, остаётся одна спокойная плашка
   const isQuiet =
-    !loading && !focus && todayLessons.length === 0 && classesToday.length === 0 && !classPresent && notices.length === 0
+    !loading &&
+    !focus &&
+    todayLessons.length === 0 &&
+    classesToday.length === 0 &&
+    !classPresent &&
+    !classHomework &&
+    notices.length === 0
 
   const markRead = () => {
     notificationsApi
@@ -222,14 +236,30 @@ export default function TeacherHomeScreen() {
           </Card>
         )}
 
-        {classPresent && (
+        {(classPresent || classHomework) && (
           <View style={styles.tiles}>
-            <Tile
-              label={`Мой класс${groupName(homeroomId ?? '') ? ' ' + groupName(homeroomId ?? '') : ''}`}
-              value={`${classPresent.here} / ${classPresent.total}`}
-              hint="в школе сегодня"
-              style={{ flex: 1 }}
-            />
+            {classPresent && (
+              <Tile
+                label={`Мой класс${groupName(homeroomId ?? '') ? ' ' + groupName(homeroomId ?? '') : ''}`}
+                value={`${classPresent.here} / ${classPresent.total}`}
+                hint="в школе сегодня"
+                style={{ flex: 1 }}
+              />
+            )}
+            {classHomework?.stats && (
+              <Pressable
+                style={{ flex: 1 }}
+                onPress={() => navigation.navigate('TeacherHomework')}
+                accessibilityRole="button"
+                accessibilityLabel={`Домашние задания: ${classHomework.stats.submitted} из ${classHomework.stats.total} сдали`}
+              >
+                <Tile
+                  label={`ДЗ · ${classHomework.group?.name ?? groupName(classHomework.groupId)}`}
+                  value={`${classHomework.stats.submitted} / ${classHomework.stats.total}`}
+                  hint={`сдали · ${classHomework.subject?.name ?? 'задание'}`}
+                />
+              </Pressable>
+            )}
           </View>
         )}
 

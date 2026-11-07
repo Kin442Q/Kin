@@ -58,6 +58,12 @@ export class StudentPortalController {
     return this.service.grades(user, { from, to })
   }
 
+  @Get('progress')
+  @ApiOperation({ summary: 'Серия дней, XP и уровень (из квизов, игр и отметок «сделал»)' })
+  progress(@CurrentUser() user: AuthUser) {
+    return this.service.progress(user)
+  }
+
   @Get('schedule')
   @Feature('portal', 'schedule')
   @ApiOperation({ summary: 'Расписание моего класса' })
