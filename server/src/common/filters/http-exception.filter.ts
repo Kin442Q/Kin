@@ -8,13 +8,17 @@ import {
 } from '@nestjs/common'
 import { Request, Response } from 'express'
 
+import { AlertSink, requestContext } from '../../modules/monitoring/alert-event'
+
 /**
  * Глобальный фильтр для всех HttpException. Формирует одинаковый JSON,
- * чтобы фронт знал, что приходит.
+ * чтобы фронт знал, что приходит. Ответы 5xx дополнительно уходят в оповещения.
  */
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger('HttpExceptionFilter')
+
+  constructor(private readonly alerts?: AlertSink) {}
 
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp()
@@ -28,6 +32,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     if (status >= 500) {
       this.logger.error(`${req.method} ${req.url} → ${status}`, exception.stack)
+      this.alerts?.report({ source: 'http', status, ...requestContext(req), error: exception })
     }
 
     res.status(status).json({

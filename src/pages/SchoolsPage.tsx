@@ -36,6 +36,7 @@ import { SproutPageHeader } from '../components/sprout'
 import { http } from '../api'
 import FeaturesModal from '../components/FeaturesModal'
 import AccessResultModal from '../components/AccessResultModal'
+import AlertsCheckButton from '../components/AlertsCheckButton'
 import type { AccessGrant } from '../api/accessApi'
 
 const { Text } = Typography
@@ -194,9 +195,12 @@ export default function SchoolsPage() {
         iconAccent="blue"
         description="Управление всеми школами платформы. Каждая школа изолирована: свои классы, ученики и данные."
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            {isMobile ? 'Новая' : 'Новая школа'}
-          </Button>
+          <Space wrap>
+            <AlertsCheckButton />
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              {isMobile ? 'Новая' : 'Новая школа'}
+            </Button>
+          </Space>
         }
       />
 
