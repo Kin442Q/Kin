@@ -6,7 +6,7 @@ export interface ReportInput {
   generatedAt: string
   scale: 'unset' | 'five' | 'ten'
   thresholds: { pass: number; quality: number; excellent: number }
-  groups: { id: string; name: string; students: { id: string; name: string }[] }[]
+  groups: { id: string; name: string; homeroomTeacher?: string | null; students: { id: string; name: string }[] }[]
   subjects: { id: string; name: string }[]
   grades: { studentId: string; subjectId: string; authorId: string; value: number; date: string; type: string }[]
   attendance: { studentId: string; groupId: string; date: string; status: string }[]
@@ -30,7 +30,7 @@ const minutes = (time: string) => {
 }
 
 export function buildEducationReport(input: ReportInput) {
-  const students = input.groups.flatMap(group=>group.students.map(student=>({...student,groupId:group.id,groupName:group.name})))
+  const students = input.groups.flatMap(group=>group.students.map(student=>({...student,groupId:group.id,groupName:group.name,homeroomTeacher:group.homeroomTeacher??null})))
   const studentMap = new Map(students.map(student=>[student.id,student]))
   const subjectMap = new Map(input.subjects.map(subject=>[subject.id,subject.name]))
   const inPeriod = (date: string) => date >= input.from && date <= input.effectiveTo
@@ -76,12 +76,19 @@ export function buildEducationReport(input: ReportInput) {
     return { records: records.length, present, absent, sick, vacation,
       absenceShare: ratio(absent+sick+vacation,records.length) }
   }
-  const groups = input.groups.map(group=>({
+  const groups = input.groups.map(group=>{
+    const marks=(byGroup.get(group.id)??[]).filter(row=>input.scale!=='unset'&&valid(row.value))
+    const assessedStudents=new Set(marks.map(row=>row.studentId)).size
+    const studentsWithPoor=input.scale==='unset'?null:new Set(marks.filter(row=>row.value<input.thresholds.pass).map(row=>row.studentId)).size
+    return {
     id:group.id, name:group.name, students:group.students.length,
     ...bands(byGroup.get(group.id)??[]),
     coverage:coverage(group.id), subjects:groupSubjects.get(group.id)!.size,
     attendance:attendanceStats(attendanceByGroup.get(group.id)??[]),
-  }))
+    assessedStudents:input.scale==='unset'?null:assessedStudents,
+    studentsWithPoor,
+    poorStudentShare:studentsWithPoor==null?null:ratio(studentsWithPoor,assessedStudents),
+  }})
   const matrix = input.groups.flatMap(group=>[...groupSubjects.get(group.id)!].map(subjectId=>({
     groupId:group.id, groupName:group.name, subjectId, subjectName:subjectMap.get(subjectId)!,
     ...bands(byGroupSubject.get(group.id+'|'+subjectId)??[]),
@@ -93,6 +100,10 @@ export function buildEducationReport(input: ReportInput) {
     return {
       ...student,
       poor: input.scale==='unset' ? null : marks.filter(row=>row.value<input.thresholds.pass).length,
+      subjectSupport:[...new Set(marks.filter(row=>row.value<input.thresholds.pass).map(row=>row.subjectId))].map(subjectId=>{
+        const subjectMarks=marks.filter(row=>row.subjectId===subjectId)
+        return {subjectId,subjectName:subjectMap.get(subjectId)!,average:avg(subjectMarks.map(row=>row.value)),lowMarks:subjectMarks.filter(row=>row.value<input.thresholds.pass).map(row=>({value:row.value,date:row.date})).sort((a,b)=>b.date.localeCompare(a.date))}
+      }),
       poorSubjects:[...new Set(marks.filter(row=>row.value<input.thresholds.pass).map(row=>subjectMap.get(row.subjectId)!))],
       missingSubjects:missing.map(id=>subjectMap.get(id)!),
       absentDays:(attendanceByStudent.get(student.id)??[]).filter(row=>row.status==='ABSENT').length,
