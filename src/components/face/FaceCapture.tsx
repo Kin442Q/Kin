@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 import { Button, Spin, App as AntdApp } from 'antd'
 import { Camera, Check, RefreshCw, X } from 'lucide-react'
@@ -75,9 +76,9 @@ export default function FaceCapture({
         const msg = e?.message || String(e)
         setError(
           msg.includes('Permission')
-            ? 'Доступ к камере запрещён. Разрешите его в настройках браузера.'
+            ? uiText("Доступ к камере запрещён. Разрешите его в настройках браузера.")
             : msg.includes('NotFoundError')
-              ? 'Камера не найдена на устройстве.'
+              ? uiText("Камера не найдена на устройстве.")
               : msg,
         )
         setStatus('error')
@@ -100,31 +101,31 @@ export default function FaceCapture({
     try {
       const descriptor = await detectDescriptor(videoRef.current)
       if (!descriptor) {
-        message.error('Лицо не обнаружено. Поднесите лицо к центру кадра.')
+        message.error(uiText("Лицо не обнаружено. Поднесите лицо к центру кадра."))
         setStatus('ready')
         return
       }
 
       if (mode === 'verify') {
         if (!verifyAgainst || verifyAgainst.length !== 128) {
-          message.error('Эталонный дескриптор не задан')
+          message.error(uiText("Эталонный дескриптор не задан"))
           setStatus('ready')
           return
         }
         const distance = compareDescriptors(descriptor, verifyAgainst)
         if (distance >= FACE_MATCH_THRESHOLD) {
           message.error(
-            `Лицо не совпадает (точность ${(1 - distance).toFixed(2)}). Попробуйте ещё раз.`,
+            uiText("Лицо не совпадает (точность {0}). Попробуйте ещё раз.", (1 - distance).toFixed(2)),
           )
           setStatus('ready')
           return
         }
-        message.success(`Распознано (точность ${(1 - distance).toFixed(2)})`)
+        message.success(uiText("Распознано (точность {0})", (1 - distance).toFixed(2)))
       }
 
       onSuccess(descriptor)
     } catch (e: any) {
-      message.error(e?.message || 'Ошибка распознавания')
+      message.error(e?.message || uiText("Ошибка распознавания"))
       setStatus('ready')
     }
   }
@@ -132,9 +133,9 @@ export default function FaceCapture({
   const isLoading = status === 'loading-models' || status === 'starting-camera'
   const loadingText =
     status === 'loading-models'
-      ? 'Загружаем модели распознавания...'
+      ? uiText("Загружаем модели распознавания...")
       : status === 'starting-camera'
-        ? 'Включаем камеру...'
+        ? uiText("Включаем камеру...")
         : ''
 
   return (
@@ -240,8 +241,7 @@ export default function FaceCapture({
       <div style={{ display: 'flex', gap: 8 }}>
         {onCancel && (
           <Button onClick={onCancel} icon={<X size={14} />}>
-            Отмена
-          </Button>
+            {" " + uiText("Отмена") + " "}</Button>
         )}
         {status === 'error' ? (
           <Button
@@ -249,8 +249,7 @@ export default function FaceCapture({
             icon={<RefreshCw size={14} />}
             onClick={() => window.location.reload()}
           >
-            Перезагрузить
-          </Button>
+            {" " + uiText("Перезагрузить") + " "}</Button>
         ) : (
           <Button
             type="primary"
@@ -260,7 +259,7 @@ export default function FaceCapture({
             onClick={capture}
             style={{ minWidth: 200, height: 44 }}
           >
-            {mode === 'register' ? 'Снять и сохранить' : 'Подтвердить лицо'}
+            {mode === 'register' ? uiText("Снять и сохранить") : uiText("Подтвердить лицо")}
           </Button>
         )}
       </div>

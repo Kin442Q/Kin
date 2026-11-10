@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import dayjs from 'dayjs'
 
 import type { HomeworkDto } from '../api/school'
@@ -29,9 +30,9 @@ export function splitHomework(list: HomeworkDto[], today: string = dayjs().forma
 /** Срок словами: «сегодня», «завтра», иначе «до 6.11». */
 export function dueLabel(h: Pick<HomeworkDto, 'dueDate'>, today: string = dayjs().format('YYYY-MM-DD')): string {
   const day = dueDay(h)
-  if (day === today) return 'сегодня'
-  if (day === dayjs(today).add(1, 'day').format('YYYY-MM-DD')) return 'завтра'
-  return `до ${dayjs(day).format('D.M')}`
+  if (day === today) return uiText("сегодня")
+  if (day === dayjs(today).add(1, 'day').format('YYYY-MM-DD')) return uiText("завтра")
+  return uiText("до {0}", dayjs(day).format('D.M'))
 }
 
 /** Доля сдавших в классе от 0 до 1 (0, если класс пуст или данных нет). */

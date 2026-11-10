@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useRef } from 'react'
 import { Animated, Easing, Pressable, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -72,11 +73,11 @@ export default function NoticeHost() {
               accessibilityRole="button"
               style={[styles.action, { backgroundColor: tone.bg }]}
             >
-              <Text style={[styles.actionText, { color: tone.fg }]}>{notice.actionLabel ?? 'Повторить'}</Text>
+              <Text style={[styles.actionText, { color: tone.fg }]}>{notice.actionLabel ?? uiText("Повторить")}</Text>
             </Pressable>
           )}
         </View>
-        <Pressable onPress={hide} hitSlop={10} accessibilityRole="button" accessibilityLabel="Закрыть">
+        <Pressable onPress={hide} hitSlop={10} accessibilityRole="button" accessibilityLabel={uiText("Закрыть")}>
           <X size={18} color={colors.muted} />
         </Pressable>
       </Pressable>

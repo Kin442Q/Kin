@@ -1,3 +1,4 @@
+import { uiLanguage } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Col, Row } from 'antd'
 import { Bell, ChevronRight, ClipboardCheck, GraduationCap } from 'lucide-react'
@@ -98,16 +99,16 @@ export default function TeacherDashboard() {
     return () => clearInterval(id)
   }, [])
 
-  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups])
+  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups, uiLanguage()])
 
   // Мои уроки на неделю: если уроки закреплены за учителями — только мои, иначе все уроки моих классов.
-  const myWeek = useMemo(() => teacherLessons(lessons, user?.id), [lessons, user?.id])
+  const myWeek = useMemo(() => teacherLessons(lessons, user?.id), [lessons, user?.id, uiLanguage()])
 
   // Уроки на сегодня — из той же недели
   const todayLessons = useMemo(() => {
     const dow = dayjs().day() === 0 ? 7 : dayjs().day()
     return myWeek.filter((l) => l.dayOfWeek === dow).sort((a, b) => a.startTime.localeCompare(b.startTime))
-  }, [myWeek])
+  }, [myWeek, uiLanguage()])
 
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const currentIdx = todayLessons.findIndex((l) => nowMin >= toMin(l.startTime) && nowMin < toMin(l.endTime))
@@ -118,14 +119,14 @@ export default function TeacherDashboard() {
     const counts = new Map<string, number>()
     for (const l of todayLessons) counts.set(l.groupId, (counts.get(l.groupId) ?? 0) + 1)
     return [...counts.entries()].map(([id, n]) => ({ id, n, group: groupById.get(id) }))
-  }, [todayLessons, groupById])
+  }, [todayLessons, groupById, uiLanguage()])
 
   const homeroom = user?.homeroomGroups?.[0] ? groupById.get(user.homeroomGroups[0].id) ?? user.homeroomGroups[0] : null
   const homeroomStudents = homeroom ? children.filter((c) => c.groupId === homeroom.id).length : 0
 
   const notices = useMemo(
     () => [...notifications].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5),
-    [notifications],
+    [notifications, uiLanguage()],
   )
 
   const hour = new Date().getHours()

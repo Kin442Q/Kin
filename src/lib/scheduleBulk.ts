@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 /**
  * Пакетное добавление уроков: чистые функции для окна «Добавить уроки».
  * Время везде строкой «ЧЧ:ММ», внутри считаем минутами от полуночи.
@@ -96,18 +97,18 @@ export function findOverlap(rows: LessonRow[]): [number, number] | null {
 
 /** Что не так со списком уроков (текст для человека) или null, если можно отправлять. */
 export function validateRows(rows: LessonRow[], needSubject: boolean): string | null {
-  if (rows.length === 0) return 'Добавьте хотя бы один урок'
+  if (rows.length === 0) return uiText("Добавьте хотя бы один урок")
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i]
     const n = i + 1
-    if (!r.start || !r.end) return `Урок ${n}: укажите время начала и конца`
-    if (toMinutes(r.end) <= toMinutes(r.start)) return `Урок ${n}: конец должен быть позже начала`
+    if (!r.start || !r.end) return uiText("Урок {0}: укажите время начала и конца", n)
+    if (toMinutes(r.end) <= toMinutes(r.start)) return uiText("Урок {0}: конец должен быть позже начала", n)
     if (needSubject ? !r.subjectId : !r.subjectId && !r.activity?.trim()) {
-      return needSubject ? `Урок ${n}: выберите предмет` : `Урок ${n}: укажите название`
+      return needSubject ? uiText("Урок {0}: выберите предмет", n) : uiText("Урок {0}: укажите название", n)
     }
   }
   const o = findOverlap(rows)
-  if (o) return `Уроки ${o[0] + 1} и ${o[1] + 1} пересекаются по времени`
+  if (o) return uiText("Уроки {0} и {1} пересекаются по времени", o[0] + 1, o[1] + 1)
   return null
 }
 

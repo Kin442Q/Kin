@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useRef } from 'react'
 import {
   NavigationContainer,
@@ -17,8 +18,10 @@ import {
   LayoutGrid,
   BarChart3,
   BookOpen,
+  Brain,
+  ClipboardList,
   GraduationCap,
-  Library,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react-native'
 
@@ -55,6 +58,7 @@ import StudentHomeworkScreen from '../screens/StudentHomeworkScreen'
 import StudentGradesScreen from '../screens/StudentGradesScreen'
 import StudentLearnScreen from '../screens/StudentLearnScreen'
 import StudentLibraryScreen from '../screens/StudentLibraryScreen'
+import StudentScheduleScreen from '../screens/StudentScheduleScreen'
 import StudentQuizzesScreen from '../screens/StudentQuizzesScreen'
 import StudentQuizPlayScreen from '../screens/StudentQuizPlayScreen'
 import StudentExamScreen from '../screens/StudentExamScreen'
@@ -105,46 +109,46 @@ function buildTabs(role: TabRole): TabConfig[] {
   if (role === 'student') {
     // Ученик: Главная / ДЗ / Оценки / Учёба / Я (5)
     return [
-      { name: 'StudentHome', label: 'Главная', icon: Home, component: StudentHomeScreen },
-      { name: 'StudentHomework', label: 'ДЗ', icon: BookOpen, component: StudentHomeworkScreen, feature: 'homework' },
-      { name: 'StudentGrades', label: 'Оценки', icon: GraduationCap, component: StudentGradesScreen, feature: 'grades' },
+      { name: 'StudentHome', label: uiText("Главная"), icon: Home, component: StudentHomeScreen },
+      { name: 'StudentHomework', label: uiText("ДЗ"), icon: ClipboardList, component: StudentHomeworkScreen, feature: 'homework' },
+      { name: 'StudentGrades', label: uiText("Оценки"), icon: TrendingUp, component: StudentGradesScreen, feature: 'grades' },
       {
         name: 'StudentLearn',
-        label: 'Учёба',
-        icon: Library,
+        label: uiText("Учёба"),
+        icon: Brain,
         component: StudentLearnScreen,
         anyFeature: ['library', 'quiz', 'exam_prep', 'games'],
       },
-      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+      { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
     ]
   }
   if (role === 'admin') {
     return [
       // «Сводка школы»: ученики, посещаемость, классы, на что обратить внимание.
       // Денежные плитки на ней показываются только при включённой «Аналитике».
-      { name: 'AdminDashboard', label: 'Сводка', icon: BarChart3, component: AdminDashboardScreen },
+      { name: 'AdminDashboard', label: uiText("Сводка"), icon: BarChart3, component: AdminDashboardScreen },
       { name: 'AdminGroups', label: L.groups, icon: LayoutGrid, component: AdminGroupsScreen, feature: 'groups' },
-      { name: 'AdminPayments', label: 'Оплаты', icon: CreditCard, component: AdminPaymentsScreen, feature: 'payments' },
-      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+      { name: 'AdminPayments', label: uiText("Оплаты"), icon: CreditCard, component: AdminPaymentsScreen, feature: 'payments' },
+      { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
     ]
   }
   if (role === 'teacher') {
     // Учитель: Кабинет / Отметить / Журнал / ДЗ / Я (5)
     return [
-      { name: 'TeacherHome', label: 'Кабинет', icon: LayoutGrid, component: TeacherHomeScreen },
-      { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen, feature: 'attendance' },
-      { name: 'TeacherGrades', label: 'Журнал', icon: GraduationCap, component: TeacherGradesScreen, feature: 'grades' },
-      { name: 'TeacherHomework', label: 'ДЗ', icon: BookOpen, component: TeacherHomeworkScreen, feature: 'homework' },
-      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+      { name: 'TeacherHome', label: uiText("Кабинет"), icon: LayoutGrid, component: TeacherHomeScreen },
+      { name: 'TeacherAttendance', label: uiText("Отметить"), icon: ClipboardCheck, component: TeacherAttendanceScreen, feature: 'attendance' },
+      { name: 'TeacherGrades', label: uiText("Журнал"), icon: GraduationCap, component: TeacherGradesScreen, feature: 'grades' },
+      { name: 'TeacherHomework', label: uiText("ДЗ"), icon: BookOpen, component: TeacherHomeworkScreen, feature: 'homework' },
+      { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
     ]
   }
   // Родитель: Главная / Расписание / Оценки / Оплата / Я (5)
   return [
-    { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
-    { name: 'ParentSchedule', label: 'Расписание', icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
-    { name: 'ParentGrades', label: 'Оценки', icon: GraduationCap, component: ParentGradesScreen, feature: 'grades' },
-    { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder, feature: 'payments' },
-    { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+    { name: 'ParentHome', label: uiText("Главная"), icon: Home, component: ParentHomeScreen },
+    { name: 'ParentSchedule', label: uiText("Расписание"), icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
+    { name: 'ParentGrades', label: uiText("Оценки"), icon: GraduationCap, component: ParentGradesScreen, feature: 'grades' },
+    { name: 'ParentPay', label: uiText("Оплата"), icon: CreditCard, component: ParentPaymentsPlaceholder, feature: 'payments' },
+    { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
   ]
 }
 
@@ -221,6 +225,7 @@ function MainNavigator() {
       <RootStack.Screen name="TeacherHomeroom" component={TeacherHomeroomScreen} />
       <RootStack.Screen name="TeacherHomeworkRoster" component={TeacherHomeworkRosterScreen} />
       <RootStack.Screen name="StudentLibrary" component={StudentLibraryScreen} />
+      <RootStack.Screen name="StudentSchedule" component={StudentScheduleScreen} />
       <RootStack.Screen name="StudentQuizzes" component={StudentQuizzesScreen} />
       <RootStack.Screen name="StudentQuizPlay" component={StudentQuizPlayScreen} />
       <RootStack.Screen name="StudentExam" component={StudentExamScreen} />

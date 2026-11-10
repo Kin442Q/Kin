@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import { Alert, App as AntdApp, Button, Checkbox, Input, InputNumber, Modal, Select, Space, TimePicker, Typography } from 'antd'
 import { DeleteOutlined, PlusOutlined, ThunderboltOutlined } from '@ant-design/icons'
@@ -22,8 +23,8 @@ import {
 
 const { Text } = Typography
 
-export const DAY_NAMES = ['', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье']
-const DAY_SHORT = ['', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
+export const DAY_NAMES = localizeCopy(['', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'])
+const DAY_SHORT = localizeCopy(['', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'])
 
 export interface ExistingLesson {
   id: string
@@ -123,13 +124,13 @@ export default function ScheduleBulkModal({
   // Уроки, которые у выбранного класса уже есть в выбранные дни
   const clash = useMemo(
     () => existing.filter((e) => e.groupId === groupId && days.includes(e.dayOfWeek)),
-    [existing, groupId, days],
+    [existing, groupId, days, uiLanguage()],
   )
 
   // Дни, у которых у выбранного класса уже есть уроки: их можно скопировать
   const copyableDays = useMemo(
     () => Array.from(new Set(existing.filter((e) => e.groupId === groupId).map((e) => e.dayOfWeek))).sort((a, b) => a - b),
-    [existing, groupId],
+    [existing, groupId, uiLanguage()],
   )
 
   const copyFromDay = (day: number) => {
@@ -147,14 +148,14 @@ export default function ScheduleBulkModal({
         activity: e.subjectId ? undefined : e.activity,
       })),
     )
-    message.success(`Скопировано уроков: ${list.length}`)
+    message.success(uiText("Скопировано уроков: {0}", list.length))
   }
 
   const total = rows.length * days.length
 
   const submit = async () => {
-    if (!groupId) return message.error('Выберите класс')
-    if (days.length === 0) return message.error('Выберите хотя бы один день недели')
+    if (!groupId) return message.error(uiText("Выберите класс"))
+    if (days.length === 0) return message.error(uiText("Выберите хотя бы один день недели"))
     const problem = validateRows(rows, isSchool)
     if (problem) return message.error(problem)
     try {
@@ -166,13 +167,13 @@ export default function ScheduleBulkModal({
       const r = res.data
       message.success(
         r.skipped > 0
-          ? `Добавлено уроков: ${r.created}. Такие уже были, пропущено: ${r.skipped}`
-          : `Добавлено уроков: ${r.created}`,
+          ? uiText("Добавлено уроков: {0}. Такие уже были, пропущено: {1}", r.created, r.skipped)
+          : uiText("Добавлено уроков: {0}", r.created),
       )
       onSaved()
       onClose()
     } catch (err: any) {
-      message.error(err?.response?.data?.message || err?.message || 'Не удалось добавить уроки')
+      message.error(err?.response?.data?.message || err?.message || uiText("Не удалось добавить уроки"))
     } finally {
       setSubmitting(false)
     }
@@ -184,12 +185,12 @@ export default function ScheduleBulkModal({
 
   return (
     <Modal
-      title="Добавить уроки"
+      title={uiText("Добавить уроки")}
       open={open}
       onCancel={onClose}
       width="min(1000px, 96vw)"
-      okText={total > 0 ? `Добавить уроки (${total})` : 'Добавить уроки'}
-      cancelText="Отмена"
+      okText={total > 0 ? uiText("Добавить уроки ({0})", total) : uiText("Добавить уроки")}
+      cancelText={uiText("Отмена")}
       onOk={submit}
       confirmLoading={submitting}
       okButtonProps={{ disabled: total === 0 }}
@@ -199,30 +200,25 @@ export default function ScheduleBulkModal({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-end' }}>
           <div style={{ minWidth: 200 }}>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>
-              <span style={{ color: '#ff4d4f' }}>* </span>Класс
-            </div>
+              <span style={{ color: '#ff4d4f' }}>* </span>{uiText("Класс") + " "}</div>
             <Select
               style={{ width: 200 }}
-              placeholder="Выберите класс"
+              placeholder={uiText("Выберите класс")}
               value={groupId}
               onChange={setGroupId}
               options={groups.map((g) => ({ value: g.id, label: g.name }))}
-              aria-label="Класс"
+              aria-label={uiText("Класс")}
             />
           </div>
 
           <div style={{ flex: 1, minWidth: 320 }}>
             <div style={{ fontWeight: 600, marginBottom: 4 }}>
-              <span style={{ color: '#ff4d4f' }}>* </span>Дни недели
-              <Button type="link" size="small" onClick={() => setDays([1, 2, 3, 4, 5])}>
-                Пн–Пт
-              </Button>
+              <span style={{ color: '#ff4d4f' }}>* </span>{uiText("Дни недели") + " "}<Button type="link" size="small" onClick={() => setDays([1, 2, 3, 4, 5])}>
+                {" " + uiText("Пн–Пт") + " "}</Button>
               <Button type="link" size="small" onClick={() => setDays([1, 2, 3, 4, 5, 6])}>
-                Пн–Сб
-              </Button>
+                {" " + uiText("Пн–Сб") + " "}</Button>
               <Button type="link" size="small" disabled={days.length === 0} onClick={() => setDays([])}>
-                Снять
-              </Button>
+                {" " + uiText("Снять") + " "}</Button>
             </div>
             <Checkbox.Group
               value={days}
@@ -244,11 +240,11 @@ export default function ScheduleBulkModal({
           }}
         >
           <div>
-            <div style={{ fontSize: 12, marginBottom: 2 }}>Уроков в дне</div>
-            <InputNumber min={1} max={MAX_LESSONS} value={tpl.count} onChange={(v) => setTpl({ ...tpl, count: v ?? 1 })} aria-label="Уроков в дне" />
+            <div style={{ fontSize: 12, marginBottom: 2 }}>{uiText("Уроков в дне")}</div>
+            <InputNumber min={1} max={MAX_LESSONS} value={tpl.count} onChange={(v) => setTpl({ ...tpl, count: v ?? 1 })} aria-label={uiText("Уроков в дне")} />
           </div>
           <div>
-            <div style={{ fontSize: 12, marginBottom: 2 }}>Начало первого</div>
+            <div style={{ fontSize: 12, marginBottom: 2 }}>{uiText("Начало первого")}</div>
             <TimePicker
               format="HH:mm"
               minuteStep={5}
@@ -260,24 +256,23 @@ export default function ScheduleBulkModal({
             />
           </div>
           <div>
-            <div style={{ fontSize: 12, marginBottom: 2 }}>Урок, мин</div>
-            <InputNumber min={10} max={180} value={tpl.lessonMin} onChange={(v) => setTpl({ ...tpl, lessonMin: v ?? 45 })} aria-label="Длительность урока" />
+            <div style={{ fontSize: 12, marginBottom: 2 }}>{uiText("Урок, мин")}</div>
+            <InputNumber min={10} max={180} value={tpl.lessonMin} onChange={(v) => setTpl({ ...tpl, lessonMin: v ?? 45 })} aria-label={uiText("Длительность урока")} />
           </div>
           <div>
-            <div style={{ fontSize: 12, marginBottom: 2 }}>Перемена, мин</div>
-            <InputNumber min={0} max={60} value={tpl.breakMin} onChange={(v) => setTpl({ ...tpl, breakMin: v ?? 10 })} aria-label="Перемена" />
+            <div style={{ fontSize: 12, marginBottom: 2 }}>{uiText("Перемена, мин")}</div>
+            <InputNumber min={0} max={60} value={tpl.breakMin} onChange={(v) => setTpl({ ...tpl, breakMin: v ?? 10 })} aria-label={uiText("Перемена")} />
           </div>
           <Button icon={<ThunderboltOutlined />} onClick={() => setRows(rowsFromTemplate(tpl, rows))}>
-            Заполнить время
-          </Button>
+            {" " + uiText("Заполнить время") + " "}</Button>
           {copyableDays.length > 0 && (
             <Select
               style={{ width: 190 }}
-              placeholder="Скопировать день…"
+              placeholder={uiText("Скопировать день…")}
               value={null as unknown as string}
               onChange={(d) => copyFromDay(d as unknown as number)}
-              options={copyableDays.map((d) => ({ value: d, label: `Скопировать: ${DAY_NAMES[d]}` }))}
-              aria-label="Скопировать день"
+              options={copyableDays.map((d) => ({ value: d, label: uiText("Скопировать: {0}", DAY_NAMES[d]) }))}
+              aria-label={uiText("Скопировать день")}
             />
           )}
         </div>
@@ -295,11 +290,11 @@ export default function ScheduleBulkModal({
             }}
           >
             <span>№</span>
-            <span>Начало</span>
-            <span>Конец</span>
-            <span>{isSchool ? 'Предмет' : 'Название'}</span>
-            {isSchool && <span>Учитель</span>}
-            {isSchool && <span>Кабинет</span>}
+            <span>{uiText("Начало")}</span>
+            <span>{uiText("Конец")}</span>
+            <span>{isSchool ? uiText("Предмет") : uiText("Название")}</span>
+            {isSchool && <span>{uiText("Учитель")}</span>}
+            {isSchool && <span>{uiText("Кабинет")}</span>}
             <span />
           </div>
 
@@ -311,61 +306,61 @@ export default function ScheduleBulkModal({
                   format="HH:mm"
                   minuteStep={5}
                   needConfirm={false}
-                  placeholder="Начало"
+                  placeholder={uiText("Начало")}
                   value={toTime(r.start)}
                   onChange={(d) => setStart(r.key, d ? d.format('HH:mm') : null)}
-                  aria-label={`Начало урока ${i + 1}`}
+                  aria-label={uiText("Начало урока {0}", i + 1)}
                 />
                 <TimePicker
                   format="HH:mm"
                   minuteStep={5}
                   needConfirm={false}
-                  placeholder="Конец"
+                  placeholder={uiText("Конец")}
                   value={toTime(r.end)}
                   onChange={(d) => patchRow(r.key, { end: d ? d.format('HH:mm') : null })}
-                  aria-label={`Конец урока ${i + 1}`}
+                  aria-label={uiText("Конец урока {0}", i + 1)}
                 />
                 {isSchool ? (
                   <>
                     <Select
                       showSearch
                       optionFilterProp="label"
-                      placeholder="Предмет"
+                      placeholder={uiText("Предмет")}
                       value={r.subjectId}
                       onChange={(v) => setSubject(r.key, v)}
                       options={subjects.map((s) => ({ value: s.id, label: s.name }))}
-                      aria-label={`Предмет урока ${i + 1}`}
+                      aria-label={uiText("Предмет урока {0}", i + 1)}
                     />
                     <Select
                       allowClear
                       showSearch
                       optionFilterProp="label"
-                      placeholder="Учитель"
+                      placeholder={uiText("Учитель")}
                       value={r.teacherId}
                       onChange={(v) => patchRow(r.key, { teacherId: v })}
                       options={sortTeachers(teachers, groupId, r.subjectId).map((t) => ({ value: t.id, label: t.name }))}
-                      aria-label={`Учитель урока ${i + 1}`}
+                      aria-label={uiText("Учитель урока {0}", i + 1)}
                     />
                     <Input
                       placeholder="304"
                       value={r.room}
                       onChange={(e) => patchRow(r.key, { room: e.target.value })}
-                      aria-label={`Кабинет урока ${i + 1}`}
+                      aria-label={uiText("Кабинет урока {0}", i + 1)}
                     />
                   </>
                 ) : (
                   <Input
-                    placeholder="Например: Развитие речи"
+                    placeholder={uiText("Например: Развитие речи")}
                     value={r.activity}
                     onChange={(e) => patchRow(r.key, { activity: e.target.value })}
-                    aria-label={`Название урока ${i + 1}`}
+                    aria-label={uiText("Название урока {0}", i + 1)}
                   />
                 )}
                 <Button
                   type="text"
                   danger
                   icon={<DeleteOutlined />}
-                  aria-label={`Убрать урок ${i + 1}`}
+                  aria-label={uiText("Убрать урок {0}", i + 1)}
                   onClick={() => setRows((list) => list.filter((x) => x.key !== r.key))}
                 />
               </div>
@@ -373,8 +368,7 @@ export default function ScheduleBulkModal({
           </div>
 
           <Button style={{ marginTop: 10 }} icon={<PlusOutlined />} onClick={addRow} disabled={rows.length >= MAX_LESSONS}>
-            Добавить урок
-          </Button>
+            {" " + uiText("Добавить урок") + " "}</Button>
         </div>
 
         <Alert
@@ -382,17 +376,15 @@ export default function ScheduleBulkModal({
           showIcon
           message={
             total > 0
-              ? `Будет добавлено уроков: ${total} (${rows.length} в день × ${days.length} ${days.length === 1 ? 'день' : 'дн.'})`
-              : 'Выберите класс, дни недели и добавьте уроки'
+              ? uiText("Будет добавлено уроков: {0} ({1} в день × {2} {3})", total, rows.length, days.length, days.length === 1 ? uiText("день") : uiText("дн."))
+              : uiText("Выберите класс, дни недели и добавьте уроки")
           }
           description={
             clash.length > 0 ? (
               <div>
-                В выбранные дни у класса уже есть уроки: {clash.length}. Точные повторы пропускаются.
-                <div>
+                {" " + uiText("В выбранные дни у класса уже есть уроки:") + " "}{clash.length}{uiText(". Точные повторы пропускаются.") + " "}<div>
                   <Checkbox checked={replace} onChange={(e) => setReplace(e.target.checked)}>
-                    Заменить их: сначала убрать старые уроки этих дней
-                  </Checkbox>
+                    {" " + uiText("Заменить их: сначала убрать старые уроки этих дней") + " "}</Checkbox>
                 </div>
               </div>
             ) : undefined

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 /** Что показать человеку, когда запрос не удался: без «AxiosError: Network Error» и прочего технического. */
 export interface ErrorInfo {
   /** offline — нет связи или сервер не отвечает; error — всё остальное */
@@ -34,37 +35,37 @@ export function describeError(error: unknown, fallback?: string): ErrorInfo {
     if (text.includes('timeout') || text.includes('econnaborted')) {
       return {
         kind: 'offline',
-        title: 'Сервер долго не отвечает',
-        message: 'Попробуйте ещё раз через минуту.',
+        title: uiText("Сервер долго не отвечает"),
+        message: uiText("Попробуйте ещё раз через минуту."),
       }
     }
     if (text.includes('network') || text.includes('err_network') || e.code === undefined) {
       return {
         kind: 'offline',
-        title: 'Нет связи с сервером',
-        message: 'Проверьте интернет и попробуйте ещё раз. Если интернет работает, сервер временно недоступен.',
+        title: uiText("Нет связи с сервером"),
+        message: uiText("Проверьте интернет и попробуйте ещё раз. Если интернет работает, сервер временно недоступен."),
       }
     }
   }
 
   const server = asText(e.response?.data?.message)
-  if (status === 401) return { kind: 'error', title: 'Нужно войти заново', message: 'Сессия закончилась. Войдите снова.' }
+  if (status === 401) return { kind: 'error', title: uiText("Нужно войти заново"), message: uiText("Сессия закончилась. Войдите снова.") }
   if (status === 403) {
-    return { kind: 'error', title: 'Нет доступа', message: server ?? 'У вас нет прав на это действие.' }
+    return { kind: 'error', title: uiText("Нет доступа"), message: server ?? uiText("У вас нет прав на это действие.") }
   }
   if (status === 429) {
-    return { kind: 'error', title: 'Слишком часто', message: 'Подождите минуту и повторите.' }
+    return { kind: 'error', title: uiText("Слишком часто"), message: uiText("Подождите минуту и повторите.") }
   }
   if (status !== undefined && status >= 500) {
     return {
       kind: 'error',
-      title: 'Сервер не справился',
-      message: 'Что-то пошло не так на нашей стороне. Попробуйте чуть позже.',
+      title: uiText("Сервер не справился"),
+      message: uiText("Что-то пошло не так на нашей стороне. Попробуйте чуть позже."),
     }
   }
   return {
     kind: 'error',
-    title: 'Не получилось',
-    message: server ?? fallback ?? 'Проверьте данные и попробуйте ещё раз.',
+    title: uiText("Не получилось"),
+    message: server ?? fallback ?? uiText("Проверьте данные и попробуйте ещё раз."),
   }
 }

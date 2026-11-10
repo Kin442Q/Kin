@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import {
   Alert,
@@ -94,7 +95,7 @@ export default function SchoolsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить школы'
+        uiText("Не удалось загрузить школы")
       message.error(msg)
     } finally {
       setLoading(false)
@@ -133,7 +134,7 @@ export default function SchoolsPage() {
           address: v.address || undefined,
           phone: v.phone || undefined,
         })
-        message.success('Школа обновлена')
+        message.success(uiText("Школа обновлена"))
       } else {
         const ownerEmail = v.ownerEmail.trim().toLowerCase()
         const res = await http.post<CreateSchoolResponse>('/v1/kindergartens', {
@@ -147,7 +148,7 @@ export default function SchoolsPage() {
         if (created?.invite && created.kindergarten?.id) {
           setAccess({ grant: created.invite, kindergartenId: created.kindergarten.id })
         }
-        message.success('Школа создана')
+        message.success(uiText("Школа создана"))
       }
 
       setDrawerOpen(false)
@@ -157,7 +158,7 @@ export default function SchoolsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось сохранить'
+        uiText("Не удалось сохранить")
       message.error(msg)
     } finally {
       setSubmitting(false)
@@ -169,20 +170,20 @@ export default function SchoolsPage() {
       const grant = await resendOwnerInvite(k.id)
       setAccess({ grant, kindergartenId: k.id })
     } catch (err: any) {
-      message.error(err?.response?.data?.message || 'Не удалось отправить письмо')
+      message.error(err?.response?.data?.message || uiText("Не удалось отправить письмо"))
     }
   }
 
   const remove = async (k: KindergartenApi) => {
     try {
       await http.delete(`/v1/kindergartens/${k.id}`)
-      message.success(`«${k.name}» удалено`)
+      message.success(uiText("«{0}» удалено", k.name))
       await load()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось удалить'
+        uiText("Не удалось удалить")
       message.error(msg)
     }
   }
@@ -190,15 +191,15 @@ export default function SchoolsPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Школы"
+        title={uiText("Школы")}
         icon={<School size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Управление всеми школами платформы. Каждая школа изолирована: свои классы, ученики и данные."
+        description={uiText("Управление всеми школами платформы. Каждая школа изолирована: свои классы, ученики и данные.")}
         actions={
           <Space wrap>
             <AlertsCheckButton />
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              {isMobile ? 'Новая' : 'Новая школа'}
+              {isMobile ? uiText("Новая") : uiText("Новая школа")}
             </Button>
           </Space>
         }
@@ -207,8 +208,8 @@ export default function SchoolsPage() {
       <Alert
         type="info"
         showIcon
-        message="Вы — владелец платформы"
-        description="Создавайте школы и назначайте им директоров. Разделами каждой школы (кнопка «Разделы» в строке) вы управляете сами."
+        message={uiText("Вы — владелец платформы")}
+        description={uiText("Создавайте школы и назначайте им директоров. Разделами каждой школы (кнопка «Разделы» в строке) вы управляете сами.")}
         style={{ marginBottom: 16 }}
       />
 
@@ -226,7 +227,7 @@ export default function SchoolsPage() {
             scroll={{ x: 700 }}
             columns={[
               {
-                title: 'Название',
+                title: uiText("Название"),
                 key: 'name',
                 render: (_, k) => (
                   <Space>
@@ -246,7 +247,7 @@ export default function SchoolsPage() {
                 ),
               },
               {
-                title: 'Адрес',
+                title: uiText("Адрес"),
                 key: 'address',
                 render: (_, k) =>
                   k.address ? (
@@ -258,7 +259,7 @@ export default function SchoolsPage() {
                   ),
               },
               {
-                title: 'Телефон',
+                title: uiText("Телефон"),
                 key: 'phone',
                 render: (_, k) =>
                   k.phone ? (
@@ -270,7 +271,7 @@ export default function SchoolsPage() {
                   ),
               },
               {
-                title: 'Статистика',
+                title: uiText("Статистика"),
                 key: 'stats',
                 render: (_, k) => (
                   <Space wrap size={4}>
@@ -287,13 +288,13 @@ export default function SchoolsPage() {
                 ),
               },
               {
-                title: 'Статус',
+                title: uiText("Статус"),
                 dataIndex: 'isActive',
                 render: (active: boolean) =>
                   active ? (
-                    <Tag color="green">Активен</Tag>
+                    <Tag color="green">{uiText("Активен")}</Tag>
                   ) : (
-                    <Tag color="red">Отключён</Tag>
+                    <Tag color="red">{uiText("Отключён")}</Tag>
                   ),
               },
               {
@@ -301,7 +302,7 @@ export default function SchoolsPage() {
                 key: 'actions',
                 render: (_, k) => (
                   <Space>
-                    <Tooltip title="Разделы">
+                    <Tooltip title={uiText("Разделы")}>
                       <Button
                         size="small"
                         type="text"
@@ -310,22 +311,22 @@ export default function SchoolsPage() {
                       />
                     </Tooltip>
                     <Popconfirm
-                      title="Отправить директору ссылку?"
-                      description="Директору уйдёт письмо со ссылкой: он сам задаст пароль. Вам пароль не показывается."
-                      okText="Отправить"
-                      cancelText="Отмена"
+                      title={uiText("Отправить директору ссылку?")}
+                      description={uiText("Директору уйдёт письмо со ссылкой: он сам задаст пароль. Вам пароль не показывается.")}
+                      okText={uiText("Отправить")}
+                      cancelText={uiText("Отмена")}
                       onConfirm={() => resendInvite(k)}
                     >
-                      <Tooltip title="Отправить директору ссылку для пароля">
+                      <Tooltip title={uiText("Отправить директору ссылку для пароля")}>
                         <Button
                           size="small"
                           type="text"
                           icon={<SendOutlined />}
-                          aria-label="Отправить директору ссылку для пароля"
+                          aria-label={uiText("Отправить директору ссылку для пароля")}
                         />
                       </Tooltip>
                     </Popconfirm>
-                    <Tooltip title="Редактировать">
+                    <Tooltip title={uiText("Редактировать")}>
                       <Button
                         size="small"
                         type="text"
@@ -334,11 +335,11 @@ export default function SchoolsPage() {
                       />
                     </Tooltip>
                     <Popconfirm
-                      title={`Удалить «${k.name}»?`}
-                      description="Все данные школы (классы, ученики, оценки, домашние задания, платежи) удалятся безвозвратно!"
-                      okText="Удалить"
+                      title={uiText("Удалить «{0}»?", k.name)}
+                      description={uiText("Все данные школы (классы, ученики, оценки, домашние задания, платежи) удалятся безвозвратно!")}
+                      okText={uiText("Удалить")}
                       okButtonProps={{ danger: true }}
-                      cancelText="Отмена"
+                      cancelText={uiText("Отмена")}
                       onConfirm={() => remove(k)}
                     >
                       <Button
@@ -357,69 +358,68 @@ export default function SchoolsPage() {
       </motion.div>
 
       <Drawer
-        title={editing ? 'Редактировать школу' : 'Новая школа'}
+        title={editing ? uiText("Редактировать школу") : uiText("Новая школа")}
         width={isMobile ? '100%' : 480}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         destroyOnClose
         extra={
           <Space>
-            <Button onClick={() => setDrawerOpen(false)}>Отмена</Button>
+            <Button onClick={() => setDrawerOpen(false)}>{uiText("Отмена")}</Button>
             <Button type="primary" loading={submitting} onClick={submit}>
-              {editing ? 'Сохранить' : 'Создать'}
+              {editing ? uiText("Сохранить") : uiText("Создать")}
             </Button>
           </Space>
         }
       >
         <Form layout="vertical" form={form}>
-          <Typography.Title level={5}>📍 Информация о школе</Typography.Title>
+          <Typography.Title level={5}>{uiText("📍 Информация о школе")}</Typography.Title>
 
           <Form.Item
             name="name"
-            label="Название"
-            rules={[{ required: true, message: 'Введите название' }]}
+            label={uiText("Название")}
+            rules={[{ required: true, message: uiText("Введите название") }]}
           >
             <Input
-              placeholder="Например, Школа №42"
+              placeholder={uiText("Например, Школа №42")}
             />
           </Form.Item>
 
-          <Form.Item name="address" label="Адрес">
-            <Input prefix={<EnvironmentOutlined />} placeholder="Город, улица" />
+          <Form.Item name="address" label={uiText("Адрес")}>
+            <Input prefix={<EnvironmentOutlined />} placeholder={uiText("Город, улица")} />
           </Form.Item>
 
-          <Form.Item name="phone" label="Телефон">
+          <Form.Item name="phone" label={uiText("Телефон")}>
             <Input prefix={<PhoneOutlined />} placeholder="+992 …" />
           </Form.Item>
 
           {!editing && (
             <>
               <Typography.Title level={5} style={{ marginTop: 24 }}>
-                👤 Первый администратор
-              </Typography.Title>
+                {" " + uiText("👤 Первый администратор") + " "}</Typography.Title>
 
               <Alert
                 type="info"
                 showIcon
-                message="Это будет директор школы"
-                description="Ему придёт письмо со ссылкой на 48 часов: по ней он сам придумает пароль и войдёт. Пароль вы не задаёте, не видите и не передаёте."
+                message={uiText("Это будет директор школы")}
+                description={uiText("Ему придёт письмо со ссылкой на 48 часов: по ней он сам придумает пароль и войдёт. Пароль вы не задаёте, не видите и не передаёте.")}
                 style={{ marginBottom: 12 }}
               />
 
               <Form.Item
                 name="ownerFullName"
-                label="ФИО владельца"
-                rules={[{ required: true, message: 'Введите ФИО' }]}
+                label={uiText("ФИО владельца")}
+                rules={[{ required: true, message: uiText("Введите ФИО") }]}
               >
-                <Input placeholder="Например, Шерамардов Кутбиддин" />
+                <Input placeholder={uiText("Например, Шерамардов Кутбиддин")} />
               </Form.Item>
 
               <Form.Item
                 name="ownerEmail"
                 label="Email"
                 rules={[
-                  { required: true, message: 'Введите email' },
-                  { type: 'email', message: 'Некорректный email' },
+                  { required: true, message: uiText("Введите email") },
+                  { type: 'email', message: uiText("Некорректный email") },
                 ]}
               >
                 <Input prefix={<MailOutlined />} placeholder="owner@example.com" />

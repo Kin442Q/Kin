@@ -1,3 +1,4 @@
+import { uiText, uiLanguage } from '../../i18n/uiText'
 import { ReactNode } from 'react'
 import { Tooltip, Typography } from 'antd'
 import { motion } from 'framer-motion'
@@ -96,7 +97,7 @@ export default function StatCard({
         )}
       </div>
 
-      <Tooltip title={typeof value === 'number' ? value.toLocaleString('ru-RU') : undefined}>
+      <Tooltip title={typeof value === 'number' ? value.toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU') : undefined}>
         <div
           className="sp-num"
           style={{
@@ -121,7 +122,7 @@ export default function StatCard({
           style={{ fontSize: 12, overflow: 'hidden' }}
         >
           {trend !== undefined && isFinite(trend) && (
-            <Tooltip title="Изменение к прошлому месяцу">
+            <Tooltip title={uiText("Изменение к прошлому месяцу")}>
               <span
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md"
                 style={{

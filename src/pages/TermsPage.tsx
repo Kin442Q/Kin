@@ -1,3 +1,4 @@
+import { localizeCopy, uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import {
   App as AntdApp,
@@ -25,11 +26,11 @@ import { termsApi, type TermDto, type TermType } from '../api/termsApi'
 const { Text } = Typography
 const { RangePicker } = DatePicker
 
-const TYPE_LABEL: Record<TermType, string> = {
+const TYPE_LABEL: Record<TermType, string> = localizeCopy({
   QUARTER: 'Четверть',
   TRIMESTER: 'Триместр',
   SEMESTER: 'Полугодие',
-}
+})
 
 export default function TermsPage() {
   const { message } = AntdApp.useApp()
@@ -45,7 +46,7 @@ export default function TermsPage() {
     try {
       setItems(await termsApi.list())
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось загрузить периоды')
+      message.error(e?.response?.data?.message || uiText("Не удалось загрузить периоды"))
     } finally {
       setLoading(false)
     }
@@ -84,16 +85,16 @@ export default function TermsPage() {
       }
       if (editing) {
         await termsApi.update(editing.id, payload)
-        message.success('Период обновлён')
+        message.success(uiText("Период обновлён"))
       } else {
         await termsApi.create(payload)
-        message.success('Период создан')
+        message.success(uiText("Период создан"))
       }
       setModal(false)
       load()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Ошибка сохранения')
+      message.error(e?.response?.data?.message || uiText("Ошибка сохранения"))
     } finally {
       setSaving(false)
     }
@@ -102,10 +103,10 @@ export default function TermsPage() {
   const remove = async (t: TermDto) => {
     try {
       await termsApi.remove(t.id)
-      message.success('Удалено')
+      message.success(uiText("Удалено"))
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
   }
 
@@ -114,14 +115,13 @@ export default function TermsPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Учебные периоды"
+        title={uiText("Учебные периоды")}
         icon={<CalendarRange size={22} strokeWidth={2} />}
         iconAccent="lilac"
-        description="Четверти / триместры / полугодия — по ним группируются оценки в журнале"
+        description={uiText("Четверти / триместры / полугодия — по ним группируются оценки в журнале")}
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Новый период
-          </Button>
+            {" " + uiText("Новый период") + " "}</Button>
         }
       />
 
@@ -138,7 +138,7 @@ export default function TermsPage() {
             pagination={false}
             columns={[
               {
-                title: 'Название',
+                title: uiText("Название"),
                 key: 'name',
                 render: (_, t) => {
                   const isCurrent =
@@ -147,18 +147,18 @@ export default function TermsPage() {
                   return (
                     <Space>
                       <Text strong>{t.name}</Text>
-                      {isCurrent && <Tag color="green">сейчас</Tag>}
+                      {isCurrent && <Tag color="green">{uiText("сейчас")}</Tag>}
                     </Space>
                   )
                 },
               },
               {
-                title: 'Тип',
+                title: uiText("Тип"),
                 dataIndex: 'type',
                 render: (v: TermType) => <Tag color="purple">{TYPE_LABEL[v]}</Tag>,
               },
               {
-                title: 'Период',
+                title: uiText("Период"),
                 key: 'range',
                 render: (_, t) =>
                   `${dayjs(t.startDate).format('DD.MM.YYYY')} — ${dayjs(t.endDate).format('DD.MM.YYYY')}`,
@@ -176,10 +176,10 @@ export default function TermsPage() {
                       onClick={() => openEdit(t)}
                     />
                     <Popconfirm
-                      title={`Удалить «${t.name}»?`}
-                      okText="Удалить"
+                      title={uiText("Удалить «{0}»?", t.name)}
+                      okText={uiText("Удалить")}
                       okButtonProps={{ danger: true }}
-                      cancelText="Отмена"
+                      cancelText={uiText("Отмена")}
                       onConfirm={() => remove(t)}
                     >
                       <Button size="small" type="text" danger icon={<DeleteOutlined />} />
@@ -193,37 +193,37 @@ export default function TermsPage() {
       </motion.div>
 
       <Modal
-        title={editing ? 'Редактировать период' : 'Новый учебный период'}
+        title={editing ? uiText("Редактировать период") : uiText("Новый учебный период")}
         open={modal}
         onCancel={() => setModal(false)}
         onOk={submit}
-        okText={editing ? 'Сохранить' : 'Создать'}
-        cancelText="Отмена"
+        okText={editing ? uiText("Сохранить") : uiText("Создать")}
+        cancelText={uiText("Отмена")}
         confirmLoading={saving}
         destroyOnClose
       >
         <Form layout="vertical" form={form}>
-          <Form.Item name="type" label="Тип периода" rules={[{ required: true }]}>
+          <Form.Item name="type" label={uiText("Тип периода")} rules={[{ required: true }]}>
             <Segmented
               block
               options={[
-                { value: 'QUARTER', label: 'Четверть' },
-                { value: 'TRIMESTER', label: 'Триместр' },
-                { value: 'SEMESTER', label: 'Полугодие' },
+                { value: 'QUARTER', label: uiText("Четверть") },
+                { value: 'TRIMESTER', label: uiText("Триместр") },
+                { value: 'SEMESTER', label: uiText("Полугодие") },
               ]}
             />
           </Form.Item>
           <Form.Item
             name="name"
-            label="Название"
-            rules={[{ required: true, message: 'Введите название' }]}
+            label={uiText("Название")}
+            rules={[{ required: true, message: uiText("Введите название") }]}
           >
-            <Input placeholder="Например: 1 четверть" />
+            <Input placeholder={uiText("Например: 1 четверть")} />
           </Form.Item>
           <Form.Item
             name="range"
-            label="Даты начала и конца"
-            rules={[{ required: true, message: 'Укажите период' }]}
+            label={uiText("Даты начала и конца")}
+            rules={[{ required: true, message: uiText("Укажите период") }]}
           >
             <RangePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
           </Form.Item>

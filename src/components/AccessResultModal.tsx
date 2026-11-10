@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import { Alert, App as AntdApp, Button, Modal } from 'antd'
 import { SendOutlined } from '@ant-design/icons'
@@ -14,12 +15,12 @@ interface Props {
 
 /** Короткое объяснение, почему письмо не ушло. */
 export function mailFailureText(reason: MailFailure, detail?: string): string {
-  if (reason === 'NOT_CONFIGURED') return 'Почта на сервере ещё не настроена.'
+  if (reason === 'NOT_CONFIGURED') return uiText("Почта на сервере ещё не настроена.")
   if (reason === 'REJECTED') {
     const d = detail ? `: ${detail.replace(/\.+$/, '')}` : ''
-    return `Почтовый сервис отклонил письмо${d}. Проверьте, что домен отправителя подтверждён.`
+    return uiText("Почтовый сервис отклонил письмо{0}. Проверьте, что домен отправителя подтверждён.", d)
   }
-  return 'Не удалось связаться с почтовым сервисом.'
+  return uiText("Не удалось связаться с почтовым сервисом.")
 }
 
 /**
@@ -41,7 +42,7 @@ export default function AccessResultModal({ grant, onRetry, onClose }: Props) {
       setRetrying(true)
       setCurrent(await onRetry())
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось отправить письмо. Попробуйте позже.')
+      message.error(e?.response?.data?.message || uiText("Не удалось отправить письмо. Попробуйте позже."))
     } finally {
       setRetrying(false)
     }
@@ -53,18 +54,16 @@ export default function AccessResultModal({ grant, onRetry, onClose }: Props) {
     <Modal
       open={!!current}
       onCancel={onClose}
-      title={sent ? 'Приглашение отправлено' : 'Письмо не отправлено'}
+      title={sent ? uiText("Приглашение отправлено") : uiText("Письмо не отправлено")}
       destroyOnClose
       footer={
         <>
           {current && !current.sent && onRetry && (
             <Button icon={<SendOutlined />} loading={retrying} onClick={retry}>
-              Отправить приглашение ещё раз
-            </Button>
+              {" " + uiText("Отправить приглашение ещё раз") + " "}</Button>
           )}
           <Button type="primary" onClick={onClose}>
-            Готово
-          </Button>
+            {" " + uiText("Готово") + " "}</Button>
         </>
       }
     >
@@ -72,8 +71,8 @@ export default function AccessResultModal({ grant, onRetry, onClose }: Props) {
         <Alert
           type="success"
           showIcon
-          message={`Письмо ушло на ${current.email}`}
-          description="Человек откроет ссылку из письма и сам придумает пароль — вам знать его не нужно. Ссылка действует 48 часов и открывается один раз."
+          message={uiText("Письмо ушло на {0}", current.email)}
+          description={uiText("Человек откроет ссылку из письма и сам придумает пароль — вам знать его не нужно. Ссылка действует 48 часов и открывается один раз.")}
         />
       )}
 
@@ -81,8 +80,8 @@ export default function AccessResultModal({ grant, onRetry, onClose }: Props) {
         <Alert
           type="warning"
           showIcon
-          message={`Письмо на ${current.email} не ушло`}
-          description={`${mailFailureText(current.reason, current.detail)} Аккаунт уже создан: когда почта заработает, отправьте приглашение ещё раз. Пароль никому не передаётся.`}
+          message={uiText("Письмо на {0} не ушло", current.email)}
+          description={uiText("{0} Аккаунт уже создан: когда почта заработает, отправьте приглашение ещё раз. Пароль никому не передаётся.", mailFailureText(current.reason, current.detail))}
         />
       )}
     </Modal>

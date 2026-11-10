@@ -46,7 +46,7 @@ export function buildAntdTheme(mode: 'light' | 'dark'): ThemeConfig {
       borderRadiusSM: 10,
 
       fontFamily:
-        "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        "'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 
       colorBgLayout: 'transparent',
       colorBgContainer: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.58)',

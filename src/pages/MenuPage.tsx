@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
@@ -29,7 +30,7 @@ import { http } from '../api'
 type MealApi = 'BREAKFAST' | 'LUNCH' | 'SNACK' | 'DINNER'
 type MealRu = 'Завтрак' | 'Обед' | 'Полдник' | 'Ужин'
 
-const MEAL_TYPES: MealRu[] = ['Завтрак', 'Обед', 'Полдник', 'Ужин']
+const MEAL_TYPES: MealRu[] = localizeCopy(['Завтрак', 'Обед', 'Полдник', 'Ужин'])
 const MEAL_COLOR: Record<MealRu, string> = {
   Завтрак: 'gold',
   Обед: 'volcano',
@@ -43,12 +44,12 @@ const MEAL_RU_TO_API: Record<MealRu, MealApi> = {
   Полдник: 'SNACK',
   Ужин: 'DINNER',
 }
-const MEAL_API_TO_RU: Record<MealApi, MealRu> = {
+const MEAL_API_TO_RU: Record<MealApi, MealRu> = localizeCopy({
   BREAKFAST: 'Завтрак',
   LUNCH: 'Обед',
   SNACK: 'Полдник',
   DINNER: 'Ужин',
-}
+})
 
 interface MenuApi {
   id: string
@@ -94,7 +95,7 @@ export default function MenuPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить меню'
+        uiText("Не удалось загрузить меню")
       message.error(msg)
     } finally {
       setLoading(false)
@@ -112,7 +113,7 @@ export default function MenuPage() {
         (a, b) =>
           MEAL_TYPES.indexOf(a.mealType) - MEAL_TYPES.indexOf(b.mealType),
       ),
-    [items],
+    [items, uiLanguage()],
   )
 
   const submit = async () => {
@@ -126,7 +127,7 @@ export default function MenuPage() {
       })
       setOpen(false)
       form.resetFields()
-      message.success('Добавлено')
+      message.success(uiText("Добавлено"))
       // Если выбранная дата совпадает — перезагружаем
       const targetDate = dayjs(v.date).format('YYYY-MM-DD')
       if (targetDate === date.format('YYYY-MM-DD')) {
@@ -139,7 +140,7 @@ export default function MenuPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось добавить'
+        uiText("Не удалось добавить")
       message.error(msg)
     } finally {
       setSubmitting(false)
@@ -149,13 +150,13 @@ export default function MenuPage() {
   const remove = async (id: string) => {
     try {
       await http.delete(`/v1/menu/${id}`)
-      message.success('Удалено')
+      message.success(uiText("Удалено"))
       await load()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось удалить'
+        uiText("Не удалось удалить")
       message.error(msg)
     }
   }
@@ -163,10 +164,10 @@ export default function MenuPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Меню питания"
+        title={uiText("Меню питания")}
         icon={<UtensilsCrossed size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description={`Меню на ${date.format('DD.MM.YYYY')}`}
+        description={uiText("Меню на {0}", date.format('DD.MM.YYYY'))}
         actions={
           <Space>
             <DatePicker
@@ -179,12 +180,11 @@ export default function MenuPage() {
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => {
-                form.setFieldsValue({ date, mealType: 'Завтрак' })
+                form.setFieldsValue({ date, mealType: uiText("Завтрак") })
                 setOpen(true)
               }}
             >
-              Добавить
-            </Button>
+              {" " + uiText("Добавить") + " "}</Button>
           </Space>
         }
       />
@@ -221,7 +221,7 @@ export default function MenuPage() {
                     {it ? (
                       it.dishes
                     ) : (
-                      <span className="text-muted">Не задано</span>
+                      <span className="text-muted">{uiText("Не задано")}</span>
                     )}
                   </div>
                 </Card>
@@ -238,13 +238,13 @@ export default function MenuPage() {
             pagination={false}
             columns={[
               {
-                title: 'Приём пищи',
+                title: uiText("Приём пищи"),
                 dataIndex: 'mealType',
                 render: (v: MealRu) => (
                   <Tag color={MEAL_COLOR[v]}>{v}</Tag>
                 ),
               },
-              { title: 'Блюда', dataIndex: 'dishes' },
+              { title: uiText("Блюда"), dataIndex: 'dishes' },
               {
                 title: '',
                 key: 'a',
@@ -264,12 +264,12 @@ export default function MenuPage() {
       </motion.div>
 
       <Modal
-        title="Добавить блюдо в меню"
+        title={uiText("Добавить блюдо в меню")}
         open={open}
         onOk={submit}
         onCancel={() => setOpen(false)}
-        okText="Добавить"
-        cancelText="Отмена"
+        okText={uiText("Добавить")}
+        cancelText={uiText("Отмена")}
         confirmLoading={submitting}
         destroyOnClose
       >
@@ -278,7 +278,7 @@ export default function MenuPage() {
             <Col span={12}>
               <Form.Item
                 name="date"
-                label="Дата"
+                label={uiText("Дата")}
                 rules={[{ required: true }]}
               >
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
@@ -287,7 +287,7 @@ export default function MenuPage() {
             <Col span={12}>
               <Form.Item
                 name="mealType"
-                label="Приём пищи"
+                label={uiText("Приём пищи")}
                 rules={[{ required: true }]}
               >
                 <Select
@@ -298,12 +298,12 @@ export default function MenuPage() {
           </Row>
           <Form.Item
             name="dishes"
-            label="Блюда"
+            label={uiText("Блюда")}
             rules={[{ required: true }]}
           >
             <Input.TextArea
               rows={3}
-              placeholder="Например: Каша овсяная, чай с молоком, бутерброд"
+              placeholder={uiText("Например: Каша овсяная, чай с молоком, бутерброд")}
             />
           </Form.Item>
         </Form>

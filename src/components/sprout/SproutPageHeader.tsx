@@ -88,7 +88,7 @@ export default function SproutPageHeader({
               <h1
                 style={{
                   margin: 0,
-                  fontFamily: "'Montserrat', 'Inter', sans-serif",
+                  fontFamily: "'Inter', sans-serif",
                   fontSize: 'clamp(22px, 2.6vw, 30px)',
                   fontWeight: 800,
                   letterSpacing: '-0.02em',

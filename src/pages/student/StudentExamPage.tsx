@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useState } from 'react'
 import { App as AntdApp, Button, Progress, Spin } from 'antd'
 import { Target } from 'lucide-react'
@@ -22,7 +23,7 @@ export default function StudentExamPage() {
     examTrackApi
       .list()
       .then(setTracks)
-      .catch((e) => message.error(e?.response?.data?.message || 'Не удалось загрузить направления'))
+      .catch((e) => message.error(e?.response?.data?.message || uiText("Не удалось загрузить направления")))
       .finally(() => setLoading(false))
   }, [message])
 
@@ -36,17 +37,17 @@ export default function StudentExamPage() {
     quizApi
       .list({ examTrackId: id })
       .then(setQuizzes)
-      .catch((e) => message.error(e?.response?.data?.message || 'Не удалось загрузить квизы'))
+      .catch((e) => message.error(e?.response?.data?.message || uiText("Не удалось загрузить квизы")))
       .finally(() => setLoadingQuizzes(false))
   }
 
   return (
     <div>
       <SproutPageHeader
-        title="Подготовка к экзаменам"
+        title={uiText("Подготовка к экзаменам")}
         icon={<Target size={22} strokeWidth={2} />}
         iconAccent="rose"
-        description="Выбери направление и проходи квизы — прогресс считается по лучшим результатам"
+        description={uiText("Выбери направление и проходи квизы — прогресс считается по лучшим результатам")}
       />
 
       <Spin spinning={loading}>
@@ -54,8 +55,8 @@ export default function StudentExamPage() {
           <SproutCard>
             <SproutEmpty
               icon={<Target size={32} strokeWidth={1.8} />}
-              title="Направлений пока нет"
-              description="Школа создаёт направления подготовки — они появятся здесь"
+              title={uiText("Направлений пока нет")}
+              description={uiText("Школа создаёт направления подготовки — они появятся здесь")}
               minHeight={200}
             />
           </SproutCard>
@@ -71,18 +72,18 @@ export default function StudentExamPage() {
                       <div style={{ fontSize: 17, fontWeight: 700, color: SP.text }}>{t.name}</div>
                       {t.description && <div style={{ fontSize: 13, color: SP.textMid, marginTop: 2 }}>{t.description}</div>}
                       <div style={{ fontSize: 12, color: SP.muted, marginTop: 6 }}>
-                        Квизов: {t.quizzesCount}
-                        {p && p.attempted > 0 && p.avgPercent != null ? ` · средний результат ${p.avgPercent}%` : ''}
+                        {" " + uiText("Квизов:") + " "}{t.quizzesCount}
+                        {p && p.attempted > 0 && p.avgPercent != null ? uiText("· средний результат {0}%", p.avgPercent) : ''}
                       </div>
                     </div>
                     <div style={{ width: 220 }}>
                       <div style={{ fontSize: 12, color: SP.muted, marginBottom: 2 }}>
-                        Пройдено {p?.attempted ?? 0} из {p?.total ?? 0}
+                        {" " + uiText("Пройдено") + " "}{p?.attempted ?? 0} {" " + uiText("из") + " "}{p?.total ?? 0}
                       </div>
                       <Progress percent={donePct} size="small" strokeColor={SP.primary} />
                     </div>
                     <Button type={openId === t.id ? 'default' : 'primary'} onClick={() => toggle(t.id)}>
-                      {openId === t.id ? 'Свернуть' : 'Квизы'}
+                      {openId === t.id ? uiText("Свернуть") : uiText("Квизы")}
                     </Button>
                   </div>
 
@@ -90,7 +91,7 @@ export default function StudentExamPage() {
                     <div style={{ marginTop: 14 }}>
                       <Spin spinning={loadingQuizzes}>
                         {quizzes.length === 0 && !loadingQuizzes ? (
-                          <SproutEmpty title="В этом направлении пока нет квизов" minHeight={100} />
+                          <SproutEmpty title={uiText("В этом направлении пока нет квизов")} minHeight={100} />
                         ) : (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
                             {quizzes.map((q) => (

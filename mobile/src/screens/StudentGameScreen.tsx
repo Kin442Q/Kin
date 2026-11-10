@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState, type ComponentType } from 'react'
 import {
   
@@ -52,7 +53,7 @@ export default function StudentGameScreen() {
       try {
         setResult(await gamesApi.submit(game, res))
       } catch (e: any) {
-        notifyError(e, { fallback: 'Проверьте интернет', title: 'Результат не сохранился' })
+        notifyError(e, { fallback: uiText("Проверьте интернет"), title: uiText("Результат не сохранился") })
         setResult({ score: res.score, best: res.score, isRecord: false })
       }
       loadBoard()
@@ -71,12 +72,12 @@ export default function StudentGameScreen() {
             <Game key={`${game}-${round}`} onFinish={finish} />
           ) : (
             <View style={{ alignItems: 'center', gap: 6 }}>
-              <Text style={styles.meta}>Твой результат</Text>
+              <Text style={styles.meta}>{uiText("Твой результат")}</Text>
               <Text style={styles.score}>{result.score}</Text>
               {result.isRecord ? (
-                <Text style={styles.record}>🏆 Новый рекорд!</Text>
+                <Text style={styles.record}>{uiText("🏆 Новый рекорд!")}</Text>
               ) : (
-                <Text style={styles.meta}>Лучший результат: {result.best}</Text>
+                <Text style={styles.meta}>{uiText("Лучший результат:") + " "}{result.best}</Text>
               )}
               <View style={styles.actions}>
                 <Btn
@@ -85,11 +86,9 @@ export default function StudentGameScreen() {
                     setRound((r) => r + 1)
                   }}
                 >
-                  Играть ещё
-                </Btn>
+                  {" " + uiText("Играть ещё") + " "}</Btn>
                 <Btn variant="secondary" onPress={() => navigation.goBack()}>
-                  К списку
-                </Btn>
+                  {" " + uiText("К списку") + " "}</Btn>
               </View>
             </View>
           )}
@@ -98,10 +97,10 @@ export default function StudentGameScreen() {
         <Card padding={16}>
           <View style={styles.boardHead}>
             <Trophy size={18} color={colors.yellowDeep} />
-            <Text style={styles.boardTitle}>Рейтинг класса</Text>
+            <Text style={styles.boardTitle}>{uiText("Рейтинг класса")}</Text>
           </View>
           {board.length === 0 ? (
-            <Text style={styles.meta}>Пока никто не играл — стань первым!</Text>
+            <Text style={styles.meta}>{uiText("Пока никто не играл — стань первым!")}</Text>
           ) : (
             <View style={{ gap: 6 }}>
               {board.map((row) => (
@@ -115,7 +114,7 @@ export default function StudentGameScreen() {
                   <Text style={styles.rank}>{MEDAL[row.rank - 1] ?? row.rank}</Text>
                   <Text style={[styles.name, row.isMe && { fontWeight: '800' }]}>
                     {row.name}
-                    {row.isMe ? ' (ты)' : ''}
+                    {row.isMe ? uiText("(ты)") : ''}
                   </Text>
                   <Text style={styles.points}>{row.score}</Text>
                 </View>

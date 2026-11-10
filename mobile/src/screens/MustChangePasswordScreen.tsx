@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { ScrollView, Text, View } from 'react-native'
 import { LogOut } from 'lucide-react-native'
 import Screen from '../components/Screen'
@@ -17,12 +18,11 @@ export default function MustChangePasswordScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Придумайте свой пароль</Text>
+        <Text style={styles.title}>{uiText("Придумайте свой пароль")}</Text>
         <Text style={styles.sub}>
-          Вы вошли по временному паролю. Его знает администратор, поэтому его нужно заменить на свой.
-        </Text>
+          {" " + uiText("Вы вошли по временному паролю. Его знает администратор, поэтому его нужно заменить на свой.") + " "}</Text>
         <View style={{ marginTop: 20 }}>
-          <ChangePasswordForm submitText="Сохранить и продолжить" />
+          <ChangePasswordForm submitText={uiText("Сохранить и продолжить")} />
         </View>
         <Btn
           block
@@ -31,7 +31,7 @@ export default function MustChangePasswordScreen() {
           onPress={() => logout()}
           style={{ marginTop: 24 }}
         >
-          <Text style={{ color: colors.danger, fontWeight: '700' }}>Выйти</Text>
+          <Text style={{ color: colors.danger, fontWeight: '700' }}>{uiText("Выйти")}</Text>
         </Btn>
       </ScrollView>
     </Screen>

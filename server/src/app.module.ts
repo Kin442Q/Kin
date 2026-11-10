@@ -35,6 +35,7 @@ import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module
 import { ParentModule } from './modules/parent/parent.module'
 import { DiaryModule } from './modules/diary/diary.module'
 import { SchoolModule } from './modules/school/school.module'
+import { DirectorReportsModule } from './modules/director-reports/director-reports.module'
 import { PushModule } from './modules/push/push.module'
 import { TermsModule } from './modules/terms/terms.module'
 import { ChatModule } from './modules/chat/chat.module'
@@ -107,6 +108,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     ParentModule,
     DiaryModule,
     SchoolModule,
+    DirectorReportsModule,
     PushModule,
     TermsModule,
     ChatModule,

@@ -36,6 +36,7 @@ import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
 import { Feature } from '../../common/decorators/feature.decorator'
+import { buildDirectorReport, type ReportGrade, type ReportSubject } from './director-report'
 
 // ─── DTOs ─────────────────────────────────────────────────────────────
 
@@ -338,6 +339,109 @@ export class SchoolService {
     }))
   }
 
+  /**
+   * Отчёт директору за период: общий средний балл, полнота журнала по классам,
+   * отличные и самые низкие оценки.
+   */
+  async directorReport(user: AuthUser, params: { from?: string; to?: string }) {
+    if (user.role === 'TEACHER') {
+      throw new ForbiddenException('Отчёт доступен директору')
+    }
+    if (!user.kindergartenId) {
+      return buildDirectorReport({
+        groups: [],
+        subjectsByGroup: new Map(),
+        schoolSubjects: [],
+        grades: [],
+      })
+    }
+
+    const kg = user.kindergartenId
+    const [groups, subjects, schedule, gradeRows] = await Promise.all([
+      this.prisma.group.findMany({
+        where: { kindergartenId: kg, isActive: true },
+        orderBy: [{ gradeNumber: 'asc' }, { name: 'asc' }],
+        select: {
+          id: true,
+          name: true,
+          gradeLabel: true,
+          students: {
+            where: { status: 'ACTIVE' },
+            select: { id: true, firstName: true, lastName: true },
+            orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+          },
+        },
+      }),
+      this.prisma.subject.findMany({
+        where: { kindergartenId: kg },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.scheduleItem.findMany({
+        where: { subjectId: { not: null }, group: { kindergartenId: kg, isActive: true } },
+        select: {
+          groupId: true,
+          subject: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.grade.findMany({
+        where: {
+          student: { kindergartenId: kg, status: 'ACTIVE' },
+          ...(params.from || params.to
+            ? {
+                date: {
+                  ...(params.from ? { gte: new Date(params.from) } : {}),
+                  ...(params.to ? { lte: new Date(params.to) } : {}),
+                },
+              }
+            : {}),
+        },
+        select: {
+          value: true,
+          date: true,
+          studentId: true,
+          subjectId: true,
+          subject: { select: { name: true } },
+          student: { select: { firstName: true, lastName: true, groupId: true } },
+        },
+      }),
+    ])
+
+    const subjectsByGroup = new Map<string, ReportSubject[]>()
+    for (const item of schedule) {
+      if (!item.subject) continue
+      const list = subjectsByGroup.get(item.groupId) ?? []
+      if (!list.some((s) => s.id === item.subject!.id)) {
+        list.push({ id: item.subject.id, name: item.subject.name })
+      }
+      subjectsByGroup.set(item.groupId, list)
+    }
+
+    const grades: ReportGrade[] = gradeRows.map((g) => ({
+      value: g.value,
+      date: utcDay(g.date),
+      studentId: g.studentId,
+      studentName: `${g.student.lastName} ${g.student.firstName}`.trim(),
+      groupId: g.student.groupId,
+      subjectId: g.subjectId,
+      subjectName: g.subject.name,
+    }))
+
+    return buildDirectorReport({
+      groups: groups.map((g) => ({
+        id: g.id,
+        name: g.gradeLabel?.trim() || g.name,
+        students: g.students.map((s) => ({
+          id: s.id,
+          name: `${s.lastName} ${s.firstName}`.trim(),
+        })),
+      })),
+      subjectsByGroup,
+      schoolSubjects: subjects,
+      grades,
+    })
+  }
+
   // ─── Homework ───────────────────────────────────────────────────────
 
   async listHomework(
@@ -596,6 +700,27 @@ class GradesController {
   stats(@CurrentUser() user: AuthUser, @Param('studentId') studentId: string) {
     return this.service.gradeStats(user, studentId)
   }
+
+  @Get('report')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'Отчёт директору: средние баллы, полнота журнала, лучшие и слабые оценки' })
+  @ApiQuery({ name: 'from', required: false })
+  @ApiQuery({ name: 'to', required: false })
+  report(
+    @CurrentUser() user: AuthUser,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.service.directorReport(user, { from, to })
+  }
+}
+
+/** День @db.Date в UTC, без сдвига пояса. */
+function utcDay(d: Date): string {
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 @ApiTags('homework')

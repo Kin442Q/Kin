@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 import { Spin } from 'antd'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -60,7 +61,7 @@ export default function StudentLinkPage() {
         setFailed(
           msg && /отключ/i.test(msg)
             ? msg
-            : 'Ссылка не работает. Попросите классного руководителя выдать новую.',
+            : uiText("Ссылка не работает. Попросите классного руководителя выдать новую."),
         )
       }
     })()
@@ -94,18 +95,16 @@ export default function StudentLinkPage() {
         {failed ? (
           <>
             <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em', color: SP.text }}>
-              Не получилось войти
-            </h2>
+              {" " + uiText("Не получилось войти") + " "}</h2>
             <p role="alert" style={{ color: SP.textMid, fontSize: 16, lineHeight: 1.5, margin: '12px 0 28px' }}>
               {failed}
             </p>
             <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 17, fontSize: 17 }} onClick={() => navigate('/login')}>
-              На страницу входа
-            </button>
+              {" " + uiText("На страницу входа") + " "}</button>
           </>
         ) : (
           <>
-            <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em', color: SP.text }}>Входим…</h2>
+            <h2 style={{ margin: 0, fontSize: 32, fontWeight: 800, lineHeight: 1.15, letterSpacing: '-0.02em', color: SP.text }}>{uiText("Входим…")}</h2>
             <div style={{ textAlign: 'center', padding: '28px 0 8px' }}>
               <Spin />
             </div>

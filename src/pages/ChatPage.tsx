@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 import {
   App as AntdApp,
@@ -71,12 +72,12 @@ export default function ChatPage() {
       setMessages(r.messages)
       setConvId(r.conversation.id)
       setActiveMeta({
-        name: scope === 'ADMIN' ? 'Администрация' : 'Учитель',
+        name: scope === 'ADMIN' ? uiText("Администрация") : uiText("Учитель"),
         group: r.conversation.groupName ?? '',
       })
       scrollDown()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось загрузить чат')
+      message.error(e?.response?.data?.message || uiText("Не удалось загрузить чат"))
     } finally {
       setLoading(false)
     }
@@ -92,7 +93,7 @@ export default function ChatPage() {
         openThread(list[0])
       }
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось загрузить переписки')
+      message.error(e?.response?.data?.message || uiText("Не удалось загрузить переписки"))
     } finally {
       setLoading(false)
     }
@@ -163,7 +164,7 @@ export default function ChatPage() {
       scrollDown()
     } catch (e: any) {
       setText(t)
-      message.error(e?.response?.data?.message || 'Не удалось отправить')
+      message.error(e?.response?.data?.message || uiText("Не удалось отправить"))
     } finally {
       setSending(false)
     }
@@ -196,7 +197,7 @@ export default function ChatPage() {
           <Text strong>{activeMeta.name}</Text>
           {activeMeta.group && (
             <Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>
-              Класс «{activeMeta.group}»
+              {" " + uiText("Класс «")}{activeMeta.group}»
             </Text>
           )}
         </div>
@@ -207,8 +208,8 @@ export default function ChatPage() {
           <Empty
             description={
               isParent
-                ? 'Напишите учителю первое сообщение'
-                : 'Сообщений пока нет'
+                ? uiText("Напишите учителю первое сообщение")
+                : uiText("Сообщений пока нет")
             }
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
@@ -247,8 +248,7 @@ export default function ChatPage() {
                         marginBottom: 4,
                       }}
                     >
-                      💰 Напоминание об оплате
-                    </div>
+                      {" " + uiText("💰 Напоминание об оплате") + " "}</div>
                     <div style={{ fontSize: 14, lineHeight: 1.4, color: SP.text }}>
                       {m.text}
                     </div>
@@ -319,7 +319,7 @@ export default function ChatPage() {
         <Input.TextArea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Сообщение..."
+          placeholder={uiText("Сообщение...")}
           autoSize={{ minRows: 1, maxRows: 4 }}
           onPressEnter={(e) => {
             if (!e.shiftKey) {
@@ -354,7 +354,7 @@ export default function ChatPage() {
     >
       {conversations.length === 0 ? (
         <Empty
-          description="Переписок пока нет"
+          description={uiText("Переписок пока нет")}
           image={Empty.PRESENTED_IMAGE_SIMPLE}
         />
       ) : (
@@ -388,16 +388,15 @@ export default function ChatPage() {
                 style={{ fontSize: 12, display: 'block' }}
                 ellipsis
               >
-                {c.lastText ?? 'Нет сообщений'}
+                {c.lastText ?? uiText("Нет сообщений")}
               </Text>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Text type="secondary" style={{ fontSize: 11 }}>
-                  Класс «{c.groupName}»
+                  {" " + uiText("Класс «")}{c.groupName}»
                 </Text>
                 {c.scope === 'ADMIN' && (
                   <Tag color="gold" style={{ margin: 0, lineHeight: '16px', fontSize: 10 }}>
-                    Финансы
-                  </Tag>
+                    {" " + uiText("Финансы") + " "}</Tag>
                 )}
               </div>
             </div>
@@ -410,13 +409,13 @@ export default function ChatPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Чат"
+        title={uiText("Чат")}
         icon={<MessageCircle size={22} strokeWidth={2} />}
         iconAccent="blue"
         description={
           isParent
-            ? 'Переписка с учителем класса'
-            : 'Переписки с родителями'
+            ? uiText("Переписка с учителем класса")
+            : uiText("Переписки с родителями")
         }
       />
 
@@ -429,8 +428,8 @@ export default function ChatPage() {
             loadParent(s)
           }}
           options={[
-            { label: 'Учитель', value: 'GENERAL' },
-            { label: 'Администрация', value: 'ADMIN' },
+            { label: uiText("Учитель"), value: 'GENERAL' },
+            { label: uiText("Администрация"), value: 'ADMIN' },
           ]}
           style={{ marginBottom: 12 }}
         />
@@ -455,8 +454,7 @@ export default function ChatPage() {
               }}
               style={{ marginBottom: 8, paddingLeft: 0 }}
             >
-              К перепискам
-            </Button>
+              {" " + uiText("К перепискам") + " "}</Button>
             {MessagesView}
           </div>
         ) : (
@@ -470,7 +468,7 @@ export default function ChatPage() {
           <div style={{ flex: 1 }}>
             {activeId ? MessagesView : (
               <Card className="glass" bordered={false} style={{ height: chatHeight }}>
-                <Empty description="Выберите переписку слева" />
+                <Empty description={uiText("Выберите переписку слева")} />
               </Card>
             )}
           </div>

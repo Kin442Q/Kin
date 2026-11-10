@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Мактаби ман",
-    "slug": "mobile",
+    "slug": "maktabi-man",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -13,7 +13,8 @@
       "backgroundColor": "#FFE4D6"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "cyou.tahlilgar.maktabiman"
     },
     "android": {
       "adaptiveIcon": {
@@ -21,13 +22,21 @@
         "backgroundColor": "#FFE4D6"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "cyou.tahlilgar.maktabiman"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-font"
-    ]
+    ],
+    "scheme": "maktabiman",
+    "owner": "qutbiddin",
+    "extra": {
+      "eas": {
+        "projectId": "b20ef067-3d2a-4f49-8663-2005741e6f30"
+      }
+    }
   }
 }

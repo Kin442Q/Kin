@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -53,18 +54,18 @@ interface CategoryMeta {
 }
 
 const CATEGORIES = themedValue<CategoryMeta[]>(() => ([
-  { value: 'SALARIES', label: 'Зарплаты', icon: Briefcase, color: colors.primaryDeep },
-  { value: 'TAXES', label: 'Налоги', icon: Receipt, color: colors.roseDeep },
-  { value: 'RENT', label: 'Аренда', icon: HomeIcon, color: colors.lilacDeep },
-  { value: 'UTILITIES', label: 'Коммуналка', icon: Zap, color: colors.yellowDeep },
-  { value: 'FOOD', label: 'Питание', icon: Utensils, color: colors.primary },
-  { value: 'TOYS', label: 'Игрушки', icon: Puzzle, color: colors.blueDeep },
-  { value: 'STATIONERY', label: 'Канцелярия', icon: PencilLine, color: colors.muted },
-  { value: 'INTERNET', label: 'Интернет', icon: Wifi, color: colors.blueDeep },
-  { value: 'CLEANING', label: 'Уборка', icon: SprayCan, color: colors.muted },
-  { value: 'REPAIRS', label: 'Ремонт', icon: Hammer, color: colors.yellowDeep },
-  { value: 'EDUCATION', label: 'Обучение', icon: BookOpen, color: colors.primary },
-  { value: 'OTHER', label: 'Прочее', icon: CircleDashed, color: colors.muted },
+  { value: 'SALARIES', label: uiText("Зарплаты"), icon: Briefcase, color: colors.primaryDeep },
+  { value: 'TAXES', label: uiText("Налоги"), icon: Receipt, color: colors.roseDeep },
+  { value: 'RENT', label: uiText("Аренда"), icon: HomeIcon, color: colors.lilacDeep },
+  { value: 'UTILITIES', label: uiText("Коммуналка"), icon: Zap, color: colors.yellowDeep },
+  { value: 'FOOD', label: uiText("Питание"), icon: Utensils, color: colors.primary },
+  { value: 'TOYS', label: uiText("Игрушки"), icon: Puzzle, color: colors.blueDeep },
+  { value: 'STATIONERY', label: uiText("Канцелярия"), icon: PencilLine, color: colors.muted },
+  { value: 'INTERNET', label: uiText("Интернет"), icon: Wifi, color: colors.blueDeep },
+  { value: 'CLEANING', label: uiText("Уборка"), icon: SprayCan, color: colors.muted },
+  { value: 'REPAIRS', label: uiText("Ремонт"), icon: Hammer, color: colors.yellowDeep },
+  { value: 'EDUCATION', label: uiText("Обучение"), icon: BookOpen, color: colors.primary },
+  { value: 'OTHER', label: uiText("Прочее"), icon: CircleDashed, color: colors.muted },
 ]))
 
 const CAT_META = themedValue(
@@ -74,7 +75,7 @@ const CAT_META = themedValue(
 export default function AdminExpensesScreen() {
   const navigation = useNavigation()
   const L = useLabels()
-  const month = useMemo(() => dayjs().format('YYYY-MM'), [])
+  const month = useMemo(() => dayjs().format('YYYY-MM'), [uiLanguage()])
 
   const [items, setItems] = useState<ExpenseDto[]>([])
   const [groups, setGroups] = useState<GroupDto[]>([])
@@ -114,12 +115,12 @@ export default function AdminExpensesScreen() {
     const m: Record<string, GroupDto> = {}
     for (const g of groups) m[g.id] = g
     return m
-  }, [groups])
+  }, [groups, uiLanguage()])
 
   const submit = async () => {
     const n = Number(amount.replace(',', '.'))
     if (!description.trim() || !n || n <= 0) {
-      Alert.alert('Заполните', 'Нужны описание и сумма > 0')
+      Alert.alert(uiText("Заполните"), uiText("Нужны описание и сумма > 0"))
       return
     }
     setSaving(true)
@@ -144,10 +145,10 @@ export default function AdminExpensesScreen() {
   }
 
   const remove = (e: ExpenseDto) => {
-    Alert.alert('Удалить расход?', e.description, [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(uiText("Удалить расход?"), e.description, [
+      { text: uiText("Отмена"), style: 'cancel' },
       {
-        text: 'Удалить',
+        text: uiText("Удалить"),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -181,7 +182,7 @@ export default function AdminExpensesScreen() {
         >
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.topTitle}>Расходы</Text>
+        <Text style={styles.topTitle}>{uiText("Расходы")}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -205,12 +206,11 @@ export default function AdminExpensesScreen() {
               {dayjs(month + '-01').format('MMMM YYYY')}
             </Text>
             <Text style={styles.summaryValue}>
-              {Math.round(total).toLocaleString('ru-RU')}
-              <Text style={styles.summaryUnit}> с</Text>
+              {Math.round(total).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')}
+              <Text style={styles.summaryUnit}> {" " + uiText("сомони")}</Text>
             </Text>
             <Text style={styles.summarySub}>
-              {items.length} записей
-            </Text>
+              {items.length} {" " + uiText("записей") + " "}</Text>
           </Card>
         }
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -233,13 +233,12 @@ export default function AdminExpensesScreen() {
                   <Text style={styles.desc}>{item.description}</Text>
                   <Text style={styles.metaRow}>
                     {meta?.label ?? item.category}
-                    {g ? ` · ${g.name}` : ' · общая'}
+                    {g ? ` · ${g.name}` : uiText("· общая")}
                   </Text>
                 </View>
                 <View style={styles.amountCol}>
                   <Text style={styles.amount}>
-                    −{Math.round(Number(item.amount)).toLocaleString('ru-RU')} с
-                  </Text>
+                    −{Math.round(Number(item.amount)).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')} {" " + uiText("сомони") + " "}</Text>
                   <Pressable onPress={() => remove(item)} hitSlop={8}>
                     <Trash2 size={16} color={colors.muted} />
                   </Pressable>
@@ -251,9 +250,7 @@ export default function AdminExpensesScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
-              За {dayjs(month + '-01').format('MMMM').toLowerCase()} расходов
-              ещё нет
-            </Text>
+              {" " + uiText("За") + " "}{dayjs(month + '-01').format('MMMM').toLowerCase()} {" " + uiText("расходов ещё нет") + " "}</Text>
           </View>
         }
       />
@@ -272,10 +269,10 @@ export default function AdminExpensesScreen() {
       <BottomModal
         visible={modal}
         onClose={() => setModal(false)}
-        title="Новый расход"
+        title={uiText("Новый расход")}
       >
         <Select<ExpenseCategory>
-          label="Категория"
+          label={uiText("Категория")}
           value={category}
           onChange={setCategory}
           options={CATEGORIES().map((c) => ({ value: c.value, label: c.label }))}
@@ -283,14 +280,14 @@ export default function AdminExpensesScreen() {
         />
 
         <Field
-          label="Описание"
+          label={uiText("Описание")}
           value={description}
           onChangeText={setDescription}
-          placeholder="За что"
+          placeholder={uiText("За что")}
         />
 
         <Field
-          label="Сумма (сом)"
+          label={uiText("Сумма (сом)")}
           value={amount}
           onChangeText={setAmount}
           keyboardType="numeric"
@@ -299,11 +296,11 @@ export default function AdminExpensesScreen() {
 
         {groups.length > 0 && (
           <Select<string>
-            label={`${cap(L.group)} (необязательно)`}
+            label={uiText("{0} (необязательно)", cap(L.group))}
             value={groupId ?? ('' as string)}
             onChange={(v) => setGroupId(v === '' ? null : v)}
             options={[
-              { value: '', label: 'Общий' },
+              { value: '', label: uiText("Общий") },
               ...groups.map((g) => ({ value: g.id, label: g.name })),
             ]}
             columns={3}
@@ -311,8 +308,7 @@ export default function AdminExpensesScreen() {
         )}
 
         <Btn block size="lg" loading={saving} onPress={submit}>
-          Добавить расход
-        </Btn>
+          {" " + uiText("Добавить расход") + " "}</Btn>
       </BottomModal>
     </Screen>
   )

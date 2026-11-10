@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -33,14 +34,14 @@ import {
   type TermDto,
 } from '../api/school'
 
-const TYPE_LABELS: Record<GradeType, string> = {
+const TYPE_LABELS: Record<GradeType, string> = localizeCopy({
   CLASSWORK: 'Урок',
   HOMEWORK: 'ДЗ',
   CONTROL: 'Контр.',
   EXAM: 'Экзамен',
   PROJECT: 'Проект',
   OTHER: 'Другое',
-}
+})
 
 /**
  * Журнал оценок. Начинается с выбора класса и предмета: пока они не выбраны, учеников нет —
@@ -48,7 +49,7 @@ const TYPE_LABELS: Record<GradeType, string> = {
  * администратор открыл учителю доступ.
  */
 export default function TeacherGradesScreen() {
-  const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [])
+  const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [uiLanguage()])
   const { classes, loading: classesLoading, reload: reloadClasses } = useMyClasses()
 
   // Выбранные класс и предмет. Пока оба не выбраны, список учеников пуст.
@@ -96,7 +97,7 @@ export default function TeacherGradesScreen() {
         if (cur) setActiveTermId((t) => t ?? cur.id)
       }
     } catch (e) {
-      notifyError(e, { fallback: 'Не удалось загрузить предметы', retry: () => void reload() })
+      notifyError(e, { fallback: uiText("Не удалось загрузить предметы"), retry: () => void reload() })
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -123,7 +124,7 @@ export default function TeacherGradesScreen() {
       setStudentsLoading(true)
       setStudents(await studentsApi.list({ status: 'ACTIVE', groupId }))
     } catch (e) {
-      notifyError(e, { fallback: 'Не удалось загрузить учеников', retry: () => void loadStudents() })
+      notifyError(e, { fallback: uiText("Не удалось загрузить учеников"), retry: () => void loadStudents() })
     } finally {
       setStudentsLoading(false)
     }
@@ -152,7 +153,7 @@ export default function TeacherGradesScreen() {
       from: dayjs(month + '-01').format('YYYY-MM-DD'),
       to: dayjs(month + '-01').endOf('month').format('YYYY-MM-DD'),
     }
-  }, [terms, activeTermId, month])
+  }, [terms, activeTermId, month, uiLanguage()])
 
   const reloadGrades = useCallback(async () => {
     if (!activeSubjectId || !groupId) {
@@ -182,7 +183,7 @@ export default function TeacherGradesScreen() {
       map[g.studentId].push(g)
     }
     return map
-  }, [grades])
+  }, [grades, uiLanguage()])
 
   const avgByStudent = useMemo(() => {
     const map: Record<string, number> = {}
@@ -191,7 +192,7 @@ export default function TeacherGradesScreen() {
       map[sid] = list.length ? Number((sum / list.length).toFixed(1)) : 0
     }
     return map
-  }, [gradesByStudent])
+  }, [gradesByStudent, uiLanguage()])
 
   /** Мгновенно ставит оценку value текущему editingStudent. */
   const quickSave = async (value: number) => {
@@ -241,12 +242,12 @@ export default function TeacherGradesScreen() {
 
   const removeGrade = (g: GradeDto) => {
     Alert.alert(
-      'Оценка ' + g.value,
+      uiText("Оценка") + g.value,
       `${TYPE_LABELS[g.type]} · ${dayjs(g.date).format('D MMM')}${g.comment ? '\n«' + g.comment + '»' : ''}`,
       [
-        { text: 'Отмена', style: 'cancel' },
+        { text: uiText("Отмена"), style: 'cancel' },
         {
-          text: 'Удалить',
+          text: uiText("Удалить"),
           style: 'destructive',
           onPress: async () => {
             try {
@@ -279,7 +280,7 @@ export default function TeacherGradesScreen() {
       <View style={styles.topBar}>
         <ScreenHeading
           eyebrow={ready ? `${group?.name} · ${subject?.name}` : dayjs().format('D MMMM')}
-          title="Журнал оценок"
+          title={uiText("Журнал оценок")}
         />
       </View>
 
@@ -301,14 +302,14 @@ export default function TeacherGradesScreen() {
           <View style={{ marginBottom: 12, gap: 14 }}>
             {!noAccess && (
               <View>
-                <Text style={styles.section}>Класс</Text>
+                <Text style={styles.section}>{uiText("Класс")}</Text>
                 <ClassPicker classes={classes} value={groupId} onChange={setGroupId} />
               </View>
             )}
 
             {!noSubjects && (
               <View>
-                <Text style={styles.section}>Предмет</Text>
+                <Text style={styles.section}>{uiText("Предмет")}</Text>
                 <View style={styles.chipRow}>
                   {subjects.map((s) => {
                     const on = s.id === activeSubjectId
@@ -331,12 +332,12 @@ export default function TeacherGradesScreen() {
 
             {ready && terms.length > 0 && (
               <View>
-                <Text style={styles.section}>Четверть</Text>
+                <Text style={styles.section}>{uiText("Четверть")}</Text>
                 <Dropdown
                   value={activeTermId ?? '__month__'}
                   onChange={(v) => setActiveTermId(v === '__month__' ? null : v)}
                   options={[
-                    { value: '__month__', label: 'По месяцу' },
+                    { value: '__month__', label: uiText("По месяцу") },
                     ...terms.map((t) => ({ value: t.id, label: t.name })),
                   ]}
                 />
@@ -345,7 +346,7 @@ export default function TeacherGradesScreen() {
 
             {ready && !activeTermId && (
               <View>
-                <Text style={styles.section}>Месяц</Text>
+                <Text style={styles.section}>{uiText("Месяц")}</Text>
                 <View style={styles.dayBar}>
                   <Pressable
                     onPress={() => setMonth(dayjs(month + '-01').subtract(1, 'month').format('YYYY-MM'))}
@@ -379,7 +380,7 @@ export default function TeacherGradesScreen() {
               onPress={() => setSelectedId(item.id)}
               accessibilityRole="button"
               accessibilityState={{ selected }}
-              accessibilityLabel={`Выбрать: ${fullName}`}
+              accessibilityLabel={uiText("Выбрать: {0}", fullName)}
             >
               <Card padding={12} style={selected ? styles.cardOn : undefined}>
                 <View style={styles.row}>
@@ -396,13 +397,13 @@ export default function TeacherGradesScreen() {
                           </View>
                         </Pressable>
                       ))}
-                      {stuGrades.length === 0 && <Text style={styles.noGrade}>нет оценок</Text>}
+                      {stuGrades.length === 0 && <Text style={styles.noGrade}>{uiText("нет оценок")}</Text>}
                     </View>
                   </View>
 
                   {avg > 0 && (
                     <View style={styles.avgBox}>
-                      <Text style={styles.avgLabel}>ср.</Text>
+                      <Text style={styles.avgLabel}>{uiText("ср.")}</Text>
                       <Text style={[styles.avgValue, { color: gradeColor(Math.round(avg)) }]}>{avg.toFixed(1)}</Text>
                     </View>
                   )}
@@ -427,27 +428,27 @@ export default function TeacherGradesScreen() {
           noAccess ? (
             <EmptyState
               icon={<Lock size={34} color={colors.muted} />}
-              title="Нет доступа к классам"
-              hint="Администратор ещё не открыл вам классы. Попросите его в разделе «Доступ учителей»."
+              title={uiText("Нет доступа к классам")}
+              hint={uiText("Администратор ещё не открыл вам классы. Попросите его в разделе «Доступ учителей».")}
             />
           ) : noSubjects ? (
             <EmptyState
               icon={<BookMarked size={34} color={colors.muted} />}
-              title="Нет доступа к предметам"
-              hint="Администратор ещё не открыл вам предметы. Попросите его в разделе «Доступ учителей»."
+              title={uiText("Нет доступа к предметам")}
+              hint={uiText("Администратор ещё не открыл вам предметы. Попросите его в разделе «Доступ учителей».")}
             />
           ) : !ready ? (
             <EmptyState
               icon={<ListChecks size={34} color={colors.muted} />}
-              title={!group ? 'Выберите класс' : 'Выберите предмет'}
-              hint="Пока класс и предмет не выбраны, список учеников скрыт — так оценка не попадёт не тому классу."
+              title={!group ? uiText("Выберите класс") : uiText("Выберите предмет")}
+              hint={uiText("Пока класс и предмет не выбраны, список учеников скрыт — так оценка не попадёт не тому классу.")}
             />
           ) : studentsLoading ? (
             <View style={styles.empty}>
               <ActivityIndicator color={colors.primary} />
             </View>
           ) : (
-            <EmptyState title="В этом классе пока никого нет" />
+            <EmptyState title={uiText("В этом классе пока никого нет")} />
           )
         }
       />
@@ -456,7 +457,7 @@ export default function TeacherGradesScreen() {
       {ready && selectedId && (
         <View style={styles.keypad}>
           <Text style={styles.keypadFor} numberOfLines={1}>
-            Оценка для:{' '}
+            {" " + uiText("Оценка для:")}{' '}
             <Text style={styles.keypadName}>
               {(() => {
                 const s = students.find((x) => x.id === selectedId)
@@ -474,7 +475,7 @@ export default function TeacherGradesScreen() {
                   disabled={saving}
                   onPress={() => padSave(v)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Оценка ${v}`}
+                  accessibilityLabel={uiText("Оценка {0}", v)}
                   style={({ pressed }) => [
                     styles.key,
                     { backgroundColor: tone.bg, opacity: saving ? 0.5 : 1 },
@@ -497,7 +498,7 @@ export default function TeacherGradesScreen() {
             }}
             accessibilityRole="button"
           >
-            <Text style={styles.more}>Другая дата, тип или комментарий</Text>
+            <Text style={styles.more}>{uiText("Другая дата, тип или комментарий")}</Text>
           </Pressable>
         </View>
       )}
@@ -507,8 +508,8 @@ export default function TeacherGradesScreen() {
         onClose={() => setEditingStudent(null)}
         title={
           editingStudent
-            ? `Оценка · ${editingStudent.firstName} ${editingStudent.lastName}`
-            : 'Оценка'
+            ? uiText("Оценка · {0} {1}", editingStudent.firstName, editingStudent.lastName)
+            : uiText("Оценка")
         }
       >
         {/* Дата */}
@@ -522,7 +523,7 @@ export default function TeacherGradesScreen() {
           </Pressable>
           <Text style={styles.modalDayLabel}>
             {dayjs(date).format('dd, D MMMM')}
-            {date === today ? ' · сегодня' : ''}
+            {date === today ? uiText("· сегодня") : ''}
           </Text>
           <Pressable
             onPress={() => setDate(dayjs(date).add(1, 'day').format('YYYY-MM-DD'))}
@@ -534,29 +535,29 @@ export default function TeacherGradesScreen() {
         </View>
 
         <Select<GradeType>
-          label="Тип"
+          label={uiText("Тип")}
           value={type}
           onChange={setType}
           options={[
-            { value: 'CLASSWORK', label: 'Урок' },
-            { value: 'HOMEWORK', label: 'ДЗ' },
-            { value: 'CONTROL', label: 'Контр.' },
-            { value: 'EXAM', label: 'Экзамен' },
-            { value: 'PROJECT', label: 'Проект' },
-            { value: 'OTHER', label: 'Другое' },
+            { value: 'CLASSWORK', label: uiText("Урок") },
+            { value: 'HOMEWORK', label: uiText("ДЗ") },
+            { value: 'CONTROL', label: uiText("Контр.") },
+            { value: 'EXAM', label: uiText("Экзамен") },
+            { value: 'PROJECT', label: uiText("Проект") },
+            { value: 'OTHER', label: uiText("Другое") },
           ]}
           columns={3}
         />
 
         <Field
-          label="Комментарий (необязательно)"
+          label={uiText("Комментарий (необязательно)")}
           value={comment}
           onChangeText={setComment}
-          placeholder="За что"
+          placeholder={uiText("За что")}
         />
 
         {/* Большие кнопки оценок — мгновенное сохранение */}
-        <Text style={styles.gradePadLabel}>Нажмите оценку — она сразу сохранится</Text>
+        <Text style={styles.gradePadLabel}>{uiText("Нажмите оценку — она сразу сохранится")}</Text>
         <View style={styles.gradePad}>
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((v) => (
             <Pressable

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 
 import { adminApi } from '../api/admin'
@@ -30,7 +31,7 @@ export function useMyClasses() {
       setFailed(false)
     } catch (e) {
       setFailed(true)
-      notifyError(e, { fallback: 'Не удалось загрузить классы', retry: () => void load() })
+      notifyError(e, { fallback: uiText("Не удалось загрузить классы"), retry: () => void load() })
     } finally {
       setLoading(false)
     }

@@ -15,6 +15,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  build: {
+    rollupOptions: {
+      input: { app: path.resolve(__dirname, 'index.html'), landing: path.resolve(__dirname, 'landing/index.html') },
+    },
+  },
   server: {
     port: 5173,
     // Не открываем браузер автоматически во время e2e (Playwright сам управляет).

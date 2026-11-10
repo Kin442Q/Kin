@@ -32,7 +32,7 @@ describe('studentCardsHtml', () => {
     expect(html).toContain('src="data:image/svg+xml;utf8,AAA"')
     expect(html.split(CARD_CAPTION)).toHaveLength(3)
     expect(CARD_CAPTION).toBe('Наведите камеру телефона на код')
-    expect(html).toContain('Мактаби ман')
+    expect(html).toContain('Моя школа')
     expect(html).toContain('5А')
   })
 

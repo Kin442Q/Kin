@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -73,7 +74,7 @@ export default function AdminMeetingsScreen() {
     const m: Record<string, GroupDto> = {}
     for (const g of groups) m[g.id] = g
     return m
-  }, [groups])
+  }, [groups, uiLanguage()])
 
   const upcoming = items.filter(
     (m) => new Date(m.scheduledAt).getTime() >= Date.now() - 24 * 3600 * 1000,
@@ -84,12 +85,12 @@ export default function AdminMeetingsScreen() {
 
   const submit = async () => {
     if (!groupId || !title.trim()) {
-      Alert.alert('Заполните', `Нужны ${L.group} и заголовок`)
+      Alert.alert(uiText("Заполните"), uiText("Нужны {0} и заголовок", L.group))
       return
     }
     const scheduledAt = `${dateStr}T${timeStr}:00`
     if (!dayjs(scheduledAt).isValid()) {
-      Alert.alert('Дата', 'Неверный формат даты или времени')
+      Alert.alert(uiText("Дата"), uiText("Неверный формат даты или времени"))
       return
     }
     setSaving(true)
@@ -107,8 +108,8 @@ export default function AdminMeetingsScreen() {
       setDescription('')
       reload()
       Alert.alert(
-        'Создано',
-        `Родителям ${L.group === 'класс' ? 'класса' : 'группы'} будет отправлено уведомление в Telegram.`,
+        uiText("Создано"),
+        uiText("Родителям {0} будет отправлено уведомление в Telegram.", L.isSchool ? uiText("класса") : uiText("группы")),
       )
     } catch (e: any) {
       notifyError(e)
@@ -137,7 +138,7 @@ export default function AdminMeetingsScreen() {
         >
           <ChevronLeft size={24} color={colors.text} />
         </Pressable>
-        <Text style={styles.topTitle}>Собрания</Text>
+        <Text style={styles.topTitle}>{uiText("Собрания")}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -157,7 +158,7 @@ export default function AdminMeetingsScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.headerLabel}>Ближайшие</Text>
+            <Text style={styles.headerLabel}>{uiText("Ближайшие")}</Text>
             <Text style={styles.headerCount}>{upcoming.length}</Text>
           </View>
         }
@@ -170,7 +171,7 @@ export default function AdminMeetingsScreen() {
           return (
             <View>
               {showDivider && (
-                <Text style={styles.divider}>Прошедшие</Text>
+                <Text style={styles.divider}>{uiText("Прошедшие")}</Text>
               )}
               <Card padding={14} style={past ? { opacity: 0.6 } : undefined}>
                 <View style={styles.cardTop}>
@@ -214,8 +215,7 @@ export default function AdminMeetingsScreen() {
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
-              Собраний ещё нет. Нажмите «+» чтобы создать.
-            </Text>
+              {" " + uiText("Собраний ещё нет. Нажмите «+» чтобы создать.") + " "}</Text>
           </View>
         }
       />
@@ -234,7 +234,7 @@ export default function AdminMeetingsScreen() {
       <BottomModal
         visible={modal}
         onClose={() => setModal(false)}
-        title="Новое собрание"
+        title={uiText("Новое собрание")}
       >
         {groups.length > 0 && (
           <Select<string>
@@ -247,16 +247,16 @@ export default function AdminMeetingsScreen() {
         )}
 
         <Field
-          label="Тема"
+          label={uiText("Тема")}
           value={title}
           onChangeText={setTitle}
-          placeholder="Например: Итоги осени"
+          placeholder={uiText("Например: Итоги осени")}
         />
 
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <View style={{ flex: 1 }}>
             <Field
-              label="Дата"
+              label={uiText("Дата")}
               value={dateStr}
               onChangeText={setDateStr}
               placeholder="YYYY-MM-DD"
@@ -264,7 +264,7 @@ export default function AdminMeetingsScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Field
-              label="Время"
+              label={uiText("Время")}
               value={timeStr}
               onChangeText={setTimeStr}
               placeholder="HH:mm"
@@ -273,27 +273,25 @@ export default function AdminMeetingsScreen() {
         </View>
 
         <Field
-          label="Место"
+          label={uiText("Место")}
           value={location}
           onChangeText={setLocation}
-          placeholder="Например: группа 2 этаж"
+          placeholder={uiText("Например: группа 2 этаж")}
         />
 
         <Field
-          label="Описание"
+          label={uiText("Описание")}
           value={description}
           onChangeText={setDescription}
           multiline
-          placeholder="(необязательно)"
+          placeholder={uiText("(необязательно)")}
           style={{ minHeight: 80, textAlignVertical: 'top' }}
         />
 
         <Btn block size="lg" loading={saving} onPress={submit}>
-          Создать и оповестить
-        </Btn>
+          {" " + uiText("Создать и оповестить") + " "}</Btn>
         <Text style={styles.hint}>
-          Родителям {L.group === 'класс' ? 'класса' : 'группы'} отправится сообщение в Telegram (если настроен бот).
-        </Text>
+          {" " + uiText("Родителям") + " "}{L.isSchool ? uiText("класса") : uiText("группы")} {" " + uiText("отправится сообщение в Telegram (если настроен бот).") + " "}</Text>
       </BottomModal>
     </Screen>
   )

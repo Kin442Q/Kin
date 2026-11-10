@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import { Tag } from 'antd'
 import { useNavigate } from 'react-router-dom'
@@ -41,7 +42,7 @@ export default function StudentHomePage() {
   const todayLessons = useMemo(() => {
     const dow = ((dayjs().day() + 6) % 7) + 1 // Пн=1 … Вс=7
     return lessons.filter((l) => l.dayOfWeek === dow)
-  }, [lessons])
+  }, [lessons, uiLanguage()])
 
   const upcoming = useMemo(() => {
     const today = dayjs().startOf('day')
@@ -52,7 +53,7 @@ export default function StudentHomePage() {
         return !checked && !dayjs(h.dueDate).isBefore(today)
       })
       .slice(0, 5)
-  }, [homework])
+  }, [homework, uiLanguage()])
 
   const apply = (id: string, status: SubmissionStatus | null) =>
     setHomework((list) =>
@@ -64,18 +65,17 @@ export default function StudentHomePage() {
     )
 
   const hour = new Date().getHours()
-  const greeting = hour < 6 ? 'Доброй ночи' : hour < 12 ? 'Доброе утро' : hour < 18 ? 'Добрый день' : 'Добрый вечер'
+  const greeting = hour < 6 ? uiText("Доброй ночи") : hour < 12 ? uiText("Доброе утро") : hour < 18 ? uiText("Добрый день") : uiText("Добрый вечер")
 
   return (
     <div>
       <GreetingBanner
         eyebrow={dayjs().format('dddd, D MMMM')}
-        title={`${greeting}, ${profile?.firstName ?? user?.fullName?.split(' ')[0] ?? 'ученик'}!`}
+        title={`${greeting}, ${profile?.firstName ?? user?.fullName?.split(' ')[0] ?? uiText("ученик")}!`}
         subtitle={
           profile ? (
             <>
-              {profile.group.name} класс
-              {profile.homeroomTeacher && ` · классный руководитель: ${profile.homeroomTeacher.fullName}`}
+              {profile.group.name} {" " + uiText("класс") + " "}{profile.homeroomTeacher && uiText("· классный руководитель: {0}", profile.homeroomTeacher.fullName)}
             </>
           ) : undefined
         }
@@ -83,9 +83,9 @@ export default function StudentHomePage() {
 
       {withSchedule && (
         <SproutCard style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Уроки сегодня</div>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>{uiText("Уроки сегодня")}</div>
           {todayLessons.length === 0 ? (
-            <SproutEmpty title="Сегодня уроков нет" minHeight={90} />
+            <SproutEmpty title={uiText("Сегодня уроков нет")} minHeight={90} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {todayLessons.map((l) => (
@@ -103,7 +103,7 @@ export default function StudentHomePage() {
                   >
                     {l.subject?.name ?? l.activity}
                   </Tag>
-                  {l.room && <span style={{ color: SP.muted, fontSize: 12 }}>каб. {l.room}</span>}
+                  {l.room && <span style={{ color: SP.muted, fontSize: 12 }}>{uiText("каб.") + " "}{l.room}</span>}
                 </div>
               ))}
             </div>
@@ -114,13 +114,12 @@ export default function StudentHomePage() {
       {withHomework && (
         <SproutCard style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>Что нужно сделать</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{uiText("Что нужно сделать")}</div>
             <a onClick={() => navigate('/student/homework')} style={{ cursor: 'pointer', fontSize: 13 }}>
-              Все задания →
-            </a>
+              {" " + uiText("Все задания →") + " "}</a>
           </div>
           {upcoming.length === 0 ? (
-            <SproutEmpty title="Заданий нет — отдыхайте!" minHeight={90} />
+            <SproutEmpty title={uiText("Заданий нет — отдыхайте!")} minHeight={90} />
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {upcoming.map((h) => (
@@ -134,13 +133,12 @@ export default function StudentHomePage() {
       {withGrades && (
         <SproutCard>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 15, fontWeight: 700 }}>Последние оценки</div>
+            <div style={{ fontSize: 15, fontWeight: 700 }}>{uiText("Последние оценки")}</div>
             <a onClick={() => navigate('/student/grades')} style={{ cursor: 'pointer', fontSize: 13 }}>
-              Все оценки →
-            </a>
+              {" " + uiText("Все оценки →") + " "}</a>
           </div>
           {grades.length === 0 ? (
-            <SproutEmpty title="Оценок пока нет" minHeight={90} />
+            <SproutEmpty title={uiText("Оценок пока нет")} minHeight={90} />
           ) : (
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {grades.map((g) => (

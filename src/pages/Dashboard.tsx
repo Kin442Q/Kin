@@ -1,3 +1,4 @@
+import { uiLanguage } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import { Row, Col, Tag, Button } from 'antd'
 import {
@@ -70,7 +71,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const month = dayjs().format('YYYY-MM')
   const L = useLabels()
-  const isSchool = L.group === 'класс'
+  const isSchool = L.isSchool
 
   // Финансовые блоки показываем только если разделы включены для учреждения.
   const showAnalytics = useFeature('analytics')
@@ -125,7 +126,7 @@ export default function Dashboard() {
       arr.push({ month: label, type: t('dash.chart.expense'), value: Math.round(item.expenses) })
     })
     return arr
-  }, [trend, t])
+  }, [trend, t, uiLanguage()])
 
   const todayStr = dayjs().format('YYYY-MM-DD')
   const presentToday = attendance.filter(
@@ -170,7 +171,7 @@ export default function Dashboard() {
       })
 
     return list.slice(0, 6)
-  }, [children, t])
+  }, [children, t, uiLanguage()])
 
   // Параллели: 1 класс → А, Б, В — компактные плитки вместо длинного списка классов
   const gradeTiles = useMemo(
@@ -181,7 +182,7 @@ export default function Dashboard() {
         const capacity = gr.items.length * 20
         return { gr, counts, total, fillPct: Math.min(100, Math.round((total / capacity) * 100)) }
       }),
-    [groups, children],
+    [groups, children, uiLanguage()],
   )
 
   // Что требует внимания директора (считается из имеющихся данных)
@@ -211,7 +212,7 @@ export default function Dashboard() {
         })
     }
     return list
-  }, [children, groups, showHomeroom, t])
+  }, [children, groups, showHomeroom, t, uiLanguage()])
 
   const hour = new Date().getHours()
   const greeting =

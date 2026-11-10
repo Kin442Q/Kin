@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useState } from 'react'
 import { App as AntdApp, Input, Segmented, Spin } from 'antd'
 import { Library } from 'lucide-react'
@@ -26,23 +27,23 @@ export default function StudentLibraryPage() {
     libraryApi
       .list({ type: type === 'ALL' ? undefined : type, q: query || undefined })
       .then(setItems)
-      .catch((e) => message.error(e?.response?.data?.message || 'Не удалось загрузить библиотеку'))
+      .catch((e) => message.error(e?.response?.data?.message || uiText("Не удалось загрузить библиотеку")))
       .finally(() => setLoading(false))
   }, [type, query, message])
 
   return (
     <div>
       <SproutPageHeader
-        title="Библиотека"
+        title={uiText("Библиотека")}
         icon={<Library size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Книги, статьи, видео и полезные ссылки от ваших учителей"
+        description={uiText("Книги, статьи, видео и полезные ссылки от ваших учителей")}
       />
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <Input.Search
           allowClear
-          placeholder="Поиск по названию и описанию"
+          placeholder={uiText("Поиск по названию и описанию")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ maxWidth: 340 }}
@@ -50,7 +51,7 @@ export default function StudentLibraryPage() {
         <Segmented
           value={type}
           onChange={(v) => setType(v as LibraryType | 'ALL')}
-          options={[{ value: 'ALL', label: 'Все' }, ...LIBRARY_TYPES.map((t) => ({ value: t.value, label: `${t.emoji} ${t.label}` }))]}
+          options={[{ value: 'ALL', label: uiText("Все") }, ...LIBRARY_TYPES.map((t) => ({ value: t.value, label: `${t.emoji} ${t.label}` }))]}
         />
       </div>
 
@@ -59,8 +60,8 @@ export default function StudentLibraryPage() {
           <SproutCard>
             <SproutEmpty
               icon={<Library size={32} strokeWidth={1.8} />}
-              title={query || type !== 'ALL' ? 'Ничего не найдено' : 'Библиотека пока пуста'}
-              description={query || type !== 'ALL' ? 'Попробуйте другой запрос' : 'Учителя скоро добавят материалы'}
+              title={query || type !== 'ALL' ? uiText("Ничего не найдено") : uiText("Библиотека пока пуста")}
+              description={query || type !== 'ALL' ? uiText("Попробуйте другой запрос") : uiText("Учителя скоро добавят материалы")}
               minHeight={200}
             />
           </SproutCard>

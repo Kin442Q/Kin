@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -112,9 +113,9 @@ export default function ParentChatScreen() {
     <Screen>
       <View style={styles.header}>
         <Text style={styles.title}>
-          {scope === 'ADMIN' ? 'Чат с администрацией' : 'Чат с учителем'}
+          {scope === 'ADMIN' ? uiText("Чат с администрацией") : uiText("Чат с учителем")}
         </Text>
-        {groupName && <Text style={styles.sub}>Класс «{groupName}»</Text>}
+        {groupName && <Text style={styles.sub}>{uiText("Класс «")}{groupName}»</Text>}
         <View style={styles.switcher}>
           {(['GENERAL', 'ADMIN'] as ChatScope[]).map((s) => {
             const active = scope === s
@@ -132,7 +133,7 @@ export default function ParentChatScreen() {
                 <Text
                   style={[styles.switchText, active && styles.switchTextActive]}
                 >
-                  {s === 'ADMIN' ? 'Администрация' : 'Учитель'}
+                  {s === 'ADMIN' ? uiText("Администрация") : uiText("Учитель")}
                 </Text>
               </Pressable>
             )
@@ -158,7 +159,7 @@ export default function ParentChatScreen() {
             if (item.kind === 'PAYMENT') {
               return (
                 <View style={styles.payCard}>
-                  <Text style={styles.payTitle}>💰 Напоминание об оплате</Text>
+                  <Text style={styles.payTitle}>{uiText("💰 Напоминание об оплате")}</Text>
                   <Text style={styles.payText}>{item.text}</Text>
                   <Text style={styles.payTime}>
                     {dayjs(item.createdAt).format('DD.MM HH:mm')}
@@ -201,8 +202,8 @@ export default function ParentChatScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyText}>
                 {scope === 'ADMIN'
-                  ? 'Здесь администрация присылает напоминания об оплате. Можно написать первым 👇'
-                  : 'Здесь можно написать учителю. Напишите первое сообщение 👇'}
+                  ? uiText("Здесь администрация присылает напоминания об оплате. Можно написать первым 👇")
+                  : uiText("Здесь можно написать учителю. Напишите первое сообщение 👇")}
               </Text>
             </View>
           }
@@ -212,7 +213,7 @@ export default function ParentChatScreen() {
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Сообщение..."
+            placeholder={uiText("Сообщение...")}
             placeholderTextColor={colors.muted}
             style={styles.input}
             multiline

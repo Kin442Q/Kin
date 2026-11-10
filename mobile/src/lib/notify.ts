@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { create } from 'zustand'
 
 import { describeError } from './errorText'
@@ -58,7 +59,7 @@ export function notifyError(error: unknown, options: ErrorOptions | string = {})
     kind: info.kind,
     title: o.title && info.kind === 'error' ? o.title : info.title,
     message: info.message,
-    actionLabel: o.retry ? 'Повторить' : undefined,
+    actionLabel: o.retry ? uiText("Повторить") : undefined,
     onAction: o.retry,
   })
 }

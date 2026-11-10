@@ -111,9 +111,9 @@ describe('LoginPage', () => {
     expect(screen.queryByText(/Запросить демо/)).not.toBeInTheDocument()
   })
 
-  it('бренд «Мактаби ман» присутствует', () => {
+  it('бренд «Моя школа» присутствует', () => {
     renderLogin()
-    expect(screen.getAllByLabelText('Мактаби ман').length).toBeGreaterThan(0)
+    expect(screen.getAllByAltText('Моя школа').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Maktab/)).not.toBeInTheDocument()
   })
 

@@ -1,3 +1,4 @@
+import { localizeCopy, uiText } from '../i18n/uiText'
 import { Pressable, View } from 'react-native'
 import { Moon, Smartphone, Sun, type LucideIcon } from 'lucide-react-native'
 
@@ -6,11 +7,11 @@ import { colors, radius } from '../theme/colors'
 import { themedStyles } from '../theme/themedStyles'
 import { useThemeStore, type ThemeMode } from '../theme/themeStore'
 
-const OPTIONS: Array<{ mode: ThemeMode; label: string; Icon: LucideIcon }> = [
+const OPTIONS: Array<{ mode: ThemeMode; label: string; Icon: LucideIcon }> = localizeCopy([
   { mode: 'light', label: 'Светлая', Icon: Sun },
   { mode: 'dark', label: 'Тёмная', Icon: Moon },
   { mode: 'system', label: 'Как в системе', Icon: Smartphone },
-]
+])
 
 /**
  * Переключатель темы оформления: светлая, тёмная или как в телефоне.
@@ -21,7 +22,7 @@ export default function ThemeSwitch() {
   const setMode = useThemeStore((s) => s.setMode)
 
   return (
-    <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel="Тема оформления">
+    <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={uiText("Тема оформления")}>
       {OPTIONS.map(({ mode: m, label, Icon }) => {
         const on = mode === m
         return (

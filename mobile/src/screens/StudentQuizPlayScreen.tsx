@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -42,7 +43,7 @@ export default function StudentQuizPlayScreen() {
     quizApi
       .play(id)
       .then(setQuiz)
-      .catch((e) => setError(e?.response?.data?.message || 'Квиз недоступен'))
+      .catch((e) => setError(e?.response?.data?.message || uiText("Квиз недоступен")))
   }, [id])
 
   const submit = useCallback(async () => {
@@ -58,7 +59,7 @@ export default function StudentQuizPlayScreen() {
       setStage('result')
     } catch (e: any) {
       sent.current = false
-      notifyError(e, 'Не удалось отправить ответы')
+      notifyError(e, uiText("Не удалось отправить ответы"))
     } finally {
       setSubmitting(false)
     }
@@ -91,15 +92,15 @@ export default function StudentQuizPlayScreen() {
   if (error) {
     return (
       <Screen>
-        <StackHeader title="Квиз" />
-        <EmptyState title="Квиз недоступен" hint={error} />
+        <StackHeader title={uiText("Квиз")} />
+        <EmptyState title={uiText("Квиз недоступен")} hint={error} />
       </Screen>
     )
   }
   if (!quiz) {
     return (
       <Screen>
-        <StackHeader title="Квиз" />
+        <StackHeader title={uiText("Квиз")} />
         <View style={styles.loader}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -111,20 +112,19 @@ export default function StudentQuizPlayScreen() {
   if (stage === 'intro') {
     return (
       <Screen>
-        <StackHeader title="Квиз" />
+        <StackHeader title={uiText("Квиз")} />
         <View style={styles.center}>
           <Card padding={24} style={{ alignItems: 'center', gap: 8 }}>
             <Text style={styles.bigTitle}>{quiz.title}</Text>
             {quiz.description ? <Text style={styles.desc}>{quiz.description}</Text> : null}
             <Text style={styles.meta}>
-              Вопросов: {quiz.questions.length}
+              {" " + uiText("Вопросов:") + " "}{quiz.questions.length}
               {quiz.timeLimitSec
-                ? ` · время: ${Math.round(quiz.timeLimitSec / 60)} мин`
-                : ' · без ограничения по времени'}
+                ? uiText("· время: {0} мин", Math.round(quiz.timeLimitSec / 60))
+                : uiText("· без ограничения по времени")}
             </Text>
             <Btn block size="lg" onPress={start} style={{ marginTop: 10 }}>
-              Начать
-            </Btn>
+              {" " + uiText("Начать") + " "}</Btn>
           </Card>
         </View>
       </Screen>
@@ -150,7 +150,7 @@ export default function StudentQuizPlayScreen() {
         <ScrollView contentContainerStyle={styles.container}>
           <View style={styles.progressRow}>
             <Text style={styles.meta}>
-              Вопрос {idx + 1} из {quiz.questions.length}
+              {" " + uiText("Вопрос") + " "}{idx + 1} {" " + uiText("из") + " "}{quiz.questions.length}
             </Text>
             {left !== null && (
               <Text style={[styles.timer, left <= 30 && { color: colors.danger }]}>⏱ {mmss(left)}</Text>
@@ -161,7 +161,7 @@ export default function StudentQuizPlayScreen() {
           </View>
 
           <Text style={styles.question}>{q.text}</Text>
-          {q.kind === 'MULTIPLE' && <Text style={styles.hint}>Выберите все верные ответы</Text>}
+          {q.kind === 'MULTIPLE' && <Text style={styles.hint}>{uiText("Выберите все верные ответы")}</Text>}
 
           <View style={{ gap: 10, marginTop: 6 }}>
             {q.options.map((o, i) => {
@@ -190,14 +190,12 @@ export default function StudentQuizPlayScreen() {
 
           <View style={styles.nav}>
             <Btn variant="secondary" disabled={idx === 0} onPress={() => setIdx((i) => i - 1)}>
-              ← Назад
-            </Btn>
+              {" " + uiText("← Назад") + " "}</Btn>
             {last ? (
               <Btn loading={submitting} onPress={submit}>
-                Завершить
-              </Btn>
+                {" " + uiText("Завершить") + " "}</Btn>
             ) : (
-              <Btn onPress={() => setIdx((i) => i + 1)}>Дальше →</Btn>
+              <Btn onPress={() => setIdx((i) => i + 1)}>{uiText("Дальше →")}</Btn>
             )}
           </View>
         </ScrollView>
@@ -210,23 +208,22 @@ export default function StudentQuizPlayScreen() {
   const tone = r.percent >= 80 ? colors.primaryDeep : r.percent >= 50 ? colors.yellowDeep : colors.danger
   return (
     <Screen>
-      <StackHeader title="Результат" />
+      <StackHeader title={uiText("Результат")} />
       <ScrollView contentContainerStyle={styles.container}>
         <Card padding={22} style={{ alignItems: 'center' }}>
           <Text style={styles.meta}>{quiz.title}</Text>
           <Text style={[styles.percent, { color: tone }]}>{r.percent}%</Text>
           <Text style={styles.desc}>
-            Верно {r.score} из {r.total}
+            {" " + uiText("Верно") + " "}{r.score} {" " + uiText("из") + " "}{r.total}
           </Text>
           <View style={styles.nav}>
-            <Btn onPress={start}>Ещё раз</Btn>
+            <Btn onPress={start}>{uiText("Ещё раз")}</Btn>
             <Btn variant="secondary" onPress={() => navigation.goBack()}>
-              К квизам
-            </Btn>
+              {" " + uiText("К квизам") + " "}</Btn>
           </View>
         </Card>
 
-        <Text style={styles.section}>Разбор ответов</Text>
+        <Text style={styles.section}>{uiText("Разбор ответов")}</Text>
         {quiz.questions.map((q, n) => {
           const rev = r.review.find((x) => x.questionId === q.id)
           if (!rev) return null
@@ -256,7 +253,7 @@ export default function StudentQuizPlayScreen() {
                   >
                     {isCorrect ? '✓ ' : chosen ? '✗ ' : '· '}
                     {o.text}
-                    {chosen ? ' (твой ответ)' : ''}
+                    {chosen ? uiText("(твой ответ)") : ''}
                   </Text>
                 )
               })}

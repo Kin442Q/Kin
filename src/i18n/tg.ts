@@ -84,6 +84,7 @@ export const tg: Record<keyof typeof ru, Msg> = {
   'nav.menu': 'Менюи ғизо',
   'nav.homeroom': 'Маълумоти синф',
   'nav.grades': 'Журнали баҳоҳо',
+  'nav.directorReport': "Ҳисоботҳои директор",
   'nav.homework': 'Вазифаи хонагӣ',
   'nav.schedule': 'Ҷадвали дарсҳо',
   'nav.library': 'Китобхона',

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
@@ -30,7 +31,7 @@ export default function StudentExamScreen() {
     try {
       setTracks(await examTrackApi.list())
     } catch (e: any) {
-      notifyError(e, 'Не удалось загрузить направления')
+      notifyError(e, uiText("Не удалось загрузить направления"))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -45,7 +46,7 @@ export default function StudentExamScreen() {
 
   return (
     <Screen>
-      <StackHeader title="К экзаменам" />
+      <StackHeader title={uiText("К экзаменам")} />
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator color={colors.primary} />
@@ -69,8 +70,8 @@ export default function StudentExamScreen() {
           ListEmptyComponent={
             <EmptyState
               icon={<Target size={34} color={colors.muted} />}
-              title="Направлений пока нет"
-              hint="Школа ещё не создала подготовку к экзаменам"
+              title={uiText("Направлений пока нет")}
+              hint={uiText("Школа ещё не создала подготовку к экзаменам")}
             />
           }
           renderItem={({ item: t }) => {
@@ -90,9 +91,9 @@ export default function StudentExamScreen() {
                   </View>
                   <Text style={styles.meta}>
                     {p
-                      ? `Пройдено ${p.attempted} из ${p.total}` +
-                        (p.avgPercent != null ? ` · средний результат ${p.avgPercent}%` : '')
-                      : `Квизов: ${t.quizzesCount}`}
+                      ? uiText("Пройдено {0} из {1}", p.attempted, p.total) +
+                        (p.avgPercent != null ? uiText("· средний результат {0}%", p.avgPercent) : '')
+                      : uiText("Квизов: {0}", t.quizzesCount)}
                   </Text>
                 </Card>
               </Pressable>

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface Props {
@@ -41,7 +42,7 @@ export default class ErrorBoundary extends Component<Props, State> {
           placeItems: 'center',
           padding: 24,
           background: '#F7F5EF',
-          fontFamily: 'Plus Jakarta Sans, system-ui, sans-serif',
+          fontFamily: 'Inter, system-ui, sans-serif',
         }}
       >
         <div
@@ -57,12 +58,9 @@ export default class ErrorBoundary extends Component<Props, State> {
         >
           <div style={{ fontSize: 44, marginBottom: 12 }}>🌧️</div>
           <h1 style={{ fontSize: 20, fontWeight: 800, color: 'var(--sp-text)', margin: 0 }}>
-            Что-то пошло не так
-          </h1>
+            {" " + uiText("Что-то пошло не так") + " "}</h1>
           <p style={{ fontSize: 14, color: '#5C6B63', marginTop: 8, lineHeight: 1.5 }}>
-            Произошла ошибка при отображении страницы. Попробуйте обновить —
-            обычно это помогает. Если повторяется, сообщите администратору.
-          </p>
+            {" " + uiText("Произошла ошибка при отображении страницы. Попробуйте обновить — обычно это помогает. Если повторяется, сообщите администратору.") + " "}</p>
 
           {import.meta.env.DEV && this.state.error && (
             <pre
@@ -98,8 +96,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                 cursor: 'pointer',
               }}
             >
-              Обновить страницу
-            </button>
+              {" " + uiText("Обновить страницу") + " "}</button>
             <button
               onClick={this.reset}
               style={{
@@ -113,8 +110,7 @@ export default class ErrorBoundary extends Component<Props, State> {
                 cursor: 'pointer',
               }}
             >
-              Попробовать снова
-            </button>
+              {" " + uiText("Попробовать снова") + " "}</button>
           </div>
         </div>
       </div>

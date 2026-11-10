@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import dayjs from 'dayjs'
@@ -14,7 +15,7 @@ import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
 /** Цветная полоса урока по порядку в дне (палитра макета). */
 const BAR = ['#0D7A7C', '#FF8A65', '#9EDDD9', '#F6C46A', '#0D7A7C', '#FF8A65', '#9EDDD9', '#F6C46A']
-const WEEKDAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб']
+const WEEKDAYS = localizeCopy(['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'])
 
 /** Расписание ребёнка на неделю: выбор дня и список уроков. */
 export default function ParentScheduleScreen() {
@@ -62,7 +63,7 @@ export default function ParentScheduleScreen() {
   const week = useMemo(() => {
     const monday = dayjs().startOf('day').subtract(todayDow - 1, 'day')
     return WEEKDAYS.map((label, i) => ({ dow: i + 1, label, date: monday.add(i, 'day') }))
-  }, [todayDow])
+  }, [todayDow, uiLanguage()])
 
   const kid = kids.find((k) => k.id === activeKidId) ?? kids[0]
   const dayLessons = schedule
@@ -84,7 +85,7 @@ export default function ParentScheduleScreen() {
   if (!kid) {
     return (
       <Screen>
-        <EmptyState title="Нет данных" hint="К вашему аккаунту пока не привязан ни один ученик." />
+        <EmptyState title={uiText("Нет данных")} hint={uiText("К вашему аккаунту пока не привязан ни один ученик.")} />
       </Screen>
     )
   }
@@ -112,10 +113,11 @@ export default function ParentScheduleScreen() {
       >
         <ScreenHeading
           eyebrow={`${kid.firstName}${kid.group?.name ? ' · ' + kid.group.name : ''}`}
-          title="Расписание"
+          title={uiText("Расписание")}
+          size={28}
           right={
             kids.length > 1 ? (
-              <Pressable onPress={cycleKid} accessibilityRole="button" accessibilityLabel="Сменить ребёнка" style={styles.switch}>
+              <Pressable onPress={cycleKid} accessibilityRole="button" accessibilityLabel={uiText("Сменить ребёнка")} style={styles.switch}>
                 <Text style={styles.switchText}>{kid.firstName}</Text>
                 <ChevronDown size={15} color={colors.textMid} />
               </Pressable>
@@ -133,7 +135,7 @@ export default function ParentScheduleScreen() {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
                 accessibilityLabel={`${d.label}, ${d.date.format('D MMMM')}`}
-                style={[styles.day, { backgroundColor: on ? colors.primary : 'rgba(255,255,255,0.8)' }]}
+                style={[styles.day, { backgroundColor: on ? colors.primary : 'rgba(255,255,255,0.6)', borderColor: on ? colors.primary : 'rgba(255,255,255,0.9)' }]}
               >
                 <Text style={[styles.dayLabel, { color: on ? '#FFFFFF' : colors.text }]}>{d.label}</Text>
                 <Text style={[styles.dayNum, { color: on ? '#FFFFFF' : colors.text }]}>{d.date.format('D')}</Text>
@@ -143,23 +145,25 @@ export default function ParentScheduleScreen() {
         </View>
 
         {dayLessons.length === 0 ? (
-          <EmptyState title="Уроков нет" hint="На этот день расписание не составлено." />
+          <EmptyState title={uiText("Уроков нет")} hint={uiText("На этот день расписание не составлено.")} />
         ) : (
-          <View style={{ gap: 8 }}>
+          <View style={{ gap: 10 }}>
             {dayLessons.map((l, i) => {
-              const live = activeDay === todayDow && nowMin >= toMin(l.startTime) && nowMin < toMin(l.endTime)
+              const isToday = activeDay === todayDow
+              const live = isToday && nowMin >= toMin(l.startTime) && nowMin < toMin(l.endTime)
+              const past = isToday && nowMin >= toMin(l.endTime)
               return (
-                <View key={l.id} style={[styles.lesson, live && { backgroundColor: colors.surfaceStrong }]}>
-                  <View style={{ width: 54 }}>
+                <View key={l.id} style={styles.lessonWrap}>
+                  <View style={styles.times}>
                     <Text style={styles.t1}>{l.startTime}</Text>
                     <Text style={styles.t2}>{l.endTime}</Text>
                   </View>
-                  <View style={[styles.bar, { backgroundColor: BAR[i % BAR.length] }]} />
-                  <View style={{ flex: 1 }}>
+                  <View style={[styles.lesson, live && { backgroundColor: '#FFFFFF' }]}>
+                    <View style={[styles.bar, { backgroundColor: BAR[i % BAR.length] }]} />
                     <Text style={styles.subject} numberOfLines={1}>
                       {l.activity}
                     </Text>
-                    {live && <Text style={styles.liveTag}>идёт сейчас</Text>}
+                    {live ? <Text style={[styles.tag, { color: '#D9532E' }]}>{uiText("СЕЙЧАС")}</Text> : past ? <Text style={[styles.tag, { color: '#7A8C8E' }]}>{uiText("прошёл")}</Text> : null}
                   </View>
                 </View>
               )
@@ -185,23 +189,26 @@ const styles = themedStyles(() => ({
   },
   switchText: { fontSize: 13, fontWeight: '700', color: colors.text },
   days: { flexDirection: 'row', gap: 6 },
-  day: { flex: 1, height: 62, borderRadius: 16, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  dayLabel: { fontSize: 12, fontWeight: '600' },
-  dayNum: { fontSize: 18, fontWeight: '800' },
+  day: { flex: 1, height: 64, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  dayLabel: { fontSize: 12, fontWeight: '700', opacity: 0.8 },
+  dayNum: { fontSize: 19, fontWeight: '800' },
+  lessonWrap: { flexDirection: 'row', alignItems: 'stretch', gap: 12 },
+  times: { width: 46, alignItems: 'flex-end', justifyContent: 'center' },
   lesson: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 18,
+    borderRadius: 20,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: colors.glassBorder,
+    borderColor: 'rgba(255,255,255,0.9)',
   },
-  t1: { fontSize: 14, fontWeight: '700', color: colors.text },
-  t2: { fontSize: 12, color: colors.textMid },
-  bar: { width: 4, height: 36, borderRadius: 4 },
-  subject: { fontSize: 15, fontWeight: '700', color: colors.text },
-  liveTag: { fontSize: 12, color: colors.primaryDeep, fontWeight: '600', marginTop: 2 },
+  t1: { fontSize: 14, fontWeight: '800', color: colors.text },
+  t2: { fontSize: 12, fontWeight: '600', color: '#7A8C8E' },
+  bar: { width: 6, alignSelf: 'stretch', minHeight: 32, borderRadius: 3 },
+  subject: { flex: 1, fontSize: 15, fontWeight: '800', color: colors.text },
+  tag: { fontSize: 11, fontWeight: '800' },
 }))

@@ -1,0 +1,19 @@
+/* Same language control and Ant Design menu as the application. */
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 13px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: 700 13px/1 Inter, sans-serif;
+  letter-spacing: .02em;
+  cursor: pointer;
+}
+.lang-btn:hover { background: var(--surface-alt); }
+.lang-btn:active { transform: scale(.97); }
+.lang-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import {
   Pressable,
   View,
@@ -24,7 +25,7 @@ export default function StackHeader({ title, right }: Props) {
         onPress={() => navigation.goBack()}
         hitSlop={12}
         style={styles.back}
-        accessibilityLabel="Назад"
+        accessibilityLabel={uiText("Назад")}
       >
         <ChevronLeft size={24} color={colors.text} />
       </Pressable>

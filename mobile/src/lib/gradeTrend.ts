@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import dayjs from 'dayjs'
 
 interface MarkLike {
@@ -39,5 +40,5 @@ export function weeklyTrend(marks: MarkLike[], today: string = dayjs().format('Y
 /** «+0.2 за неделю» или «−0.1 за неделю» (настоящий минус, а не дефис). */
 export function trendLabel(delta: number): string {
   const sign = delta > 0 ? '+' : '−'
-  return `${sign}${Math.abs(delta).toFixed(1)} за неделю`
+  return uiText("{0}{1} за неделю", sign, Math.abs(delta).toFixed(1))
 }

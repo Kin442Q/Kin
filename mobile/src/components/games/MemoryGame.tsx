@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 import {
   Pressable,
@@ -60,8 +61,8 @@ export default function MemoryGame({ onFinish }: GameProps) {
   return (
     <View>
       <View style={styles.stats}>
-        <Text style={styles.stat}>Ходов: {moves}</Text>
-        <Text style={styles.stat}>Время: {seconds} с</Text>
+        <Text style={styles.stat}>{uiText("Ходов:") + " "}{moves}</Text>
+        <Text style={styles.stat}>{uiText("Время:") + " "}{seconds} {" " + uiText("с")}</Text>
       </View>
       <View style={styles.grid}>
         {deck.map((card) => {
@@ -70,7 +71,7 @@ export default function MemoryGame({ onFinish }: GameProps) {
           return (
             <Pressable
               key={card.id}
-              accessibilityLabel={faceUp ? card.symbol : 'Закрытая карточка'}
+              accessibilityLabel={faceUp ? card.symbol : uiText("Закрытая карточка")}
               onPress={() => flip(card.id)}
               style={[
                 styles.card,

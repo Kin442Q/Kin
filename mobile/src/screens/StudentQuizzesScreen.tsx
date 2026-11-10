@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
@@ -27,7 +28,7 @@ export default function StudentQuizzesScreen() {
   const navigation = useNavigation<any>()
   const route = useRoute<any>()
   const examTrackId: string | undefined = route.params?.examTrackId
-  const title: string = route.params?.title ?? 'Квизы'
+  const title: string = route.params?.title ?? uiText("Квизы")
 
   const [items, setItems] = useState<QuizSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,7 +38,7 @@ export default function StudentQuizzesScreen() {
     try {
       setItems(await quizApi.list(examTrackId ? { examTrackId } : undefined))
     } catch (e: any) {
-      notifyError(e, 'Не удалось загрузить квизы')
+      notifyError(e, uiText("Не удалось загрузить квизы"))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -77,8 +78,8 @@ export default function StudentQuizzesScreen() {
           ListEmptyComponent={
             <EmptyState
               icon={<ListChecks size={34} color={colors.muted} />}
-              title="Квизов пока нет"
-              hint="Учителя ещё не опубликовали тесты"
+              title={uiText("Квизов пока нет")}
+              hint={uiText("Учителя ещё не опубликовали тесты")}
             />
           }
           renderItem={({ item: q }) => {
@@ -105,17 +106,15 @@ export default function StudentQuizzesScreen() {
                   <View style={styles.footer}>
                     <Text style={styles.meta}>
                       {q.subject ? `${q.subject.name} · ` : ''}
-                      {q.questionsCount} вопр.
-                      {q.timeLimitSec ? ` · ${Math.round(q.timeLimitSec / 60)} мин` : ''}
+                      {q.questionsCount} {" " + uiText("вопр.") + " "}{q.timeLimitSec ? uiText("· {0} мин", Math.round(q.timeLimitSec / 60)) : ''}
                     </Text>
                     {tone && best ? (
                       <Text style={[styles.badge, { backgroundColor: tone.bg, color: tone.fg }]}>
-                        лучший: {best.percent}%
+                        {" " + uiText("лучший:") + " "}{best.percent}%
                       </Text>
                     ) : (
                       <Text style={[styles.badge, { backgroundColor: colors.surfaceAlt, color: colors.muted }]}>
-                        не проходил(а)
-                      </Text>
+                        {" " + uiText("не проходил(а)") + " "}</Text>
                     )}
                   </View>
                 </Card>

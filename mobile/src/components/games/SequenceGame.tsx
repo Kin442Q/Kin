@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 import {
   Pressable,
@@ -65,21 +66,21 @@ export default function SequenceGame({ onFinish }: GameProps) {
 
   const status =
     phase === 'showing'
-      ? 'Смотри внимательно…'
+      ? uiText("Смотри внимательно…")
       : phase === 'input'
-        ? 'Повтори порядок!'
-        : 'Ошибка — игра окончена'
+        ? uiText("Повтори порядок!")
+        : uiText("Ошибка — игра окончена")
 
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={styles.status}>
-        Уровень {completed + 1} · {status}
+        {" " + uiText("Уровень") + " "}{completed + 1} · {status}
       </Text>
       <View style={styles.grid}>
         {PAD_COLORS.map((color, pad) => (
           <Pressable
             key={pad}
-            accessibilityLabel={`Огонёк ${pad + 1}`}
+            accessibilityLabel={uiText("Огонёк {0}", pad + 1)}
             disabled={phase !== 'input'}
             onPress={() => press(pad)}
             style={[

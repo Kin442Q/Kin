@@ -2,11 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter_400Regular.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter_500Medium.ttf') format('truetype'); font-style: normal; font-weight: 500; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter_600SemiBold.ttf') format('truetype'); font-style: normal; font-weight: 600; font-display: swap; }
+@font-face { font-family: 'Inter'; src: url('/fonts/Inter_700Bold.ttf') format('truetype'); font-style: normal; font-weight: 700; font-display: swap; }
+
+@font-face { font-family: 'Mont Black'; src: url('/fonts/Mont-Black.ttf') format('truetype'); font-style: normal; font-weight: 100 900; font-display: swap; }
+
+
 /* ============================================================
    МАКТАБИ МАН — дизайн-система «Помир»
    Бирюзовый + коралловый, стекло на закате (светлая тема)
-   и ночные горы (тёмная). Montserrat — заголовки и логотип,
-   Inter — текст. Источник: дизайн-макет «Мактаби ман — ребрендинг».
+   и ночные горы (тёмная). Mont Black — единый шрифт интерфейса. Источник: дизайн-макет «Мактаби ман — ребрендинг».
    ============================================================ */
 :root {
   color-scheme: light;
@@ -312,14 +319,14 @@ html[data-theme='dark'] {
   .ant-drawer-title,
   .ant-statistic-content,
   .sp-display {
-    font-family: 'Montserrat', 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     letter-spacing: -0.015em;
   }
   .text-muted {
     color: var(--sp-muted);
   }
   .sp-num {
-    font-family: 'Montserrat', 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
   }
@@ -593,7 +600,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
 
 /* Логотип: слово «мактаби» + «ма»/«н» (бренд-вордмарк) */
 .brand-wordmark {
-  font-family: 'Montserrat', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 800;
   letter-spacing: -0.01em;
   color: var(--sp-text);
@@ -711,7 +718,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   place-items: center;
   background: var(--sp-primary-solid);
   color: #fff;
-  font: 800 17px 'Montserrat', sans-serif;
+  font: 800 17px 'Inter', sans-serif;
   flex: none;
 }
 .sp-grade-title {
@@ -721,7 +728,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   min-width: 0;
 }
 .sp-grade-title > b {
-  font: 800 16px 'Montserrat', sans-serif;
+  font: 800 16px 'Inter', sans-serif;
   color: var(--sp-text);
 }
 .sp-grade-letters {
@@ -783,7 +790,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   flex: 1;
 }
 .sp-parallel-title > b {
-  font: 800 15px 'Montserrat', sans-serif;
+  font: 800 15px 'Inter', sans-serif;
   color: var(--sp-text);
 }
 .sp-parallel-title > span {
@@ -865,7 +872,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
 }
 .qg-title {
   margin: 0;
-  font: 800 clamp(24px, 4vw, 32px) 'Montserrat', sans-serif;
+  font: 800 clamp(24px, 4vw, 32px) 'Inter', sans-serif;
   letter-spacing: -0.02em;
   color: var(--sp-text);
 }
@@ -951,7 +958,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   flex: none;
   display: grid;
   place-items: center;
-  font: 800 15px 'Montserrat', sans-serif;
+  font: 800 15px 'Inter', sans-serif;
 }
 .qg-timer svg {
   position: absolute;
@@ -980,7 +987,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
 }
 .qg-qtext {
   margin: 10px 0 8px;
-  font: 800 clamp(20px, 3.4vw, 26px) 'Montserrat', sans-serif;
+  font: 800 clamp(20px, 3.4vw, 26px) 'Inter', sans-serif;
   letter-spacing: -0.01em;
   color: var(--sp-text);
   line-height: 1.25;
@@ -1035,7 +1042,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   place-items: center;
   background: var(--qg-c);
   color: #fff;
-  font: 800 15px 'Montserrat', sans-serif;
+  font: 800 15px 'Inter', sans-serif;
 }
 .qg-stars {
   display: flex;
@@ -1052,7 +1059,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   filter: drop-shadow(0 6px 10px rgba(255, 176, 32, 0.45));
 }
 .qg-percent {
-  font: 800 64px/1.05 'Montserrat', sans-serif;
+  font: 800 64px/1.05 'Inter', sans-serif;
   letter-spacing: -0.03em;
 }
 .qg-stats {
@@ -1081,7 +1088,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   color: var(--sp-muted);
 }
 .qg-review-title {
-  font: 800 18px 'Montserrat', sans-serif;
+  font: 800 18px 'Inter', sans-serif;
   margin: 4px 4px 10px;
   color: var(--sp-text);
 }
@@ -1219,7 +1226,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
 }
 .sp-greeting-title {
   margin: 0;
-  font-family: 'Montserrat', 'Inter', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 800;
   font-size: clamp(24px, 2.6vw, 34px);
   line-height: 1.15;
@@ -2126,7 +2133,7 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   margin-bottom: 14px;
 }
 .ta-name {
-  font: 800 20px 'Montserrat', 'Inter', sans-serif;
+  font: 800 20px 'Inter', sans-serif;
   color: var(--sp-text);
 }
 .ta-contact {
@@ -2185,3 +2192,6 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   font-size: 12.5px;
   color: var(--sp-muted);
 }
+
+/* Mont Black accents; everyday interface text uses Inter. */
+h1, h2, h1.ant-typography, h2.ant-typography, .sp-display { font-family: 'Mont Black', Inter, sans-serif; }

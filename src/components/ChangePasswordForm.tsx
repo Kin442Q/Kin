@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useState } from 'react'
 import { App as AntdApp, Button, Card, Form, Input } from 'antd'
 import { LockOutlined } from '@ant-design/icons'
@@ -23,7 +24,7 @@ interface Props {
  * Смена своего пароля: нужен текущий. После смены другие устройства выходят,
  * это остаётся в системе (сервер выдаёт новую сессию). Снимает флаг «сменить пароль».
  */
-export default function ChangePasswordForm({ onDone, submitText = 'Сменить пароль' }: Props) {
+export default function ChangePasswordForm({ onDone, submitText = uiText("Сменить пароль") }: Props) {
   const { message } = AntdApp.useApp()
   const [form] = Form.useForm<Values>()
   const [saving, setSaving] = useState(false)
@@ -37,10 +38,10 @@ export default function ChangePasswordForm({ onDone, submitText = 'Сменит�
       setToken(res.accessToken)
       updateUser({ mustChangePassword: false })
       form.resetFields()
-      message.success('Пароль изменён. На других устройствах нужно войти заново.')
+      message.success(uiText("Пароль изменён. На других устройствах нужно войти заново."))
       onDone?.()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось сменить пароль')
+      message.error(e?.response?.data?.message || uiText("Не удалось сменить пароль"))
     } finally {
       setSaving(false)
     }
@@ -48,35 +49,35 @@ export default function ChangePasswordForm({ onDone, submitText = 'Сменит�
 
   return (
     <Form form={form} layout="vertical" requiredMark={false} onFinish={onFinish}>
-      <Form.Item name="current" label="Текущий пароль" rules={[{ required: true, message: 'Введите текущий пароль' }]}>
+      <Form.Item name="current" label={uiText("Текущий пароль")} rules={[{ required: true, message: uiText("Введите текущий пароль") }]}>
         <Input.Password autoComplete="current-password" disabled={saving} />
       </Form.Item>
       <Form.Item
         name="next"
-        label="Новый пароль"
+        label={uiText("Новый пароль")}
         dependencies={['current']}
         rules={[
-          { required: true, message: 'Введите новый пароль' },
-          { min: MIN_NEW_PASSWORD, message: `Минимум ${MIN_NEW_PASSWORD} символов` },
+          { required: true, message: uiText("Введите новый пароль") },
+          { min: MIN_NEW_PASSWORD, message: uiText("Минимум {0} символов", MIN_NEW_PASSWORD) },
           ({ getFieldValue }) => ({
             validator: (_, value) =>
               !value || getFieldValue('current') !== value
                 ? Promise.resolve()
-                : Promise.reject(new Error('Новый пароль должен отличаться от текущего')),
+                : Promise.reject(new Error(uiText("Новый пароль должен отличаться от текущего"))),
           }),
         ]}
       >
-        <Input.Password autoComplete="new-password" placeholder={`Минимум ${MIN_NEW_PASSWORD} символов`} disabled={saving} />
+        <Input.Password autoComplete="new-password" placeholder={uiText("Минимум {0} символов", MIN_NEW_PASSWORD)} disabled={saving} />
       </Form.Item>
       <Form.Item
         name="repeat"
-        label="Повторите новый пароль"
+        label={uiText("Повторите новый пароль")}
         dependencies={['next']}
         rules={[
-          { required: true, message: 'Повторите пароль' },
+          { required: true, message: uiText("Повторите пароль") },
           ({ getFieldValue }) => ({
             validator: (_, value) =>
-              !value || getFieldValue('next') === value ? Promise.resolve() : Promise.reject(new Error('Пароли не совпадают')),
+              !value || getFieldValue('next') === value ? Promise.resolve() : Promise.reject(new Error(uiText("Пароли не совпадают"))),
           }),
         ]}
       >
@@ -92,7 +93,7 @@ export default function ChangePasswordForm({ onDone, submitText = 'Сменит�
 /** Карточка «Безопасность» для страницы настроек. */
 export function ChangePasswordCard() {
   return (
-    <Card className="glass" bordered={false} title={<><LockOutlined /> Сменить пароль</>} style={{ maxWidth: 460 }}>
+    <Card className="glass" bordered={false} title={<><LockOutlined /> {" " + uiText("Сменить пароль")}</>} style={{ maxWidth: 460 }}>
       <ChangePasswordForm />
     </Card>
   )

@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Avatar,
@@ -100,7 +101,7 @@ export default function ChildrenPage() {
   // Роль с бэкенда приходит в верхнем регистре (TEACHER); поддерживаем оба.
   const isTeacher = user?.role === 'TEACHER' || user?.role === 'teacher'
   const L = useLabels()
-  const isSchool = L.group === 'класс'
+  const isSchool = L.isSchool
   const homeroomIds = user?.homeroomGroups?.map((g) => g.id) ?? []
   // Класс для печати ссылок — тот, что выбран в фильтре «параллель → буква»
   const pickedGroupId = sel.groupId ?? undefined
@@ -125,7 +126,7 @@ export default function ChildrenPage() {
     if (d.grade !== null) setSel(d)
   }, [groups, isTeacher, user?.groupId])
 
-  const selectedIds = useMemo(() => selectedGroupIds(groups, sel), [groups, sel])
+  const selectedIds = useMemo(() => selectedGroupIds(groups, sel), [groups, sel, uiLanguage()])
   const query = search.trim().toLowerCase()
   const hasFilter = query.length > 0 || selectedIds.length > 0
 
@@ -134,11 +135,11 @@ export default function ChildrenPage() {
     const m: Record<string, number> = {}
     for (const c of children) if (c.groupId) m[c.groupId] = (m[c.groupId] ?? 0) + 1
     return m
-  }, [children])
+  }, [children, uiLanguage()])
 
   const scopedChildren = useMemo(
     () => (user?.role === 'teacher' ? children.filter((c) => c.groupId === user.groupId) : children),
-    [children, user],
+    [children, user, uiLanguage()],
   )
 
   // Таблица показывает только то, что попало под фильтр: имя и/или класс.
@@ -160,7 +161,7 @@ export default function ChildrenPage() {
       )
     }
     return res
-  }, [scopedChildren, hasFilter, selectedIds, query])
+  }, [scopedChildren, hasFilter, selectedIds, query, uiLanguage()])
 
   const resetFilters = () => {
     selTouched.current = true
@@ -171,7 +172,7 @@ export default function ChildrenPage() {
   const exportToExcel = () => {
     const list = hasFilter ? visibleChildren : scopedChildren
     if (list.length === 0) {
-      message.warning('Нет данных для экспорта')
+      message.warning(uiText("Нет данных для экспорта"))
       return
     }
     const rows = list.map((c) => ({
@@ -179,8 +180,8 @@ export default function ChildrenPage() {
       Имя: c.firstName,
       Отчество: c.middleName || '',
       'Дата рождения': c.birthDate || '',
-      Пол: c.gender === 'female' ? 'Ж' : 'М',
-      ['Класс']:
+      Пол: c.gender === 'female' ? uiText("Ж") : uiText("М"),
+      [uiText("Класс")]:
         groups.find((g) => g.id === c.groupId)?.name || '',
       'Мать (ФИО)': c.motherName || '',
       'Телефон мамы': c.motherPhone || '',
@@ -188,8 +189,8 @@ export default function ChildrenPage() {
       'Телефон папы': c.fatherPhone || '',
       Адрес: c.address || '',
     }))
-    exportRows('ucheniki', rows, 'Список')
-    message.success(`Экспортировано: ${rows.length}`)
+    exportRows('ucheniki', rows, uiText("Список"))
+    message.success(uiText("Экспортировано: {0}", rows.length))
   }
 
   const openCreate = () => {
@@ -221,18 +222,18 @@ export default function ChildrenPage() {
 
   const removeChild = async (childId: string, canModify: boolean) => {
     if (!canModify) {
-      message.error('Нет прав на удаление')
+      message.error(uiText("Нет прав на удаление"))
       return
     }
     try {
       await http.delete(`/v1/students/${childId}`)
-      message.success('Удалено')
+      message.success(uiText("Удалено"))
       refreshTenantData()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось удалить ребёнка'
+        uiText("Не удалось удалить ребёнка")
       message.error(msg)
     }
   }
@@ -252,7 +253,7 @@ export default function ChildrenPage() {
       const enforcedGroupId =
         user?.role === 'teacher' ? user.groupId : values.groupId
       if (user?.role === 'teacher' && !user.groupId) {
-        message.error('Вам не назначена группа. Обратитесь к администратору.')
+        message.error(uiText("Вам не назначена группа. Обратитесь к администратору."))
         return
       }
 
@@ -285,10 +286,10 @@ export default function ChildrenPage() {
 
       if (editing) {
         await http.patch(`/v1/students/${editing.id}`, body)
-        message.success('Ребёнок обновлён')
+        message.success(uiText("Ребёнок обновлён"))
       } else {
         await http.post('/v1/students', body)
-        message.success('Ребёнок добавлен')
+        message.success(uiText("Ребёнок добавлен"))
       }
 
       setDrawerOpen(false)
@@ -298,7 +299,7 @@ export default function ChildrenPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось сохранить ребёнка'
+        uiText("Не удалось сохранить ребёнка")
       message.error(msg)
     } finally {
       setSubmitting(false)
@@ -307,7 +308,7 @@ export default function ChildrenPage() {
 
   const columns = [
     {
-      title: 'Ребёнок',
+      title: uiText("Ребёнок"),
       key: 'name',
       render: (_: unknown, c: Child) => (
         <Space>
@@ -330,7 +331,7 @@ export default function ChildrenPage() {
               {c.lastName} {c.firstName}
             </div>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              {calcAge(c.birthDate)} л. · {formatDate(c.birthDate)}
+              {calcAge(c.birthDate)} {" " + uiText("л. ·") + " "}{formatDate(c.birthDate)}
             </Text>
           </div>
         </Space>
@@ -338,7 +339,7 @@ export default function ChildrenPage() {
       fixed: 'left' as const,
     },
     {
-      title: 'Группа',
+      title: uiText("Группа"),
       dataIndex: 'groupId',
       key: 'group',
       filters: groups.map((g) => ({ text: g.name, value: g.id })),
@@ -350,14 +351,14 @@ export default function ChildrenPage() {
       },
     },
     {
-      title: 'Пол',
+      title: uiText("Пол"),
       dataIndex: 'gender',
       key: 'gender',
       render: (v: Gender) =>
-        v === 'female' ? <Tag color="magenta">Девочка</Tag> : <Tag color="blue">Мальчик</Tag>,
+        v === 'female' ? <Tag color="magenta">{uiText("Девочка")}</Tag> : <Tag color="blue">{uiText("Мальчик")}</Tag>,
     },
     {
-      title: 'Родители',
+      title: uiText("Родители"),
       key: 'parents',
       render: (_: unknown, c: Child) => (
         <div>
@@ -385,7 +386,7 @@ export default function ChildrenPage() {
       ),
     },
     {
-      title: 'Плата',
+      title: uiText("Плата"),
       dataIndex: 'monthlyFee',
       key: 'fee',
       render: (v: number | undefined, c: Child) => {
@@ -394,7 +395,7 @@ export default function ChildrenPage() {
       },
     },
     {
-      title: 'Действия',
+      title: uiText("Действия"),
       key: 'actions',
       fixed: 'right' as const,
       render: (_: unknown, c: Child) => {
@@ -404,7 +405,7 @@ export default function ChildrenPage() {
         return (
           <Space>
             {isAdmin && (
-              <Tooltip title="Родители">
+              <Tooltip title={uiText("Родители")}>
                 <Button
                   size="small"
                   type="text"
@@ -414,7 +415,7 @@ export default function ChildrenPage() {
               </Tooltip>
             )}
             {canGiveAccess(c) && (
-              <Tooltip title="Личная ссылка ученика">
+              <Tooltip title={uiText("Личная ссылка ученика")}>
                 <Button
                   size="small"
                   type="text"
@@ -423,7 +424,7 @@ export default function ChildrenPage() {
                 />
               </Tooltip>
             )}
-            <Tooltip title={canModify ? 'Редактировать' : 'Нет прав'}>
+            <Tooltip title={canModify ? uiText("Редактировать") : uiText("Нет прав")}>
               <Button
                 size="small"
                 type="text"
@@ -433,9 +434,9 @@ export default function ChildrenPage() {
               />
             </Tooltip>
             <Popconfirm
-              title={'Удалить ученика?'}
-              okText="Удалить"
-              cancelText="Отмена"
+              title={uiText("Удалить ученика?")}
+              okText={uiText("Удалить")}
+              cancelText={uiText("Отмена")}
               disabled={!canModify}
               onConfirm={() => removeChild(c.id, canModify)}
             >
@@ -461,8 +462,8 @@ export default function ChildrenPage() {
         iconAccent="blue"
         description={
           user?.role === 'teacher'
-            ? 'Ученики вашего класса.'
-            : 'Список всех учеников школы'
+            ? uiText("Ученики вашего класса.")
+            : uiText("Список всех учеников школы")
         }
         chip={
           <Tag
@@ -481,10 +482,9 @@ export default function ChildrenPage() {
         actions={
           <Space>
             {canClassLinks && (
-              <Tooltip title={linksGroup ? '' : 'Выберите класс в фильтре'}>
+              <Tooltip title={linksGroup ? '' : uiText("Выберите класс в фильтре")}>
                 <Button icon={<LinkOutlined />} disabled={!linksGroup} onClick={() => setLinksOpen(true)}>
-                  Ссылки класса
-                </Button>
+                  {" " + uiText("Ссылки класса") + " "}</Button>
               </Tooltip>
             )}
             <Button
@@ -492,21 +492,19 @@ export default function ChildrenPage() {
               onClick={exportToExcel}
               disabled={scopedChildren.length === 0}
             >
-              Экспорт
-            </Button>
+              {" " + uiText("Экспорт") + " "}</Button>
             <Button
               icon={<UploadOutlined />}
               onClick={() => setImportOpen(true)}
             >
-              Импорт
-            </Button>
+              {" " + uiText("Импорт") + " "}</Button>
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={openCreate}
               disabled={user?.role === 'teacher' && !user.groupId}
             >
-              {'Добавить ученика'}
+              {uiText("Добавить ученика")}
             </Button>
           </Space>
         }
@@ -524,17 +522,16 @@ export default function ChildrenPage() {
                 <Input
                   allowClear
                   prefix={<SearchOutlined />}
-                  placeholder={`Поиск по имени ${L.student} или родителю`}
+                  placeholder={uiText("Поиск по имени {0} или родителю", L.student)}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </Col>
               <Col xs={24} md={12} className="flex items-center gap-2">
-                {hasFilter && <Tag color="purple">Найдено: {visibleChildren.length}</Tag>}
+                {hasFilter && <Tag color="purple">{uiText("Найдено:") + " "}{visibleChildren.length}</Tag>}
                 {hasFilter && (
                   <Button size="small" type="link" onClick={resetFilters}>
-                    Сбросить
-                  </Button>
+                    {" " + uiText("Сбросить") + " "}</Button>
                 )}
               </Col>
             </Row>
@@ -544,11 +541,11 @@ export default function ChildrenPage() {
           {!hasFilter ? (
             <SproutEmpty
               icon={<Baby size={28} strokeWidth={1.8} />}
-              title="Выберите класс или начните поиск"
+              title={uiText("Выберите класс или начните поиск")}
               description={
                 scopedChildren.length > 0
-                  ? `Список появится, когда вы выберете параллель и класс или введёте имя. Всего в школе: ${scopedChildren.length} ${plural(scopedChildren.length, ['ученик', 'ученика', 'учеников'])}.`
-                  : 'Учеников пока нет — добавьте первого кнопкой «Добавить ученика».'
+                  ? uiText("Список появится, когда вы выберете параллель и класс или введёте имя. Всего в школе: {0} {1}.", scopedChildren.length, plural(scopedChildren.length, [uiText("ученик"), uiText("ученика"), uiText("учеников")]))
+                  : uiText("Учеников пока нет — добавьте первого кнопкой «Добавить ученика».")
               }
               minHeight={200}
             />
@@ -557,8 +554,8 @@ export default function ChildrenPage() {
               {visibleChildren.length === 0 && (
                 <SproutEmpty
                   icon={<Baby size={28} strokeWidth={1.8} />}
-                  title="Никого не нашли"
-                  description="Измените имя или выберите другой класс"
+                  title={uiText("Никого не нашли")}
+                  description={uiText("Измените имя или выберите другой класс")}
                   minHeight={160}
                 />
               )}
@@ -611,7 +608,7 @@ export default function ChildrenPage() {
                           {c.lastName} {c.firstName}
                         </div>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          {calcAge(c.birthDate)} л. · {formatDate(c.birthDate)}
+                          {calcAge(c.birthDate)} {" " + uiText("л. ·") + " "}{formatDate(c.birthDate)}
                         </Text>
                       </div>
                     </div>
@@ -633,7 +630,7 @@ export default function ChildrenPage() {
                         color={c.gender === 'female' ? 'magenta' : 'blue'}
                         style={{ margin: 0 }}
                       >
-                        {c.gender === 'female' ? 'Девочка' : 'Мальчик'}
+                        {c.gender === 'female' ? uiText("Девочка") : uiText("Мальчик")}
                       </Tag>
                     </div>
 
@@ -683,13 +680,11 @@ export default function ChildrenPage() {
                       {showFees && (
                         <div>
                           <Text type="secondary" style={{ fontSize: 11 }}>
-                            Плата
-                          </Text>
+                            {" " + uiText("Плата") + " "}</Text>
                           <div style={{ fontWeight: 600, fontSize: 14 }}>
                             {formatMoney(fee)}{' '}
                             <Text type="secondary" style={{ fontSize: 11 }}>
-                              сомони
-                            </Text>
+                              {" " + uiText("сомони") + " "}</Text>
                           </div>
                         </div>
                       )}
@@ -715,9 +710,9 @@ export default function ChildrenPage() {
                           onClick={() => openEdit(c)}
                         />
                         <Popconfirm
-                          title={'Удалить ученика?'}
-                          okText="Удалить"
-                          cancelText="Отмена"
+                          title={uiText("Удалить ученика?")}
+                          okText={uiText("Удалить")}
+                          cancelText={uiText("Отмена")}
                           disabled={!canModify}
                           onConfirm={() => removeChild(c.id, canModify)}
                         >
@@ -748,17 +743,17 @@ export default function ChildrenPage() {
                 <div className="text-sm space-y-1">
                   {c.address && (
                     <div>
-                      <Text type="secondary">Адрес:</Text> {c.address}
+                      <Text type="secondary">{uiText("Адрес:")}</Text> {c.address}
                     </div>
                   )}
                   {c.medicalNotes && (
                     <div>
-                      <Text type="secondary">Медицинская информация:</Text> {c.medicalNotes}
+                      <Text type="secondary">{uiText("Медицинская информация:")}</Text> {c.medicalNotes}
                     </div>
                   )}
                   {c.notes && (
                     <div>
-                      <Text type="secondary">Комментарии:</Text> {c.notes}
+                      <Text type="secondary">{uiText("Комментарии:")}</Text> {c.notes}
                     </div>
                   )}
                 </div>
@@ -772,8 +767,8 @@ export default function ChildrenPage() {
       <Drawer
         title={
           editing
-            ? 'Редактировать ученика'
-            : 'Новый ученик'
+            ? uiText("Редактировать ученика")
+            : uiText("Новый ученик")
         }
         open={drawerOpen}
         width={isMobile ? '100%' : 520}
@@ -781,38 +776,37 @@ export default function ChildrenPage() {
         destroyOnClose
         extra={
           <Space>
-            <Button onClick={() => setDrawerOpen(false)}>Отмена</Button>
+            <Button onClick={() => setDrawerOpen(false)}>{uiText("Отмена")}</Button>
             <Button type="primary" loading={submitting} onClick={submit}>
-              Сохранить
-            </Button>
+              {" " + uiText("Сохранить") + " "}</Button>
           </Space>
         }
       >
         <Form layout="vertical" form={form}>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="lastName" label="Фамилия" rules={[{ required: true }]}>
+              <Form.Item name="lastName" label={uiText("Фамилия")} rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="firstName" label="Имя" rules={[{ required: true }]}>
+              <Form.Item name="firstName" label={uiText("Имя")} rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="birthDate" label="Дата рождения" rules={[{ required: true }]}>
+              <Form.Item name="birthDate" label={uiText("Дата рождения")} rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="gender" label="Пол" rules={[{ required: true }]}>
+              <Form.Item name="gender" label={uiText("Пол")} rules={[{ required: true }]}>
                 <Select
                   options={[
-                    { value: 'male', label: 'Мальчик' },
-                    { value: 'female', label: 'Девочка' },
+                    { value: 'male', label: uiText("Мальчик") },
+                    { value: 'female', label: uiText("Девочка") },
                   ]}
                 />
               </Form.Item>
@@ -820,13 +814,12 @@ export default function ChildrenPage() {
           </Row>
           <Form.Item
             name="groupId"
-            label="Группа"
+            label={uiText("Группа")}
             rules={[{ required: true }]}
             extra={
               user?.role === 'teacher' ? (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  Учитель может добавлять детей только в свою группу
-                </Text>
+                  {" " + uiText("Учитель может добавлять детей только в свою группу") + " "}</Text>
               ) : undefined
             }
           >
@@ -836,7 +829,7 @@ export default function ChildrenPage() {
             />
           </Form.Item>
 
-          <Form.Item label="Фото">
+          <Form.Item label={uiText("Фото")}>
             <Upload
               listType="picture-card"
               maxCount={1}
@@ -847,62 +840,62 @@ export default function ChildrenPage() {
               {photoList.length === 0 && (
                 <div>
                   <UploadOutlined />
-                  <div style={{ marginTop: 6 }}>Загрузить</div>
+                  <div style={{ marginTop: 6 }}>{uiText("Загрузить")}</div>
                 </div>
               )}
             </Upload>
           </Form.Item>
 
-          <Form.Item name="medicalNotes" label="Медицинская информация">
-            <Input.TextArea rows={2} placeholder="Аллергии, особенности здоровья" />
+          <Form.Item name="medicalNotes" label={uiText("Медицинская информация")}>
+            <Input.TextArea rows={2} placeholder={uiText("Аллергии, особенности здоровья")} />
           </Form.Item>
-          <Form.Item name="notes" label="Комментарии">
+          <Form.Item name="notes" label={uiText("Комментарии")}>
             <Input.TextArea rows={2} />
           </Form.Item>
 
-          <Typography.Title level={5}>Родители</Typography.Title>
+          <Typography.Title level={5}>{uiText("Родители")}</Typography.Title>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="motherName" label="Имя мамы">
+              <Form.Item name="motherName" label={uiText("Имя мамы")}>
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="motherPhone" label="Телефон мамы">
+              <Form.Item name="motherPhone" label={uiText("Телефон мамы")}>
                 <Input prefix={<PhoneOutlined />} placeholder="+992 XX XXX XX XX" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="fatherName" label="Имя папы">
+              <Form.Item name="fatherName" label={uiText("Имя папы")}>
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="fatherPhone" label="Телефон папы">
+              <Form.Item name="fatherPhone" label={uiText("Телефон папы")}>
                 <Input prefix={<PhoneOutlined />} placeholder="+992 XX XXX XX XX" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="address" label="Адрес">
+          <Form.Item name="address" label={uiText("Адрес")}>
             <Input />
           </Form.Item>
-          <Form.Item name="extraContact" label="Доп. контакт">
+          <Form.Item name="extraContact" label={uiText("Доп. контакт")}>
             <Input />
           </Form.Item>
           {showFees && (
             <Form.Item
               name="monthlyFee"
-              label="Индивидуальная плата (опц.)"
-              tooltip="Если задано — будет использоваться вместо платы группы/класса"
+              label={uiText("Индивидуальная плата (опц.)")}
+              tooltip={uiText("Если задано — будет использоваться вместо платы группы/класса")}
             >
               <InputNumber
                 min={0}
                 step={50}
                 style={{ width: '100%' }}
-                addonAfter="сомони"
-                placeholder="например, 500"
+                addonAfter={uiText("сомони")}
+                placeholder={uiText("например, 500")}
               />
             </Form.Item>
           )}
@@ -936,11 +929,11 @@ export default function ChildrenPage() {
 
 function pluralizeStudent(n: number, isSchool: boolean): string {
   if (isSchool) {
-    if (n === 1) return 'ученик'
-    if (n >= 2 && n <= 4) return 'ученика'
-    return 'учеников'
+    if (n === 1) return uiText("ученик")
+    if (n >= 2 && n <= 4) return uiText("ученика")
+    return uiText("учеников")
   }
-  if (n === 1) return 'ребёнок'
-  if (n >= 2 && n <= 4) return 'ребёнка'
-  return 'детей'
+  if (n === 1) return uiText("ребёнок")
+  if (n >= 2 && n <= 4) return uiText("ребёнка")
+  return uiText("детей")
 }

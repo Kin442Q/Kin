@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useState } from 'react'
 import {
   FlatList,
@@ -33,7 +34,7 @@ export default function Dropdown<T extends string>({
   value,
   options,
   onChange,
-  placeholder = 'Выбрать',
+  placeholder = uiText("Выбрать"),
 }: Props<T>) {
   const [open, setOpen] = useState(false)
   const current = options.find((o) => o.value === value)

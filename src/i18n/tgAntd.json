@@ -1,0 +1,364 @@
+{
+  "locale": "tg",
+  "Pagination": {
+    "items_per_page": "/ саҳ.",
+    "jump_to": "Гузариш",
+    "jump_to_confirm": "тасдиқ",
+    "page": "Саҳифа",
+    "prev_page": "Саҳифаи пешина",
+    "next_page": "Саҳифаи баъдӣ",
+    "prev_5": "5 саҳифаи пешина",
+    "next_5": "5 саҳифаи баъдӣ",
+    "prev_3": "3 саҳифаи пешина",
+    "next_3": "3 саҳифаи баъдӣ",
+    "page_size": "Андозаи саҳифа"
+  },
+  "DatePicker": {
+    "lang": {
+      "placeholder": "Санаро интихоб кунед",
+      "yearPlaceholder": "Солро интихоб кунед",
+      "quarterPlaceholder": "Чорякро интихоб кунед",
+      "monthPlaceholder": "Моҳро интихоб кунед",
+      "weekPlaceholder": "Ҳафтаро интихоб кунед",
+      "rangePlaceholder": [
+        "Санаи оғоз",
+        "Санаи анҷом"
+      ],
+      "rangeYearPlaceholder": [
+        "Соли оғоз",
+        "Соли анҷом"
+      ],
+      "rangeQuarterPlaceholder": [
+        "Чоряки оғоз",
+        "Чоряки анҷом"
+      ],
+      "rangeMonthPlaceholder": [
+        "Моҳи оғоз",
+        "Моҳи анҷом"
+      ],
+      "rangeWeekPlaceholder": [
+        "Ҳафтаи оғоз",
+        "Ҳафтаи анҷом"
+      ],
+      "yearFormat": "YYYY",
+      "dayFormat": "D",
+      "cellMeridiemFormat": "A",
+      "monthBeforeYear": true,
+      "locale": "tg_TJ",
+      "today": "Имрӯз",
+      "now": "Ҳоло",
+      "backToToday": "Бозгашт ба имрӯз",
+      "ok": "Тасдиқ",
+      "clear": "Тоза кардан",
+      "week": "Ҳафта",
+      "month": "Моҳ",
+      "year": "Сол",
+      "timeSelect": "Интихоби вақт",
+      "dateSelect": "Интихоби сана",
+      "weekSelect": "Ҳафтаро интихоб кунед",
+      "monthSelect": "Моҳро интихоб кунед",
+      "yearSelect": "Солро интихоб кунед",
+      "decadeSelect": "Даҳсоларо интихоб кунед",
+      "dateFormat": "DD.MM.YYYY",
+      "dateTimeFormat": "DD.MM.YYYY HH:mm:ss",
+      "previousMonth": "Моҳи пешина (PageUp)",
+      "nextMonth": "Моҳи баъдӣ (PageDown)",
+      "previousYear": "Соли пешина (Ctrl + чап)",
+      "nextYear": "Соли баъдӣ (Ctrl + рост)",
+      "previousDecade": "Даҳсолаи пешина",
+      "nextDecade": "Даҳсолаи баъдӣ",
+      "previousCentury": "Асри пешина",
+      "nextCentury": "Асри баъдӣ",
+      "shortWeekDays": [
+        "Як",
+        "Дш",
+        "Сш",
+        "Чш",
+        "Пш",
+        "Ҷм",
+        "Шб"
+      ],
+      "shortMonths": [
+        "Янв",
+        "Фев",
+        "Мар",
+        "Апр",
+        "Май",
+        "Июн",
+        "Июл",
+        "Авг",
+        "Сен",
+        "Окт",
+        "Ноя",
+        "Дек"
+      ],
+      "months": [
+        "Январ",
+        "Феврал",
+        "Март",
+        "Апрел",
+        "Май",
+        "Июн",
+        "Июл",
+        "Август",
+        "Сентябр",
+        "Октябр",
+        "Ноябр",
+        "Декабр"
+      ]
+    },
+    "timePickerLocale": {
+      "placeholder": "Вақтро интихоб кунед",
+      "rangePlaceholder": [
+        "Вақти оғоз",
+        "Вақти анҷом"
+      ]
+    }
+  },
+  "TimePicker": {
+    "placeholder": "Вақтро интихоб кунед",
+    "rangePlaceholder": [
+      "Вақти оғоз",
+      "Вақти анҷом"
+    ]
+  },
+  "Calendar": {
+    "lang": {
+      "placeholder": "Санаро интихоб кунед",
+      "yearPlaceholder": "Солро интихоб кунед",
+      "quarterPlaceholder": "Чорякро интихоб кунед",
+      "monthPlaceholder": "Моҳро интихоб кунед",
+      "weekPlaceholder": "Ҳафтаро интихоб кунед",
+      "rangePlaceholder": [
+        "Санаи оғоз",
+        "Санаи анҷом"
+      ],
+      "rangeYearPlaceholder": [
+        "Соли оғоз",
+        "Соли анҷом"
+      ],
+      "rangeQuarterPlaceholder": [
+        "Чоряки оғоз",
+        "Чоряки анҷом"
+      ],
+      "rangeMonthPlaceholder": [
+        "Моҳи оғоз",
+        "Моҳи анҷом"
+      ],
+      "rangeWeekPlaceholder": [
+        "Ҳафтаи оғоз",
+        "Ҳафтаи анҷом"
+      ],
+      "yearFormat": "YYYY",
+      "dayFormat": "D",
+      "cellMeridiemFormat": "A",
+      "monthBeforeYear": true,
+      "locale": "tg_TJ",
+      "today": "Имрӯз",
+      "now": "Ҳоло",
+      "backToToday": "Бозгашт ба имрӯз",
+      "ok": "Тасдиқ",
+      "clear": "Тоза кардан",
+      "week": "Ҳафта",
+      "month": "Моҳ",
+      "year": "Сол",
+      "timeSelect": "Интихоби вақт",
+      "dateSelect": "Интихоби сана",
+      "weekSelect": "Ҳафтаро интихоб кунед",
+      "monthSelect": "Моҳро интихоб кунед",
+      "yearSelect": "Солро интихоб кунед",
+      "decadeSelect": "Даҳсоларо интихоб кунед",
+      "dateFormat": "DD.MM.YYYY",
+      "dateTimeFormat": "DD.MM.YYYY HH:mm:ss",
+      "previousMonth": "Моҳи пешина (PageUp)",
+      "nextMonth": "Моҳи баъдӣ (PageDown)",
+      "previousYear": "Соли пешина (Ctrl + чап)",
+      "nextYear": "Соли баъдӣ (Ctrl + рост)",
+      "previousDecade": "Даҳсолаи пешина",
+      "nextDecade": "Даҳсолаи баъдӣ",
+      "previousCentury": "Асри пешина",
+      "nextCentury": "Асри баъдӣ",
+      "shortWeekDays": [
+        "Як",
+        "Дш",
+        "Сш",
+        "Чш",
+        "Пш",
+        "Ҷм",
+        "Шб"
+      ],
+      "shortMonths": [
+        "Янв",
+        "Фев",
+        "Мар",
+        "Апр",
+        "Май",
+        "Июн",
+        "Июл",
+        "Авг",
+        "Сен",
+        "Окт",
+        "Ноя",
+        "Дек"
+      ],
+      "months": [
+        "Январ",
+        "Феврал",
+        "Март",
+        "Апрел",
+        "Май",
+        "Июн",
+        "Июл",
+        "Август",
+        "Сентябр",
+        "Октябр",
+        "Ноябр",
+        "Декабр"
+      ]
+    },
+    "timePickerLocale": {
+      "placeholder": "Вақтро интихоб кунед",
+      "rangePlaceholder": [
+        "Вақти оғоз",
+        "Вақти анҷом"
+      ]
+    }
+  },
+  "global": {
+    "placeholder": "Интихоб кунед",
+    "close": "Пӯшидан"
+  },
+  "Table": {
+    "filterTitle": "Менюи филтр",
+    "filterConfirm": "Тасдиқ",
+    "filterReset": "Бознишонӣ",
+    "filterEmptyText": "Филтр нест",
+    "filterCheckAll": "Интихоби ҳамаи ҷузъҳо",
+    "filterSearchPlaceholder": "Ҷустуҷӯ дар филтрҳо",
+    "emptyText": "Маълумот нест",
+    "selectAll": "Интихоби саҳифаи ҷорӣ",
+    "selectInvert": "Баръакси интихоби саҳифа",
+    "selectNone": "Тоза кардани ҳамаи интихобҳо",
+    "selectionAll": "Интихоби ҳама",
+    "sortTitle": "Тартибдиҳӣ",
+    "expand": "Кушодани сатр",
+    "collapse": "Пӯшидани сатр",
+    "triggerDesc": "Барои тартиби камшавӣ зер кунед",
+    "triggerAsc": "Барои тартиби афзоиш зер кунед",
+    "cancelSort": "Барои бекор кардани тартиб зер кунед"
+  },
+  "Tour": {
+    "Next": "Минбаъд",
+    "Previous": "Пешина",
+    "Finish": "Анҷом"
+  },
+  "Modal": {
+    "okText": "Тасдиқ",
+    "cancelText": "Бекор кардан",
+    "justOkText": "Тасдиқ"
+  },
+  "Popconfirm": {
+    "okText": "Тасдиқ",
+    "cancelText": "Бекор кардан"
+  },
+  "Transfer": {
+    "titles": [
+      "",
+      ""
+    ],
+    "searchPlaceholder": "Дар ин ҷо ҷустуҷӯ кунед",
+    "itemUnit": "ҷузъ",
+    "itemsUnit": "ҷузъ",
+    "remove": "Гирифтан",
+    "selectCurrent": "Интихоби саҳифаи ҷорӣ",
+    "removeCurrent": "Гирифтани саҳифаи ҷорӣ",
+    "selectAll": "Интихоби ҳама",
+    "deselectAll": "Бекор кардани ҳамаи интихобҳо",
+    "removeAll": "Гирифтани ҳама",
+    "selectInvert": "Баръакси интихоби саҳифа"
+  },
+  "Upload": {
+    "uploading": "Бор мешавад...",
+    "removeFile": "Нест кардани файл",
+    "uploadError": "Хатои боркунӣ",
+    "previewFile": "Пешнамоиши файл",
+    "downloadFile": "Боргирии файл"
+  },
+  "Empty": {
+    "description": "Маълумот нест"
+  },
+  "Icon": {
+    "icon": "нишона"
+  },
+  "Text": {
+    "edit": "Таҳрир",
+    "copy": "Нусха кардан",
+    "copied": "Нусха шуд",
+    "expand": "Кушодан",
+    "collapse": "Пӯшидан"
+  },
+  "Form": {
+    "optional": "(ихтиёрӣ)",
+    "defaultValidateMessages": {
+      "default": "Хатои санҷиши майдони ${label}",
+      "required": "${label}-ро ворид кунед",
+      "enum": "${label} бояд яке аз [${enum}] бошад",
+      "whitespace": "${label} набояд холӣ бошад",
+      "date": {
+        "format": "Шакли санаи ${label} нодуруст аст",
+        "parse": "${label} ба сана табдил намеёбад",
+        "invalid": "${label} санаи нодуруст аст"
+      },
+      "types": {
+        "string": "${label} ба навъи ${type} мувофиқат намекунад",
+        "method": "${label} ба навъи ${type} мувофиқат намекунад",
+        "array": "${label} ба навъи ${type} мувофиқат намекунад",
+        "object": "${label} ба навъи ${type} мувофиқат намекунад",
+        "number": "${label} ба навъи ${type} мувофиқат намекунад",
+        "date": "${label} ба навъи ${type} мувофиқат намекунад",
+        "boolean": "${label} ба навъи ${type} мувофиқат намекунад",
+        "integer": "${label} ба навъи ${type} мувофиқат намекунад",
+        "float": "${label} ба навъи ${type} мувофиқат намекунад",
+        "regexp": "${label} ба навъи ${type} мувофиқат намекунад",
+        "email": "${label} ба навъи ${type} мувофиқат намекунад",
+        "url": "${label} ба навъи ${type} мувофиқат намекунад",
+        "hex": "${label} ба навъи ${type} мувофиқат намекунад"
+      },
+      "string": {
+        "len": "${label} бояд ${len} аломат дошта бошад",
+        "min": "${label} бояд камаш ${min} аломат дошта бошад",
+        "max": "${label} бояд то ${max} аломат дошта бошад",
+        "range": "${label} бояд аз ${min} то ${max} аломат дошта бошад"
+      },
+      "number": {
+        "len": "${label} бояд ба ${len} баробар бошад",
+        "min": "${label} бояд камаш ${min} бошад",
+        "max": "${label} бояд ҳадди аксар ${max} бошад",
+        "range": "${label} бояд байни ${min} ва ${max} бошад"
+      },
+      "array": {
+        "len": "Бояд ${len} ${label} бошад",
+        "min": "Камаш ${min} ${label}",
+        "max": "Ҳадди аксар ${max} ${label}",
+        "range": "Шумораи ${label} бояд байни ${min} ва ${max} бошад"
+      },
+      "pattern": {
+        "mismatch": "${label} ба намунаи ${pattern} мувофиқат намекунад"
+      }
+    }
+  },
+  "Image": {
+    "preview": "Пешнамоиш"
+  },
+  "QRCode": {
+    "expired": "Муҳлати QR-рамз гузашт",
+    "refresh": "Нав кардан",
+    "scanned": "Скан шуд"
+  },
+  "ColorPicker": {
+    "presetEmpty": "Холӣ",
+    "transparent": "Шаффоф",
+    "singleColor": "Якранг",
+    "gradientColor": "Градиент"
+  }
+}

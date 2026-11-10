@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useState } from 'react'
 import {
   App as AntdApp,
@@ -33,12 +34,12 @@ function gradeColor(v: number): string {
   return SP.danger
 }
 function gradeTypeLabel(t: string): string {
-  if (t === 'CLASSWORK') return 'урок'
-  if (t === 'HOMEWORK') return 'ДЗ'
-  if (t === 'CONTROL') return 'контр.'
-  if (t === 'EXAM') return 'экзамен'
-  if (t === 'PROJECT') return 'проект'
-  return 'другое'
+  if (t === 'CLASSWORK') return uiText("урок")
+  if (t === 'HOMEWORK') return uiText("ДЗ")
+  if (t === 'CONTROL') return uiText("контр.")
+  if (t === 'EXAM') return uiText("экзамен")
+  if (t === 'PROJECT') return uiText("проект")
+  return uiText("другое")
 }
 
 export default function ParentGradesPage() {
@@ -59,7 +60,7 @@ export default function ParentGradesPage() {
         else setLoading(false)
       })
       .catch((e) => {
-        message.error(e?.response?.data?.message || 'Ошибка')
+        message.error(e?.response?.data?.message || uiText("Ошибка"))
         setLoading(false)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,7 +80,7 @@ export default function ParentGradesPage() {
         setHomework(h)
       })
       .catch((e) =>
-        message.error(e?.response?.data?.message || 'Ошибка'),
+        message.error(e?.response?.data?.message || uiText("Ошибка")),
       )
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -88,10 +89,10 @@ export default function ParentGradesPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Школа"
+        title={uiText("Школа")}
         icon={<GraduationCap size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description="Оценки и домашние задания"
+        description={uiText("Оценки и домашние задания")}
       />
 
       <KidSwitcher kids={kids} value={activeKidId} onChange={setActiveKidId} />
@@ -101,8 +102,8 @@ export default function ParentGradesPage() {
         value={tab}
         onChange={(v) => setTab(v as 'grades' | 'homework')}
         options={[
-          { value: 'grades', label: '📊 Оценки' },
-          { value: 'homework', label: '📚 Домашка' },
+          { value: 'grades', label: uiText("📊 Оценки") },
+          { value: 'homework', label: uiText("📚 Домашка") },
         ]}
         style={{ marginBottom: 14 }}
       />
@@ -121,7 +122,7 @@ export default function ParentGradesPage() {
             <Card
               className="glass"
               bordered={false}
-              title="Средние оценки по предметам"
+              title={uiText("Средние оценки по предметам")}
               style={{ marginBottom: 12 }}
             >
               <div
@@ -158,8 +159,7 @@ export default function ParentGradesPage() {
                         {row.name}
                       </div>
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        {row.count} оц.
-                      </Text>
+                        {row.count} {" " + uiText("оц.") + " "}</Text>
                     </div>
                     <div
                       style={{
@@ -178,10 +178,10 @@ export default function ParentGradesPage() {
 
           {grades.length === 0 ? (
             <Card className="glass" bordered={false}>
-              <Empty description="Оценок пока нет" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty description={uiText("Оценок пока нет")} image={Empty.PRESENTED_IMAGE_SIMPLE} />
             </Card>
           ) : (
-            <Card className="glass" bordered={false} title="История">
+            <Card className="glass" bordered={false} title={uiText("История")}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {grades.map((g) => (
                   <div
@@ -248,7 +248,7 @@ export default function ParentGradesPage() {
         >
           {homework.length === 0 ? (
             <Card className="glass" bordered={false}>
-              <Empty description="Заданий нет" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty description={uiText("Заданий нет")} image={Empty.PRESENTED_IMAGE_SIMPLE} />
             </Card>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -285,11 +285,11 @@ export default function ParentGradesPage() {
                           >
                             {h.subject?.name ?? '—'}
                           </Tag>
-                          {overdue && !h.submission && <Tag color="red">просрочено</Tag>}
+                          {overdue && !h.submission && <Tag color="red">{uiText("просрочено")}</Tag>}
                           {h.submission && (
                             <Tag color={STATUS_COLOR[h.submission.status]}>
                               {h.submission.status === 'SUBMITTED'
-                                ? 'Ребёнок отметил «сделал», учитель проверит'
+                                ? uiText("Ребёнок отметил «сделал», учитель проверит")
                                 : STATUS_LABEL[h.submission.status]}
                             </Tag>
                           )}
@@ -306,7 +306,7 @@ export default function ParentGradesPage() {
                         </div>
                         <Text type="secondary" style={{ fontSize: 12 }}>
                           <BookOpen size={12} style={{ verticalAlign: 'middle' }} />{' '}
-                          до {dayjs(h.dueDate).format('dd, D MMM')}
+                          {" " + uiText("до") + " "}{dayjs(h.dueDate).format('dd, D MMM')}
                         </Text>
                         {h.description && (
                           <div
@@ -321,7 +321,7 @@ export default function ParentGradesPage() {
                         )}
                         {h.submission?.comment && h.submission.status !== 'SUBMITTED' && (
                           <div style={{ fontSize: 13, color: SP.textMid, marginTop: 6 }}>
-                            Учитель: {h.submission.comment}
+                            {" " + uiText("Учитель:") + " "}{h.submission.comment}
                           </div>
                         )}
                       </div>

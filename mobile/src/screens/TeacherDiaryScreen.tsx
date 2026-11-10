@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -46,7 +47,7 @@ export default function TeacherDiaryScreen() {
   const [note, setNote] = useState('')
 
   const groupId = user?.groupId
-  const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [])
+  const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [uiLanguage()])
 
   const reload = useCallback(async () => {
     if (!groupId) {
@@ -75,7 +76,7 @@ export default function TeacherDiaryScreen() {
 
   const save = async () => {
     if (!groupId) {
-      Alert.alert('Нет группы', `У вашего профиля не назначена ${L.group}`)
+      Alert.alert(uiText("Нет группы"), uiText("У вашего профиля не назначена {0}", L.group))
       return
     }
     setSaving(true)
@@ -89,7 +90,7 @@ export default function TeacherDiaryScreen() {
         activities: activities.trim() || undefined,
         note: note.trim() || undefined,
       })
-      Alert.alert('Сохранено', 'Родители увидят запись в своём приложении.')
+      Alert.alert(uiText("Сохранено"), uiText("Родители увидят запись в своём приложении."))
       reload()
     } catch (err: any) {
       notifyError(err)
@@ -106,9 +107,7 @@ export default function TeacherDiaryScreen() {
       <Screen>
         <View style={styles.empty}>
           <Text style={styles.emptyText}>
-            У вашего профиля не назначена {L.group}. Обратитесь к
-            администратору.
-          </Text>
+            {" " + uiText("У вашего профиля не назначена") + " "}{L.group}{uiText(". Обратитесь к администратору.") + " "}</Text>
         </View>
       </Screen>
     )
@@ -117,7 +116,7 @@ export default function TeacherDiaryScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.title}>Дневник {L.group === 'класс' ? 'класса' : 'группы'}</Text>
+        <Text style={styles.title}>{uiText("Дневник") + " "}{L.isSchool ? uiText("класса") : uiText("группы")}</Text>
 
         {/* Day picker */}
         <Card padding={10} style={styles.dayBar}>
@@ -132,10 +131,10 @@ export default function TeacherDiaryScreen() {
           </Pressable>
           <View style={styles.dayMiddle}>
             <Text style={styles.dayLabel}>{cap(dateLabel)}</Text>
-            {isToday && <Text style={styles.dayHint}>сегодня</Text>}
+            {isToday && <Text style={styles.dayHint}>{uiText("сегодня")}</Text>}
             {!isToday && (
               <Pressable onPress={() => setDate(today)}>
-                <Text style={styles.dayTodayLink}>Перейти к сегодня</Text>
+                <Text style={styles.dayTodayLink}>{uiText("Перейти к сегодня")}</Text>
               </Pressable>
             )}
           </View>
@@ -156,68 +155,68 @@ export default function TeacherDiaryScreen() {
           </View>
         ) : (
           <>
-            <Text style={styles.section}>Меню дня</Text>
+            <Text style={styles.section}>{uiText("Меню дня")}</Text>
 
             <Card padding={16} style={shadow.sm}>
               <FieldRow
                 icon={<Coffee size={16} color={colors.primaryDeep} />}
                 bg={colors.primarySoft}
-                label="Завтрак"
+                label={uiText("Завтрак")}
                 value={breakfast}
                 onChange={setBreakfast}
-                placeholder="Каша манная, чай, бутерброд"
+                placeholder={uiText("Каша манная, чай, бутерброд")}
               />
               <Divider />
               <FieldRow
                 icon={<Soup size={16} color={colors.yellowDeep} />}
                 bg={colors.yellowSoft}
-                label="Обед"
+                label={uiText("Обед")}
                 value={lunch}
                 onChange={setLunch}
-                placeholder="Суп, котлета с пюре, компот"
+                placeholder={uiText("Суп, котлета с пюре, компот")}
               />
               <Divider />
               <FieldRow
                 icon={<Cookie size={16} color={colors.roseDeep} />}
                 bg={colors.roseSoft}
-                label="Полдник"
+                label={uiText("Полдник")}
                 value={snack}
                 onChange={setSnack}
-                placeholder="Кефир и булочка"
+                placeholder={uiText("Кефир и булочка")}
               />
             </Card>
 
-            <Text style={styles.section}>Активности</Text>
+            <Text style={styles.section}>{uiText("Активности")}</Text>
             <Card padding={16}>
               <View style={styles.actHead}>
                 <View style={[styles.actIcon, { backgroundColor: colors.blueSoft }]}>
                   <Sparkles size={16} color={colors.blueDeep} />
                 </View>
-                <Text style={styles.actLabel}>Чем занимались</Text>
+                <Text style={styles.actLabel}>{uiText("Чем занимались")}</Text>
               </View>
               <Field
                 label=""
                 value={activities}
                 onChangeText={setActivities}
-                placeholder="Развитие речи, музыка, прогулка, лепка"
+                placeholder={uiText("Развитие речи, музыка, прогулка, лепка")}
                 multiline
                 style={{ minHeight: 80, textAlignVertical: 'top' }}
               />
             </Card>
 
-            <Text style={styles.section}>Заметка</Text>
+            <Text style={styles.section}>{uiText("Заметка")}</Text>
             <Card padding={16}>
               <View style={styles.actHead}>
                 <View style={[styles.actIcon, { backgroundColor: colors.lilacSoft }]}>
                   <StickyNote size={16} color={colors.lilacDeep} />
                 </View>
-                <Text style={styles.actLabel}>Общее по {L.group === 'класс' ? 'классу' : 'группе'}</Text>
+                <Text style={styles.actLabel}>{uiText("Общее по") + " "}{L.isSchool ? uiText("классу") : uiText("группе")}</Text>
               </View>
               <Field
                 label=""
                 value={note}
                 onChangeText={setNote}
-                placeholder="Все были активны, отметили день рождения Айши"
+                placeholder={uiText("Все были активны, отметили день рождения Айши")}
                 multiline
                 style={{ minHeight: 80, textAlignVertical: 'top' }}
               />
@@ -231,11 +230,10 @@ export default function TeacherDiaryScreen() {
               onPress={save}
               style={{ marginTop: 8 }}
             >
-              Сохранить
-            </Btn>
+              {" " + uiText("Сохранить") + " "}</Btn>
             {entry?.author && (
               <Text style={styles.lastEditor}>
-                Последнее изменение: {entry.author.fullName} ·{' '}
+                {" " + uiText("Последнее изменение:") + " "}{entry.author.fullName} ·{' '}
                 {dayjs(entry.updatedAt).format('D MMM, HH:mm')}
               </Text>
             )}

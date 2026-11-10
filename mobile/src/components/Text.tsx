@@ -10,7 +10,7 @@ import { familyFor } from '../theme/fonts'
 
 /**
  * Text и TextInput приложения: то же API, что у react-native (включая ref и тип),
- * но шрифт (Inter / Montserrat) подбирается по fontWeight и fontSize. Так экранам не
+ * но шрифт Mont Black задаётся централизованно. Так экранам не
  * нужно знать про файлы шрифтов: достаточно писать fontWeight, как раньше.
  * Явно заданный fontFamily не меняется.
  */

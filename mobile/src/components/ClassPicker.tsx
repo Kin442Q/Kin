@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useMemo, useState } from 'react'
 import { Pressable, View } from 'react-native'
 
@@ -29,7 +30,7 @@ const FLAT_LIMIT = 12
 export default function ClassPicker({ classes, value, onChange }: Props) {
   // Для длинного списка: параллель можно выбрать раньше буквы
   const [grade, setGrade] = useState<GradeKey | null>(null)
-  const selectedName = useMemo(() => classes.find((c) => c.id === value)?.name, [classes, value])
+  const selectedName = useMemo(() => classes.find((c) => c.id === value)?.name, [classes, value, uiLanguage()])
 
   if (classes.length > FLAT_LIMIT) {
     return (
@@ -45,7 +46,7 @@ export default function ClassPicker({ classes, value, onChange }: Props) {
   }
 
   return (
-    <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel="Класс">
+    <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={uiText("Класс")}>
       {classes.map((c) => {
         const on = c.id === value
         return (

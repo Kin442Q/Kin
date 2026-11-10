@@ -80,6 +80,7 @@ export const en: Record<keyof typeof ru, Msg> = {
   'nav.menu': 'Meal menu',
   'nav.homeroom': 'Class summary',
   'nav.grades': 'Gradebook',
+  'nav.directorReport': "Director reports",
   'nav.homework': 'Homework',
   'nav.schedule': 'Lesson schedule',
   'nav.library': 'Library',

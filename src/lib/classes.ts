@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 /**
  * Классы школы устроены по параллелям: «1 А», «1 Б», «1 В» — это параллель 1,
  * буквы А, Б, В. Названия вводят свободно («1А», «1 А», «1a», «11b», «3 V»),
@@ -36,7 +37,7 @@ export function gradeKeyOf(name: string): GradeKey {
 }
 
 export function gradeLabel(key: GradeKey): string {
-  return key === 'other' ? 'Другие классы' : `${key} класс`
+  return key === 'other' ? uiText("Другие классы") : uiText("{0} класс", key)
 }
 
 /** Порядок: параллели по возрастанию, «другие» в конце; внутри — по букве. */

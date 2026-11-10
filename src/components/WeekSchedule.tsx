@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { Button, Col, Popconfirm, Row } from 'antd'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 
@@ -39,8 +40,8 @@ export default function WeekSchedule({
   teacherName,
   onRemove,
   onAddDay,
-  emptyDayText = 'Уроков нет',
-  todayText = 'Сегодня',
+  emptyDayText = uiText("Уроков нет"),
+  todayText = uiText("Сегодня"),
 }: Props) {
   const byDay = lessonsByDay(lessons)
   const today = todayDow()
@@ -71,7 +72,7 @@ export default function WeekSchedule({
                     size="small"
                     icon={<PlusOutlined />}
                     style={{ marginLeft: 'auto', color: st.deep }}
-                    aria-label={`Добавить уроки: ${dayName(d)}`}
+                    aria-label={uiText("Добавить уроки: {0}", dayName(d))}
                     onClick={() => onAddDay(d)}
                   />
                 )}
@@ -89,7 +90,7 @@ export default function WeekSchedule({
                     const meta = [
                       groupName ? groupName(r.groupId) : null,
                       teacher ? shortName(teacher) : null,
-                      r.room ? `каб. ${r.room}` : null,
+                      r.room ? uiText("каб. {0}", r.room) : null,
                     ].filter(Boolean)
                     return (
                       <div
@@ -136,13 +137,13 @@ export default function WeekSchedule({
                         </div>
                         {onRemove && (
                           <Popconfirm
-                            title="Удалить урок?"
-                            okText="Удалить"
-                            cancelText="Отмена"
+                            title={uiText("Удалить урок?")}
+                            okText={uiText("Удалить")}
+                            cancelText={uiText("Отмена")}
                             okButtonProps={{ danger: true }}
                             onConfirm={() => onRemove(r.id)}
                           >
-                            <Button danger size="small" type="text" icon={<DeleteOutlined />} aria-label="Удалить урок" />
+                            <Button danger size="small" type="text" icon={<DeleteOutlined />} aria-label={uiText("Удалить урок")} />
                           </Popconfirm>
                         )}
                       </div>

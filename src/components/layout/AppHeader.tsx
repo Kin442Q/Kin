@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import {
   Avatar,
   Badge,
@@ -129,7 +130,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
           {
             key: 'security',
             icon: <KeyRound size={14} />,
-            label: 'Пароль и вход',
+            label: uiText("Пароль и вход"),
             onClick: () => setSecurityOpen(true),
           },
         ]
@@ -430,11 +431,11 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
         )}
       </Drawer>
 
-      <Modal open={securityOpen} onCancel={() => setSecurityOpen(false)} title="Пароль и вход" footer={null} destroyOnClose>
+      <Modal open={securityOpen} onCancel={() => setSecurityOpen(false)} title={uiText("Пароль и вход")} footer={null} destroyOnClose>
         <Tabs
           items={[
-            { key: 'password', label: 'Пароль', children: <ChangePasswordForm onDone={() => setSecurityOpen(false)} /> },
-            { key: 'email', label: 'Email для входа', children: <ChangeEmailForm /> },
+            { key: 'password', label: uiText("Пароль"), children: <ChangePasswordForm onDone={() => setSecurityOpen(false)} /> },
+            { key: 'email', label: uiText("Email для входа"), children: <ChangeEmailForm /> },
           ]}
         />
       </Modal>

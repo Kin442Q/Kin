@@ -1,15 +1,16 @@
+import { localizeCopy } from '../i18n/uiText'
 import { classKey, classKeyVisual, gradeKeyOf } from './classes'
 
 /** Фильтры списка классов у директора: параллели и «Внимание». */
 export type ClassFilterKey = 'all' | 'grades1-4' | 'grades5-9' | 'grades10-11' | 'attention'
 
-export const CLASS_FILTERS: { key: ClassFilterKey; label: string }[] = [
+export const CLASS_FILTERS: { key: ClassFilterKey; label: string }[] = localizeCopy([
   { key: 'all', label: 'Все' },
   { key: 'grades1-4', label: '1–4' },
   { key: 'grades5-9', label: '5–9' },
   { key: 'grades10-11', label: '10–11' },
   { key: 'attention', label: 'Внимание' },
-]
+])
 
 /** Класс требует внимания, если посещаемость сегодня ниже этого порога (в процентах). */
 export const ATTENTION_BELOW_PERCENT = 85

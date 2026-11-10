@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import {
   Alert,
@@ -115,7 +116,7 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
         )
       })
       .catch((e) => {
-        message.error(e?.response?.data?.message || 'Не удалось загрузить квиз')
+        message.error(e?.response?.data?.message || uiText("Не удалось загрузить квиз"))
         onClose()
       })
       .finally(() => setLoading(false))
@@ -160,20 +161,20 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
       })),
     }
     if (!body.title) {
-      setError('Введите название квиза')
+      setError(uiText("Введите название квиза"))
       return
     }
     setSaving(true)
     try {
       if (target === 'new') await quizApi.create(body)
       else await quizApi.update(target as string, body)
-      message.success(target === 'new' ? 'Квиз создан' : 'Квиз сохранён')
+      message.success(target === 'new' ? uiText("Квиз создан") : uiText("Квиз сохранён"))
       onSaved()
       onClose()
     } catch (e: any) {
       const m = e?.response?.data?.message
       // сервер называет номер вопроса и что не так — показываем как есть
-      setError(Array.isArray(m) ? m.join('; ') : m || 'Не удалось сохранить квиз')
+      setError(Array.isArray(m) ? m.join('; ') : m || uiText("Не удалось сохранить квиз"))
     } finally {
       setSaving(false)
     }
@@ -184,9 +185,9 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
       open={target !== null}
       onCancel={onClose}
       width={820}
-      title={target === 'new' ? 'Новый квиз' : 'Редактировать квиз'}
-      okText="Сохранить"
-      cancelText="Отмена"
+      title={target === 'new' ? uiText("Новый квиз") : uiText("Редактировать квиз")}
+      okText={uiText("Сохранить")}
+      cancelText={uiText("Отмена")}
       onOk={save}
       confirmLoading={saving}
       destroyOnClose
@@ -196,9 +197,9 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
         {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 12 }} />}
 
         <Space direction="vertical" style={{ width: '100%' }} size={10}>
-          <Input placeholder="Название квиза" value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
+          <Input placeholder={uiText("Название квиза")} value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} />
           <Input.TextArea
-            placeholder="Описание (необязательно)"
+            placeholder={uiText("Описание (необязательно)")}
             rows={2}
             maxLength={2000}
             value={description}
@@ -207,7 +208,7 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
           <Space wrap>
             <Select
               allowClear
-              placeholder="Предмет"
+              placeholder={uiText("Предмет")}
               style={{ width: 200 }}
               value={subjectId}
               onChange={setSubjectId}
@@ -216,7 +217,7 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
             {tracks.length > 0 && (
               <Select
                 allowClear
-                placeholder="Направление подготовки"
+                placeholder={uiText("Направление подготовки")}
                 style={{ width: 240 }}
                 value={examTrackId}
                 onChange={setExamTrackId}
@@ -226,26 +227,26 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
             <InputNumber
               min={1}
               max={240}
-              placeholder="Лимит, мин"
+              placeholder={uiText("Лимит, мин")}
               value={timeLimitMin}
               onChange={(v) => setTimeLimitMin(v)}
               style={{ width: 130 }}
             />
             <Space>
               <Switch checked={isPublished} onChange={setIsPublished} />
-              <Text>{isPublished ? 'Опубликован — виден ученикам' : 'Черновик'}</Text>
+              <Text>{isPublished ? uiText("Опубликован — виден ученикам") : uiText("Черновик")}</Text>
             </Space>
           </Space>
         </Space>
 
-        <div style={{ margin: '16px 0 8px', fontWeight: 700 }}>Вопросы ({questions.length})</div>
+        <div style={{ margin: '16px 0 8px', fontWeight: 700 }}>{uiText("Вопросы (")}{questions.length})</div>
 
         {questions.map((q, n) => (
           <Card
             key={q.key}
             size="small"
             style={{ marginBottom: 12 }}
-            title={`Вопрос ${n + 1}`}
+            title={uiText("Вопрос {0}", n + 1)}
             extra={
               <Button
                 size="small"
@@ -259,7 +260,7 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
           >
             <Input.TextArea
               rows={2}
-              placeholder="Текст вопроса"
+              placeholder={uiText("Текст вопроса")}
               maxLength={1000}
               value={q.text}
               onChange={(e) => patchQuestion(q.key, { text: e.target.value })}
@@ -270,8 +271,8 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
                 value={q.kind}
                 onChange={(e) => setKind(q, e.target.value)}
                 options={[
-                  { value: 'SINGLE', label: 'Один правильный ответ' },
-                  { value: 'MULTIPLE', label: 'Несколько правильных' },
+                  { value: 'SINGLE', label: uiText("Один правильный ответ") },
+                  { value: 'MULTIPLE', label: uiText("Несколько правильных") },
                 ]}
               />
             </div>
@@ -284,7 +285,7 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
                   <Checkbox checked={o.correct} onChange={(e) => setCorrect(q, i, e.target.checked)} />
                 )}
                 <Input
-                  placeholder={`Вариант ${i + 1}`}
+                  placeholder={uiText("Вариант {0}", i + 1)}
                   maxLength={300}
                   value={o.text}
                   onChange={(e) =>
@@ -310,15 +311,13 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
                 disabled={q.options.length >= 8}
                 onClick={() => patchQuestion(q.key, { options: [...q.options, { text: '', correct: false }] })}
               >
-                Вариант
-              </Button>
+                {" " + uiText("Вариант") + " "}</Button>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Отметка слева — правильный ответ
-              </Text>
+                {" " + uiText("Отметка слева — правильный ответ") + " "}</Text>
             </Space>
             <Input
               style={{ marginTop: 8 }}
-              placeholder="Пояснение к ответу (покажется ученику после сдачи)"
+              placeholder={uiText("Пояснение к ответу (покажется ученику после сдачи)")}
               maxLength={1000}
               value={q.explanation}
               onChange={(e) => patchQuestion(q.key, { explanation: e.target.value })}
@@ -331,8 +330,7 @@ export default function QuizEditorModal({ target, subjects, tracks, onClose, onS
           disabled={questions.length >= 100}
           onClick={() => setQuestions((list) => [...list, emptyQuestion()])}
         >
-          Добавить вопрос
-        </Button>
+          {" " + uiText("Добавить вопрос") + " "}</Button>
       </Spin>
     </Modal>
   )

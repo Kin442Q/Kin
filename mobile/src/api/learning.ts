@@ -1,3 +1,4 @@
+import { localizeCopy } from '../i18n/uiText'
 import { http } from './http'
 
 /* ============================================================
@@ -13,13 +14,13 @@ export const LIBRARY_TYPES: Array<{
   value: LibraryType
   label: string
   emoji: string
-}> = [
+}> = localizeCopy([
   { value: 'BOOK', label: 'Книга', emoji: '📚' },
   { value: 'ARTICLE', label: 'Статья', emoji: '📰' },
   { value: 'VIDEO', label: 'Видео', emoji: '🎬' },
   { value: 'AUDIO', label: 'Аудио', emoji: '🎧' },
   { value: 'LINK', label: 'Ссылка', emoji: '🔗' },
-]
+])
 
 export const libraryTypeInfo = (t: LibraryType) =>
   LIBRARY_TYPES.find((x) => x.value === t) ?? LIBRARY_TYPES[LIBRARY_TYPES.length - 1]

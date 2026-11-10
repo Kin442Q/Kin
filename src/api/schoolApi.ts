@@ -1,3 +1,4 @@
+import { localizeCopy } from '../i18n/uiText'
 import { http } from './http'
 
 /* ============================================================
@@ -10,12 +11,12 @@ export type SubmissionStatus = 'SUBMITTED' | 'DONE' | 'PARTIAL' | 'NOT_DONE'
 export type StaffStatus = 'DONE' | 'PARTIAL' | 'NOT_DONE'
 export type NoticeTemplate = 'NOT_DONE' | 'PARTIAL' | 'REMINDER'
 
-export const STATUS_LABEL: Record<SubmissionStatus, string> = {
+export const STATUS_LABEL: Record<SubmissionStatus, string> = localizeCopy({
   SUBMITTED: 'Ученик отметил «сделал»',
   DONE: 'Выполнено',
   PARTIAL: 'Частично',
   NOT_DONE: 'Не выполнено',
-}
+})
 
 export const STATUS_COLOR: Record<SubmissionStatus, string> = {
   SUBMITTED: 'blue',
