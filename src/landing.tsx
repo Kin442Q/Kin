@@ -1,21 +1,57 @@
-import { useEffect } from 'react'
-import { createRoot } from 'react-dom/client'
-import { ConfigProvider } from 'antd'
-import LanguageSwitcher from './components/LanguageSwitcher'
-import { useLangStore } from './i18n'
-import { antdLocale } from './i18n/antdLocale'
-import { buildAntdTheme } from './theme/antdTheme'
-import './landing.css'
-
-function LandingLanguage() {
-  const lang = useLangStore(state => state.lang)
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent('maktab-language-change', { detail: lang }))
-    if (parent !== window) parent.postMessage({type:'maktab-language',lang}, location.origin)
-  }, [lang])
-  return <ConfigProvider locale={antdLocale(lang)} theme={buildAntdTheme('light')}>
-    <LanguageSwitcher variant="login" />
-  </ConfigProvider>
+import { useEffect, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { ConfigProvider } from 'antd';
+import { ArrowRight, BookOpen, CalendarDays, Check, CheckCheck, ChevronRight, ClipboardList, FileText, GraduationCap, Landmark, Library, Mail, MessageCircle, Phone, School, TrendingUp, UserRound, UserRoundPlus, Users } from 'lucide-react';
+import LanguageSwitcher from './components/LanguageSwitcher';
+import { useLangStore } from './i18n';
+import { uiText as t } from './i18n/uiText';
+import { antdLocale } from './i18n/antdLocale';
+import { buildAntdTheme } from './theme/antdTheme';
+import './landing.css';
+type Role = 'director' | 'teacher' | 'parent' | 'student';
+const roles: {
+    id: Role;
+    label: string;
+}[] = [{ id: 'director', label: 'Директору' }, { id: 'teacher', label: 'Учителю' }, { id: 'parent', label: 'Родителям' }, { id: 'student', label: 'Ученикам' }];
+const content = {
+    director: { eyebrow: 'Отчёты директора', title: 'Видеть школу целиком. Помогать каждому.', points: ['Сравнение классов и текущих оценок', 'Учебная поддержка по предметам', 'Посещаемость и экспорт Excel / PDF'] },
+    teacher: { eyebrow: 'Кабинет учителя', title: 'Меньше рутины. Больше времени для урока.', points: ['Электронный журнал и текущие отметки', 'Расписание и домашние задания', 'Связь с учениками и родителями'] },
+    parent: { eyebrow: 'Кабинет родителя', title: 'Быть рядом. Даже когда ребёнок в школе.', points: ['Оценки и задания вашего ребёнка', 'Расписание всегда под рукой', 'Общение с учителем в системе'] },
+    student: { eyebrow: 'Кабинет ученика', title: 'Всё для учёбы. В одном пространстве.', points: ['Личный дневник и расписание', 'Домашние задания и сроки сдачи', 'Библиотека и проверочные тесты'] },
+};
+function Mountains({ small = false }: {
+    small?: boolean;
+}) { return <svg className={small ? 'mountains small' : 'mountains'} viewBox="0 0 1440 280" preserveAspectRatio="none" aria-hidden="true"><path fill="#B8E3DC" d="M0 180 150 95 230 140 390 26 520 138 660 74 800 158 1030 12 1150 128 1270 65 1440 165V280H0Z"/><path fill="#73C6BF" d="m0 205 190-80 90 70 210-103 160 118 180-80 160 45 150-103 130 114 170-60v154H0Z"/><path fill="#309F9D" d="m0 222 180-50 140 76 180-70 170 50 230-106 170 95 150-48 220 65v46H0Z"/><path fill="#0D7A7C" d="m0 238 185 42 250-70 220 65 270-42 220 47 295-68v68H0Z"/></svg>; }
+function Brand({ dark = false }: {
+    dark?: boolean;
+}) { const lang = useLangStore(s => s.lang); return <img className="brand-logo" src={'/brand/logo-' + lang + (dark ? '-dark' : '') + '.svg'} alt={t('Моя школа')}/>; }
+function Journal() { return <div className="mini-panel"><div className="mini-head"><strong>7A · {t('Журнал')}</strong><span>{t('Математика')}</span></div><table><thead><tr><th>{t('Ученик')}</th>{['10', '12', '14', '16'].map(n => <th key={n}>{n}</th>)}</tr></thead><tbody>{['a', 'b', 'c'].map((n, i) => <tr key={n}><td>{t('Ученик')} {i + 1}</td>{[4, 5, 4, 5].map((v, j) => <td key={j}><span className="mark">{v - (i === 1 && j === 2 ? 1 : 0)}</span></td>)}</tr>)}</tbody></table></div>; }
+function Schedule() { return <div className="mini-panel"><div className="mini-head"><strong>7A · {t('Расписание')}</strong><CalendarDays size={15}/></div>{['Математика', 'Русский язык', 'Физика'].map((s, i) => <div className="lesson" key={s}><b>{i + 1}</b><div><strong>{t(s)}</strong><small>{['08:00 — 08:45', '08:55 — 09:40', '09:50 — 10:35'][i]}</small></div></div>)}</div>; }
+function Chat() { return <div className="mini-panel chat"><div className="mini-head"><strong>7A · {t('Чат класса')}</strong><MessageCircle size={15}/></div><small>{t('Классный руководитель')}</small><p className="bubble">{t('Завтра родительское собрание в 16:00.')}</p><p className="bubble reply">{t('Спасибо! Будем.')} <CheckCheck size={12}/></p></div>; }
+function Materials() { const [tab, setTab] = useState('materials'); return <div className="mini-panel"><div className="mini-tabs"><button onClick={() => setTab('materials')} aria-pressed={tab === 'materials'}>{t('Материалы')}</button><button onClick={() => setTab('tests')} aria-pressed={tab === 'tests'}>{t('Тесты')}</button></div>{(tab === 'materials' ? ['Алгебра · 7 класс', 'География · Атлас', 'Учебные материалы'] : ['Математика', 'Русский язык', 'Физика']).map((s, i) => <div className="document-row" key={s}><FileText size={19}/><div><strong>{t(s)}</strong><small>{t(tab === 'materials' ? 'Учебный материал' : 'Проверка знаний')}</small></div><ChevronRight size={14}/></div>)}</div>; }
+function DirectorPreview() { return <div className="report-preview"><aside><Brand /><span className="preview-active"><ClipboardList size={14}/>{t('Обзор')}</span>{['Классы', 'Ученики', 'Посещаемость', 'Учебная поддержка'].map(s => <span key={s}>{t(s)}</span>)}</aside><div className="report-main"><div className="mini-head"><strong>{t('Отчёты директора')}</strong><span>{t('Все классы')}</span></div><div className="preview-kpis">{[['Классы', '12'], ['Ученики', '347'], ['Средний балл', '4,2']].map(([s, n]) => <div key={s}><small>{t(s)}</small><b>{n}</b></div>)}</div><div className="preview-charts"><div><small>{t('Динамика текущих оценок')}</small><b>4,2 <span>↗</span></b><svg viewBox="0 0 250 75" role="img" aria-label={t('Демонстрационный график')}><path d="M0 67 40 50 85 55 125 29 170 35 210 16 250 5V75H0Z" fill="#DDF1F0"/><path d="M0 67 40 50 85 55 125 29 170 35 210 16 250 5" fill="none" stroke="#0D7A7C" strokeWidth="2.5"/></svg></div><div className="attendance-preview"><div className="donut"><b>96%</b></div><small>{t('Посещаемость')}</small></div></div><div className="comparison"><strong>{t('Сравнение классов')}</strong><table><thead><tr><th>{t('Класс')}</th><th>{t('Средний балл')}</th><th>{t('Охват оцениванием')}</th></tr></thead><tbody>{[['7A', '4,3', '86%'], ['7B', '3,4', '68%'], ['8A', '4,5', '90%']].map(([c, n, w]) => <tr key={c}><td>{c}</td><td>{n}</td><td><div className="track"><i style={{ width: w }}/></div></td></tr>)}</tbody></table></div><div className="support-preview"><UserRound size={15}/><span>{t('Учебная поддержка')}</span><small>{t('По предметам')}</small><ArrowRight size={14}/></div><div className="demo-label">{t('Демонстрационные данные')}</div></div></div>; }
+function Landing() {
+    const lang = useLangStore(s => s.lang);
+    const [role, setRole] = useState<Role>('director');
+    const current = content[role];
+    useEffect(() => { window.dispatchEvent(new CustomEvent('maktab-language-change', { detail: lang })); if (parent !== window)
+        parent.postMessage({ type: 'maktab-language', lang }, location.origin); }, [lang]);
+    const login = () => { if (parent !== window)
+        parent.postMessage({ type: 'redi', action: 'login' }, location.origin);
+    else
+        location.assign('/login'); };
+    return <ConfigProvider locale={antdLocale(lang)} theme={buildAntdTheme('light')}><div className="landing"><header className="site-header"><div className="wrap header-inner"><a href="#home" aria-label={t('На главную')}><Brand /></a><nav aria-label={t('Навигация')}><a href="#features">{t('Возможности')}</a><a href="#audience">{t('Для кого')}</a><a href="#roadmap">{t('Развитие')}</a></nav><div className="header-actions"><LanguageSwitcher variant="login"/><button className="primary-button" onClick={login}>{t('Войти')}<ArrowRight size={15}/></button></div></div></header>
+    <main><section className="hero" id="home"><div className="hero-copy"><span className="eyebrow">{t('Школа · одна платформа')}</span><h1>{t('Моя школа')}</h1><p>{t('Цифровая экосистема для вашей школы')}</p><a className="hero-link" href="#audience">{t('Познакомиться с платформой')}<ArrowRight size={17}/></a></div><Mountains /></section>
+    <section className="wrap capabilities" id="audience"><div className="section-heading"><div><span className="eyebrow">{t('Школа в одном пространстве')}</span><h2>{t('Каждому — своё.')}<br />{t('Всем — общее.')}</h2></div><div className="role-tabs" role="tablist" aria-label={t('Для кого')}>{roles.map(r => <button key={r.id} id={'role-' + r.id} role="tab" aria-selected={r.id === role} aria-controls="role-panel" onClick={() => setRole(r.id)} onKeyDown={event => { const offset = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0; if (offset) {
+        event.preventDefault();
+        const next = roles[(roles.findIndex(item => item.id === r.id) + offset + roles.length) % roles.length];
+        setRole(next.id);
+        document.getElementById('role-' + next.id)?.focus();
+    } }} tabIndex={r.id === role ? 0 : -1}>{t(r.label)}</button>)}</div></div>
+    <div className="role-showcase" id="role-panel" role="tabpanel" aria-labelledby={'role-' + role}><div className="showcase-copy"><span className="eyebrow">{t(current.eyebrow)}</span><h3>{t(current.title)}</h3><ul>{current.points.map(s => <li key={s}><span><Check size={12}/></span>{t(s)}</li>)}</ul><button className="text-button" onClick={login}>{t('Войти в систему')}<ArrowRight size={16}/></button></div><div className="showcase-screen">{role === 'director' ? <DirectorPreview /> : <div className="role-preview"><div className="mini-head"><Brand /><span>{t(current.eyebrow)}</span></div>{role === 'teacher' ? <><Journal /><Schedule /></> : role === 'parent' ? <><Journal /><Chat /></> : <><Schedule /><Materials /></>}<div className="demo-label">{t('Демонстрационные данные')}</div></div>}</div></div>
+    <div className="features-grid" id="features">{[{ title: 'Электронный журнал', text: 'Оценки, успеваемость и прогресс учеников в одном месте.', icon: BookOpen, screen: <Journal /> }, { title: 'Расписание и задания', text: 'Актуальное расписание, домашняя работа и сроки выполнения.', icon: CalendarDays, screen: <Schedule /> }, { title: 'Связь со школой', text: 'Удобное общение между школой, учителями и родителями.', icon: MessageCircle, screen: <Chat /> }, { title: 'Библиотека и тесты', text: 'Учебные материалы, тесты и проверка знаний онлайн.', icon: Library, screen: <Materials /> }].map(f => <article className="feature-card" key={f.title}><div className="feature-copy"><h3>{t(f.title)}</h3><p>{t(f.text)}</p><span className="feature-icon"><f.icon size={24}/></span></div><div className="feature-screen">{f.screen}</div></article>)}</div><p className="preview-note">{t('Превью возможностей. Данные на иллюстрациях демонстрационные.')}</p></section>
+    <section className="story-band"><div className="wrap story-inner"><div><h2>{t('Больше понимания.')}<br />{t('Меньше рутины.')}</h2><p>{t('Современные цифровые инструменты, которые помогают школе сосредоточиться на главном — обучении и развитии учеников.')}</p></div><div className="school-art" aria-hidden="true"><BookOpen /><School /><GraduationCap /></div></div><Mountains small/></section>
+    <section className="wrap roadmap" id="roadmap"><span className="eyebrow">{t('Развитие платформы')}</span><h2>{t('Следующая глава нашей школы')}</h2><p className="section-description">{t('Новые возможности, которые сделают обучение ещё более эффективным.')}</p><div className="roadmap-grid">{[{ title: 'Аналитика для родителей', text: 'Прогресс ребёнка и помощь по предметам.', status: 'В разработке', icon: Users }, { title: 'Аналитика для министерства', text: 'Сводная картина по учреждениям.', status: 'Планируется', icon: Landmark }, { title: 'Приём учеников онлайн', text: 'Заявка, рассмотрение, статус поступления.', status: 'Планируется', icon: UserRoundPlus }].map((f, i) => <article className="roadmap-card" key={f.title}><div className="roadmap-top"><f.icon size={28}/><span className="status">{t(f.status)}</span></div><h3>{t(f.title)}</h3><p>{t(f.text)}</p><div className={'roadmap-art art-' + i} aria-hidden="true">{i === 0 ? [28, 48, 42, 70, 95].map((h, j) => <i key={j} style={{ height: h + '%' }}/>) : i === 1 ? <TrendingUp /> : [0, 1, 2].map(j => <span key={j}><Check size={13}/><i /></span>)}</div></article>)}</div></section></main>
+    <footer><div className="wrap"><div className="footer-main"><a href="#home"><Brand dark/></a><p>{t('Платформа для школы. Учёба, общение и управление в одном пространстве.')}</p><div className="footer-contact"><a href="mailto:admin@bnp.tj"><Mail size={18}/>admin@bnp.tj</a><a href="tel:+992933404477"><Phone size={18}/>+992 933 40 44 77</a></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} {t('Мактаби ман')} · {t('Все права защищены')}</span><span>{t('Сделано для современных школ')}</span></div></div></footer></div></ConfigProvider>;
 }
-
-createRoot(document.getElementById('landing-language-root')!).render(<LandingLanguage />)
+createRoot(document.getElementById('landing-root')!).render(<Landing />);
