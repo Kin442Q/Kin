@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Avatar,
@@ -47,22 +48,22 @@ const STATUS_LABEL: Record<
   { label: string; color: string; icon: React.ReactNode }
 > = {
   present: {
-    label: 'Присутствует',
+    get label() { return uiText("Присутствует") },
     color: 'green',
     icon: <CheckCircleOutlined />,
   },
   absent: {
-    label: 'Отсутствует',
+    get label() { return uiText("Отсутствует") },
     color: 'red',
     icon: <CloseCircleOutlined />,
   },
   sick: {
-    label: 'Болеет',
+    get label() { return uiText("Болеет") },
     color: 'orange',
     icon: <MedicineBoxOutlined />,
   },
   vacation: {
-    label: 'Отпуск',
+    get label() { return uiText("Отпуск") },
     color: 'blue',
     icon: <CalendarOutlined />,
   },
@@ -90,7 +91,7 @@ export default function AttendancePage() {
   const childrenAll = useDataStore((s) => s.children)
   const user = useAuthStore((s) => s.user)
   const L = useLabels()
-  const isSchool = L.group === 'класс'
+  const isSchool = L.isSchool
 
   const [date, setDate] = useState<Dayjs>(dayjs())
   // Посещаемость отмечают по одному классу: пока класс не выбран, список пуст.
@@ -130,7 +131,7 @@ export default function AttendancePage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить посещаемость'
+        uiText("Не удалось загрузить посещаемость")
       message.error(msg)
     } finally {
       setLoading(false)
@@ -145,7 +146,7 @@ export default function AttendancePage() {
   const children = useMemo(() => {
     if (!groupFilter) return []
     return childrenAll.filter((c) => c.groupId === groupFilter)
-  }, [childrenAll, groupFilter])
+  }, [childrenAll, groupFilter, uiLanguage()])
 
   const rows = useMemo(() => {
     return children.map((c) => {
@@ -158,7 +159,7 @@ export default function AttendancePage() {
         group: groups.find((g) => g.id === c.groupId),
       }
     })
-  }, [children, records, groups])
+  }, [children, records, groups, uiLanguage()])
 
   const stats = useMemo(() => {
     const acc: Record<AttendanceStatus, number> = {
@@ -171,7 +172,7 @@ export default function AttendancePage() {
       acc[r.status]++
     })
     return acc
-  }, [rows])
+  }, [rows, uiLanguage()])
 
   const setStatus = async (
     studentId: string,
@@ -188,7 +189,7 @@ export default function AttendancePage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось отметить'
+        uiText("Не удалось отметить")
       message.error(msg)
     }
   }
@@ -205,12 +206,12 @@ export default function AttendancePage() {
         ),
       )
       await loadAttendance()
-      message.success('Все отмечены как присутствующие')
+      message.success(uiText("Все отмечены как присутствующие"))
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Ошибка массовой отметки'
+        uiText("Ошибка массовой отметки")
       message.error(msg)
     }
   }
@@ -218,10 +219,10 @@ export default function AttendancePage() {
   return (
     <div>
       <SproutPageHeader
-        title="Посещаемость"
+        title={uiText("Посещаемость")}
         icon={<ClipboardCheck size={22} strokeWidth={2} />}
         iconAccent="lilac"
-        description={`Отметка посещаемости на ${date.format('DD.MM.YYYY')}`}
+        description={uiText("Отметка посещаемости на {0}", date.format('DD.MM.YYYY'))}
         actions={
           <Space>
             <DatePicker
@@ -231,8 +232,7 @@ export default function AttendancePage() {
               format="DD.MM.YYYY"
             />
             <Button type="primary" onClick={markAllPresent} disabled={!groupFilter || rows.length === 0}>
-              Все присутствуют
-            </Button>
+              {" " + uiText("Все присутствуют") + " "}</Button>
           </Space>
         }
       />
@@ -241,20 +241,20 @@ export default function AttendancePage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <StatCard
-            title="Присутствуют"
+            title={uiText("Присутствуют")}
             value={stats.present}
             variant="success"
           />
         </Col>
         <Col xs={12} md={6}>
-          <StatCard title="Отсутствуют" value={stats.absent} variant="danger" />
+          <StatCard title={uiText("Отсутствуют")} value={stats.absent} variant="danger" />
         </Col>
         <Col xs={12} md={6}>
-          <StatCard title="Болеют" value={stats.sick} variant="warning" />
+          <StatCard title={uiText("Болеют")} value={stats.sick} variant="warning" />
         </Col>
         <Col xs={12} md={6}>
           <StatCard
-            title="В отпуске"
+            title={uiText("В отпуске")}
             value={stats.vacation}
             variant="primary"
           />
@@ -282,8 +282,8 @@ export default function AttendancePage() {
           {!groupFilter ? (
             <SproutEmpty
               icon={<ClipboardCheck size={28} strokeWidth={1.8} />}
-              title="Выберите класс"
-              description="Сначала параллель, затем букву класса. Список учеников появится после выбора."
+              title={uiText("Выберите класс")}
+              description={uiText("Сначала параллель, затем букву класса. Список учеников появится после выбора.")}
               minHeight={200}
             />
           ) : (
@@ -317,7 +317,7 @@ export default function AttendancePage() {
                 ),
               },
               {
-                title: 'Статус',
+                title: uiText("Статус"),
                 key: 'status',
                 render: (_, r) => (
                   <Segmented
@@ -352,7 +352,7 @@ export default function AttendancePage() {
                 ),
               },
               {
-                title: 'Текущий',
+                title: uiText("Текущий"),
                 key: 'current',
                 render: (_, r) => (
                   <Tag

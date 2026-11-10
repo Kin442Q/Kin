@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -123,7 +124,7 @@ export default function TeacherChatScreen() {
           </Pressable>
           <View>
             <Text style={styles.threadName}>{active.parentName}</Text>
-            <Text style={styles.threadSub}>Класс «{active.groupName}»</Text>
+            <Text style={styles.threadSub}>{uiText("Класс «")}{active.groupName}»</Text>
           </View>
         </View>
 
@@ -158,7 +159,7 @@ export default function TeacherChatScreen() {
               }}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Text style={styles.emptyText}>Сообщений пока нет</Text>
+                  <Text style={styles.emptyText}>{uiText("Сообщений пока нет")}</Text>
                 </View>
               }
             />
@@ -168,7 +169,7 @@ export default function TeacherChatScreen() {
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder="Ответить..."
+              placeholder={uiText("Ответить...")}
               placeholderTextColor={colors.muted}
               style={styles.input}
               multiline
@@ -190,7 +191,7 @@ export default function TeacherChatScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Чат с родителями</Text>
+        <Text style={styles.title}>{uiText("Чат с родителями")}</Text>
       </View>
       {loading ? (
         <View style={styles.loader}>
@@ -222,9 +223,9 @@ export default function TeacherChatScreen() {
                       </Text>
                     </View>
                     <Text style={styles.convLast} numberOfLines={1}>
-                      {item.lastText ?? 'Нет сообщений'}
+                      {item.lastText ?? uiText("Нет сообщений")}
                     </Text>
-                    <Text style={styles.convGroup}>Класс «{item.groupName}»</Text>
+                    <Text style={styles.convGroup}>{uiText("Класс «")}{item.groupName}»</Text>
                   </View>
                   {item.unread && <View style={styles.unreadDot} />}
                 </View>
@@ -235,8 +236,7 @@ export default function TeacherChatScreen() {
             <View style={styles.empty}>
               <MessageCircle size={36} color={colors.muted} />
               <Text style={styles.emptyText}>
-                Переписок пока нет. Они появятся когда родитель напишет.
-              </Text>
+                {" " + uiText("Переписок пока нет. Они появятся когда родитель напишет.") + " "}</Text>
             </View>
           }
         />

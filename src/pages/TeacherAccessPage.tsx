@@ -1,3 +1,4 @@
+import { uiLanguage } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Alert, Button, Col, Input, Row, App as AntdApp } from 'antd'
 import { KeyRound, Plus, Search } from 'lucide-react'
@@ -76,13 +77,13 @@ export default function TeacherAccessPage() {
     load()
   }, [load])
 
-  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups])
-  const schoolOrder = useMemo(() => grades.flatMap((g) => g.items.map((i) => i.id)), [grades])
-  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups])
+  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups, uiLanguage()])
+  const schoolOrder = useMemo(() => grades.flatMap((g) => g.items.map((i) => i.id)), [grades, uiLanguage()])
+  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups, uiLanguage()])
 
   const selected = teachers.find((x) => x.id === selectedId) ?? null
-  const saved = useMemo(() => (selected ? savedSelection(selected) : new Set<string>()), [selected])
-  const savedSubs = useMemo(() => (selected ? savedSubjects(selected) : new Set<string>()), [selected])
+  const saved = useMemo(() => (selected ? savedSelection(selected) : new Set<string>()), [selected, uiLanguage()])
+  const savedSubs = useMemo(() => (selected ? savedSubjects(selected) : new Set<string>()), [selected, uiLanguage()])
   const classesDirty = !!selected && !sameSelection(draft, saved)
   const subjectsDirty = !!selected && !sameSelection(subjectDraft, savedSubs)
   const dirty = classesDirty || subjectsDirty
@@ -104,7 +105,7 @@ export default function TeacherAccessPage() {
     const q = search.trim().toLowerCase()
     if (!q) return teachers
     return teachers.filter((x) => `${x.fullName} ${x.email ?? ''} ${x.phone ?? ''}`.toLowerCase().includes(q))
-  }, [teachers, search])
+  }, [teachers, search, uiLanguage()])
 
   const save = async () => {
     if (!selected) return

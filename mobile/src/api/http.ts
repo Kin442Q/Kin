@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { API_URL } from '../lib/config'
@@ -108,6 +109,10 @@ http.interceptors.response.use(
     return response
   },
   async (error: AxiosError) => {
+    const payload = error.response?.data as { message?: unknown } | undefined
+    if (payload && typeof payload.message === 'string') payload.message = uiText(payload.message)
+    else if (payload && Array.isArray(payload.message)) payload.message = payload.message.map(value => typeof value === 'string' ? uiText(value) : value)
+
     const config = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined
     const url = config?.url ?? ''
     if (error.response?.status === 401 && config && !config._retried && !isAuthUrl(url)) {

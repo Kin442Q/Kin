@@ -1,3 +1,4 @@
+import { localizeCopy } from '../i18n/uiText'
 import { http } from './http'
 
 /* ============================================================
@@ -8,12 +9,12 @@ import { http } from './http'
 
 export type SubmissionStatus = 'SUBMITTED' | 'DONE' | 'PARTIAL' | 'NOT_DONE'
 
-export const STATUS_LABEL: Record<SubmissionStatus, string> = {
+export const STATUS_LABEL: Record<SubmissionStatus, string> = localizeCopy({
   SUBMITTED: 'Отмечено «сделал»',
   DONE: 'Выполнено',
   PARTIAL: 'Частично',
   NOT_DONE: 'Не выполнено',
-}
+})
 
 export interface SubjectRef {
   id: string

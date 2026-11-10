@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 import {
   
@@ -59,8 +60,8 @@ export default function MathGame({ onFinish }: GameProps) {
   return (
     <View style={{ alignItems: 'center' }}>
       <View style={styles.stats}>
-        <Text style={styles.stat}>Осталось: {Math.max(left, 0)} с</Text>
-        <Text style={styles.stat}>Верно: {correct}</Text>
+        <Text style={styles.stat}>{uiText("Осталось:") + " "}{Math.max(left, 0)} {" " + uiText("с")}</Text>
+        <Text style={styles.stat}>{uiText("Верно:") + " "}{correct}</Text>
       </View>
       <Text
         style={[
@@ -87,7 +88,7 @@ export default function MathGame({ onFinish }: GameProps) {
         blurOnSubmit={false}
         editable={left > 0}
         autoFocus
-        placeholder="Ответ"
+        placeholder={uiText("Ответ")}
         placeholderTextColor={colors.muted}
         style={styles.input}
       />

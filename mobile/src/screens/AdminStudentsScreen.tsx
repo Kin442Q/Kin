@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -64,7 +65,7 @@ export default function AdminStudentsScreen() {
     const m: Record<string, GroupDto> = {}
     for (const g of groups) m[g.id] = g
     return m
-  }, [groups])
+  }, [groups, uiLanguage()])
 
   const hasFilter = sel.grade !== null || query.trim().length > 0
   const visible = useMemo(() => {
@@ -76,13 +77,13 @@ export default function AdminStudentsScreen() {
       if (q && !`${st.lastName} ${st.firstName}`.toLowerCase().includes(q)) return false
       return true
     })
-  }, [students, groups, sel, query, hasFilter])
+  }, [students, groups, sel, query, hasFilter, uiLanguage()])
 
   const counts = useMemo(() => {
     const m: Record<string, number> = {}
     for (const g of groups) m[g.id] = g._count?.students ?? 0
     return m
-  }, [groups])
+  }, [groups, uiLanguage()])
 
   if (loading) {
     return (
@@ -145,7 +146,7 @@ export default function AdminStudentsScreen() {
                         fontSize: 12,
                       }}
                     >
-                      {s === 'ACTIVE' ? 'Активные' : 'В архиве'}
+                      {s === 'ACTIVE' ? uiText("Активные") : uiText("В архиве")}
                     </Text>
                   </Pressable>
                 )
@@ -155,7 +156,7 @@ export default function AdminStudentsScreen() {
             <TextInput
               value={query}
               onChangeText={setQuery}
-              placeholder={`Поиск по имени ${L.student}`}
+              placeholder={uiText("Поиск по имени {0}", L.student)}
               placeholderTextColor={colors.muted}
               autoCorrect={false}
               style={styles.search}
@@ -168,7 +169,7 @@ export default function AdminStudentsScreen() {
               <Text style={styles.summaryText}>
                 {hasFilter
                   ? `${visible.length} ${pluralizeStudent(visible.length, L.student)}`
-                  : 'Выберите класс или введите имя'}
+                  : uiText("Выберите класс или введите имя")}
               </Text>
             </View>
           </View>
@@ -190,7 +191,7 @@ export default function AdminStudentsScreen() {
                 <View style={{ flex: 1, marginLeft: 12 }}>
                   <Text style={styles.name}>{name}</Text>
                   <Text style={styles.meta}>
-                    {age} {age === 1 ? 'год' : age < 5 ? 'года' : 'лет'}
+                    {age} {age === 1 ? uiText("год") : age < 5 ? uiText("года") : uiText("лет")}
                     {g ? ` · ${g.name}` : ''}
                   </Text>
                 </View>
@@ -205,7 +206,7 @@ export default function AdminStudentsScreen() {
                     <View style={styles.phoneRow}>
                       <Phone size={12} color={colors.muted} />
                       <Text style={styles.phoneText}>
-                        Мама · {item.motherPhone}
+                        {" " + uiText("Мама ·") + " "}{item.motherPhone}
                       </Text>
                     </View>
                   )}
@@ -213,7 +214,7 @@ export default function AdminStudentsScreen() {
                     <View style={styles.phoneRow}>
                       <Phone size={12} color={colors.muted} />
                       <Text style={styles.phoneText}>
-                        Папа · {item.fatherPhone}
+                        {" " + uiText("Папа ·") + " "}{item.fatherPhone}
                       </Text>
                     </View>
                   )}
@@ -226,10 +227,10 @@ export default function AdminStudentsScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
               {!hasFilter
-                ? 'Список появится после выбора класса или поиска'
+                ? uiText("Список появится после выбора класса или поиска")
                 : status === 'ARCHIVED'
-                  ? 'В архиве пусто'
-                  : 'Никого не нашли. Измените имя или класс.'}
+                  ? uiText("В архиве пусто")
+                  : uiText("Никого не нашли. Измените имя или класс.")}
             </Text>
           </View>
         }
@@ -241,14 +242,14 @@ export default function AdminStudentsScreen() {
 function pluralizeStudent(n: number, base: string): string {
   // «ребёнок» / «ученик» с согласованием падежей.
   if (base === 'ребёнок') {
-    if (n === 1) return 'ребёнок'
-    if (n < 5) return 'ребёнка'
-    return 'детей'
+    if (n === 1) return uiText("ребёнок")
+    if (n < 5) return uiText("ребёнка")
+    return uiText("детей")
   }
   if (base === 'ученик') {
-    if (n === 1) return 'ученик'
-    if (n < 5) return 'ученика'
-    return 'учеников'
+    if (n === 1) return uiText("ученик")
+    if (n < 5) return uiText("ученика")
+    return uiText("учеников")
   }
   return base
 }

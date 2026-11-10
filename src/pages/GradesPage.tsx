@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   App as AntdApp,
@@ -58,29 +59,29 @@ interface GradeDto {
   author?: { id: string; fullName: string }
 }
 
-const TYPE_LABELS: Record<GradeType, string> = {
+const TYPE_LABELS: Record<GradeType, string> = localizeCopy({
   CLASSWORK: 'Урок',
   HOMEWORK: 'ДЗ',
   CONTROL: 'Контр.',
   EXAM: 'Экзамен',
   PROJECT: 'Проект',
   OTHER: 'Другое',
-}
+})
 
 // Русские названия месяцев и коротких дней недели — без зависимости от
 // глобальной локали dayjs (она по умолчанию английская).
-const MONTHS_RU = [
+const MONTHS_RU = localizeCopy([
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
-]
-const WD_SHORT = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'] // index = dayjs().day()
+])
+const WD_SHORT = localizeCopy(['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб']) // index = dayjs().day()
 
 // Отметки отсутствия в ячейке журнала (буква + цвет + подпись).
-const ABSENT_MARK: Record<string, { ch: string; color: string; label: string }> = {
-  ABSENT: { ch: 'н', color: '#D2615B', label: 'Отсутствовал' },
-  SICK: { ch: 'б', color: '#FFB020', label: 'Болел' },
-  VACATION: { ch: 'у', color: '#3B8FBF', label: 'Уважительная причина' },
-}
+const ABSENT_MARK: Record<string, { ch: string; color: string; label: string }> = localizeCopy({
+  ABSENT: { ch: 'н', color: '#D2615B', get label() { return uiText("Отсутствовал") } },
+  SICK: { ch: 'б', color: '#FFB020', get label() { return uiText("Болел") } },
+  VACATION: { ch: 'у', color: '#3B8FBF', get label() { return uiText("Уважительная причина") } },
+})
 
 function gradeColor(v: number): string {
   if (v >= 9) return SP.primaryDeep
@@ -136,7 +137,7 @@ export default function GradesPage() {
       .get<SubjectDto[]>('/v1/subjects')
       .then((r) => setSubjects(r.data))
       .catch((e) =>
-        message.error(e?.response?.data?.message || 'Не удалось загрузить предметы'),
+        message.error(e?.response?.data?.message || uiText("Не удалось загрузить предметы")),
       )
     termsApi.list().then(setTerms).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -172,11 +173,11 @@ export default function GradesPage() {
 
   const activeTerm = useMemo(
     () => terms.find((t) => t.id === activeTermId) ?? null,
-    [terms, activeTermId],
+    [terms, activeTermId, uiLanguage()],
   )
 
   // Диапазон журнала: вся выбранная четверть; если четвертей нет — текущий месяц.
-  const fallbackMonth = useMemo(() => dayjs().format('YYYY-MM'), [])
+  const fallbackMonth = useMemo(() => dayjs().format('YYYY-MM'), [uiLanguage()])
   const range = useMemo(() => {
     if (activeTerm) {
       return {
@@ -186,14 +187,14 @@ export default function GradesPage() {
     }
     const s = dayjs(fallbackMonth + '-01')
     return { start: s, end: s.endOf('month') }
-  }, [activeTerm, fallbackMonth])
+  }, [activeTerm, fallbackMonth, uiLanguage()])
 
   const gradeRange = useMemo(
     () => ({
       from: range.start.format('YYYY-MM-DD'),
       to: range.end.format('YYYY-MM-DD'),
     }),
-    [range],
+    [range, uiLanguage()],
   )
 
   // Дни недели (1..7), когда идёт выбранный предмет — по расписанию класса.
@@ -203,7 +204,7 @@ export default function GradesPage() {
       if (it.subjectId && it.subjectId === activeSubjectId) set.add(it.dayOfWeek)
     }
     return set
-  }, [scheduleItems, activeSubjectId])
+  }, [scheduleItems, activeSubjectId, uiLanguage()])
 
   // Загружаем оценки за четверть
   const loadGrades = async () => {
@@ -219,7 +220,7 @@ export default function GradesPage() {
       })
       setGrades(r.data)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось загрузить оценки')
+      message.error(e?.response?.data?.message || uiText("Не удалось загрузить оценки"))
     } finally {
       setLoading(false)
     }
@@ -240,7 +241,7 @@ export default function GradesPage() {
       )
     }
     return list
-  }, [children, activeGroupId, search])
+  }, [children, activeGroupId, search, uiLanguage()])
 
   const gradesByStudent = useMemo(() => {
     const map: Record<string, GradeDto[]> = {}
@@ -248,7 +249,7 @@ export default function GradesPage() {
       ;(map[g.studentId] ||= []).push(g)
     }
     return map
-  }, [grades])
+  }, [grades, uiLanguage()])
 
   // Средний балл ученика за четверть.
   const avgByStudent = useMemo(() => {
@@ -258,7 +259,7 @@ export default function GradesPage() {
       map[sid] = list.length ? Number((sum / list.length).toFixed(2)) : 0
     }
     return map
-  }, [gradesByStudent])
+  }, [gradesByStudent, uiLanguage()])
 
   // Колонки журнала = ВСЕ уроки выбранной четверти по предмету:
   //  • даты по расписанию (дни недели предмета) в пределах четверти;
@@ -287,7 +288,7 @@ export default function GradesPage() {
     }
     return Array.from(set).sort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subjectWeekdays, grades, extraDates, range])
+  }, [subjectWeekdays, grades, extraDates, range, uiLanguage()])
 
   // Группировка колонок-дат по месяцам — для верхней строки шапки.
   const monthGroups = useMemo(() => {
@@ -302,7 +303,7 @@ export default function GradesPage() {
       g.dates.push(d)
     }
     return out
-  }, [dateColumns])
+  }, [dateColumns, uiLanguage()])
 
   // Оценки «ученик → дата → список оценок».
   const gradesByStudentDate = useMemo(() => {
@@ -312,7 +313,7 @@ export default function GradesPage() {
       ;((map[g.studentId] ||= {})[d] ||= []).push(g)
     }
     return map
-  }, [grades])
+  }, [grades, uiLanguage()])
 
   // Посещаемость по датам-урокам (для блокировки оценки отсутствующим).
   const colsKey = dateColumns.join('|')
@@ -387,12 +388,12 @@ export default function GradesPage() {
         date: dayjs(v.date).format('YYYY-MM-DD'),
         comment: v.comment || undefined,
       })
-      message.success('Оценка поставлена')
+      message.success(uiText("Оценка поставлена"))
       setEditing(null)
       await loadGrades()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     } finally {
       setSaving(false)
     }
@@ -401,10 +402,10 @@ export default function GradesPage() {
   const removeGrade = async (g: GradeDto) => {
     try {
       await http.delete(`/v1/grades/${g.id}`)
-      message.success('Удалено')
+      message.success(uiText("Удалено"))
       await loadGrades()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
   }
 
@@ -414,18 +415,18 @@ export default function GradesPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Журнал оценок"
+        title={uiText("Журнал оценок")}
         icon={<GraduationCap size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description="Все уроки четверти по предмету · средний балл и оценка за четверть"
+        description={uiText("Все уроки четверти по предмету · средний балл и оценка за четверть")}
       />
 
       {subjects.length === 0 ? (
         <SproutCard>
           <SproutEmpty
             icon={<GraduationCap size={32} strokeWidth={1.8} />}
-            title="Предметов пока нет"
-            description="Сначала создайте предметы в разделе «Предметы»"
+            title={uiText("Предметов пока нет")}
+            description={uiText("Сначала создайте предметы в разделе «Предметы»")}
             minHeight={200}
           />
         </SproutCard>
@@ -441,13 +442,13 @@ export default function GradesPage() {
               <Row gutter={[12, 12]} align="middle">
                 <Col xs={24} sm={12} lg={6}>
                   <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
-                    КЛАСС <span style={{ color: SP.danger }}>*</span>
+                    {" " + uiText("КЛАСС") + " "}<span style={{ color: SP.danger }}>*</span>
                   </div>
                   <Select
                     showSearch
                     optionFilterProp="label"
                     style={{ width: '100%' }}
-                    placeholder="Выберите класс"
+                    placeholder={uiText("Выберите класс")}
                     value={activeGroupId ?? undefined}
                     onChange={(v) => setActiveGroupId(v ?? null)}
                     options={groups.map((g) => ({ value: g.id, label: g.name }))}
@@ -456,13 +457,13 @@ export default function GradesPage() {
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
                   <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
-                    ПРЕДМЕТ <span style={{ color: SP.danger }}>*</span>
+                    {" " + uiText("ПРЕДМЕТ") + " "}<span style={{ color: SP.danger }}>*</span>
                   </div>
                   <Select
                     showSearch
                     optionFilterProp="label"
                     style={{ width: '100%' }}
-                    placeholder="Выберите предмет"
+                    placeholder={uiText("Выберите предмет")}
                     value={activeSubjectId ?? undefined}
                     onChange={(v) => setActiveSubjectId(String(v))}
                     status={!activeSubjectId ? 'warning' : undefined}
@@ -488,11 +489,10 @@ export default function GradesPage() {
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
                   <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
-                    ЧЕТВЕРТЬ
-                  </div>
+                    {" " + uiText("ЧЕТВЕРТЬ") + " "}</div>
                   <Select
                     style={{ width: '100%' }}
-                    placeholder={terms.length ? 'Выберите четверть' : 'Четвертей нет'}
+                    placeholder={terms.length ? uiText("Выберите четверть") : uiText("Четвертей нет")}
                     value={activeTermId ?? undefined}
                     onChange={(v) => setActiveTermId(v ?? null)}
                     disabled={terms.length === 0}
@@ -501,11 +501,10 @@ export default function GradesPage() {
                 </Col>
                 <Col xs={24} sm={12} lg={6}>
                   <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
-                    ПОИСК
-                  </div>
+                    {" " + uiText("ПОИСК") + " "}</div>
                   <Input
                     prefix={<SearchOutlined />}
-                    placeholder="Имя ученика"
+                    placeholder={uiText("Имя ученика")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     allowClear
@@ -526,13 +525,13 @@ export default function GradesPage() {
               {!ready ? (
                 <SproutEmpty
                   icon={<GraduationCap size={32} strokeWidth={1.8} />}
-                  title="Выберите класс и предмет"
+                  title={uiText("Выберите класс и предмет")}
                   description={
                     !activeGroupId && !activeSubjectId
-                      ? 'Сверху выберите класс и предмет — журнал откроется автоматически'
+                      ? uiText("Сверху выберите класс и предмет — журнал откроется автоматически")
                       : !activeGroupId
-                        ? 'Осталось выбрать класс'
-                        : 'Осталось выбрать предмет'
+                        ? uiText("Осталось выбрать класс")
+                        : uiText("Осталось выбрать предмет")
                   }
                   minHeight={220}
                 />
@@ -569,12 +568,11 @@ export default function GradesPage() {
                         </Tag>
                       )}
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        {visibleChildren.length} уч. · {dateColumns.length} уроков
-                      </Text>
+                        {visibleChildren.length} {" " + uiText("уч. ·") + " "}{dateColumns.length} {" " + uiText("уроков") + " "}</Text>
                     </Space>
                     <DatePicker
                       size="small"
-                      placeholder="+ урок (дата)"
+                      placeholder={uiText("+ урок (дата)")}
                       format="DD.MM.YYYY"
                       value={null}
                       suffixIcon={<PlusOutlined />}
@@ -586,7 +584,7 @@ export default function GradesPage() {
 
                   {visibleChildren.length === 0 ? (
                     <Empty
-                      description="Учеников не найдено"
+                      description={uiText("Учеников не найдено")}
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                     />
                   ) : (
@@ -598,22 +596,19 @@ export default function GradesPage() {
                               №
                             </th>
                             <th rowSpan={2} className="gj-th gj-sticky gj-col-name">
-                              Ученик
-                            </th>
+                              {" " + uiText("Ученик") + " "}</th>
                             <th
                               rowSpan={2}
                               className="gj-th gj-sticky gj-col-avg"
-                              title="Средний балл за четверть"
+                              title={uiText("Средний балл за четверть")}
                             >
-                              Сред.
-                            </th>
+                              {" " + uiText("Сред.") + " "}</th>
                             <th
                               rowSpan={2}
                               className="gj-th gj-sticky gj-col-term"
-                              title="Оценка за четверть (округлённый средний балл)"
+                              title={uiText("Оценка за четверть (округлённый средний балл)")}
                             >
-                              Чет.
-                            </th>
+                              {" " + uiText("Чет.") + " "}</th>
                             {monthGroups.length > 0 ? (
                               monthGroups.map((mg) => (
                                 <th
@@ -630,8 +625,7 @@ export default function GradesPage() {
                                 className="gj-th"
                                 style={{ minWidth: 240, fontWeight: 500, textTransform: 'none' }}
                               >
-                                Уроков нет — добавьте дату справа сверху или кликните «+»
-                              </th>
+                                {" " + uiText("Уроков нет — добавьте дату справа сверху или кликните «+»") + " "}</th>
                             )}
                           </tr>
                           <tr>
@@ -752,7 +746,7 @@ export default function GradesPage() {
                                               onClick={(e) => e.stopPropagation()}
                                             >
                                               <Popconfirm
-                                                title={`Удалить оценку ${g.value}?`}
+                                                title={uiText("Удалить оценку {0}?", g.value)}
                                                 description={
                                                   <div style={{ fontSize: 12 }}>
                                                     <div>
@@ -762,8 +756,8 @@ export default function GradesPage() {
                                                     {g.comment && <div>«{g.comment}»</div>}
                                                   </div>
                                                 }
-                                                okText="Удалить"
-                                                cancelText="Отмена"
+                                                okText={uiText("Удалить")}
+                                                cancelText={uiText("Отмена")}
                                                 okButtonProps={{ danger: true }}
                                                 onConfirm={() => removeGrade(g)}
                                               >
@@ -782,7 +776,7 @@ export default function GradesPage() {
                                         <span
                                           className="gj-absent"
                                           style={{ color: mark.color }}
-                                          title={`${mark.label} — оценку поставить нельзя`}
+                                          title={uiText("{0} — оценку поставить нельзя", mark.label)}
                                         >
                                           {mark.ch}
                                         </span>
@@ -801,8 +795,7 @@ export default function GradesPage() {
                   )}
                   {loading && (
                     <Text type="secondary" style={{ fontSize: 12 }}>
-                      Загружаю...
-                    </Text>
+                      {" " + uiText("Загружаю...") + " "}</Text>
                   )}
                 </>
               )}
@@ -817,7 +810,7 @@ export default function GradesPage() {
           <Space>
             <GraduationCap size={18} />
             <span>
-              Оценка — {editing?.studentName} ·{' '}
+              {" " + uiText("Оценка —") + " "}{editing?.studentName} ·{' '}
               <span style={{ color: activeSubject?.color, fontWeight: 700 }}>
                 {activeSubject?.name}
               </span>
@@ -827,8 +820,8 @@ export default function GradesPage() {
         open={!!editing}
         onCancel={() => setEditing(null)}
         onOk={submit}
-        okText="Поставить"
-        cancelText="Отмена"
+        okText={uiText("Поставить")}
+        cancelText={uiText("Отмена")}
         confirmLoading={saving}
         destroyOnClose
       >
@@ -837,14 +830,14 @@ export default function GradesPage() {
             <Col span={12}>
               <Form.Item
                 name="value"
-                label="Оценка"
-                rules={[{ required: true, message: 'Введите оценку' }]}
+                label={uiText("Оценка")}
+                rules={[{ required: true, message: uiText("Введите оценку") }]}
               >
                 <InputNumber min={1} max={10} style={{ width: '100%' }} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="type" label="Тип" rules={[{ required: true }]}>
+              <Form.Item name="type" label={uiText("Тип")} rules={[{ required: true }]}>
                 <Select
                   options={Object.entries(TYPE_LABELS).map(([v, l]) => ({
                     value: v,
@@ -854,11 +847,11 @@ export default function GradesPage() {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="date" label="Дата" rules={[{ required: true }]}>
+          <Form.Item name="date" label={uiText("Дата")} rules={[{ required: true }]}>
             <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
           </Form.Item>
-          <Form.Item name="comment" label="Комментарий (необязательно)">
-            <Input.TextArea rows={2} placeholder="За что" />
+          <Form.Item name="comment" label={uiText("Комментарий (необязательно)")}>
+            <Input.TextArea rows={2} placeholder={uiText("За что")} />
           </Form.Item>
         </Form>
       </Modal>

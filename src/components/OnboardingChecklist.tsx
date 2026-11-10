@@ -1,3 +1,4 @@
+import { uiLanguage } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import { Progress, Button } from 'antd'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -41,7 +42,7 @@ export default function OnboardingChecklist() {
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
   const L = useLabels()
-  const isSchool = L.group === 'класс'
+  const isSchool = L.isSchool
 
   const [teacherCount, setTeacherCount] = useState<number | null>(null)
   const [dismissed, setDismissed] = useState(false)
@@ -102,7 +103,7 @@ export default function OnboardingChecklist() {
         to: '/admin/staff',
       },
     ]
-  }, [inst, groups.length, children.length, teacherCount, isSchool, t])
+  }, [inst, groups.length, children.length, teacherCount, isSchool, t, uiLanguage()])
 
   const doneCount = steps.filter((s) => s.done).length
   const total = steps.length

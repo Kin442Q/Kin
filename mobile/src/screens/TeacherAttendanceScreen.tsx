@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -8,11 +9,10 @@ import {
 } from 'react-native'
 import { Text } from '../components/Text'
 import dayjs from 'dayjs'
-import { ListChecks, Lock, StickyNote } from 'lucide-react-native'
+import { useNavigation } from '@react-navigation/native'
+import { Check, ChevronLeft, ListChecks, Lock, Plane, Send, Thermometer, X, type LucideIcon } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
-import Card from '../components/Card'
-import { Chip, ScreenHeading } from '../components/ui'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
 import ClassPicker from '../components/ClassPicker'
@@ -28,7 +28,7 @@ import {
   type AttendanceStatus,
 } from '../api/attendance'
 
-import { themedStyles, themedValue } from '../theme/themedStyles'
+import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
 import { useMyClasses } from '../lib/useMyClasses'
 interface Row {
@@ -36,22 +36,27 @@ interface Row {
   status: AttendanceStatus | null
 }
 
-/** Четыре статуса из макета: выбранный — залитая плашка своего цвета. */
-const STATUSES = themedValue<Array<{
+/** Четыре статуса из макета: кнопка-значок; выбранный — залитая плашка своего цвета. */
+const STATUSES: Array<{
   key: AttendanceStatus
   label: string
+  icon: LucideIcon
   solid: string
   onSolid: string
-}>>(() => ([
-  { key: 'PRESENT', label: 'Здесь', solid: colors.primary, onSolid: '#FFFFFF' },
-  { key: 'ABSENT', label: 'Нет', solid: colors.text, onSolid: colors.bg },
-  { key: 'SICK', label: 'Болеет', solid: colors.coral, onSolid: '#10282A' },
-  { key: 'VACATION', label: 'Отпуск', solid: '#F6C46A', onSolid: '#10282A' },
-]))
+  idle: string
+}> = localizeCopy([
+  { key: 'PRESENT', label: 'Здесь', icon: Check, solid: '#0D7A7C', onSolid: '#FFFFFF', idle: '#0D7A7C' },
+  { key: 'ABSENT', label: 'Нет', icon: X, solid: '#10282A', onSolid: '#FFFFFF', idle: '#5E7375' },
+  { key: 'SICK', label: 'Болеет', icon: Thermometer, solid: '#FF8A65', onSolid: '#10282A', idle: '#D9532E' },
+  { key: 'VACATION', label: 'Отпуск', icon: Plane, solid: '#F6C46A', onSolid: '#10282A', idle: '#A8740F' },
+])
+
+const AVATAR_GRADIENTS = ['#9EDDD9', '#FFD3C2', '#FBE3A9']
 
 export default function TeacherAttendanceScreen() {
   const L = useLabels()
-  const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [])
+  const navigation = useNavigation<any>()
+  const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [uiLanguage()])
 
   const { classes, loading: classesLoading, reload: reloadClasses } = useMyClasses()
   // Класс выбирается первым: пока он не выбран, список пуст и отметить некого
@@ -163,7 +168,7 @@ export default function TeacherAttendanceScreen() {
         else delete next[studentId]
         return next
       })
-      notifyError(e, { title: 'Не сохранилось' })
+      notifyError(e, { title: uiText("Не сохранилось") })
     } finally {
       setSavingId(null)
     }
@@ -180,7 +185,7 @@ export default function TeacherAttendanceScreen() {
       sick: of('SICK'),
       vacation: of('VACATION'),
     }
-  }, [marks, students])
+  }, [marks, students, uiLanguage()])
 
   if (loading || classesLoading) {
     return (
@@ -210,34 +215,40 @@ export default function TeacherAttendanceScreen() {
         }
         ListHeaderComponent={
           <View style={styles.header}>
-            <ScreenHeading
-              eyebrow={groupId ? `${classes.find((c) => c.id === groupId)?.name ?? ''} · ${dayjs().format('D MMMM')}` : dayjs().format('dddd, D MMMM')}
-              title="Посещаемость"
-            />
-            {classes.length > 0 && (
-              <View style={{ gap: 6 }}>
-                <Text style={styles.section}>Класс</Text>
-                <ClassPicker classes={classes} value={groupId} onChange={setGroupId} />
-              </View>
-            )}
-            {!!groupId && (
-              <>
-                <View style={styles.counters}>
-                  <Chip tone="solid" label={`Здесь ${counts.present}`} />
-                  <Chip tone="glass" label={`Нет ${counts.absent}`} />
-                  <Chip tone="coral" label={`Болеет ${counts.sick}`} />
-                  <Chip tone="glass" label={`Отпуск ${counts.vacation}`} />
-                </View>
-                <Text style={styles.autosave}>
-                  Отмечено {counts.marked} из {counts.total} · сохраняется сразу, родители видят отметку
+            <View style={styles.headRow}>
+              <Pressable onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel={uiText("Назад")} style={styles.back}>
+                <ChevronLeft size={22} color={colors.text} />
+              </Pressable>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.eyebrow}>{dayjs().format('dddd, D MMMM')}</Text>
+                <Text style={styles.title} numberOfLines={1}>
+                  {" " + uiText("Посещаемость")}{groupId ? ` ${classes.find((c) => c.id === groupId)?.name ?? ''}` : ''}
                 </Text>
-              </>
+              </View>
+            </View>
+            {classes.length > 1 && <ClassPicker classes={classes} value={groupId} onChange={setGroupId} />}
+            {!!groupId && (
+              <View style={styles.counters}>
+                <View style={[styles.counter, { backgroundColor: '#0D7A7C' }]}>
+                  <Text style={[styles.counterText, { color: '#FFFFFF' }]}>{uiText("Здесь") + " "}{counts.present}</Text>
+                </View>
+                <View style={[styles.counter, { backgroundColor: 'rgba(16,40,42,0.08)' }]}>
+                  <Text style={[styles.counterText, { color: colors.text }]}>{uiText("Нет") + " "}{counts.absent}</Text>
+                </View>
+                <View style={[styles.counter, { backgroundColor: 'rgba(255,138,101,0.25)' }]}>
+                  <Text style={[styles.counterText, { color: '#B23E1A' }]}>{uiText("Болеет") + " "}{counts.sick}</Text>
+                </View>
+                <View style={[styles.counter, { backgroundColor: 'rgba(246,196,106,0.35)' }]}>
+                  <Text style={[styles.counterText, { color: '#7A5208' }]}>{uiText("Отпуск") + " "}{counts.vacation}</Text>
+                </View>
+              </View>
             )}
           </View>
         }
-        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={({ item }) => (
+        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        renderItem={({ item, index }) => (
           <StudentRow
+            index={index}
             student={item}
             status={marks[item.id] ?? null}
             saving={savingId === item.id}
@@ -250,80 +261,94 @@ export default function TeacherAttendanceScreen() {
           classes.length === 0 ? (
             <EmptyState
               icon={<Lock size={34} color={colors.muted} />}
-              title="Нет доступа к классам"
-              hint="Администратор ещё не открыл вам классы. Попросите его в разделе «Доступ учителей»."
+              title={uiText("Нет доступа к классам")}
+              hint={uiText("Администратор ещё не открыл вам классы. Попросите его в разделе «Доступ учителей».")}
             />
           ) : !groupId ? (
             <EmptyState
               icon={<ListChecks size={34} color={colors.muted} />}
-              title="Выберите класс"
-              hint="Пока класс не выбран, список скрыт — так отметка не попадёт не тому классу."
+              title={uiText("Выберите класс")}
+              hint={uiText("Пока класс не выбран, список скрыт — так отметка не попадёт не тому классу.")}
             />
           ) : studentsLoading ? (
             <View style={styles.empty}>
               <ActivityIndicator color={colors.primary} />
             </View>
           ) : (
-            <EmptyState title="В этом классе пока никого нет" />
+            <EmptyState title={uiText("В этом классе пока никого нет")} />
           )
         }
       />
+
+      {!!groupId && students.length > 0 && (
+        <View style={styles.saveBar}>
+          <Pressable
+            onPress={() => navigation.navigate('TeacherHome')}
+            disabled={savingId !== null}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.save, (pressed || savingId !== null) && { opacity: 0.85 }]}
+          >
+            <Send size={20} color="#FFFFFF" />
+            <Text style={styles.saveText}>{uiText("Сохранить · родители увидят сразу")}</Text>
+          </Pressable>
+        </View>
+      )}
 
       <BottomModal
         visible={!!noteFor}
         onClose={() => setNoteFor(null)}
         title={
           noteFor
-            ? `Заметка о ${noteFor.firstName} ${noteFor.lastName}`
-            : 'Заметка'
+            ? uiText("Заметка о {0} {1}", noteFor.firstName, noteFor.lastName)
+            : uiText("Заметка")
         }
       >
         <Select<Mood>
-          label="Настроение"
+          label={uiText("Настроение")}
           value={noteMood}
           onChange={setNoteMood}
           options={[
-            { value: 'HAPPY', label: '😊 Хорошее' },
-            { value: 'NEUTRAL', label: '😐 Обычное' },
-            { value: 'SAD', label: '😟 Грустное' },
-            { value: 'SICK', label: '🤒 Болел' },
+            { value: 'HAPPY', label: uiText("😊 Хорошее") },
+            { value: 'NEUTRAL', label: uiText("😐 Обычное") },
+            { value: 'SAD', label: uiText("😟 Грустное") },
+            { value: 'SICK', label: uiText("🤒 Болел") },
           ]}
           columns={2}
         />
 
-        {L.institution === 'садик' && (
+        {!L.isSchool && (
           <Select<NapQuality>
-            label="Сон"
+            label={uiText("Сон")}
             value={noteNap}
             onChange={setNoteNap}
             options={[
-              { value: 'GOOD', label: 'Хорошо' },
-              { value: 'NORMAL', label: 'Обычно' },
-              { value: 'POOR', label: 'Плохо' },
-              { value: 'NO_NAP', label: 'Не спал' },
+              { value: 'GOOD', label: uiText("Хорошо") },
+              { value: 'NORMAL', label: uiText("Обычно") },
+              { value: 'POOR', label: uiText("Плохо") },
+              { value: 'NO_NAP', label: uiText("Не спал") },
             ]}
             columns={2}
           />
         )}
 
         <Field
-          label="Заметка"
+          label={uiText("Заметка")}
           value={noteText}
           onChangeText={setNoteText}
-          placeholder="Что хочется передать родителям"
+          placeholder={uiText("Что хочется передать родителям")}
           multiline
           style={{ minHeight: 80, textAlignVertical: 'top' }}
         />
 
         <Btn block size="lg" loading={noteSaving} onPress={saveNote}>
-          Сохранить заметку
-        </Btn>
+          {" " + uiText("Сохранить заметку") + " "}</Btn>
       </BottomModal>
     </Screen>
   )
 }
 
 interface RowProps {
+  index: number
   student: StudentDto
   status: AttendanceStatus | null
   saving: boolean
@@ -332,104 +357,118 @@ interface RowProps {
   onOpenNote: () => void
 }
 
-function StudentRow({
-  student,
-  status,
-  saving,
-  hasNote,
-  onChange,
-  onOpenNote,
-}: RowProps) {
+/** Строка ученика из макета: круглая «аватарка», имя и фамилия, четыре кнопки-значка. Долгое нажатие — заметка о ребёнке. */
+function StudentRow({ index, student, status, saving, hasNote, onChange, onOpenNote }: RowProps) {
   const fullName = `${student.firstName} ${student.lastName}`.trim()
   const initials = `${student.firstName[0] ?? ''}${student.lastName[0] ?? ''}`.toUpperCase()
 
   return (
-    <Card padding={10} elevation="none" style={{ gap: 6 }}>
-      <View style={styles.rowTop}>
-        <View style={styles.avatar}>
+    <View style={styles.row}>
+      <Pressable
+        onLongPress={onOpenNote}
+        accessibilityHint={uiText("Долгое нажатие: заметка о ребёнке")}
+        style={styles.rowInfo}
+      >
+        <View style={[styles.avatar, { backgroundColor: AVATAR_GRADIENTS[index % AVATAR_GRADIENTS.length] }]}>
           <Text style={styles.avatarText}>{initials}</Text>
         </View>
-        <Text style={styles.name} numberOfLines={1}>
-          {fullName}
-          {saving ? '  …' : ''}
-        </Text>
-        <Pressable
-          onPress={onOpenNote}
-          hitSlop={8}
-          accessibilityRole="button"
-          accessibilityLabel={`Заметка о ${fullName}`}
-          style={[styles.noteBtn, hasNote && { backgroundColor: colors.primarySoft }]}
-        >
-          <StickyNote size={16} color={hasNote ? colors.primaryDeep : colors.muted} />
-        </Pressable>
-      </View>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={styles.first} numberOfLines={1}>
+            {student.firstName}
+            {hasNote ? '  •' : ''}
+            {saving ? '  …' : ''}
+          </Text>
+          <Text style={styles.last} numberOfLines={1}>
+            {student.lastName}
+          </Text>
+        </View>
+      </Pressable>
 
-      <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel="Статус">
-        {STATUSES().map((s) => {
-          const active = status === s.key
+      <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel={uiText("Статус: {0}", fullName)}>
+        {STATUSES.map((st) => {
+          const active = status === st.key
+          const Icon = st.icon
           return (
             <Pressable
-              key={s.key}
-              onPress={() => onChange(s.key)}
+              key={st.key}
+              onPress={() => onChange(st.key)}
               disabled={saving}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={s.label}
-              style={[
-                styles.segBtn,
-                { backgroundColor: active ? s.solid : colors.surfaceAlt, opacity: saving ? 0.6 : 1 },
-              ]}
+              accessibilityLabel={st.label}
+              style={[styles.segBtn, { backgroundColor: active ? st.solid : 'rgba(16,40,42,0.05)', opacity: saving ? 0.6 : 1 }]}
             >
-              <Text style={[styles.segText, { color: active ? s.onSolid : colors.textMid }]}>{s.label}</Text>
+              <Icon size={20} color={active ? st.onSolid : st.idle} strokeWidth={2.4} />
             </Pressable>
           )
         })}
       </View>
-    </Card>
+    </View>
   )
 }
 
 const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 16, paddingBottom: 24 },
-  header: { marginBottom: 12, gap: 10 },
-  section: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginLeft: 2,
+  list: { padding: 16, paddingBottom: 96 },
+  header: { marginBottom: 12, gap: 14 },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  back: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  counters: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  autosave: { fontSize: 12, color: colors.textMid },
-  rowTop: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  eyebrow: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.8, color: colors.text },
+  counters: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  counter: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
+  counterText: { fontSize: 12, fontWeight: '700' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+    paddingLeft: 12,
+    paddingRight: 10,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  rowInfo: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
   avatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.avatarBg,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 12, fontWeight: '700', color: colors.text },
-  name: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
-  seg: { flexDirection: 'row', gap: 6 },
-  segBtn: { flex: 1, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  segText: { fontSize: 12, fontWeight: '600' },
+  avatarText: { fontSize: 14, fontWeight: '800', color: '#0B3A3B' },
+  first: { fontSize: 15, fontWeight: '800', color: colors.text },
+  last: { fontSize: 12, fontWeight: '600', color: colors.muted },
+  seg: { flexDirection: 'row', gap: 5 },
+  segBtn: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   empty: { paddingVertical: 60, alignItems: 'center' },
-  emptyText: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-  },
-  noteBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
+  saveBar: { position: 'absolute', left: 16, right: 16, bottom: 12 },
+  save: {
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: '#0D7A7C',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-    marginLeft: 8,
+    gap: 8,
+    shadowColor: '#075B5D',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 8,
   },
+  saveText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
 }))

@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { ReactNode } from 'react'
 import { Result, Button } from 'antd'
 import { useNavigate } from 'react-router-dom'
@@ -36,12 +37,11 @@ export default function RequireRole({ roles, feature, children }: Props) {
     return (
       <Result
         status="403"
-        title="Нет доступа"
-        subTitle="У вашей роли нет прав на просмотр этой страницы."
+        title={uiText("Нет доступа")}
+        subTitle={uiText("У вашей роли нет прав на просмотр этой страницы.")}
         extra={
           <Button type="primary" onClick={() => navigate(home)}>
-            На главную
-          </Button>
+            {" " + uiText("На главную") + " "}</Button>
         }
       />
     )
@@ -51,12 +51,11 @@ export default function RequireRole({ roles, feature, children }: Props) {
     return (
       <Result
         status="403"
-        title="Раздел отключён"
-        subTitle="Этот раздел не подключён для вашего учреждения. Обратитесь к администратору платформы."
+        title={uiText("Раздел отключён")}
+        subTitle={uiText("Этот раздел не подключён для вашего учреждения. Обратитесь к администратору платформы.")}
         extra={
           <Button type="primary" onClick={() => navigate(home)}>
-            На главную
-          </Button>
+            {" " + uiText("На главную") + " "}</Button>
         }
       />
     )

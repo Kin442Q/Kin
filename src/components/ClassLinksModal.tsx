@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import { Alert, App as AntdApp, Button, Modal, Popconfirm, Space, Spin, Table, Tag } from 'antd'
 import { PrinterOutlined } from '@ant-design/icons'
@@ -36,7 +37,7 @@ export default function ClassLinksModal({ group, onClose }: Props) {
     try {
       setData(await studentAccountApi.classLinks(group.id))
     } catch (e) {
-      message.error(errorText(e, 'Не удалось загрузить ссылки класса'))
+      message.error(errorText(e, uiText("Не удалось загрузить ссылки класса")))
     } finally {
       setLoading(false)
     }
@@ -62,9 +63,9 @@ export default function ClassLinksModal({ group, onClose }: Props) {
       const next = await studentAccountApi.issueClassLinks(group.id)
       setData(next)
       const added = next.students.filter((r) => r.link).length - before
-      message.success(added > 0 ? `Выдано ссылок: ${added}` : 'У всех уже есть ссылки')
+      message.success(added > 0 ? uiText("Выдано ссылок: {0}", added) : uiText("У всех уже есть ссылки"))
     } catch (e) {
-      message.error(errorText(e, 'Не удалось выдать ссылки'))
+      message.error(errorText(e, uiText("Не удалось выдать ссылки")))
     } finally {
       setBusy(false)
     }
@@ -81,9 +82,9 @@ export default function ClassLinksModal({ group, onClose }: Props) {
       setSecrets(fresh)
       setData(await studentAccountApi.classLinks(group.id))
       const n = res.students.filter((r) => r.password).length
-      message.success(n > 0 ? `Выдано логинов и паролей: ${n}` : 'У всех уже есть пароли')
+      message.success(n > 0 ? uiText("Выдано логинов и паролей: {0}", n) : uiText("У всех уже есть пароли"))
     } catch (e) {
-      message.error(errorText(e, 'Не удалось выдать логины и пароли'))
+      message.error(errorText(e, uiText("Не удалось выдать логины и пароли")))
     } finally {
       setBusy(false)
     }
@@ -104,9 +105,9 @@ export default function ClassLinksModal({ group, onClose }: Props) {
             password: secrets[r.studentId]?.password,
           })),
       )
-      if (!ok) message.warning('Браузер не открыл окно печати. Разрешите всплывающие окна для этого сайта.')
+      if (!ok) message.warning(uiText("Браузер не открыл окно печати. Разрешите всплывающие окна для этого сайта."))
     } catch {
-      message.error('Не удалось подготовить карточки')
+      message.error(uiText("Не удалось подготовить карточки"))
     } finally {
       setBusy(false)
     }
@@ -116,34 +117,32 @@ export default function ClassLinksModal({ group, onClose }: Props) {
     <Modal
       open={!!group}
       onCancel={onClose}
-      footer={<Button onClick={onClose}>Закрыть</Button>}
-      title={group ? `Ссылки класса ${group.name}` : 'Ссылки класса'}
+      footer={<Button onClick={onClose}>{uiText("Закрыть")}</Button>}
+      title={group ? uiText("Ссылки класса {0}", group.name) : uiText("Ссылки класса")}
       width={760}
       destroyOnClose
     >
       <Spin spinning={loading}>
         <Space wrap style={{ marginBottom: 12 }}>
           <Button type="primary" loading={busy} disabled={missing === 0} onClick={issueAll}>
-            {missing > 0 ? `Выдать всем (${missing})` : 'Выдать всем'}
+            {missing > 0 ? uiText("Выдать всем ({0})", missing) : uiText("Выдать всем")}
           </Button>
           <Button loading={busy} disabled={withoutPassword === 0} onClick={() => issuePasswords(true)}>
-            {withoutPassword > 0 ? `Выдать логины и пароли (${withoutPassword})` : 'Выдать логины и пароли'}
+            {withoutPassword > 0 ? uiText("Выдать логины и пароли ({0})", withoutPassword) : uiText("Выдать логины и пароли")}
           </Button>
           <Popconfirm
-            title="Выдать пароли заново всем?"
-            description="Все старые пароли класса перестанут работать, ученики выйдут на всех устройствах."
-            okText="Выдать заново"
-            cancelText="Отмена"
+            title={uiText("Выдать пароли заново всем?")}
+            description={uiText("Все старые пароли класса перестанут работать, ученики выйдут на всех устройствах.")}
+            okText={uiText("Выдать заново")}
+            cancelText={uiText("Отмена")}
             onConfirm={() => issuePasswords(false)}
             disabled={rows.length === 0}
           >
             <Button loading={busy} disabled={rows.length === 0}>
-              Пароли заново всем
-            </Button>
+              {" " + uiText("Пароли заново всем") + " "}</Button>
           </Popconfirm>
           <Button icon={<PrinterOutlined />} loading={busy} disabled={withLink.length === 0 && !hasSecrets} onClick={print}>
-            Печать карточек
-          </Button>
+            {" " + uiText("Печать карточек") + " "}</Button>
         </Space>
 
         {hasSecrets && (
@@ -151,8 +150,8 @@ export default function ClassLinksModal({ group, onClose }: Props) {
             type="warning"
             showIcon
             style={{ marginBottom: 12 }}
-            message="Пароли видны только сейчас"
-            description="Напечатайте карточки до закрытия окна. Потом пароль не показать, можно только выдать новый."
+            message={uiText("Пароли видны только сейчас")}
+            description={uiText("Напечатайте карточки до закрытия окна. Потом пароль не показать, можно только выдать новый.")}
           />
         )}
 
@@ -161,17 +160,17 @@ export default function ClassLinksModal({ group, onClose }: Props) {
           rowKey="studentId"
           pagination={false}
           dataSource={rows}
-          locale={{ emptyText: loading ? ' ' : 'В классе нет учеников' }}
+          locale={{ emptyText: loading ? ' ' : uiText("В классе нет учеников") }}
           columns={[
-            { title: 'Ученик', key: 'name', render: (_: unknown, r) => fullName(r) },
+            { title: uiText("Ученик"), key: 'name', render: (_: unknown, r) => fullName(r) },
             {
-              title: 'Ссылка',
+              title: uiText("Ссылка"),
               key: 'link',
               width: 110,
-              render: (_: unknown, r) => (r.link ? <Tag color="green">выдана</Tag> : <Tag>не выдана</Tag>),
+              render: (_: unknown, r) => (r.link ? <Tag color="green">{uiText("выдана")}</Tag> : <Tag>{uiText("не выдана")}</Tag>),
             },
             {
-              title: 'Логин и пароль',
+              title: uiText("Логин и пароль"),
               key: 'password',
               width: 190,
               render: (_: unknown, r) =>
@@ -180,17 +179,17 @@ export default function ClassLinksModal({ group, onClose }: Props) {
                     <code>{secrets[r.studentId].login}</code> · <code>{secrets[r.studentId].password}</code>
                   </span>
                 ) : r.passwordIssued ? (
-                  <Tag color="green">пароль выдан</Tag>
+                  <Tag color="green">{uiText("пароль выдан")}</Tag>
                 ) : (
-                  <Tag>нет пароля</Tag>
+                  <Tag>{uiText("нет пароля")}</Tag>
                 ),
             },
             {
-              title: 'Заходил',
+              title: uiText("Заходил"),
               key: 'last',
               width: 150,
               render: (_: unknown, r) =>
-                r.lastLoginAt ? dayjs(r.lastLoginAt).format('DD.MM.YYYY HH:mm') : <span style={{ color: '#8c8c8c' }}>ещё не заходил</span>,
+                r.lastLoginAt ? dayjs(r.lastLoginAt).format('DD.MM.YYYY HH:mm') : <span style={{ color: '#8c8c8c' }}>{uiText("ещё не заходил")}</span>,
             },
           ]}
         />

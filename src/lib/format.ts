@@ -1,3 +1,4 @@
+import { uiLanguage } from '../i18n/uiText'
 import dayjs from 'dayjs'
 import { currentLang } from '../i18n'
 
@@ -5,7 +6,7 @@ import { currentLang } from '../i18n'
 const UNITS = {
   ru: { cur: 'сомони', k: 'тыс.', m: 'млн', b: 'млрд', locale: 'ru-RU', dec: ',' },
   en: { cur: 'somoni', k: 'K', m: 'M', b: 'B', locale: 'en-US', dec: '.' },
-  tg: { cur: 'сомонӣ', k: 'ҳаз.', m: 'млн', b: 'млрд', locale: 'ru-RU', dec: ',' },
+  tg: { cur: 'сомонӣ', k: 'ҳаз.', m: 'млн', b: 'млрд', locale: 'tg-TJ', dec: ',' },
 } as const
 const units = () => UNITS[currentLang()]
 const compact = (n: number, digits: number) => n.toFixed(digits).replace('.', units().dec)

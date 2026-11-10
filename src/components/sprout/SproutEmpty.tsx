@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import type { ReactNode } from 'react'
 import { Inbox } from 'lucide-react'
 import { SP } from './tokens'
@@ -19,7 +20,7 @@ interface Props {
  */
 export default function SproutEmpty({
   icon,
-  title = 'Пока ничего нет',
+  title = uiText("Пока ничего нет"),
   description,
   action,
   minHeight = 200,
@@ -55,7 +56,7 @@ export default function SproutEmpty({
         style={{
           fontSize: 16,
           fontWeight: 800,
-          fontFamily: "'Montserrat', 'Inter', sans-serif",
+          fontFamily: "'Inter', sans-serif",
           color: SP.text,
         }}
       >

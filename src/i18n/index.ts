@@ -66,6 +66,7 @@ export function translateRich(lang: Lang, key: MsgKey, nodes: Record<string, Rea
 function applyLang(lang: Lang) {
   const info = LANGS.find((l) => l.code === lang)
   document.documentElement.setAttribute('lang', info?.htmlLang ?? 'ru')
+  document.title = { ru: 'Моя школа', en: 'My School', tg: 'Мактаби ман' }[lang]
   dayjs.locale(lang)
 }
 

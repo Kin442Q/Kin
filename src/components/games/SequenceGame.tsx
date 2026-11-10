@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 
 import { SP } from '../sprout'
@@ -56,12 +57,12 @@ export default function SequenceGame({ onFinish }: GameProps) {
   }
 
   const status =
-    phase === 'showing' ? 'Смотри внимательно…' : phase === 'input' ? 'Повтори порядок!' : 'Ошибка — игра окончена'
+    phase === 'showing' ? uiText("Смотри внимательно…") : phase === 'input' ? uiText("Повтори порядок!") : uiText("Ошибка — игра окончена")
 
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ color: SP.textMid, fontWeight: 600 }}>
-        Уровень {completed + 1} · {status}
+        {" " + uiText("Уровень") + " "}{completed + 1} · {status}
       </div>
       <div
         style={{
@@ -76,7 +77,7 @@ export default function SequenceGame({ onFinish }: GameProps) {
           <button
             key={pad}
             type="button"
-            aria-label={`Огонёк ${pad + 1}`}
+            aria-label={uiText("Огонёк {0}", pad + 1)}
             disabled={phase !== 'input'}
             onClick={() => press(pad)}
             style={{

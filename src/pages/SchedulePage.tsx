@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Card, Collapse, Spin, Tag, App as AntdApp } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
@@ -43,7 +44,7 @@ interface TeacherDto {
 }
 
 const lessonsWord = (n: number) =>
-  n % 10 === 1 && n % 100 !== 11 ? 'урок' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'урока' : 'уроков'
+  n % 10 === 1 && n % 100 !== 11 ? uiText("урок") : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? uiText("урока") : uiText("уроков")
 
 /**
  * Расписание уроков, сгруппированное по классам: сверху выбор класса (или «Все классы» — тогда
@@ -53,7 +54,7 @@ export default function SchedulePage() {
   const { message } = AntdApp.useApp()
   const groups = useDataStore((s) => s.groups)
   const L = useLabels()
-  const isSchool = L.group === 'класс'
+  const isSchool = L.isSchool
 
   const [items, setItems] = useState<ScheduleApi[]>([])
   const [loading, setLoading] = useState(false)
@@ -115,7 +116,7 @@ export default function SchedulePage() {
       const res = await http.get<ScheduleApi[]>('/v1/schedule')
       setItems(res.data || [])
     } catch (err: any) {
-      message.error(err?.response?.data?.message || err?.message || 'Не удалось загрузить расписание')
+      message.error(err?.response?.data?.message || err?.message || uiText("Не удалось загрузить расписание"))
     } finally {
       setLoading(false)
     }
@@ -129,16 +130,16 @@ export default function SchedulePage() {
   const remove = async (id: string) => {
     try {
       await http.delete(`/v1/schedule/${id}`)
-      message.success('Удалено')
+      message.success(uiText("Удалено"))
       await load()
     } catch (err: any) {
-      message.error(err?.response?.data?.message || err?.message || 'Не удалось удалить')
+      message.error(err?.response?.data?.message || err?.message || uiText("Не удалось удалить"))
     }
   }
 
-  const orderedGroups = useMemo(() => [...groups].sort((a, b) => compareClassNames(a.name, b.name)), [groups])
-  const byGroup = useMemo(() => lessonsByGroup(items), [items])
-  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups])
+  const orderedGroups = useMemo(() => [...groups].sort((a, b) => compareClassNames(a.name, b.name)), [groups, uiLanguage()])
+  const byGroup = useMemo(() => lessonsByGroup(items), [items, uiLanguage()])
+  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups, uiLanguage()])
 
   // Первый класс с уроками раскрыт сразу, остальные свёрнуты: так экран не превращается в длинную ленту
   useEffect(() => {
@@ -160,13 +161,13 @@ export default function SchedulePage() {
   return (
     <div>
       <SproutPageHeader
-        title={'Расписание уроков'}
+        title={uiText("Расписание уроков")}
         icon={<Calendar size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description={'Уроки по классам: предмет, учитель, кабинет'}
+        description={uiText("Уроки по классам: предмет, учитель, кабинет")}
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => openBulk([])}>
-            {'Добавить уроки'}
+            {uiText("Добавить уроки")}
           </Button>
         }
       />
@@ -175,8 +176,8 @@ export default function SchedulePage() {
         <Card className="glass" bordered={false}>
           <SproutEmpty
             icon={<Calendar size={28} strokeWidth={1.8} />}
-            title={'Классов пока нет'}
-            description={'Сначала создайте класс в разделе «Классы»'}
+            title={uiText("Классов пока нет")}
+            description={uiText("Сначала создайте класс в разделе «Классы»")}
             minHeight={180}
           />
         </Card>
@@ -185,7 +186,7 @@ export default function SchedulePage() {
           {/* Выбор класса: «Все классы» или один класс. Классы собраны по параллелям. */}
           <div
             role="radiogroup"
-            aria-label="Класс"
+            aria-label={uiText("Класс")}
             style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px 18px', marginBottom: 16 }}
           >
             <button
@@ -195,8 +196,7 @@ export default function SchedulePage() {
               className={`cf-chip${!groupId ? ' is-on' : ''}`}
               onClick={() => setGroupId(undefined)}
             >
-              Все классы
-            </button>
+              {" " + uiText("Все классы") + " "}</button>
             {grades.map((gr) => (
               <div key={String(gr.key)} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
                 <span className="sp-grade-badge">{gr.grade ?? '•'}</span>
@@ -222,8 +222,7 @@ export default function SchedulePage() {
                 <div style={{ fontSize: 18, fontWeight: 800, color: SP.text, marginBottom: 12 }}>
                   {selected.name}
                   <span style={{ fontSize: 13, fontWeight: 500, color: SP.muted, marginLeft: 10 }}>
-                    {(byGroup.get(selected.id)?.length ?? 0)} {lessonsWord(byGroup.get(selected.id)?.length ?? 0)} в неделю
-                  </span>
+                    {(byGroup.get(selected.id)?.length ?? 0)} {lessonsWord(byGroup.get(selected.id)?.length ?? 0)} {" " + uiText("в неделю") + " "}</span>
                 </div>
                 <WeekSchedule
                   lessons={byGroup.get(selected.id) ?? []}
@@ -247,7 +246,7 @@ export default function SchedulePage() {
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
                         <b style={{ fontSize: 16, color: SP.text }}>{g.name}</b>
                         <Tag color={list.length ? 'blue' : undefined} style={{ margin: 0 }}>
-                          {list.length ? `${list.length} ${lessonsWord(list.length)} в неделю` : 'уроков нет'}
+                          {list.length ? uiText("{0} {1} в неделю", list.length, lessonsWord(list.length)) : uiText("уроков нет")}
                         </Tag>
                       </span>
                     ),
@@ -260,8 +259,7 @@ export default function SchedulePage() {
                           openBulk([], g.id)
                         }}
                       >
-                        Добавить уроки
-                      </Button>
+                        {" " + uiText("Добавить уроки") + " "}</Button>
                     ),
                     children: (
                       <WeekSchedule

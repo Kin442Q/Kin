@@ -41,6 +41,7 @@ import MenuPage from "./pages/MenuPage";
 import SettingsPage from "./pages/SettingsPage";
 import SubjectsPage from "./pages/SubjectsPage";
 import GradesPage from "./pages/GradesPage";
+import DirectorReportPage from "./pages/DirectorReportPage";
 import HomeworkPage from "./pages/HomeworkPage";
 import CheckInAuditPage from "./pages/CheckInAuditPage";
 import TermsPage from "./pages/TermsPage";
@@ -387,6 +388,14 @@ export default function App() {
               element={
                 <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="grades">
                   <GradesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="director-report"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="grades">
+                  <DirectorReportPage />
                 </RequireRole>
               }
             />

@@ -7,7 +7,7 @@ const lightPalette = {
   /** Основа экрана (под фоновым слоем «закат») */
   bg: '#FFE4D6',
   /** Карточка-«стекло»: слегка прозрачный белый поверх фона */
-  surface: 'rgba(255,255,255,0.84)',
+  surface: 'rgba(255,255,255,0.56)',
   /** Непрозрачная поверхность: окна, панель вкладок, выпадающие списки, поля ввода */
   surfaceSolid: '#FFFFFF',
   /** Внутренняя плашка (чипы, неактивные кнопки): лёгкий тёмный оттенок */
@@ -44,13 +44,13 @@ const lightPalette = {
   border: 'rgba(16,40,42,0.14)',
   borderSoft: 'rgba(16,40,42,0.08)',
   /** Светлая рамка стеклянной карточки */
-  glassBorder: 'rgba(255,255,255,0.75)',
+  glassBorder: 'rgba(255,255,255,0.85)',
 
   danger: '#C0392B',
   /** Текст на залитых акцентных кнопках и плашках */
   onPrimary: '#FFFFFF',
   /** Нижняя панель вкладок */
-  tabBar: 'rgba(255,255,255,0.94)',
+  tabBar: '#FFFAF7',
   /** Поля ввода и плотные белые подложки внутри карточек */
   field: '#FFFFFF',
   /** Круглый аватар с инициалами */
@@ -145,21 +145,23 @@ export const radius = {
   pill: 999,
 } as const
 
-/** Тени для iOS (shadow*) и Android (elevation) */
+/**
+ * Тени. sm и md — для стеклянных (полупрозрачных) карточек: на Android у таких карточек нельзя задавать elevation,
+ * иначе тень просвечивает сквозь них серым прямоугольником, поэтому тут только тень iOS. lg — для плотных блоков
+ * (градиентные карточки, кнопки, окна): у них elevation работает как надо.
+ */
 export const shadow = {
   sm: {
     shadowColor: '#10282A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 1,
   },
   md: {
     shadowColor: '#10282A',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 18,
-    elevation: 3,
   },
   lg: {
     shadowColor: '#075B5D',
@@ -191,8 +193,8 @@ export const font = {
     medium: 'Inter_500Medium',
     semibold: 'Inter_600SemiBold',
     bold: 'Inter_700Bold',
-    heading: 'Montserrat_700Bold',
-    extrabold: 'Montserrat_800ExtraBold',
+    heading: 'MontBlack',
+    extrabold: 'MontBlack',
   },
   size: {
     xs: 11,

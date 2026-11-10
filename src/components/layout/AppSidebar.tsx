@@ -1,9 +1,11 @@
+import { uiText } from '../../i18n/uiText'
 import { Menu, Tooltip } from 'antd'
 import {
   School,
   LayoutGrid,
   Baby,
   ClipboardCheck,
+  ClipboardList,
   Wallet,
   PieChart,
   TrendingUp,
@@ -253,6 +255,16 @@ const NAV: NavEntry[] = [
     icon: <GraduationCap size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-mint',
     roles: ['SUPER_ADMIN', 'admin', 'TEACHER'],
+    hiddenForGlobalOwner: true,
+    section: 'studying',
+  },
+  {
+    key: '/admin/director-report',
+    feature: 'grades',
+    labelKey: 'nav.directorReport',
+    icon: <ClipboardList size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-blue',
+    roles: ['SUPER_ADMIN', 'admin'],
     hiddenForGlobalOwner: true,
     section: 'studying',
   },
@@ -644,7 +656,7 @@ export default function AppSidebar({ collapsed }: Props) {
   }
 
   const schoolName = isGlobalOwner
-    ? 'Мактаби ман'
+    ? t('nav.mySchool')
     : (user?.institution?.name ?? t('nav.mySchool'))
   const schoolSub = isGlobalOwner ? t('nav.platform') : t('nav.schoolYear', { year: schoolYear() })
   const doLogout = () => {
@@ -708,7 +720,7 @@ export default function AppSidebar({ collapsed }: Props) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: "'Montserrat', sans-serif",
+              fontFamily: "'Inter', sans-serif",
             }}
           >
             {schoolName.trim().charAt(0).toUpperCase()}

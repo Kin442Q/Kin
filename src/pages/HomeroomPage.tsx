@@ -1,3 +1,4 @@
+import { localizeCopy, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import { App as AntdApp, Avatar, Button, Input, Modal, Segmented, Space, Spin, Table, Tag, Tooltip } from 'antd'
 import { LinkOutlined, MessageOutlined } from '@ant-design/icons'
@@ -15,11 +16,11 @@ import {
 } from '../api/schoolApi'
 
 /** Быстрые заготовки — текст можно править перед отправкой. */
-const QUICK_TEXTS = [
+const QUICK_TEXTS = localizeCopy([
   'Здравствуйте! Ваш ребёнок в последнее время не выполняет домашние задания. Просим обратить внимание.',
   'Здравствуйте! Ваш ребёнок пропускает уроки. Просим сообщить причину и помочь наверстать материал.',
   'Здравствуйте! Просим вас зайти в школу — нужно обсудить успеваемость вашего ребёнка.',
-]
+])
 
 /**
  * Сводка по классу для классного руководителя (и админа): кто не делает
@@ -56,7 +57,7 @@ export default function HomeroomPage() {
       })
       .catch((e) => {
         setClasses([])
-        message.error(errorText(e, 'Не удалось загрузить классы'))
+        message.error(errorText(e, uiText("Не удалось загрузить классы")))
       })
   }, [message])
 
@@ -67,7 +68,7 @@ export default function HomeroomPage() {
       setData(await homeroomApi.overview(groupId, days))
       setSelected([])
     } catch (e) {
-      message.error(errorText(e, 'Не удалось загрузить сводку'))
+      message.error(errorText(e, uiText("Не удалось загрузить сводку")))
     } finally {
       setLoading(false)
     }
@@ -83,14 +84,14 @@ export default function HomeroomPage() {
     try {
       const r = await homeroomApi.notify(groupId, { studentIds: selected, text: text.trim() })
       message.success(
-        `Отправлено: ${r.notified} из ${selected.length}` +
-          (r.skipped.length ? `. У ${r.skipped.length} нет родителей в системе` : ''),
+        uiText("Отправлено: {0} из {1}", r.notified, selected.length) +
+          (r.skipped.length ? uiText(". У {0} нет родителей в системе", r.skipped.length) : ''),
       )
       setWriteOpen(false)
       setText('')
       setSelected([])
     } catch (e) {
-      message.error(errorText(e, 'Не удалось отправить'))
+      message.error(errorText(e, uiText("Не удалось отправить")))
     } finally {
       setSending(false)
     }
@@ -101,19 +102,19 @@ export default function HomeroomPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Сводка класса"
+        title={uiText("Сводка класса")}
         icon={<Users size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Классному руководителю: кто не делает ДЗ, пропускает уроки, и связь с родителями"
+        description={uiText("Классному руководителю: кто не делает ДЗ, пропускает уроки, и связь с родителями")}
         actions={
           <Space wrap>
             <Segmented
               value={days}
               onChange={(v) => setDays(Number(v))}
               options={[
-                { value: 7, label: '7 дней' },
-                { value: 14, label: '14 дней' },
-                { value: 30, label: '30 дней' },
+                { value: 7, label: uiText("7 дней") },
+                { value: 14, label: uiText("14 дней") },
+                { value: 30, label: uiText("30 дней") },
               ]}
             />
           </Space>
@@ -124,8 +125,8 @@ export default function HomeroomPage() {
         <SproutCard>
           <SproutEmpty
             icon={<Users size={32} strokeWidth={1.8} />}
-            title="Вы пока не классный руководитель"
-            description="Администратор школы назначает классного руководителя в карточке класса"
+            title={uiText("Вы пока не классный руководитель")}
+            description={uiText("Администратор школы назначает классного руководителя в карточке класса")}
             minHeight={220}
           />
         </SproutCard>
@@ -139,8 +140,8 @@ export default function HomeroomPage() {
           {!groupId ? (
             <SproutEmpty
               icon={<Users size={32} strokeWidth={1.8} />}
-              title="Выберите класс"
-              description="Сначала параллель, затем букву класса. Сводка появится после выбора."
+              title={uiText("Выберите класс")}
+              description={uiText("Сначала параллель, затем букву класса. Сводка появится после выбора.")}
               minHeight={200}
             />
           ) : (
@@ -155,16 +156,15 @@ export default function HomeroomPage() {
                 setWriteOpen(true)
               }}
             >
-              Написать родителям ({selected.length})
+              {" " + uiText("Написать родителям (")}{selected.length})
             </Button>
             {portalOn && (
               <Button icon={<LinkOutlined />} disabled={!groupId} onClick={() => setLinksOpen(true)}>
-                Ссылки класса
-              </Button>
+                {" " + uiText("Ссылки класса") + " "}</Button>
             )}
             {data && sections?.homework && (
               <span style={{ color: SP.muted, fontSize: 13 }}>
-                Заданий за период: {data.homeworkCount}
+                {" " + uiText("Заданий за период:") + " "}{data.homeworkCount}
               </span>
             )}
           </Space>
@@ -179,7 +179,7 @@ export default function HomeroomPage() {
               scroll={{ x: 720 }}
               columns={[
                 {
-                  title: 'Ученик',
+                  title: uiText("Ученик"),
                   key: 'student',
                   fixed: 'left',
                   render: (_, r) => (
@@ -194,19 +194,19 @@ export default function HomeroomPage() {
                 ...(sections?.homework
                   ? [
                       {
-                        title: 'Домашние задания',
+                        title: uiText("Домашние задания"),
                         key: 'homework',
                         render: (_: unknown, r: HomeroomRow) => {
                           const h = r.homework!
                           return (
                             <Space size={4} wrap>
-                              <Tooltip title="Выполнено / частично">
+                              <Tooltip title={uiText("Выполнено / частично")}>
                                 <Tag color="green">{h.done + h.partial}</Tag>
                               </Tooltip>
-                              <Tooltip title="Не выполнено">
+                              <Tooltip title={uiText("Не выполнено")}>
                                 <Tag color={h.notDone > 0 ? 'red' : 'default'}>{h.notDone}</Tag>
                               </Tooltip>
-                              <Tooltip title="Не отмечено учителем (из заданных за период)">
+                              <Tooltip title={uiText("Не отмечено учителем (из заданных за период)")}>
                                 <Tag>{h.unmarked}</Tag>
                               </Tooltip>
                             </Space>
@@ -218,17 +218,17 @@ export default function HomeroomPage() {
                 ...(sections?.attendance
                   ? [
                       {
-                        title: 'Пропуски',
+                        title: uiText("Пропуски"),
                         key: 'attendance',
                         render: (_: unknown, r: HomeroomRow) => {
                           const a = r.attendance!
                           const missed = a.absent + a.sick
                           return missed > 0 ? (
                             <Tag color={a.absent > 0 ? 'red' : 'orange'}>
-                              {missed} (болезнь {a.sick})
+                              {missed} {" " + uiText("(болезнь") + " "}{a.sick})
                             </Tag>
                           ) : (
-                            <Tag color="green">нет</Tag>
+                            <Tag color="green">{uiText("нет")}</Tag>
                           )
                         },
                       },
@@ -237,7 +237,7 @@ export default function HomeroomPage() {
                 ...(sections?.grades
                   ? [
                       {
-                        title: 'Средний балл',
+                        title: uiText("Средний балл"),
                         key: 'grades',
                         render: (_: unknown, r: HomeroomRow) =>
                           r.grades!.average == null ? '—' : `${r.grades!.average} (${r.grades!.count})`,
@@ -245,11 +245,11 @@ export default function HomeroomPage() {
                     ]
                   : []),
                 {
-                  title: 'Родители',
+                  title: uiText("Родители"),
                   key: 'parents',
                   width: 90,
                   render: (_: unknown, r: HomeroomRow) =>
-                    r.parentsCount > 0 ? <Tag color="green">{r.parentsCount}</Tag> : <Tag>нет</Tag>,
+                    r.parentsCount > 0 ? <Tag color="green">{r.parentsCount}</Tag> : <Tag>{uiText("нет")}</Tag>,
                 },
               ]}
             />
@@ -263,20 +263,19 @@ export default function HomeroomPage() {
         open={writeOpen}
         onCancel={() => setWriteOpen(false)}
         onOk={send}
-        okText="Отправить"
-        cancelText="Отмена"
+        okText={uiText("Отправить")}
+        cancelText={uiText("Отмена")}
         okButtonProps={{ disabled: !text.trim() }}
         confirmLoading={sending}
-        title={`Написать родителям: ${selected.length} уч.`}
+        title={uiText("Написать родителям: {0} уч.", selected.length)}
         destroyOnClose
       >
         <p style={{ marginTop: 0, color: SP.textMid }}>
-          Сообщение придёт родителям каждого выбранного ученика (в чате и пуш-уведомлением).
-        </p>
+          {" " + uiText("Сообщение придёт родителям каждого выбранного ученика (в чате и пуш-уведомлением).") + " "}</p>
         <Space size={[6, 6]} wrap style={{ marginBottom: 8 }}>
           {QUICK_TEXTS.map((t, i) => (
             <Tag key={i} style={{ cursor: 'pointer' }} onClick={() => setText(t)}>
-              {['Не делает ДЗ', 'Пропускает уроки', 'Прийти в школу'][i]}
+              {[uiText("Не делает ДЗ"), uiText("Пропускает уроки"), uiText("Прийти в школу")][i]}
             </Tag>
           ))}
         </Space>
@@ -286,7 +285,7 @@ export default function HomeroomPage() {
           showCount
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Текст сообщения"
+          placeholder={uiText("Текст сообщения")}
         />
       </Modal>
 

@@ -1,3 +1,4 @@
+import { localizeCopy, uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import { App as AntdApp, Button, Modal, Spin, Switch, Tag, Typography } from 'antd'
 import { http } from '../api'
@@ -16,13 +17,13 @@ interface FeatureView {
 }
 
 const GROUP_ORDER = ['composition', 'studying', 'finance', 'hr', 'communication']
-const GROUP_TITLES: Record<string, string> = {
+const GROUP_TITLES: Record<string, string> = localizeCopy({
   composition: 'Состав',
   studying: 'Учебный процесс',
   finance: 'Финансы',
   hr: 'Персонал',
   communication: 'Общение',
-}
+})
 
 interface Props {
   school: { id: string; name: string } | null
@@ -51,7 +52,7 @@ export default function FeaturesModal({ school, onClose }: Props) {
         if (!cancelled) setItems(r.data)
       })
       .catch((e) => {
-        message.error(e?.response?.data?.message || 'Не удалось загрузить разделы')
+        message.error(e?.response?.data?.message || uiText("Не удалось загрузить разделы"))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -71,7 +72,7 @@ export default function FeaturesModal({ school, onClose }: Props) {
       })
       setItems(r.data)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось изменить раздел')
+      message.error(e?.response?.data?.message || uiText("Не удалось изменить раздел"))
     } finally {
       setPendingKey(null)
     }
@@ -81,8 +82,8 @@ export default function FeaturesModal({ school, onClose }: Props) {
     <Modal
       open={!!school}
       onCancel={onClose}
-      title={school ? `Разделы: ${school.name}` : 'Разделы'}
-      footer={<Button onClick={onClose}>Закрыть</Button>}
+      title={school ? uiText("Разделы: {0}", school.name) : uiText("Разделы")}
+      footer={<Button onClick={onClose}>{uiText("Закрыть")}</Button>}
       width={620}
       destroyOnClose
     >
@@ -113,12 +114,12 @@ export default function FeaturesModal({ school, onClose }: Props) {
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 500 }}>
-                    {f.label}{' '}
-                    {f.overridden && <Tag color="blue">изменено</Tag>}
-                    {!f.overridden && !f.defaultEnabled && <Tag>выключено по умолчанию</Tag>}
+                    {uiText(f.label)}{' '}
+                    {f.overridden && <Tag color="blue">{uiText("изменено")}</Tag>}
+                    {!f.overridden && !f.defaultEnabled && <Tag>{uiText("выключено по умолчанию")}</Tag>}
                   </div>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    {f.description}
+                    {uiText(f.description)}
                   </Text>
                 </div>
                 {f.overridden && (
@@ -128,14 +129,13 @@ export default function FeaturesModal({ school, onClose }: Props) {
                     disabled={pendingKey === f.key}
                     onClick={() => apply(f.key, null)}
                   >
-                    Сбросить
-                  </Button>
+                    {" " + uiText("Сбросить") + " "}</Button>
                 )}
                 <Switch
                   checked={f.enabled}
                   loading={pendingKey === f.key}
                   onChange={(checked) => apply(f.key, checked)}
-                  aria-label={f.label}
+                  aria-label={uiText(f.label)}
                 />
               </div>
             ))}

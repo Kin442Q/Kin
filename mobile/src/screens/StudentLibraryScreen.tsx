@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
@@ -9,6 +10,7 @@ import {
   View,
 } from 'react-native'
 import { Text, TextInput } from '../components/Text'
+import { useRoute } from '@react-navigation/native'
 import { ExternalLink, Library } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
@@ -29,18 +31,22 @@ import { notifyError } from '../lib/notify'
 /** Открываем только http(s): ссылку вводит учитель, но схему всё равно проверяем. */
 async function openLink(url: string) {
   if (!/^https?:\/\//i.test(url)) {
-    Alert.alert('Ссылка не открывается', 'Адрес должен начинаться с http:// или https://')
+    Alert.alert(uiText("Ссылка не открывается"), uiText("Адрес должен начинаться с http:// или https://"))
     return
   }
   try {
     await Linking.openURL(url)
   } catch {
-    Alert.alert('Не удалось открыть', url)
+    Alert.alert(uiText("Не удалось открыть"), url)
   }
 }
 
 /** Библиотека школы: поиск и фильтр по типу, ссылка открывается в браузере. */
 export default function StudentLibraryScreen() {
+  // С вкладки «Учёба»: «Библиотека» — книги (для класса ученика), «Материалы» — всё остальное: статьи, видео, аудио, ссылки
+  const route = useRoute<any>()
+  const kind: 'books' | 'materials' | undefined = route.params?.kind
+  const grade: number | undefined = route.params?.grade
   const [items, setItems] = useState<LibraryItem[]>([])
   const [type, setType] = useState<LibraryType | null>(null)
   const [query, setQuery] = useState('')
@@ -51,17 +57,17 @@ export default function StudentLibraryScreen() {
     try {
       setItems(
         await libraryApi.list({
-          type: type ?? undefined,
+          type: kind === 'books' ? 'BOOK' : (type ?? undefined),
           q: query.trim() || undefined,
         }),
       )
     } catch (e: any) {
-      notifyError(e, 'Не удалось загрузить библиотеку')
+      notifyError(e, uiText("Не удалось загрузить библиотеку"))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [type, query])
+  }, [type, query, kind])
 
   // Поиск с небольшой задержкой, чтобы не слать запрос на каждую букву.
   useEffect(() => {
@@ -71,19 +77,22 @@ export default function StudentLibraryScreen() {
 
   return (
     <Screen>
-      <StackHeader title="Библиотека" />
+      <StackHeader title={kind === 'materials' ? uiText("Материалы") : uiText("Библиотека")} />
 
       <View style={styles.tools}>
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Поиск по названию"
+          placeholder={uiText("Поиск по названию")}
           placeholderTextColor={colors.muted}
           style={styles.search}
           returnKeyType="search"
         />
         <View style={styles.chips}>
-          {[{ value: null, label: 'Все', emoji: '' }, ...LIBRARY_TYPES].map((t) => {
+          {(kind === 'books'
+            ? []
+            : [{ value: null, label: uiText("Все"), emoji: '' }, ...LIBRARY_TYPES.filter((t) => kind !== 'materials' || t.value !== 'BOOK')]
+          ).map((t) => {
             const on = t.value === type
             return (
               <Pressable
@@ -107,7 +116,11 @@ export default function StudentLibraryScreen() {
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={items.filter(
+            (i) =>
+              (kind !== 'materials' || i.type !== 'BOOK') &&
+              (kind !== 'books' || grade == null || i.gradeNumber == null || i.gradeNumber === grade),
+          )}
           keyExtractor={(i) => i.id}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -124,8 +137,8 @@ export default function StudentLibraryScreen() {
           ListEmptyComponent={
             <EmptyState
               icon={<Library size={34} color={colors.muted} />}
-              title="Ничего не найдено"
-              hint="Учителя пока ничего не добавили или фильтр слишком узкий"
+              title={uiText("Ничего не найдено")}
+              hint={uiText("Учителя пока ничего не добавили или фильтр слишком узкий")}
             />
           }
           renderItem={({ item }) => {
@@ -144,7 +157,7 @@ export default function StudentLibraryScreen() {
                     <Text style={styles.meta}>
                       {info.label}
                       {item.subject ? ` · ${item.subject.name}` : ''}
-                      {item.gradeNumber ? ` · ${item.gradeNumber} класс` : ''}
+                      {item.gradeNumber ? uiText("· {0} класс", item.gradeNumber) : ''}
                     </Text>
                   </View>
                   <ExternalLink size={18} color={colors.muted} />

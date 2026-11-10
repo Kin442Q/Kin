@@ -1,3 +1,4 @@
+import { uiText, uiLanguage } from '../i18n/uiText'
 import QRCode from 'qrcode'
 
 /** QR-код ссылки как картинка (SVG в data-URL): рисуется у нас, во внешние сервисы ссылка не уходит. */
@@ -26,15 +27,15 @@ export function studentCardsHtml(className: string, cards: StudentCard[], site?:
   const items = cards
     .map((c) => {
       const qr = c.qr
-        ? `  <img src="${escapeHtml(c.qr)}" alt="QR-код для входа" />
-  <div class="hint">${CARD_CAPTION}</div>`
+        ? `  <img src="${escapeHtml(c.qr)}" alt="${escapeHtml(uiText('QR-код для входа'))}" />
+  <div class="hint">${escapeHtml(uiText(CARD_CAPTION))}</div>`
         : ''
       const cred =
         c.login && c.password
           ? `  <div class="cred">
-    ${site ? `<div class="site">Сайт: ${escapeHtml(site)}</div>` : ''}
-    <div>Логин: <b>${escapeHtml(c.login)}</b></div>
-    <div>Пароль: <b>${escapeHtml(c.password)}</b></div>
+    ${site ? `<div class="site">${escapeHtml(uiText('Сайт:'))} ${escapeHtml(site)}</div>` : ''}
+    <div>${escapeHtml(uiText('Логин:'))} <b>${escapeHtml(c.login)}</b></div>
+    <div>${escapeHtml(uiText('Пароль:'))} <b>${escapeHtml(c.password)}</b></div>
   </div>`
           : ''
       return `<div class="card">
@@ -45,13 +46,15 @@ ${cred}
     })
     .join('\n')
   return `<!doctype html>
-<html lang="ru">
+<html lang="${uiLanguage()}">
 <head>
 <meta charset="utf-8" />
-<title>Карточки входа — ${escapeHtml(className)}</title>
+<title>${escapeHtml(uiText('Карточки входа'))} — ${escapeHtml(className)}</title>
 <style>
+@font-face { font-family: 'Inter'; src: url('${new URL(import.meta.env.BASE_URL + 'fonts/Inter_400Regular.ttf', window.location.origin).href}') format('truetype'); font-style: normal; font-weight: 400; font-display: swap; }
+
   * { box-sizing: border-box; }
-  body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 12mm; color: #1b2a25; }
+  body { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; padding: 12mm; color: #1b2a25; }
   h1 { font-size: 16px; margin: 0 0 10mm; }
   .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6mm; }
   .card { border: 1px dashed #8aa39a; border-radius: 4mm; padding: 5mm 4mm; text-align: center; break-inside: avoid; page-break-inside: avoid; }
@@ -59,13 +62,13 @@ ${cred}
   .card img { width: 42mm; height: 42mm; display: block; margin: 0 auto 3mm; }
   .hint { font-size: 12px; color: #4b5d56; }
   .cred { margin-top: 3mm; padding-top: 3mm; border-top: 1px dashed #8aa39a; font-size: 14px; line-height: 1.7; }
-  .cred b { font-family: ui-monospace, Consolas, monospace; font-size: 16px; letter-spacing: 0.04em; }
+  .cred b { font-family: 'Inter', sans-serif; font-size: 16px; letter-spacing: 0.04em; }
   .site { font-size: 12px; color: #4b5d56; }
   @media print { body { padding: 8mm; } }
 </style>
 </head>
 <body>
-<h1>Мактаби ман · ${escapeHtml(className)} · карточки для входа</h1>
+<h1>${escapeHtml({ru:'Моя школа',en:'My School',tg:'Мактаби ман'}[uiLanguage()])} · ${escapeHtml(className)} · ${escapeHtml(uiText('карточки для входа'))}</h1>
 <div class="grid">
 ${items}
 </div>

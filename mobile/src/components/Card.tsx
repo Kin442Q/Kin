@@ -34,7 +34,7 @@ export default function Card({
 const styles = themedStyles(() => ({
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.glassBorder,
   },

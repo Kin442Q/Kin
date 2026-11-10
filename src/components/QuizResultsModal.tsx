@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import { App as AntdApp, Button, Modal, Table, Tag } from 'antd'
 import dayjs from 'dayjs'
@@ -22,7 +23,7 @@ export default function QuizResultsModal({ quiz, onClose }: Props) {
     quizApi
       .results(quiz.id)
       .then(setRows)
-      .catch((e) => message.error(e?.response?.data?.message || 'Не удалось загрузить результаты'))
+      .catch((e) => message.error(e?.response?.data?.message || uiText("Не удалось загрузить результаты")))
       .finally(() => setLoading(false))
   }, [quiz, message])
 
@@ -30,8 +31,8 @@ export default function QuizResultsModal({ quiz, onClose }: Props) {
     <Modal
       open={!!quiz}
       onCancel={onClose}
-      footer={<Button onClick={onClose}>Закрыть</Button>}
-      title={quiz ? `Результаты: ${quiz.title}` : 'Результаты'}
+      footer={<Button onClick={onClose}>{uiText("Закрыть")}</Button>}
+      title={quiz ? uiText("Результаты: {0}", quiz.title) : uiText("Результаты")}
       width={720}
       destroyOnClose
     >
@@ -41,12 +42,12 @@ export default function QuizResultsModal({ quiz, onClose }: Props) {
         loading={loading}
         dataSource={rows}
         pagination={false}
-        locale={{ emptyText: 'Пока никто не проходил этот квиз' }}
+        locale={{ emptyText: uiText("Пока никто не проходил этот квиз") }}
         columns={[
-          { title: 'Ученик', key: 'name', render: (_, r) => `${r.student.lastName} ${r.student.firstName}` },
-          { title: 'Класс', key: 'group', width: 90, render: (_, r) => r.student.group ?? '—' },
+          { title: uiText("Ученик"), key: 'name', render: (_, r) => `${r.student.lastName} ${r.student.firstName}` },
+          { title: uiText("Класс"), key: 'group', width: 90, render: (_, r) => r.student.group ?? '—' },
           {
-            title: 'Лучший результат',
+            title: uiText("Лучший результат"),
             key: 'best',
             width: 170,
             render: (_, r) =>
@@ -58,8 +59,8 @@ export default function QuizResultsModal({ quiz, onClose }: Props) {
                 '—'
               ),
           },
-          { title: 'Попыток', key: 'attempts', width: 90, align: 'center', render: (_, r) => r.best?.attempts ?? 0 },
-          { title: 'Последняя', dataIndex: 'lastAt', width: 130, render: (d: string) => dayjs(d).format('DD.MM.YYYY HH:mm') },
+          { title: uiText("Попыток"), key: 'attempts', width: 90, align: 'center', render: (_, r) => r.best?.attempts ?? 0 },
+          { title: uiText("Последняя"), dataIndex: 'lastAt', width: 130, render: (d: string) => dayjs(d).format('DD.MM.YYYY HH:mm') },
         ]}
       />
     </Modal>

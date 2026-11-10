@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -38,7 +39,7 @@ const BUCKETS: { label: string; grades: number[] }[] = [
 export default function AdminDashboardScreen() {
   const user = useAuthStore((s) => s.user)
   const navigation = useNavigation<any>()
-  const month = useMemo(() => dayjs().format('YYYY-MM'), [])
+  const month = useMemo(() => dayjs().format('YYYY-MM'), [uiLanguage()])
   const money = hasFeature(user, 'analytics')
 
   const [groups, setGroups] = useState<(GroupDto & { homeroomTeacher?: { id: string } | null })[]>([])
@@ -82,7 +83,7 @@ export default function AdminDashboardScreen() {
     const m = new Map<string, number | 'other'>()
     for (const g of groups) m.set(g.id, gradeKeyOf(g.name))
     return m
-  }, [groups])
+  }, [groups, uiLanguage()])
 
   if (loading) {
     return (
@@ -110,18 +111,18 @@ export default function AdminDashboardScreen() {
   const noClass = students.filter((s) => !s.groupId).length
   const noTeacher = groups.filter((g) => 'homeroomTeacher' in g && !g.homeroomTeacher)
   const attention: { text: string; warn: boolean }[] = []
-  if (noClass > 0) attention.push({ text: `${noClass} ${noClass === 1 ? 'ученик' : noClass < 5 ? 'ученика' : 'учеников'} без класса`, warn: true })
-  for (const g of noTeacher.slice(0, 3)) attention.push({ text: `${g.name} — нет классного руководителя`, warn: false })
+  if (noClass > 0) attention.push({ text: uiText("{0} {1} без класса", noClass, noClass === 1 ? uiText("ученик") : noClass < 5 ? uiText("ученика") : uiText("учеников")), warn: true })
+  for (const g of noTeacher.slice(0, 3)) attention.push({ text: uiText("{0} — нет классного руководителя", g.name), warn: false })
 
-  const school = user?.institution?.name ?? 'Школа'
+  const school = user?.institution?.name ?? uiText("Школа")
 
   const links: { label: string; icon: React.ReactNode; to: string }[] = [
-    { label: 'Ученики', icon: <Baby size={20} color={colors.primaryDeep} />, to: 'AdminStudents' },
+    { label: uiText("Ученики"), icon: <Baby size={20} color={colors.primaryDeep} />, to: 'AdminStudents' },
   ]
   if (hasFeature(user, 'meetings'))
-    links.push({ label: 'Родительские собрания', icon: <CalendarHeart size={20} color={colors.primaryDeep} />, to: 'AdminMeetings' })
+    links.push({ label: uiText("Родительские собрания"), icon: <CalendarHeart size={20} color={colors.primaryDeep} />, to: 'AdminMeetings' })
   if (hasFeature(user, 'expenses'))
-    links.push({ label: 'Расходы', icon: <Receipt size={20} color={colors.primaryDeep} />, to: 'AdminExpenses' })
+    links.push({ label: uiText("Расходы"), icon: <Receipt size={20} color={colors.primaryDeep} />, to: 'AdminExpenses' })
 
   return (
     <Screen variant="home">
@@ -138,26 +139,26 @@ export default function AdminDashboardScreen() {
           />
         }
       >
-        <ScreenHeading eyebrow={`${school} · ${dayjs().format('dddd, D MMMM')}`} title="Сводка школы" />
+        <ScreenHeading eyebrow={`${school} · ${dayjs().format('dddd, D MMMM')}`} title={uiText("Сводка школы")} />
 
         <View style={styles.grid}>
-          <Tile label="Учеников" value={students.length} style={styles.cell} />
-          <Tile label="Сегодня в школе" value={todayPct != null ? `${todayPct}%` : '—'} tone="teal" style={styles.cell} />
-          <Tile label="Классов" value={groups.length} style={styles.cell} />
-          <Tile label="Сотрудников" value={staffCount ?? '—'} style={styles.cell} />
+          <Tile label={uiText("Учеников")} value={students.length} style={styles.cell} />
+          <Tile label={uiText("Сегодня в школе")} value={todayPct != null ? `${todayPct}%` : '—'} tone="teal" style={styles.cell} />
+          <Tile label={uiText("Классов")} value={groups.length} style={styles.cell} />
+          <Tile label={uiText("Сотрудников")} value={staffCount ?? '—'} style={styles.cell} />
         </View>
 
         {money && finance && (
           <View style={styles.grid}>
             <Tile
-              label="Прибыль месяца"
-              value={`${Math.round(finance.profit).toLocaleString('ru-RU')} с`}
-              hint={`Маржа ${(finance.margin * 100).toFixed(0)}%`}
+              label={uiText("Прибыль месяца")}
+              value={uiText("{0} с", Math.round(finance.profit).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU'))}
+              hint={uiText("Маржа {0}%", (finance.margin * 100).toFixed(0))}
               style={styles.cell}
             />
             <Tile
-              label="Поступления"
-              value={`${Math.round(finance.income).toLocaleString('ru-RU')} с`}
+              label={uiText("Поступления")}
+              value={uiText("{0} с", Math.round(finance.income).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU'))}
               style={styles.cell}
             />
           </View>
@@ -165,7 +166,7 @@ export default function AdminDashboardScreen() {
 
         {hasBars && (
           <Card padding={16} style={{ gap: 10 }}>
-            <CardTitle title="Посещаемость по параллелям" />
+            <CardTitle title={uiText("Посещаемость по параллелям")} />
             <View style={styles.bars}>
               {bars.map((b) => (
                 <View key={b.label} style={styles.barCol}>
@@ -189,7 +190,7 @@ export default function AdminDashboardScreen() {
 
         <Card padding={16} style={{ gap: 8 }}>
           <View style={styles.attHead}>
-            <Text style={styles.attTitle}>Требует внимания</Text>
+            <Text style={styles.attTitle}>{uiText("Требует внимания")}</Text>
             {attention.length > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{attention.length}</Text>
@@ -197,7 +198,7 @@ export default function AdminDashboardScreen() {
             )}
           </View>
           {attention.length === 0 ? (
-            <Text style={styles.ok}>Всё в порядке: замечаний нет.</Text>
+            <Text style={styles.ok}>{uiText("Всё в порядке: замечаний нет.")}</Text>
           ) : (
             attention.map((a) => (
               <View

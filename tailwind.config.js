@@ -14,7 +14,7 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Segoe UI', 'Tahoma', 'sans-serif'],
+        sans: ['Inter', 'Segoe UI', 'Tahoma', 'sans-serif'],
       },
     },
   },

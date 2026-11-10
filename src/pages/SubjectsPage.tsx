@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import {
   App as AntdApp,
@@ -48,7 +49,7 @@ export default function SubjectsPage() {
       setItems(res.data)
     } catch (e: any) {
       message.error(
-        e?.response?.data?.message || 'Не удалось загрузить предметы',
+        e?.response?.data?.message || uiText("Не удалось загрузить предметы"),
       )
     } finally {
       setLoading(false)
@@ -81,16 +82,16 @@ export default function SubjectsPage() {
           name: v.name,
           color,
         })
-        message.success('Предмет обновлён')
+        message.success(uiText("Предмет обновлён"))
       } else {
         await http.post('/v1/subjects', { name: v.name, color })
-        message.success('Предмет создан')
+        message.success(uiText("Предмет создан"))
       }
       setDrawer(false)
       load()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Не удалось сохранить')
+      message.error(e?.response?.data?.message || uiText("Не удалось сохранить"))
     } finally {
       setSubmitting(false)
     }
@@ -99,24 +100,23 @@ export default function SubjectsPage() {
   const remove = async (s: SubjectDto) => {
     try {
       await http.delete(`/v1/subjects/${s.id}`)
-      message.success(`«${s.name}» удалён`)
+      message.success(uiText("«{0}» удалён", s.name))
       load()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось удалить')
+      message.error(e?.response?.data?.message || uiText("Не удалось удалить"))
     }
   }
 
   return (
     <div>
       <SproutPageHeader
-        title="Предметы"
+        title={uiText("Предметы")}
         icon={<BookMarked size={22} strokeWidth={2} />}
         iconAccent="cyan"
-        description="Учебные предметы школы. Используются в журнале оценок и в домашних заданиях."
+        description={uiText("Учебные предметы школы. Используются в журнале оценок и в домашних заданиях.")}
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Новый предмет
-          </Button>
+            {" " + uiText("Новый предмет") + " "}</Button>
         }
       />
 
@@ -133,7 +133,7 @@ export default function SubjectsPage() {
             pagination={{ pageSize: 20 }}
             columns={[
               {
-                title: 'Название',
+                title: uiText("Название"),
                 key: 'name',
                 render: (_, s) => (
                   <Space>
@@ -151,7 +151,7 @@ export default function SubjectsPage() {
                 ),
               },
               {
-                title: 'Цвет',
+                title: uiText("Цвет"),
                 key: 'color',
                 render: (_, s) => <Tag color={s.color}>{s.color}</Tag>,
               },
@@ -168,11 +168,11 @@ export default function SubjectsPage() {
                       onClick={() => openEdit(s)}
                     />
                     <Popconfirm
-                      title={`Удалить «${s.name}»?`}
-                      description="Все оценки и домашки по предмету удалятся!"
-                      okText="Удалить"
+                      title={uiText("Удалить «{0}»?", s.name)}
+                      description={uiText("Все оценки и домашки по предмету удалятся!")}
+                      okText={uiText("Удалить")}
                       okButtonProps={{ danger: true }}
-                      cancelText="Отмена"
+                      cancelText={uiText("Отмена")}
                       onConfirm={() => remove(s)}
                     >
                       <Button
@@ -191,16 +191,16 @@ export default function SubjectsPage() {
       </motion.div>
 
       <Drawer
-        title={editing ? 'Редактировать предмет' : 'Новый предмет'}
+        title={editing ? uiText("Редактировать предмет") : uiText("Новый предмет")}
         width={420}
         open={drawer}
         onClose={() => setDrawer(false)}
         destroyOnClose
         extra={
           <Space>
-            <Button onClick={() => setDrawer(false)}>Отмена</Button>
+            <Button onClick={() => setDrawer(false)}>{uiText("Отмена")}</Button>
             <Button type="primary" loading={submitting} onClick={submit}>
-              {editing ? 'Сохранить' : 'Создать'}
+              {editing ? uiText("Сохранить") : uiText("Создать")}
             </Button>
           </Space>
         }
@@ -208,13 +208,13 @@ export default function SubjectsPage() {
         <Form layout="vertical" form={form}>
           <Form.Item
             name="name"
-            label="Название предмета"
-            rules={[{ required: true, message: 'Введите название' }]}
+            label={uiText("Название предмета")}
+            rules={[{ required: true, message: uiText("Введите название") }]}
           >
-            <Input placeholder="Например, Математика" />
+            <Input placeholder={uiText("Например, Математика")} />
           </Form.Item>
 
-          <Form.Item label="Цвет" name="color">
+          <Form.Item label={uiText("Цвет")} name="color">
             <ColorPicker showText format="hex" />
           </Form.Item>
         </Form>

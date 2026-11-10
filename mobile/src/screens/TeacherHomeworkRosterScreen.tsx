@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -31,19 +32,19 @@ import {
 import { themedStyles, themedValue } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
 const STAFF_OPTIONS = themedValue<Array<{ value: StaffStatus; label: string; bg: string; fg: string }>>(() => ([
-  { value: 'DONE', label: 'Выполнено', bg: colors.primarySoft, fg: colors.primaryDeep },
-  { value: 'PARTIAL', label: 'Частично', bg: colors.yellowSoft, fg: colors.yellowDeep },
-  { value: 'NOT_DONE', label: 'Не сделано', bg: colors.roseSoft, fg: colors.roseDeep },
+  { value: 'DONE', label: uiText("Выполнено"), bg: colors.primarySoft, fg: colors.primaryDeep },
+  { value: 'PARTIAL', label: uiText("Частично"), bg: colors.yellowSoft, fg: colors.yellowDeep },
+  { value: 'NOT_DONE', label: uiText("Не сделано"), bg: colors.roseSoft, fg: colors.roseDeep },
 ]))
 
 type TemplateChoice = 'auto' | NoticeTemplate
 
-const TEMPLATES: Array<{ value: TemplateChoice; label: string }> = [
+const TEMPLATES: Array<{ value: TemplateChoice; label: string }> = localizeCopy([
   { value: 'auto', label: 'По статусу ученика' },
   { value: 'NOT_DONE', label: 'Не выполнил(а)' },
   { value: 'PARTIAL', label: 'Не полностью' },
   { value: 'REMINDER', label: 'Напоминание о сроке' },
-]
+])
 
 /**
  * Статусы ДЗ по ученикам класса: учитель отмечает выполнение, видит
@@ -68,7 +69,7 @@ export default function TeacherHomeworkRosterScreen() {
     try {
       setRoster(await homeworkStatusApi.roster(homeworkId))
     } catch (e) {
-      notifyError(e, 'Не удалось загрузить статусы')
+      notifyError(e, uiText("Не удалось загрузить статусы"))
     } finally {
       setLoading(false)
     }
@@ -85,7 +86,7 @@ export default function TeacherHomeworkRosterScreen() {
     try {
       setRoster(await homeworkStatusApi.setStatuses(homeworkId, items))
     } catch (e) {
-      notifyError(e, 'Не удалось сохранить')
+      notifyError(e, uiText("Не удалось сохранить"))
     } finally {
       setSaving(false)
     }
@@ -93,7 +94,7 @@ export default function TeacherHomeworkRosterScreen() {
 
   const unmarked = useMemo(
     () => (roster?.students ?? []).filter((r) => r.status === null || r.status === 'SUBMITTED'),
-    [roster],
+    [roster, uiLanguage()],
   )
 
   const toggleSelect = (id: string) =>
@@ -112,15 +113,15 @@ export default function TeacherHomeworkRosterScreen() {
       })
       const noParents = r.skipped.length
       Alert.alert(
-        'Отправлено',
-        `Сообщение получили родители ${r.notified} из ${targets.length} учеников` +
-          (noParents ? `. У ${noParents} нет родителей в системе.` : ''),
+        uiText("Отправлено"),
+        uiText("Сообщение получили родители {0} из {1} учеников", r.notified, targets.length) +
+          (noParents ? uiText(". У {0} нет родителей в системе.", noParents) : ''),
       )
       setNotifyOpen(false)
       setNote('')
       setSelected([])
     } catch (e) {
-      notifyError(e, 'Не удалось отправить')
+      notifyError(e, uiText("Не удалось отправить"))
     } finally {
       setNotifying(false)
     }
@@ -131,36 +132,36 @@ export default function TeacherHomeworkRosterScreen() {
 
   return (
     <Screen>
-      <StackHeader title="Статусы ДЗ" />
+      <StackHeader title={uiText("Статусы ДЗ")} />
 
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : !roster || !hw || !s ? (
-        <EmptyState title="Не удалось загрузить" hint="Потяните назад и откройте задание ещё раз" />
+        <EmptyState title={uiText("Не удалось загрузить")} hint={uiText("Потяните назад и откройте задание ещё раз")} />
       ) : (
         <>
           <View style={styles.head}>
             <Text style={styles.hwTitle}>{hw.title}</Text>
             <Text style={styles.meta}>
-              {hw.subject.name} · {hw.group.name} · срок {dayjs(hw.dueDate).format('D MMM')}
+              {hw.subject.name} · {hw.group.name} {" " + uiText("· срок") + " "}{dayjs(hw.dueDate).format('D MMM')}
             </Text>
             <View style={styles.summary}>
               <Text style={[styles.pill, { backgroundColor: colors.primarySoft, color: colors.primaryDeep }]}>
-                выполнено {s.done}
+                {" " + uiText("выполнено") + " "}{s.done}
               </Text>
               <Text style={[styles.pill, { backgroundColor: colors.yellowSoft, color: colors.yellowDeep }]}>
-                частично {s.partial}
+                {" " + uiText("частично") + " "}{s.partial}
               </Text>
               <Text style={[styles.pill, { backgroundColor: colors.roseSoft, color: colors.roseDeep }]}>
-                не сделано {s.notDone}
+                {" " + uiText("не сделано") + " "}{s.notDone}
               </Text>
               <Text style={[styles.pill, { backgroundColor: colors.blueSoft, color: colors.blueDeep }]}>
-                «сделал» {s.submitted}
+                {" " + uiText("«сделал»") + " "}{s.submitted}
               </Text>
               <Text style={[styles.pill, { backgroundColor: colors.surfaceAlt, color: colors.muted }]}>
-                не отмечено {s.unmarked}
+                {" " + uiText("не отмечено") + " "}{s.unmarked}
               </Text>
             </View>
             <View style={styles.actions}>
@@ -173,7 +174,7 @@ export default function TeacherHomeworkRosterScreen() {
                   save(unmarked.map((r) => ({ studentId: r.student.id, status: 'DONE' as const })))
                 }
               >
-                Остальным: выполнено ({unmarked.length})
+                {" " + uiText("Остальным: выполнено (")}{unmarked.length})
               </Btn>
               <Btn
                 size="sm"
@@ -181,7 +182,7 @@ export default function TeacherHomeworkRosterScreen() {
                 icon={<MessageCircle size={14} color="#fff" />}
                 onPress={() => setNotifyOpen(true)}
               >
-                Родителям ({selected.length})
+                {" " + uiText("Родителям (")}{selected.length})
               </Btn>
             </View>
           </View>
@@ -209,8 +210,8 @@ export default function TeacherHomeworkRosterScreen() {
                         {r.status === 'SUBMITTED'
                           ? STATUS_LABEL.SUBMITTED
                           : r.parentsCount > 0
-                            ? `Родителей: ${r.parentsCount}`
-                            : 'Нет родителей в системе'}
+                            ? uiText("Родителей: {0}", r.parentsCount)
+                            : uiText("Нет родителей в системе")}
                       </Text>
                     </View>
                   </Pressable>
@@ -237,7 +238,7 @@ export default function TeacherHomeworkRosterScreen() {
                     })}
                   </View>
                   {r.comment && r.status && r.status !== 'SUBMITTED' ? (
-                    <Text style={styles.comment}>Заметка: {r.comment}</Text>
+                    <Text style={styles.comment}>{uiText("Заметка:") + " "}{r.comment}</Text>
                   ) : null}
                 </Card>
               )
@@ -249,12 +250,10 @@ export default function TeacherHomeworkRosterScreen() {
       <BottomModal
         visible={notifyOpen}
         onClose={() => setNotifyOpen(false)}
-        title={`Родителям: ${targets.length} уч.`}
+        title={uiText("Родителям: {0} уч.", targets.length)}
       >
         <Text style={styles.modalText}>
-          Родители получат сообщение от вашего имени. Текст формируется автоматически: имя ребёнка,
-          предмет, задание и срок.
-        </Text>
+          {" " + uiText("Родители получат сообщение от вашего имени. Текст формируется автоматически: имя ребёнка, предмет, задание и срок.") + " "}</Text>
         <View style={styles.templates}>
           {TEMPLATES.map((t) => {
             const on = t.value === template
@@ -270,22 +269,20 @@ export default function TeacherHomeworkRosterScreen() {
           })}
         </View>
         <Field
-          label="Комментарий (необязательно)"
+          label={uiText("Комментарий (необязательно)")}
           value={note}
           onChangeText={setNote}
-          placeholder="Например: нужно сдать до пятницы"
+          placeholder={uiText("Например: нужно сдать до пятницы")}
           maxLength={500}
           multiline
           style={{ minHeight: 70, textAlignVertical: 'top' }}
         />
         {targets.some((t) => t.parentsCount === 0) && (
           <Text style={styles.warn}>
-            У некоторых выбранных учеников нет родителей в системе — им сообщение не уйдёт.
-          </Text>
+            {" " + uiText("У некоторых выбранных учеников нет родителей в системе — им сообщение не уйдёт.") + " "}</Text>
         )}
         <Btn block size="lg" loading={notifying} onPress={sendNotice}>
-          Отправить
-        </Btn>
+          {" " + uiText("Отправить") + " "}</Btn>
       </BottomModal>
     </Screen>
   )

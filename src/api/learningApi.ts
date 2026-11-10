@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { http } from './http'
 
 /* ============================================================
@@ -10,11 +11,11 @@ import { http } from './http'
 export type LibraryType = 'BOOK' | 'ARTICLE' | 'VIDEO' | 'AUDIO' | 'LINK'
 
 export const LIBRARY_TYPES: Array<{ value: LibraryType; label: string; emoji: string }> = [
-  { value: 'BOOK', label: 'Книга', emoji: '📚' },
-  { value: 'ARTICLE', label: 'Статья', emoji: '📰' },
-  { value: 'VIDEO', label: 'Видео', emoji: '🎬' },
-  { value: 'AUDIO', label: 'Аудио', emoji: '🎧' },
-  { value: 'LINK', label: 'Ссылка', emoji: '🔗' },
+  { value: 'BOOK', get label() { return uiText("Книга") }, emoji: '📚' },
+  { value: 'ARTICLE', get label() { return uiText("Статья") }, emoji: '📰' },
+  { value: 'VIDEO', get label() { return uiText("Видео") }, emoji: '🎬' },
+  { value: 'AUDIO', get label() { return uiText("Аудио") }, emoji: '🎧' },
+  { value: 'LINK', get label() { return uiText("Ссылка") }, emoji: '🔗' },
 ]
 
 export const libraryTypeInfo = (t: LibraryType) =>

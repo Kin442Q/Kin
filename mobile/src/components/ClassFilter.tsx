@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useMemo } from 'react'
 import { Pressable, ScrollView, View } from 'react-native'
 import { Text } from './Text'
@@ -40,7 +41,7 @@ interface Props {
  * Две горизонтальные ленты вместо одного длинного списка всех классов.
  */
 export default function ClassFilter({ groups, value, onChange, allowAllLetters = false, counts }: Props) {
-  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups])
+  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups, uiLanguage()])
   const active = grades.find((g) => g.key === value.grade) ?? null
 
   const countOf = (ids: string[]) =>
@@ -77,11 +78,11 @@ export default function ClassFilter({ groups, value, onChange, allowAllLetters =
 
   return (
     <View style={{ gap: 8 }}>
-      <Text style={styles.label}>Параллель</Text>
+      <Text style={styles.label}>{uiText("Параллель")}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {grades.map((g) =>
           chip(
-            g.key === 'other' ? 'Другие' : String(g.grade),
+            g.key === 'other' ? uiText("Другие") : String(g.grade),
             value.grade === g.key,
             () => pickGrade(g.key),
             countOf(g.items.map((i) => i.id)),
@@ -92,10 +93,10 @@ export default function ClassFilter({ groups, value, onChange, allowAllLetters =
 
       {active && active.items.length > 1 && (
         <>
-          <Text style={styles.label}>Класс</Text>
+          <Text style={styles.label}>{uiText("Класс")}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
             {allowAllLetters &&
-              chip('Все', value.groupId === null, () => onChange({ grade: active.key, groupId: null }), undefined, 'all')}
+              chip(uiText("Все"), value.groupId === null, () => onChange({ grade: active.key, groupId: null }), undefined, 'all')}
             {active.items.map((g) =>
               chip(
                 classLetterOf(g.name),

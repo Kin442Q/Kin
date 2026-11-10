@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -10,30 +11,34 @@ import {
 import { Text } from '../components/Text'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
-import { ChevronLeft, ClipboardList, Plus, Trash2, BookOpen } from 'lucide-react-native'
+import { BookOpen, CalendarDays, Clock, Plus } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
-import Card from '../components/Card'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
 import ClassPicker from '../components/ClassPicker'
+import IconTile from '../components/IconTile'
 import { Field, Select } from '../components/Field'
-import { colors, radius } from '../theme/colors'
+import { colors, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { schoolApi, type HomeworkDto, type SubjectDto } from '../api/school'
 import { useMyClasses } from '../lib/useMyClasses'
 import { dueLabel, splitHomework, submittedShare, type HomeworkTab } from '../lib/homework'
+import { subjectIcon } from '../lib/subjectIcon'
 
 import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
 
-const EMPTY: Record<HomeworkTab, string> = {
+const EMPTY: Record<HomeworkTab, string> = localizeCopy({
   active: 'Нет активных заданий. Нажмите «Задать ДЗ».',
   check: 'Нечего проверять: все сдачи проверены.',
   archive: 'Архив пока пуст.',
-}
+})
 
-/** Домашние задания по всем классам учителя: вкладки «Активные · Проверить · Архив» и сколько учеников сдали. */
+/**
+ * Домашние задания по всем классам учителя: вкладки «Активные · Проверить · Архив», у каждого задания полоса
+ * «сдали 18 / 24» и срок. Нажатие на карточку — кто сделал, долгое нажатие — удалить.
+ */
 export default function TeacherHomeworkScreen() {
   const navigation = useNavigation<any>()
   const user = useAuthStore((s) => s.user)
@@ -77,9 +82,9 @@ export default function TeacherHomeworkScreen() {
 
   const visible = useMemo(
     () => (classFilter ? items.filter((h) => h.groupId === classFilter) : items),
-    [items, classFilter],
+    [items, classFilter, uiLanguage()],
   )
-  const tabs = useMemo(() => splitHomework(visible), [visible])
+  const tabs = useMemo(() => splitHomework(visible), [visible, uiLanguage()])
   const data = tabs[tab]
 
   const openCreate = () => {
@@ -92,11 +97,11 @@ export default function TeacherHomeworkScreen() {
 
   const submit = async () => {
     if (!subjectId || !title.trim() || !createGroupId) {
-      Alert.alert('Заполните', 'Нужны класс, предмет, заголовок и срок')
+      Alert.alert(uiText("Заполните"), uiText("Нужны класс, предмет, заголовок и срок"))
       return
     }
     if (!dayjs(dueDate).isValid()) {
-      Alert.alert('Дата', 'Неверный формат: YYYY-MM-DD')
+      Alert.alert(uiText("Дата"), uiText("Неверный формат: YYYY-MM-DD"))
       return
     }
     setSaving(true)
@@ -121,10 +126,10 @@ export default function TeacherHomeworkScreen() {
   }
 
   const remove = (h: HomeworkDto) => {
-    Alert.alert('Удалить?', h.title, [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(uiText("Удалить?"), h.title, [
+      { text: uiText("Отмена"), style: 'cancel' },
       {
-        text: 'Удалить',
+        text: uiText("Удалить"),
         style: 'destructive',
         onPress: async () => {
           try {
@@ -152,28 +157,24 @@ export default function TeacherHomeworkScreen() {
     return (
       <Screen>
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>Вам пока не открыт доступ ни к одному классу. Обратитесь к администратору школы.</Text>
+          <Text style={styles.emptyText}>{uiText("Вам пока не открыт доступ ни к одному классу. Обратитесь к администратору школы.")}</Text>
         </View>
       </Screen>
     )
   }
 
   const tabButtons: { key: HomeworkTab; label: string; count?: number }[] = [
-    { key: 'active', label: 'Активные', count: tabs.active.length },
-    { key: 'check', label: 'Проверить', count: tabs.toCheckTotal },
-    { key: 'archive', label: 'Архив' },
+    { key: 'active', label: uiText("Активные"), count: tabs.active.length },
+    { key: 'check', label: uiText("Проверить"), count: tabs.toCheckTotal },
+    { key: 'archive', label: uiText("Архив") },
   ]
+  const subjectNames = [...new Set(items.map((h) => h.subject?.name).filter(Boolean))]
+  const eyebrow = [subjectNames.length === 1 ? subjectNames[0] : null, `${classes.length} ${classes.length === 1 ? uiText("класс") : classes.length < 5 ? uiText("класса") : uiText("классов")}`]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <Screen>
-      <View style={styles.topBar}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={12} style={styles.backBtn} accessibilityRole="button" accessibilityLabel="Назад">
-          <ChevronLeft size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.topTitle}>Домашние задания</Text>
-        <View style={{ width: 36 }} />
-      </View>
-
       <FlatList
         data={data}
         keyExtractor={(h) => h.id}
@@ -189,7 +190,11 @@ export default function TeacherHomeworkScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={{ gap: 12, marginBottom: 12 }}>
+          <View style={{ gap: 10, marginBottom: 10 }}>
+            <View style={{ gap: 4 }}>
+              <Text style={styles.eyebrow}>{eyebrow}</Text>
+              <Text style={styles.title}>{uiText("Домашние задания")}</Text>
+            </View>
             <View style={styles.tabs} accessibilityRole="tablist">
               {tabButtons.map((t) => {
                 const on = t.key === tab
@@ -212,54 +217,51 @@ export default function TeacherHomeworkScreen() {
             {classes.length > 1 && <ClassPicker classes={classes} value={classFilter} onChange={setClassFilter} />}
           </View>
         }
-        ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
+        ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         renderItem={({ item }) => {
           const share = submittedShare(item)
-          const toCheck = item.stats?.toCheck ?? 0
-          const soon = tab !== 'archive' && ['сегодня', 'завтра'].includes(dueLabel(item))
+          const label = dueLabel(item)
+          const soon = tab !== 'archive' && (label === 'сегодня' || label === 'завтра')
+          const name = item.subject?.name ?? '—'
           return (
-            <Card padding={14} style={tab === 'archive' ? { opacity: 0.7 } : undefined}>
-              <View style={styles.row}>
-                <View style={[styles.dot, { backgroundColor: item.subject?.color ?? colors.primary }]} />
-                <View style={{ flex: 1, marginLeft: 10 }}>
+            <Pressable
+              onPress={() => navigation.navigate('TeacherHomeworkRoster', { homeworkId: item.id })}
+              onLongPress={() => remove(item)}
+              accessibilityRole="button"
+              accessibilityHint={uiText("Нажмите: кто сделал. Долгое нажатие: удалить")}
+              style={[styles.card, tab === 'archive' && { opacity: 0.7 }]}
+            >
+              <View style={styles.cardTop}>
+                <IconTile icon={subjectIcon(name) ?? BookOpen} bg="rgba(13,122,124,0.13)" fg={colors.primary} size={40} style={{ borderRadius: 14 }} />
+                <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                   <Text style={styles.meta}>
-                    {item.group?.name ?? '—'} · {item.subject?.name ?? '—'}
+                    {item.group?.name ?? '—'} · {name}
                   </Text>
-                  <Text style={styles.title}>{item.title}</Text>
-                  {item.description ? <Text style={styles.desc} numberOfLines={2}>{item.description}</Text> : null}
+                  <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
                 </View>
-                <Pressable onPress={() => remove(item)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Удалить задание">
-                  <Trash2 size={16} color={colors.muted} />
-                </Pressable>
               </View>
-
-              {item.stats ? (
-                <View style={styles.progressRow}>
-                  <View style={styles.bar}>
-                    <View style={[styles.barFill, { width: `${Math.round(share * 100)}%` }]} />
-                  </View>
+              <View style={styles.progressRow}>
+                <View style={styles.bar}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      { width: `${Math.round(share * 100)}%`, backgroundColor: share >= 0.5 ? '#0D7A7C' : '#FF8A65' },
+                    ]}
+                  />
+                </View>
+                {item.stats ? (
                   <Text style={styles.count}>
                     {item.stats.submitted} / {item.stats.total}
                   </Text>
-                </View>
-              ) : null}
-
-              <View style={styles.footer}>
+                ) : null}
                 <View style={[styles.duePill, soon && styles.duePillSoon]}>
-                  <Text style={[styles.dueText, soon && styles.dueTextSoon]}>{dueLabel(item)}</Text>
+                  {soon ? <Clock size={13} color="#B23E1A" /> : <CalendarDays size={13} color={colors.muted} />}
+                  <Text style={[styles.dueText, soon && { color: '#B23E1A' }]}>{label}</Text>
                 </View>
-                {toCheck > 0 && <Text style={styles.toCheck}>ждут проверки: {toCheck}</Text>}
-                <View style={{ flex: 1 }} />
-                <Btn
-                  size="sm"
-                  variant="secondary"
-                  icon={<ClipboardList size={14} color={colors.primaryDeep} />}
-                  onPress={() => navigation.navigate('TeacherHomeworkRoster', { homeworkId: item.id })}
-                >
-                  Кто сделал
-                </Btn>
               </View>
-            </Card>
+            </Pressable>
           )
         }}
         ListEmptyComponent={
@@ -271,18 +273,23 @@ export default function TeacherHomeworkScreen() {
       />
 
       <View style={styles.bottom}>
-        <Btn block size="lg" icon={<Plus size={20} color="#fff" strokeWidth={2.5} />} onPress={openCreate}>
-          Задать ДЗ
-        </Btn>
+        <Pressable
+          onPress={openCreate}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.create, shadow.lg, pressed && { opacity: 0.9 }]}
+        >
+          <Plus size={20} color="#FFFFFF" strokeWidth={2.5} />
+          <Text style={styles.createText}>{uiText("Задать ДЗ")}</Text>
+        </Pressable>
       </View>
 
-      <BottomModal visible={modal} onClose={() => setModal(false)} title="Новое задание">
-        <Text style={styles.formLabel}>Класс</Text>
+      <BottomModal visible={modal} onClose={() => setModal(false)} title={uiText("Новое задание")}>
+        <Text style={styles.formLabel}>{uiText("Класс")}</Text>
         <ClassPicker classes={classes} value={createGroupId} onChange={setCreateGroupId} />
 
         {subjects.length > 0 && (
           <Select<string>
-            label="Предмет"
+            label={uiText("Предмет")}
             value={subjectId ?? subjects[0]?.id ?? ''}
             onChange={setSubjectId}
             options={subjects.map((s) => ({ value: s.id, label: s.name }))}
@@ -290,22 +297,21 @@ export default function TeacherHomeworkScreen() {
           />
         )}
 
-        <Field label="Заголовок" value={title} onChangeText={setTitle} placeholder="Упр. 23, стр. 45" />
+        <Field label={uiText("Заголовок")} value={title} onChangeText={setTitle} placeholder={uiText("Упр. 23, стр. 45")} />
 
         <Field
-          label="Описание"
+          label={uiText("Описание")}
           value={description}
           onChangeText={setDescription}
-          placeholder="(подробности)"
+          placeholder={uiText("(подробности)")}
           multiline
           style={{ minHeight: 80, textAlignVertical: 'top' }}
         />
 
-        <Field label="Срок (YYYY-MM-DD)" value={dueDate} onChangeText={setDueDate} placeholder="2026-05-20" />
+        <Field label={uiText("Срок (YYYY-MM-DD)")} value={dueDate} onChangeText={setDueDate} placeholder="2026-05-20" />
 
         <Btn block size="lg" loading={saving} onPress={submit}>
-          Задать
-        </Btn>
+          {" " + uiText("Задать") + " "}</Btn>
       </BottomModal>
     </Screen>
   )
@@ -313,46 +319,67 @@ export default function TeacherHomeworkScreen() {
 
 const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  topBar: {
+  list: { padding: 16, paddingBottom: 130 },
+  eyebrow: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.8, color: colors.text },
+  tabs: {
+    flexDirection: 'row',
+    gap: 4,
+    padding: 4,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  tab: { flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  tabOn: {
+    backgroundColor: colors.surfaceSolid,
+    shadowColor: '#10282A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tabText: { fontSize: 13, fontWeight: '700', color: colors.muted },
+  tabTextOn: { color: colors.text, fontWeight: '800' },
+  card: {
+    padding: 14,
+    borderRadius: 22,
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  cardTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  meta: { fontSize: 12, fontWeight: '700', color: colors.muted },
+  cardTitle: { fontSize: 15, fontWeight: '800', color: colors.text },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: 'rgba(16,40,42,0.07)', overflow: 'hidden' },
+  barFill: { height: '100%', borderRadius: 4 },
+  count: { fontSize: 12, fontWeight: '800', color: colors.text },
+  duePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(16,40,42,0.06)',
   },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-  },
-  topTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
-  list: { padding: 16, paddingBottom: 120 },
-  tabs: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: radius.md, backgroundColor: colors.surfaceAlt },
-  tab: { flex: 1, minHeight: 40, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  tabOn: { backgroundColor: colors.primary },
-  tabText: { fontSize: 13, fontWeight: '700', color: colors.textMid },
-  tabTextOn: { color: colors.onPrimary, fontWeight: '800' },
-  row: { flexDirection: 'row', alignItems: 'flex-start' },
-  dot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
-  meta: { fontSize: 12, fontWeight: '700', color: colors.textMid },
-  title: { fontSize: 15, fontWeight: '800', color: colors.text, marginTop: 2 },
-  desc: { fontSize: 13, color: colors.textMid, marginTop: 4, lineHeight: 18 },
-  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12 },
-  bar: { flex: 1, height: 8, borderRadius: 4, backgroundColor: colors.surfaceAlt, overflow: 'hidden' },
-  barFill: { height: '100%', borderRadius: 4, backgroundColor: colors.primary },
-  count: { fontSize: 13, fontWeight: '800', color: colors.text, minWidth: 48, textAlign: 'right' },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
-  duePill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt },
-  duePillSoon: { backgroundColor: colors.roseSoft },
-  dueText: { fontSize: 12, fontWeight: '700', color: colors.textMid },
-  dueTextSoon: { color: colors.roseDeep },
-  toCheck: { fontSize: 12, fontWeight: '700', color: colors.primaryDeep },
+  duePillSoon: { backgroundColor: 'rgba(255,138,101,0.22)' },
+  dueText: { fontSize: 12, fontWeight: '700', color: colors.muted },
   empty: { paddingVertical: 60, paddingHorizontal: 24, alignItems: 'center', gap: 12 },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-  bottom: { position: 'absolute', left: 16, right: 16, bottom: 16 },
+  bottom: { position: 'absolute', left: 16, right: 16, bottom: 12 },
+  create: {
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: '#0D7A7C',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  createText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
   formLabel: { fontSize: 13, fontWeight: '700', color: colors.textMid, marginBottom: 8 },
 }))

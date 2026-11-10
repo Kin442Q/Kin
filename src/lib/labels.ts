@@ -1,8 +1,10 @@
+import { localizeCopy } from '../i18n/uiText'
 /**
  * Подписи интерфейса. Платформа только для школ, поэтому набор один.
  * Парные с mobile/src/theme/labels.ts.
  */
 export interface UiLabels {
+  isSchool: boolean
   institution: string
   group: string
   inGroup: string
@@ -15,7 +17,8 @@ export interface UiLabels {
   classDescriptor: string
 }
 
-const SCHOOL_LABELS: UiLabels = {
+const SCHOOL_LABELS: UiLabels = localizeCopy({
+  isSchool: true,
   institution: 'школа',
   group: 'класс',
   inGroup: 'в класс',
@@ -26,7 +29,7 @@ const SCHOOL_LABELS: UiLabels = {
   teachers: 'Учителя',
   parent: 'родитель',
   classDescriptor: 'класс',
-}
+})
 
 export function labels(): UiLabels {
   return SCHOOL_LABELS

@@ -1,3 +1,4 @@
+import { localizeCopy, uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import { Form, Input, App as AntdApp, Spin } from 'antd'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -13,12 +14,12 @@ type TokenState =
 
 export const MIN_PASSWORD = 8
 
-const BAD_TEXT: Record<'INVALID' | 'EXPIRED' | 'USED' | 'NO_TOKEN', string> = {
+const BAD_TEXT: Record<'INVALID' | 'EXPIRED' | 'USED' | 'NO_TOKEN', string> = localizeCopy({
   NO_TOKEN: 'В адресе нет ссылки для установки пароля. Откройте ссылку из письма целиком.',
   INVALID: 'Ссылка недействительна. Возможно, её заменила более новая.',
   EXPIRED: 'Срок действия ссылки истёк.',
   USED: 'Эта ссылка уже использована.',
-}
+})
 
 interface FormValues {
   password: string
@@ -65,7 +66,7 @@ export default function SetPasswordPage() {
       await http.post('/v1/auth/set-password', { token, password: v.password })
       setState({ status: 'done' })
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось сохранить пароль. Попробуйте позже.')
+      message.error(e?.response?.data?.message || uiText("Не удалось сохранить пароль. Попробуйте позже."))
     } finally {
       setSaving(false)
     }
@@ -73,12 +74,12 @@ export default function SetPasswordPage() {
 
   const title =
     state.status === 'ok' && state.purpose === 'INVITE'
-      ? 'Добро пожаловать!'
+      ? uiText("Добро пожаловать!")
       : state.status === 'done'
-        ? 'Пароль сохранён'
+        ? uiText("Пароль сохранён")
         : state.status === 'bad'
-          ? 'Ссылка не работает'
-          : 'Новый пароль'
+          ? uiText("Ссылка не работает")
+          : uiText("Новый пароль")
 
   return (
     <div
@@ -118,12 +119,9 @@ export default function SetPasswordPage() {
           <>
             <p style={{ color: SP.textMid, fontSize: 16, lineHeight: 1.5, margin: '12px 0 8px' }}>{BAD_TEXT[state.reason]}</p>
             <p style={{ color: SP.muted, fontSize: 14, lineHeight: 1.5, margin: '0 0 26px' }}>
-              Чтобы получить новую ссылку, нажмите «Забыли?» на странице входа или попросите администратора прислать
-              приглашение заново.
-            </p>
+              {" " + uiText("Чтобы получить новую ссылку, нажмите «Забыли?» на странице входа или попросите администратора прислать приглашение заново.") + " "}</p>
             <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 17, fontSize: 17 }} onClick={() => navigate('/login')}>
-              На страницу входа
-            </button>
+              {" " + uiText("На страницу входа") + " "}</button>
           </>
         )}
 
@@ -131,39 +129,39 @@ export default function SetPasswordPage() {
           <>
             <p style={{ color: SP.textMid, fontSize: 16, lineHeight: 1.5, margin: '10px 0 28px' }}>
               {state.purpose === 'INVITE'
-                ? 'Придумайте пароль, с которым вы будете входить в систему.'
-                : 'Придумайте новый пароль для входа.'}{' '}
-              Аккаунт: <b style={{ color: SP.text }}>{state.email}</b>
+                ? uiText("Придумайте пароль, с которым вы будете входить в систему.")
+                : uiText("Придумайте новый пароль для входа.")}{' '}
+              {" " + uiText("Аккаунт:") + " "}<b style={{ color: SP.text }}>{state.email}</b>
             </p>
             <Form form={form} layout="vertical" requiredMark={false} onFinish={onFinish}>
               <Form.Item
                 name="password"
-                label={<span style={{ fontSize: 14.5, fontWeight: 700, color: SP.text }}>Новый пароль</span>}
+                label={<span style={{ fontSize: 14.5, fontWeight: 700, color: SP.text }}>{uiText("Новый пароль")}</span>}
                 rules={[
-                  { required: true, message: 'Введите пароль' },
-                  { min: MIN_PASSWORD, message: `Минимум ${MIN_PASSWORD} символов` },
+                  { required: true, message: uiText("Введите пароль") },
+                  { min: MIN_PASSWORD, message: uiText("Минимум {0} символов", MIN_PASSWORD) },
                 ]}
               >
-                <Input.Password placeholder="Минимум 8 символов" autoComplete="new-password" disabled={saving} style={{ height: 54, fontSize: 16 }} />
+                <Input.Password placeholder={uiText("Минимум 8 символов")} autoComplete="new-password" disabled={saving} style={{ height: 54, fontSize: 16 }} />
               </Form.Item>
               <Form.Item
                 name="repeat"
-                label={<span style={{ fontSize: 14.5, fontWeight: 700, color: SP.text }}>Повторите пароль</span>}
+                label={<span style={{ fontSize: 14.5, fontWeight: 700, color: SP.text }}>{uiText("Повторите пароль")}</span>}
                 dependencies={['password']}
                 rules={[
-                  { required: true, message: 'Повторите пароль' },
+                  { required: true, message: uiText("Повторите пароль") },
                   ({ getFieldValue }) => ({
                     validator: (_, value) =>
                       !value || getFieldValue('password') === value
                         ? Promise.resolve()
-                        : Promise.reject(new Error('Пароли не совпадают')),
+                        : Promise.reject(new Error(uiText("Пароли не совпадают"))),
                   }),
                 ]}
               >
-                <Input.Password placeholder="Ещё раз" autoComplete="new-password" disabled={saving} style={{ height: 54, fontSize: 16 }} />
+                <Input.Password placeholder={uiText("Ещё раз")} autoComplete="new-password" disabled={saving} style={{ height: 54, fontSize: 16 }} />
               </Form.Item>
               <button type="submit" className="sp-btn-primary" style={{ width: '100%', padding: 17, marginTop: 8, fontSize: 17 }} disabled={saving}>
-                {saving ? 'Сохраняем…' : 'Сохранить пароль'}
+                {saving ? uiText("Сохраняем…") : uiText("Сохранить пароль")}
               </button>
             </Form>
           </>
@@ -172,11 +170,9 @@ export default function SetPasswordPage() {
         {state.status === 'done' && (
           <>
             <p style={{ color: SP.textMid, fontSize: 16, lineHeight: 1.5, margin: '12px 0 28px' }}>
-              Готово. Теперь можно войти с новым паролем. Ссылка из письма больше не действует.
-            </p>
+              {" " + uiText("Готово. Теперь можно войти с новым паролем. Ссылка из письма больше не действует.") + " "}</p>
             <button type="button" className="sp-btn-primary" style={{ width: '100%', padding: 17, fontSize: 17 }} onClick={() => navigate('/login')}>
-              Войти
-            </button>
+              {" " + uiText("Войти") + " "}</button>
           </>
         )}
       </div>

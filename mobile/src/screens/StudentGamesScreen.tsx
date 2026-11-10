@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
@@ -31,7 +32,7 @@ export default function StudentGamesScreen() {
     try {
       setGames(await gamesApi.list())
     } catch (e: any) {
-      notifyError(e, 'Не удалось загрузить игры')
+      notifyError(e, uiText("Не удалось загрузить игры"))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -47,7 +48,7 @@ export default function StudentGamesScreen() {
 
   return (
     <Screen>
-      <StackHeader title="Игры для мозга" />
+      <StackHeader title={uiText("Игры для мозга")} />
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator color={colors.primary} />
@@ -69,7 +70,7 @@ export default function StudentGamesScreen() {
             />
           }
           ListEmptyComponent={
-            <EmptyState icon={<Gamepad2 size={34} color={colors.muted} />} title="Игр пока нет" />
+            <EmptyState icon={<Gamepad2 size={34} color={colors.muted} />} title={uiText("Игр пока нет")} />
           }
           renderItem={({ item: g }) => (
             <Card padding={16}>
@@ -79,11 +80,10 @@ export default function StudentGamesScreen() {
               <Text style={styles.desc}>{g.description}</Text>
               <View style={styles.footer}>
                 <Text style={styles.meta}>
-                  {g.myBest != null ? `Мой рекорд: ${g.myBest}` : 'Ещё не играл(а)'}
+                  {g.myBest != null ? uiText("Мой рекорд: {0}", g.myBest) : uiText("Ещё не играл(а)")}
                 </Text>
                 <Btn size="sm" onPress={() => navigation.navigate('StudentGame', { game: g.key, title: g.title })}>
-                  Играть
-                </Btn>
+                  {" " + uiText("Играть") + " "}</Btn>
               </View>
             </Card>
           )}

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useState } from 'react'
 import { App as AntdApp, Button, Card, Form, Input } from 'antd'
 import { MailOutlined } from '@ant-design/icons'
@@ -26,9 +27,9 @@ export default function ChangeEmailForm() {
       setToken(res.accessToken)
       updateUser({ email: res.user.email })
       form.resetFields()
-      message.success('Email для входа изменён')
+      message.success(uiText("Email для входа изменён"))
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось сменить email')
+      message.error(e?.response?.data?.message || uiText("Не удалось сменить email"))
     } finally {
       setSaving(false)
     }
@@ -37,24 +38,23 @@ export default function ChangeEmailForm() {
   return (
     <Form form={form} layout="vertical" requiredMark={false} onFinish={onFinish}>
       <p style={{ marginTop: 0 }}>
-        Сейчас вы входите как <b>{email}</b>
+        {" " + uiText("Сейчас вы входите как") + " "}<b>{email}</b>
       </p>
       <Form.Item
         name="newEmail"
-        label="Новый email"
+        label={uiText("Новый email")}
         rules={[
-          { required: true, message: 'Введите новый email' },
-          { type: 'email', message: 'Некорректный email' },
+          { required: true, message: uiText("Введите новый email") },
+          { type: 'email', message: uiText("Некорректный email") },
         ]}
       >
         <Input prefix={<MailOutlined />} autoComplete="email" placeholder="new@example.com" disabled={saving} />
       </Form.Item>
-      <Form.Item name="current" label="Текущий пароль" rules={[{ required: true, message: 'Введите текущий пароль' }]}>
+      <Form.Item name="current" label={uiText("Текущий пароль")} rules={[{ required: true, message: uiText("Введите текущий пароль") }]}>
         <Input.Password autoComplete="current-password" disabled={saving} />
       </Form.Item>
       <Button type="primary" htmlType="submit" loading={saving}>
-        Сменить email
-      </Button>
+        {" " + uiText("Сменить email") + " "}</Button>
     </Form>
   )
 }
@@ -62,7 +62,7 @@ export default function ChangeEmailForm() {
 /** Карточка «Email для входа» для страницы настроек. */
 export function ChangeEmailCard() {
   return (
-    <Card className="glass" bordered={false} title={<><MailOutlined /> Email для входа</>} style={{ maxWidth: 460 }}>
+    <Card className="glass" bordered={false} title={<><MailOutlined /> {" " + uiText("Email для входа")}</>} style={{ maxWidth: 460 }}>
       <ChangeEmailForm />
     </Card>
   )

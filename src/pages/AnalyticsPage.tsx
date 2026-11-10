@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -40,7 +41,7 @@ const { Text, Title } = Typography;
 export default function AnalyticsPage() {
   const chartTheme = useChartTheme()
   const L = useLabels();
-  const isSchool = L.group === "класс";
+  const isSchool = L.isSchool;
   const groups = useDataStore((s) => s.groups);
   const children = useDataStore((s) => s.children);
   const payments = useDataStore((s) => s.payments);
@@ -62,11 +63,11 @@ export default function AnalyticsPage() {
         attendance,
         month,
       }),
-    [groups, children, payments, expenses, extraIncome, attendance, month],
+    [groups, children, payments, expenses, extraIncome, attendance, month, uiLanguage()],
   );
   const global = useMemo(
     () => calcGlobalFinance(groupFin, expenses, month),
-    [groupFin, expenses, month],
+    [groupFin, expenses, month, uiLanguage()],
   );
 
   // 12-месячный тренд
@@ -97,12 +98,12 @@ export default function AnalyticsPage() {
       });
     }
     return arr;
-  }, [groups, children, payments, expenses, extraIncome, attendance]);
+  }, [groups, children, payments, expenses, extraIncome, attendance, uiLanguage()]);
 
   // Серии для area-чарта дохода/расхода
   const trendSeries = yearTrend.flatMap((p) => [
-    { month: p.month, type: "Доход", value: p.income },
-    { month: p.month, type: "Расход", value: p.expenses },
+    { month: p.month, type: uiText("Доход"), value: p.income },
+    { month: p.month, type: uiText("Расход"), value: p.expenses },
   ]);
 
   // Тренд прибыли — отдельная линия (определяем рост/спад)
@@ -129,13 +130,13 @@ export default function AnalyticsPage() {
     .slice(-6)
     .map((p) => ({
       month: p.month,
-      type: "Приток",
+      type: uiText("Приток"),
       value: p.income,
     }))
     .concat(
       yearTrend.slice(-6).map((p) => ({
         month: p.month,
-        type: "Отток",
+        type: uiText("Отток"),
         value: -p.expenses,
       })),
     );
@@ -153,7 +154,7 @@ export default function AnalyticsPage() {
       .forEach((e) =>
         map.set(e.category, (map.get(e.category) || 0) + e.amount),
       );
-    return Array.from(map.entries()).map(([type, value]) => ({ type, value }));
+    return Array.from(map.entries()).map(([type, value]) => ({ type: uiText(type), value }));
   })();
 
   // Самые прибыльные / убыточные группы
@@ -166,21 +167,21 @@ export default function AnalyticsPage() {
     const net = Math.round(global.netProfit)
     const monthName = dayjs(month + '-01').format('MMMM YYYY')
     if (inc === 0 && exp === 0) {
-      return `За ${monthName} пока нет ни доходов, ни расходов. Как только появятся оплаты и расходы — здесь будет видно, в плюсе учреждение или в минусе.`
+      return uiText("За {0} пока нет ни доходов, ни расходов. Как только появятся оплаты и расходы — здесь будет видно, в плюсе учреждение или в минусе.", monthName)
     }
     if (net >= 0) {
-      return `За ${monthName} учреждение получило ${formatMoney(inc)} и потратило ${formatMoney(exp)}. Осталось «в кармане» ${formatMoney(net)} — значит работаете в плюс. 👍`
+      return uiText("За {0} учреждение получило {1} и потратило {2}. Осталось «в кармане» {3} — значит работаете в плюс. 👍", monthName, formatMoney(inc), formatMoney(exp), formatMoney(net))
     }
-    return `За ${monthName} учреждение получило ${formatMoney(inc)}, но потратило больше — ${formatMoney(exp)}. Не хватило ${formatMoney(Math.abs(net))} — значит сейчас работаете в минус. Стоит снизить расходы или поднять оплату/набор. ⚠️`
+    return uiText("За {0} учреждение получило {1}, но потратило больше — {2}. Не хватило {3} — значит сейчас работаете в минус. Стоит снизить расходы или поднять оплату/набор. ⚠️", monthName, formatMoney(inc), formatMoney(exp), formatMoney(Math.abs(net)))
   })();
 
   return (
     <div>
       <SproutPageHeader
-        title="Аналитика"
+        title={uiText("Аналитика")}
         icon={<TrendingUp size={22} strokeWidth={2} />}
         iconAccent="cyan"
-        description="Простыми словами: сколько заработали, сколько потратили и осталось ли в плюсе"
+        description={uiText("Простыми словами: сколько заработали, сколько потратили и осталось ли в плюсе")}
         actions={
           <DatePicker
             picker="month"
@@ -232,27 +233,24 @@ export default function AnalyticsPage() {
           message={
             <Space>
               {global.isProfitable ? (
-                <Text strong>Компания прибыльная</Text>
+                <Text strong>{uiText("Компания прибыльная")}</Text>
               ) : (
-                <Text strong>Компания убыточная</Text>
+                <Text strong>{uiText("Компания убыточная")}</Text>
               )}
               <Tag color={profitGrowing ? "green" : "red"}>
                 {profitGrowing ? <ArrowUpOutlined /> : <ArrowDownOutlined />}{" "}
-                Прибыль {profitGrowing ? "растёт" : "падает"} (
+                {" " + uiText("Прибыль") + " "}{profitGrowing ? uiText("растёт") : uiText("падает")} (
                 {isFinite(growthPct)
                   ? Math.max(-999, Math.min(999, growthPct)).toFixed(1)
                   : "0.0"}
-                % за месяц)
-              </Tag>
+                {" " + uiText("% за месяц)") + " "}</Tag>
             </Space>
           }
           description={
             <span>
-              Доход:{" "}
-              <Text strong>{formatMoneyCompact(global.totalIncome)}</Text> ·
-              Расходы:{" "}
-              <Text strong>{formatMoneyCompact(global.totalExpenses)}</Text> ·
-              Чистая прибыль:{" "}
+              {" " + uiText("Доход:")}{" "}
+              <Text strong>{formatMoneyCompact(global.totalIncome)}</Text> {" " + uiText("· Расходы:")}{" "}
+              <Text strong>{formatMoneyCompact(global.totalExpenses)}</Text> {" " + uiText("· Чистая прибыль:")}{" "}
               <Text
                 strong
                 style={{ color: global.netProfit >= 0 ? "#0D7A7C" : "#E5533D" }}
@@ -260,7 +258,7 @@ export default function AnalyticsPage() {
                 {global.netProfit >= 0 ? "+" : ""}
                 {formatMoneyCompact(global.netProfit)}
               </Text>{" "}
-              · Маржа: <Text strong>{formatPercent(global.margin)}</Text> · ROI:{" "}
+              {" " + uiText("· Маржа:") + " "}<Text strong>{formatPercent(global.margin)}</Text> · ROI:{" "}
               <Text strong>{formatPercent(roi)}</Text>
             </span>
           }
@@ -272,7 +270,7 @@ export default function AnalyticsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <StatCard
-            title={`Доход всех классов`}
+            title={uiText("Доход всех классов")}
             value={global.totalIncome}
             format="money"
             variant="success"
@@ -281,7 +279,7 @@ export default function AnalyticsPage() {
         </Col>
         <Col xs={12} md={6}>
           <StatCard
-            title="Расходы всего"
+            title={uiText("Расходы всего")}
             value={global.totalExpenses}
             format="money"
             variant="warning"
@@ -290,7 +288,7 @@ export default function AnalyticsPage() {
         </Col>
         <Col xs={12} md={6}>
           <StatCard
-            title="Зарплаты"
+            title={uiText("Зарплаты")}
             value={global.salaries}
             format="money"
             variant="primary"
@@ -298,7 +296,7 @@ export default function AnalyticsPage() {
         </Col>
         <Col xs={12} md={6}>
           <StatCard
-            title="Налоги"
+            title={uiText("Налоги")}
             value={global.taxes}
             format="money"
             variant="danger"
@@ -314,7 +312,7 @@ export default function AnalyticsPage() {
             transition={{ duration: 0.4 }}
           >
             <Card className="glass" bordered={false}>
-              <Title level={5}>Динамика дохода и расхода (12 месяцев)</Title>
+              <Title level={5}>{uiText("Динамика дохода и расхода (12 месяцев)")}</Title>
               {hasTrendData ? (
                 <Area
                   theme={chartTheme}
@@ -333,8 +331,8 @@ export default function AnalyticsPage() {
               ) : (
                 <SproutEmpty
                   icon={<LineChartIcon size={28} strokeWidth={1.8} />}
-                  title="Данных пока нет"
-                  description="Тренд появится после первого месяца с оплатами и расходами"
+                  title={uiText("Данных пока нет")}
+                  description={uiText("Тренд появится после первого месяца с оплатами и расходами")}
                   minHeight={300}
                 />
               )}
@@ -364,8 +362,8 @@ export default function AnalyticsPage() {
               ) : (
                 <SproutEmpty
                   icon={<TrendingUp size={28} strokeWidth={1.8} />}
-                  title="Прибыли пока нет"
-                  description="График появится после первых операций"
+                  title={uiText("Прибыли пока нет")}
+                  description={uiText("График появится после первых операций")}
                   minHeight={300}
                 />
               )}
@@ -382,7 +380,7 @@ export default function AnalyticsPage() {
             transition={{ duration: 0.4, delay: 0.1 }}
           >
             <Card className="glass" bordered={false}>
-              <Title level={5}>Cash flow (6 мес.)</Title>
+              <Title level={5}>{uiText("Cash flow (6 мес.)")}</Title>
               {hasCashFlowData ? (
                 <Column
                   theme={chartTheme}
@@ -399,8 +397,8 @@ export default function AnalyticsPage() {
               ) : (
                 <SproutEmpty
                   icon={<BarChart3 size={28} strokeWidth={1.8} />}
-                  title="Cash flow пустой"
-                  description="Появится после первых притоков/оттоков"
+                  title={uiText("Cash flow пустой")}
+                  description={uiText("Появится после первых притоков/оттоков")}
                   minHeight={280}
                 />
               )}
@@ -414,7 +412,7 @@ export default function AnalyticsPage() {
             transition={{ duration: 0.4, delay: 0.15 }}
           >
             <Card className="glass" bordered={false}>
-              <Title level={5}>Структура расходов</Title>
+              <Title level={5}>{uiText("Структура расходов")}</Title>
               {expenseShare.length > 0 ? (
                 <Pie
                   theme={chartTheme}
@@ -430,8 +428,8 @@ export default function AnalyticsPage() {
               ) : (
                 <SproutEmpty
                   icon={<PieChartIcon size={28} strokeWidth={1.8} />}
-                  title="Расходов в этом месяце нет"
-                  description="Добавьте первый расход на странице «Расходы»"
+                  title={uiText("Расходов в этом месяце нет")}
+                  description={uiText("Добавьте первый расход на странице «Расходы»")}
                   minHeight={280}
                 />
               )}
@@ -449,10 +447,9 @@ export default function AnalyticsPage() {
           >
             <Card className="glass" bordered={false}>
               <Title level={5}>
-                <ThunderboltOutlined /> Финансовая эффективность
-              </Title>
+                <ThunderboltOutlined /> {" " + uiText("Финансовая эффективность") + " "}</Title>
               <div className="mt-3">
-                <Text type="secondary">Маржа прибыли</Text>
+                <Text type="secondary">{uiText("Маржа прибыли")}</Text>
                 <Progress
                   percent={Math.max(0, Math.min(100, global.margin * 100))}
                   strokeColor={{ from: "#3B8FBF", to: "#0D7A7C" }}
@@ -465,8 +462,7 @@ export default function AnalyticsPage() {
                   format={() => formatPercent(roi)}
                 />
                 <Text type="secondary">
-                  Привлечение детей (заполнено мест условно: 60 чел.)
-                </Text>
+                  {" " + uiText("Привлечение детей (заполнено мест условно: 60 чел.)") + " "}</Text>
                 <Progress
                   percent={Math.max(
                     0,
@@ -478,7 +474,7 @@ export default function AnalyticsPage() {
               </div>
               <div className="mt-3 grid grid-cols-2 gap-3">
                 <Statistic
-                  title={"Лучший класс"}
+                  title={uiText("Лучший класс")}
                   value={global.bestGroup?.group.name || "—"}
                   valueStyle={{
                     color: "#0D7A7C",
@@ -487,7 +483,7 @@ export default function AnalyticsPage() {
                   }}
                 />
                 <Statistic
-                  title={"Худший класс"}
+                  title={uiText("Худший класс")}
                   value={global.worstGroup?.group.name || "—"}
                   valueStyle={{
                     color: "#E5533D",
@@ -506,7 +502,7 @@ export default function AnalyticsPage() {
             transition={{ duration: 0.4, delay: 0.25 }}
           >
             <Card className="glass" bordered={false}>
-              <Title level={5}>{L.groups}: рейтинг прибыли</Title>
+              <Title level={5}>{L.groups}{uiText(": рейтинг прибыли")}</Title>
               <Table
                 rowKey={(r) => r.group.id}
                 dataSource={sortedByProfit}
@@ -533,12 +529,12 @@ export default function AnalyticsPage() {
                     render: (_, r) => <Text strong>{r.group.name}</Text>,
                   },
                   {
-                    title: "Доход",
+                    title: uiText("Доход"),
                     dataIndex: "income",
                     render: (v: number) => formatMoney(v),
                   },
                   {
-                    title: "Прибыль",
+                    title: uiText("Прибыль"),
                     dataIndex: "profit",
                     render: (v: number) => (
                       <Tag color={v >= 0 ? "green" : "red"}>

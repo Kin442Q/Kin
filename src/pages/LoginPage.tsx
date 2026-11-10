@@ -342,7 +342,7 @@ export default function LoginPage() {
         }
         .login-title {
           margin: 0;
-          font-family: 'Montserrat', 'Inter', sans-serif;
+          font-family: 'Mont Black', sans-serif;
           font-weight: 800;
           font-size: clamp(34px, 4vw, 54px);
           line-height: 1.08;
@@ -383,7 +383,7 @@ export default function LoginPage() {
         .login-card-tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
         .login-card-title {
           margin: 0;
-          font-family: 'Montserrat', 'Inter', sans-serif;
+          font-family: 'Inter', sans-serif;
           font-size: 28px;
           font-weight: 800;
           letter-spacing: -0.02em;
@@ -425,11 +425,14 @@ export default function LoginPage() {
         @media (max-width: 900px) {
           .login-grid { padding: 20px 16px; gap: 0; align-items: flex-start; justify-content: center; }
           .login-visual { display: none; }
-          .login-mobile-logo { display: block; }
+          .login-mobile-logo { display: block; min-width: 0; max-width: 100%; }
           .login-card { padding: 24px 20px; border-radius: 28px; width: 100%; flex-basis: 460px; }
         }
         @media (max-width: 480px) {
           .login-card-title { font-size: 24px; }
+          .login-card-top { flex-wrap: wrap; gap: 16px; }
+          .login-mobile-logo { flex-basis: 100%; }
+          .login-card-tools { margin-left: auto; }
         }
       `}</style>
     </div>

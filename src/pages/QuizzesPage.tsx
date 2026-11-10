@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import { App as AntdApp, Button, Popconfirm, Space, Switch, Table, Tabs, Tag, Tooltip } from 'antd'
 import { BarChartOutlined, DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
@@ -33,7 +34,7 @@ export default function QuizzesPage() {
     quizApi
       .list()
       .then(setQuizzes)
-      .catch((e) => message.error(errorText(e, 'Не удалось загрузить квизы')))
+      .catch((e) => message.error(errorText(e, uiText("Не удалось загрузить квизы"))))
       .finally(() => setLoading(false))
   }, [message])
 
@@ -64,18 +65,18 @@ export default function QuizzesPage() {
       await quizApi.update(q.id, { isPublished: value })
       setQuizzes((list) => list.map((x) => (x.id === q.id ? { ...x, isPublished: value } : x)))
     } catch (e) {
-      message.error(errorText(e, 'Не удалось изменить'))
+      message.error(errorText(e, uiText("Не удалось изменить")))
     }
   }
 
   const remove = async (q: QuizSummary) => {
     try {
       await quizApi.remove(q.id)
-      message.success('Квиз удалён')
+      message.success(uiText("Квиз удалён"))
       loadQuizzes()
       loadTracks()
     } catch (e) {
-      message.error(errorText(e, 'Не удалось удалить'))
+      message.error(errorText(e, uiText("Не удалось удалить")))
     }
   }
 
@@ -87,10 +88,10 @@ export default function QuizzesPage() {
       dataSource={quizzes}
       pagination={{ pageSize: 15, hideOnSinglePage: true }}
       scroll={{ x: 760 }}
-      locale={{ emptyText: 'Квизов пока нет. Нажмите «Новый квиз»' }}
+      locale={{ emptyText: uiText("Квизов пока нет. Нажмите «Новый квиз»") }}
       columns={[
         {
-          title: 'Квиз',
+          title: uiText("Квиз"),
           key: 'title',
           render: (_, q) => (
             <div>
@@ -102,16 +103,16 @@ export default function QuizzesPage() {
             </div>
           ),
         },
-        { title: 'Вопросов', dataIndex: 'questionsCount', width: 90, align: 'center' },
-        { title: 'Попыток', dataIndex: 'attemptsCount', width: 90, align: 'center' },
-        { title: 'Автор', key: 'author', width: 160, render: (_, q) => q.author?.fullName ?? '—' },
+        { title: uiText("Вопросов"), dataIndex: 'questionsCount', width: 90, align: 'center' },
+        { title: uiText("Попыток"), dataIndex: 'attemptsCount', width: 90, align: 'center' },
+        { title: uiText("Автор"), key: 'author', width: 160, render: (_, q) => q.author?.fullName ?? '—' },
         {
-          title: 'Опубликован',
+          title: uiText("Опубликован"),
           key: 'pub',
           width: 120,
           align: 'center',
           render: (_, q) => (
-            <Tooltip title={q.isPublished ? 'Виден ученикам' : 'Черновик — ученики не видят'}>
+            <Tooltip title={q.isPublished ? uiText("Виден ученикам") : uiText("Черновик — ученики не видят")}>
               <Switch size="small" checked={q.isPublished} disabled={!canManage(q)} onChange={(v) => togglePublish(q, v)} />
             </Tooltip>
           ),
@@ -122,19 +123,19 @@ export default function QuizzesPage() {
           width: 130,
           render: (_, q) => (
             <Space size={0}>
-              <Tooltip title="Результаты учеников">
+              <Tooltip title={uiText("Результаты учеников")}>
                 <Button size="small" type="text" icon={<BarChartOutlined />} onClick={() => setResults({ id: q.id, title: q.title })} />
               </Tooltip>
               {canManage(q) && (
                 <>
-                  <Tooltip title="Редактировать">
+                  <Tooltip title={uiText("Редактировать")}>
                     <Button size="small" type="text" icon={<EditOutlined />} onClick={() => setEditor(q.id)} />
                   </Tooltip>
                   <Popconfirm
-                    title={`Удалить «${q.title}»?`}
-                    description="Попытки учеников тоже удалятся."
-                    okText="Удалить"
-                    cancelText="Отмена"
+                    title={uiText("Удалить «{0}»?", q.title)}
+                    description={uiText("Попытки учеников тоже удалятся.")}
+                    okText={uiText("Удалить")}
+                    cancelText={uiText("Отмена")}
                     okButtonProps={{ danger: true }}
                     onConfirm={() => remove(q)}
                   >
@@ -152,14 +153,13 @@ export default function QuizzesPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Квизы"
+        title={uiText("Квизы")}
         icon={<ListChecks size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description="Тесты с автоматической проверкой и подготовка к экзаменам"
+        description={uiText("Тесты с автоматической проверкой и подготовка к экзаменам")}
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setEditor('new')}>
-            Новый квиз
-          </Button>
+            {" " + uiText("Новый квиз") + " "}</Button>
         }
       />
 
@@ -167,10 +167,10 @@ export default function QuizzesPage() {
         {examOn ? (
           <Tabs
             items={[
-              { key: 'quizzes', label: 'Квизы', children: quizzesTab },
+              { key: 'quizzes', label: uiText("Квизы"), children: quizzesTab },
               {
                 key: 'tracks',
-                label: 'Направления подготовки',
+                label: uiText("Направления подготовки"),
                 children: <ExamTracksPanel tracks={tracks} onChanged={() => { loadTracks(); loadQuizzes() }} />,
               },
             ]}

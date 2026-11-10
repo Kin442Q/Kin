@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
@@ -72,7 +73,7 @@ export default function MeetingsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить собрания'
+        uiText("Не удалось загрузить собрания")
       message.error(msg)
     } finally {
       setLoading(false)
@@ -95,7 +96,7 @@ export default function MeetingsPage() {
           new Date(b.scheduledAt).getTime() -
           new Date(a.scheduledAt).getTime(),
       ),
-    [items],
+    [items, uiLanguage()],
   )
 
   const openCreate = () => {
@@ -120,7 +121,7 @@ export default function MeetingsPage() {
       setOpen(false)
       form.resetFields()
       message.success(
-        `Собрание создано — родители получат Telegram-уведомление (${created.group?.name || 'группа'})`,
+        uiText("Собрание создано — родители получат Telegram-уведомление ({0})", created.group?.name || uiText("группа")),
       )
       await load()
     } catch (err: any) {
@@ -128,7 +129,7 @@ export default function MeetingsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось создать собрание'
+        uiText("Не удалось создать собрание")
       message.error(msg)
     } finally {
       setSubmitting(false)
@@ -138,13 +139,13 @@ export default function MeetingsPage() {
   const remove = async (id: string) => {
     try {
       await meetingsService.remove(id)
-      message.success('Собрание удалено')
+      message.success(uiText("Собрание удалено"))
       await load()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось удалить'
+        uiText("Не удалось удалить")
       message.error(msg)
     }
   }
@@ -152,17 +153,17 @@ export default function MeetingsPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Родительские собрания"
+        title={uiText("Родительские собрания")}
         icon={<Megaphone size={22} strokeWidth={2} />}
         iconAccent="yellow"
-        description="Создавайте собрания для группы — родители автоматически получат уведомление в Telegram"
+        description={uiText("Создавайте собрания для группы — родители автоматически получат уведомление в Telegram")}
         actions={
           <Space wrap>
             {!isTeacher && (
               <Select
                 style={{ minWidth: 200 }}
                 allowClear
-                placeholder="Все группы"
+                placeholder={uiText("Все группы")}
                 value={filterGroupId}
                 onChange={setFilterGroupId}
                 options={groups.map((g) => ({
@@ -176,8 +177,7 @@ export default function MeetingsPage() {
               icon={<PlusOutlined />}
               onClick={openCreate}
             >
-              Новое собрание
-            </Button>
+              {" " + uiText("Новое собрание") + " "}</Button>
           </Space>
         }
       />
@@ -192,7 +192,7 @@ export default function MeetingsPage() {
             sorted.length === 0 ? (
               <Empty
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description="Пока нет собраний"
+                description={uiText("Пока нет собраний")}
                 style={{ padding: 32 }}
               />
             ) : (
@@ -229,9 +229,9 @@ export default function MeetingsPage() {
                         )}
                         <div style={{ marginLeft: 'auto' }}>
                           <Popconfirm
-                            title="Удалить собрание?"
-                            okText="Удалить"
-                            cancelText="Отмена"
+                            title={uiText("Удалить собрание?")}
+                            okText={uiText("Удалить")}
+                            cancelText={uiText("Отмена")}
                             okButtonProps={{ danger: true }}
                             onConfirm={() => remove(r.id)}
                           >
@@ -293,13 +293,13 @@ export default function MeetingsPage() {
               emptyText: (
                 <Empty
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description="Пока нет собраний"
+                  description={uiText("Пока нет собраний")}
                 />
               ),
             }}
             columns={[
               {
-                title: 'Дата и время',
+                title: uiText("Дата и время"),
                 dataIndex: 'scheduledAt',
                 width: 200,
                 render: (v: string) => {
@@ -320,7 +320,7 @@ export default function MeetingsPage() {
                 defaultSortOrder: 'descend',
               },
               {
-                title: 'Тема',
+                title: uiText("Тема"),
                 dataIndex: 'title',
                 render: (v: string, r: Meeting) => (
                   <Space direction="vertical" size={2}>
@@ -346,7 +346,7 @@ export default function MeetingsPage() {
                 ),
               },
               {
-                title: 'Группа',
+                title: uiText("Группа"),
                 dataIndex: 'groupId',
                 render: (v: string, r: Meeting) => {
                   const g =
@@ -359,7 +359,7 @@ export default function MeetingsPage() {
                 },
               },
               {
-                title: 'Место',
+                title: uiText("Место"),
                 dataIndex: 'location',
                 render: (v: string | null) =>
                   v ? (
@@ -377,10 +377,10 @@ export default function MeetingsPage() {
                 width: 60,
                 render: (_, r) => (
                   <Popconfirm
-                    title="Удалить собрание?"
-                    description="Действие нельзя отменить"
-                    okText="Удалить"
-                    cancelText="Отмена"
+                    title={uiText("Удалить собрание?")}
+                    description={uiText("Действие нельзя отменить")}
+                    okText={uiText("Удалить")}
+                    cancelText={uiText("Отмена")}
                     okButtonProps={{ danger: true }}
                     onConfirm={() => remove(r.id)}
                   >
@@ -400,12 +400,12 @@ export default function MeetingsPage() {
       </motion.div>
 
       <Modal
-        title="Новое родительское собрание"
+        title={uiText("Новое родительское собрание")}
         open={open}
         onOk={submit}
         onCancel={() => setOpen(false)}
-        okText="Создать и уведомить"
-        cancelText="Отмена"
+        okText={uiText("Создать и уведомить")}
+        cancelText={uiText("Отмена")}
         confirmLoading={submitting}
         destroyOnClose
         width={560}
@@ -413,56 +413,54 @@ export default function MeetingsPage() {
         <Form layout="vertical" form={form} preserve={false}>
           <Form.Item
             name="groupId"
-            label="Группа"
-            rules={[{ required: true, message: 'Выберите группу' }]}
+            label={uiText("Группа")}
+            rules={[{ required: true, message: uiText("Выберите группу") }]}
           >
             <Select
               showSearch
               optionFilterProp="label"
-              placeholder="Выберите группу"
+              placeholder={uiText("Выберите группу")}
               options={groups.map((g) => ({ value: g.id, label: g.name }))}
             />
           </Form.Item>
           <Form.Item
             name="title"
-            label="Тема"
-            rules={[{ required: true, message: 'Укажите тему' }]}
+            label={uiText("Тема")}
+            rules={[{ required: true, message: uiText("Укажите тему") }]}
           >
             <Input
               maxLength={200}
-              placeholder="Например: Итоги первого полугодия"
+              placeholder={uiText("Например: Итоги первого полугодия")}
             />
           </Form.Item>
           <Form.Item
             name="scheduledAt"
-            label="Дата и время"
-            rules={[{ required: true, message: 'Выберите дату и время' }]}
+            label={uiText("Дата и время")}
+            rules={[{ required: true, message: uiText("Выберите дату и время") }]}
           >
             <DatePicker
               showTime={{ format: 'HH:mm' }}
               format="DD.MM.YYYY HH:mm"
               style={{ width: '100%' }}
-              placeholder="Когда состоится"
+              placeholder={uiText("Когда состоится")}
             />
           </Form.Item>
-          <Form.Item name="location" label="Место (необязательно)">
+          <Form.Item name="location" label={uiText("Место (необязательно)")}>
             <Input
               maxLength={200}
-              placeholder="Кабинет / адрес / онлайн-ссылка"
+              placeholder={uiText("Кабинет / адрес / онлайн-ссылка")}
             />
           </Form.Item>
-          <Form.Item name="description" label="Повестка / описание (необязательно)">
+          <Form.Item name="description" label={uiText("Повестка / описание (необязательно)")}>
             <Input.TextArea
               rows={3}
               maxLength={2000}
               showCount
-              placeholder="Что обсудим"
+              placeholder={uiText("Что обсудим")}
             />
           </Form.Item>
           <div style={{ fontSize: 12, opacity: 0.65 }}>
-            После создания все родители группы, привязавшие телефон к
-            Telegram-боту, получат уведомление автоматически.
-          </div>
+            {" " + uiText("После создания все родители группы, привязавшие телефон к Telegram-боту, получат уведомление автоматически.") + " "}</div>
         </Form>
       </Modal>
     </div>

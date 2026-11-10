@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useMemo } from 'react'
 import { classLetterOf, gradeKeyOf, groupByGrade, gradeLabel, type GradeKey } from '../lib/classes'
 
@@ -60,9 +61,9 @@ export default function ClassFilter({
   onChange,
   allowAllLetters = false,
   counts,
-  gradeLabelText = 'Параллель',
+  gradeLabelText = uiText("Параллель"),
 }: Props) {
-  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups])
+  const grades = useMemo(() => groupByGrade(groups, (g) => g.name), [groups, uiLanguage()])
   const active = grades.find((g) => g.key === value.grade) ?? null
 
   const countOf = (ids: string[]) =>
@@ -82,7 +83,7 @@ export default function ClassFilter({
   if (groups.length === 0) return null
 
   return (
-    <div className="cf" role="group" aria-label="Выбор класса">
+    <div className="cf" role="group" aria-label={uiText("Выбор класса")}>
       <div className="cf-row">
         <span className="cf-label">{gradeLabelText}</span>
         <div className="cf-chips">
@@ -98,7 +99,7 @@ export default function ClassFilter({
                 title={`${g.label}: ${g.items.length}`}
                 onClick={() => pickGrade(g.key)}
               >
-                {g.key === 'other' ? 'Другие' : g.grade}
+                {g.key === 'other' ? uiText("Другие") : g.grade}
                 {n !== undefined && <span className="cf-count">{n}</span>}
               </button>
             )
@@ -108,7 +109,7 @@ export default function ClassFilter({
 
       {active && active.items.length > 1 && (
         <div className="cf-row">
-          <span className="cf-label">Класс</span>
+          <span className="cf-label">{uiText("Класс")}</span>
           <div className="cf-chips" aria-label={gradeLabel(active.key)}>
             {allowAllLetters && (
               <button
@@ -117,8 +118,7 @@ export default function ClassFilter({
                 aria-pressed={value.groupId === null}
                 onClick={() => onChange({ grade: active.key, groupId: null })}
               >
-                Все
-              </button>
+                {" " + uiText("Все") + " "}</button>
             )}
             {active.items.map((g) => {
               const on = value.groupId === g.id

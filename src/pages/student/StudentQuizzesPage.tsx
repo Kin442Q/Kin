@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useState } from 'react'
 import { App as AntdApp, Spin } from 'antd'
 import { ListChecks } from 'lucide-react'
@@ -16,25 +17,25 @@ export default function StudentQuizzesPage() {
     quizApi
       .list()
       .then(setQuizzes)
-      .catch((e) => message.error(e?.response?.data?.message || 'Не удалось загрузить квизы'))
+      .catch((e) => message.error(e?.response?.data?.message || uiText("Не удалось загрузить квизы")))
       .finally(() => setLoading(false))
   }, [message])
 
   return (
     <div>
       <SproutPageHeader
-        title="Квизы"
+        title={uiText("Квизы")}
         icon={<ListChecks size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description="Играй, набирай очки и звёзды. Режим «на скорость» даёт бонус за быстрые ответы, лучший результат запоминается"
+        description={uiText("Играй, набирай очки и звёзды. Режим «на скорость» даёт бонус за быстрые ответы, лучший результат запоминается")}
       />
       <Spin spinning={loading}>
         {quizzes.length === 0 ? (
           <SproutCard>
             <SproutEmpty
               icon={<ListChecks size={32} strokeWidth={1.8} />}
-              title="Квизов пока нет"
-              description="Когда учитель опубликует первый квиз, он появится здесь"
+              title={uiText("Квизов пока нет")}
+              description={uiText("Когда учитель опубликует первый квиз, он появится здесь")}
               minHeight={200}
             />
           </SproutCard>

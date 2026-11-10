@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { App as AntdApp, Avatar, Button, Input, Modal, Select, Space, Table, Tag, Typography } from 'antd'
 import { MessageOutlined, CheckOutlined } from '@ant-design/icons'
@@ -21,18 +22,18 @@ interface Props {
 }
 
 const STAFF_OPTIONS: Array<{ value: StaffStatus; label: string }> = [
-  { value: 'DONE', label: 'Выполнено' },
-  { value: 'PARTIAL', label: 'Частично' },
-  { value: 'NOT_DONE', label: 'Не выполнено' },
+  { value: 'DONE', get label() { return uiText("Выполнено") } },
+  { value: 'PARTIAL', get label() { return uiText("Частично") } },
+  { value: 'NOT_DONE', get label() { return uiText("Не выполнено") } },
 ]
 
 type TemplateChoice = 'auto' | NoticeTemplate
 
 const TEMPLATE_OPTIONS: Array<{ value: TemplateChoice; label: string }> = [
-  { value: 'auto', label: 'По статусу каждого ученика (рекомендуется)' },
-  { value: 'NOT_DONE', label: '«Не выполнил(а) домашнее задание»' },
-  { value: 'PARTIAL', label: '«Выполнил(а) не полностью»' },
-  { value: 'REMINDER', label: '«Напоминаем о сроке сдачи»' },
+  { value: 'auto', get label() { return uiText("По статусу каждого ученика (рекомендуется)") } },
+  { value: 'NOT_DONE', get label() { return uiText("«Не выполнил(а) домашнее задание»") } },
+  { value: 'PARTIAL', get label() { return uiText("«Выполнил(а) не полностью»") } },
+  { value: 'REMINDER', get label() { return uiText("«Напоминаем о сроке сдачи»") } },
 ]
 
 /**
@@ -59,7 +60,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
     try {
       setRoster(await homeworkStatusApi.roster(homeworkId))
     } catch (e) {
-      message.error(errorText(e, 'Не удалось загрузить статусы'))
+      message.error(errorText(e, uiText("Не удалось загрузить статусы")))
     } finally {
       setLoading(false)
     }
@@ -77,7 +78,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
     try {
       setRoster(await homeworkStatusApi.setStatuses(homeworkId, items))
     } catch (e) {
-      message.error(errorText(e, 'Не удалось сохранить'))
+      message.error(errorText(e, uiText("Не удалось сохранить")))
     } finally {
       setSaving(false)
     }
@@ -85,7 +86,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
 
   const unmarked = useMemo(
     () => (roster?.students ?? []).filter((r) => r.status === null || r.status === 'SUBMITTED'),
-    [roster],
+    [roster, uiLanguage()],
   )
 
   const markAllDone = () =>
@@ -104,14 +105,14 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
       })
       const noParents = r.skipped.length
       message.success(
-        `Сообщение отправлено: ${r.notified} из ${notifyTargets.length} учеников` +
-          (noParents ? `. У ${noParents} нет родителей в системе` : ''),
+        uiText("Сообщение отправлено: {0} из {1} учеников", r.notified, notifyTargets.length) +
+          (noParents ? uiText(". У {0} нет родителей в системе", noParents) : ''),
       )
       setNotifyOpen(false)
       setNote('')
       setSelected([])
     } catch (e) {
-      message.error(errorText(e, 'Не удалось отправить'))
+      message.error(errorText(e, uiText("Не удалось отправить")))
     } finally {
       setNotifying(false)
     }
@@ -125,31 +126,31 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
       <Modal
         open={!!homeworkId}
         onCancel={onClose}
-        footer={<Button onClick={onClose}>Закрыть</Button>}
+        footer={<Button onClick={onClose}>{uiText("Закрыть")}</Button>}
         width={820}
         destroyOnClose
         title={
           hw ? (
             <div>
               <div>
-                Статусы: {hw.subject.name} · {hw.group.name}
+                {" " + uiText("Статусы:") + " "}{hw.subject.name} · {hw.group.name}
               </div>
               <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}>
-                «{hw.title}» · срок {dayjs(hw.dueDate).format('DD.MM.YYYY')}
+                «{hw.title}{uiText("» · срок") + " "}{dayjs(hw.dueDate).format('DD.MM.YYYY')}
               </Text>
             </div>
           ) : (
-            'Статусы ДЗ'
+            uiText("Статусы ДЗ")
           )
         }
       >
         {s && (
           <Space size={[6, 6]} wrap style={{ marginBottom: 12 }}>
-            <Tag color="green">выполнено {s.done}</Tag>
-            <Tag color="orange">частично {s.partial}</Tag>
-            <Tag color="red">не выполнено {s.notDone}</Tag>
-            <Tag color="blue">ученик отметил «сделал» {s.submitted}</Tag>
-            <Tag>не отмечено {s.unmarked}</Tag>
+            <Tag color="green">{uiText("выполнено") + " "}{s.done}</Tag>
+            <Tag color="orange">{uiText("частично") + " "}{s.partial}</Tag>
+            <Tag color="red">{uiText("не выполнено") + " "}{s.notDone}</Tag>
+            <Tag color="blue">{uiText("ученик отметил «сделал»") + " "}{s.submitted}</Tag>
+            <Tag>{uiText("не отмечено") + " "}{s.unmarked}</Tag>
           </Space>
         )}
 
@@ -159,7 +160,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
             disabled={unmarked.length === 0 || saving}
             onClick={markAllDone}
           >
-            Всем неотмеченным: выполнено ({unmarked.length})
+            {" " + uiText("Всем неотмеченным: выполнено (")}{unmarked.length})
           </Button>
           <Button
             type="primary"
@@ -167,7 +168,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
             disabled={selected.length === 0}
             onClick={() => setNotifyOpen(true)}
           >
-            Сообщить родителям ({selected.length})
+            {" " + uiText("Сообщить родителям (")}{selected.length})
           </Button>
         </Space>
 
@@ -184,7 +185,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
           }}
           columns={[
             {
-              title: 'Ученик',
+              title: uiText("Ученик"),
               key: 'student',
               render: (_, r) => (
                 <Space>
@@ -198,7 +199,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
               ),
             },
             {
-              title: 'Статус',
+              title: uiText("Статус"),
               key: 'status',
               width: 230,
               render: (_, r) => (
@@ -212,7 +213,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
                     size="small"
                     allowClear
                     style={{ width: '100%' }}
-                    placeholder={r.status === 'SUBMITTED' ? 'Проверить…' : 'Не отмечено'}
+                    placeholder={r.status === 'SUBMITTED' ? uiText("Проверить…") : uiText("Не отмечено")}
                     value={r.status === 'SUBMITTED' ? undefined : (r.status ?? undefined)}
                     options={STAFF_OPTIONS}
                     onChange={(v) => save([{ studentId: r.student.id, status: (v as StaffStatus) ?? null }])}
@@ -222,7 +223,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
               ),
             },
             {
-              title: 'Комментарий',
+              title: uiText("Комментарий"),
               key: 'comment',
               render: (_, r) => (
                 <Input
@@ -230,7 +231,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
                   key={`${r.student.id}-${r.markedAt ?? ''}`}
                   defaultValue={r.comment ?? ''}
                   maxLength={500}
-                  placeholder={r.status && r.status !== 'SUBMITTED' ? 'Заметка…' : '—'}
+                  placeholder={r.status && r.status !== 'SUBMITTED' ? uiText("Заметка…") : '—'}
                   disabled={!r.status || r.status === 'SUBMITTED'}
                   onBlur={(e) => {
                     const v = e.target.value.trim()
@@ -242,7 +243,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
               ),
             },
             {
-              title: 'Родители',
+              title: uiText("Родители"),
               key: 'parents',
               width: 90,
               align: 'center',
@@ -250,7 +251,7 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
                 r.parentsCount > 0 ? (
                   <Tag color="green">{r.parentsCount}</Tag>
                 ) : (
-                  <Tag color="default">нет</Tag>
+                  <Tag color="default">{uiText("нет")}</Tag>
                 ),
             },
           ]}
@@ -261,24 +262,22 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
         open={notifyOpen}
         onCancel={() => setNotifyOpen(false)}
         onOk={sendNotice}
-        okText="Отправить"
-        cancelText="Отмена"
+        okText={uiText("Отправить")}
+        cancelText={uiText("Отмена")}
         confirmLoading={notifying}
-        title={`Сообщить родителям: ${notifyTargets.length} уч.`}
+        title={uiText("Сообщить родителям: {0} уч.", notifyTargets.length)}
         destroyOnClose
       >
         <p style={{ marginTop: 0 }}>
-          Родители получат сообщение (в чате и пуш-уведомлением) от вашего имени. Текст формируется
-          автоматически: имя ребёнка, предмет, задание и срок.
-        </p>
-        <Text strong>Шаблон</Text>
+          {" " + uiText("Родители получат сообщение (в чате и пуш-уведомлением) от вашего имени. Текст формируется автоматически: имя ребёнка, предмет, задание и срок.") + " "}</p>
+        <Text strong>{uiText("Шаблон")}</Text>
         <Select
           style={{ width: '100%', margin: '4px 0 12px' }}
           value={template}
           onChange={setTemplate}
           options={TEMPLATE_OPTIONS}
         />
-        <Text strong>Комментарий учителя (необязательно)</Text>
+        <Text strong>{uiText("Комментарий учителя (необязательно)")}</Text>
         <Input.TextArea
           style={{ marginTop: 4 }}
           rows={3}
@@ -286,12 +285,11 @@ export default function HomeworkStatusModal({ homeworkId, onClose }: Props) {
           showCount
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Например: нужно сдать до пятницы"
+          placeholder={uiText("Например: нужно сдать до пятницы")}
         />
         {notifyTargets.some((t) => t.parentsCount === 0) && (
           <p style={{ marginTop: 12, color: '#d48806' }}>
-            У некоторых выбранных учеников нет родителей в системе — им сообщение не уйдёт.
-          </p>
+            {" " + uiText("У некоторых выбранных учеников нет родителей в системе — им сообщение не уйдёт.") + " "}</p>
         )}
       </Modal>
     </>

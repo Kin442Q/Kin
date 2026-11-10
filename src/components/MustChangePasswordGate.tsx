@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { Alert, Button, Modal } from 'antd'
 import { useNavigate } from 'react-router-dom'
 
@@ -16,7 +17,7 @@ export default function MustChangePasswordGate() {
   return (
     <Modal
       open={mustChange}
-      title="Придумайте свой пароль"
+      title={uiText("Придумайте свой пароль")}
       closable={false}
       maskClosable={false}
       keyboard={false}
@@ -26,10 +27,10 @@ export default function MustChangePasswordGate() {
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        message="Вы вошли по временному паролю"
-        description="Его знает администратор, поэтому его нужно заменить на свой. Введите временный пароль и придумайте новый."
+        message={uiText("Вы вошли по временному паролю")}
+        description={uiText("Его знает администратор, поэтому его нужно заменить на свой. Введите временный пароль и придумайте новый.")}
       />
-      <ChangePasswordForm submitText="Сохранить и продолжить" />
+      <ChangePasswordForm submitText={uiText("Сохранить и продолжить")} />
       <Button
         type="link"
         style={{ paddingLeft: 0, marginTop: 8 }}
@@ -38,8 +39,7 @@ export default function MustChangePasswordGate() {
           navigate('/login')
         }}
       >
-        Выйти
-      </Button>
+        {" " + uiText("Выйти") + " "}</Button>
     </Modal>
   )
 }

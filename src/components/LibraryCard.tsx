@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import type { ReactNode } from 'react'
 import { Button, Tag } from 'antd'
 
@@ -21,7 +22,7 @@ export default function LibraryCard({ item, actions }: { item: LibraryItem; acti
                 {item.subject.name}
               </Tag>
             )}
-            {item.gradeNumber && <Tag style={{ margin: 0 }}>{item.gradeNumber} класс</Tag>}
+            {item.gradeNumber && <Tag style={{ margin: 0 }}>{item.gradeNumber} {" " + uiText("класс")}</Tag>}
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>{item.title}</div>
           {item.description && (
@@ -39,11 +40,10 @@ export default function LibraryCard({ item, actions }: { item: LibraryItem; acti
               {item.description}
             </div>
           )}
-          {item.author && <div style={{ fontSize: 11, color: SP.muted, marginTop: 6 }}>Добавил(а): {item.author.fullName}</div>}
+          {item.author && <div style={{ fontSize: 11, color: SP.muted, marginTop: 6 }}>{uiText("Добавил(а):") + " "}{item.author.fullName}</div>}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
             <Button type="primary" size="small" href={item.url} target="_blank" rel="noopener noreferrer">
-              Открыть
-            </Button>
+              {" " + uiText("Открыть") + " "}</Button>
             {actions}
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 /**
  * Face recognition helper на базе face-api.js.
  *
@@ -88,7 +89,7 @@ export function isSameFace(a: number[], b: number[]): boolean {
  */
 export async function startCamera(): Promise<MediaStream> {
   if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error('Камера не поддерживается этим браузером')
+    throw new Error(uiText("Камера не поддерживается этим браузером"))
   }
   return navigator.mediaDevices.getUserMedia({
     video: {

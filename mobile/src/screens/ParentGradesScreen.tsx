@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import dayjs from 'dayjs'
@@ -85,13 +86,13 @@ export default function ParentGradesScreen() {
       map.set(g.subjectId, arr)
     }
     return map
-  }, [grades])
+  }, [grades, uiLanguage()])
 
   const kid = kids.find((k) => k.id === activeKidId) ?? kids[0]
   const rows = stats.filter((s) => s.count > 0)
   const overall = rows.length ? rows.reduce((a, r) => a + r.average, 0) / rows.length : null
   // Как изменился средний балл за неделю; null, если сравнивать не с чем или он не изменился
-  const trend = useMemo(() => weeklyTrend(grades), [grades])
+  const trend = useMemo(() => weeklyTrend(grades), [grades, uiLanguage()])
   const upcoming = [...homework]
     .filter((h) => !dayjs(h.dueDate).isBefore(dayjs().startOf('day')))
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
@@ -108,7 +109,7 @@ export default function ParentGradesScreen() {
   if (!kid) {
     return (
       <Screen>
-        <EmptyState title="Нет данных" hint="К вашему аккаунту пока не привязан ни один ученик." />
+        <EmptyState title={uiText("Нет данных")} hint={uiText("К вашему аккаунту пока не привязан ни один ученик.")} />
       </Screen>
     )
   }
@@ -136,10 +137,10 @@ export default function ParentGradesScreen() {
       >
         <ScreenHeading
           eyebrow={`${kid.firstName}${kid.group?.name ? ' · ' + kid.group.name : ''}`}
-          title="Оценки"
+          title={uiText("Оценки")}
           right={
             kids.length > 1 ? (
-              <Pressable onPress={cycleKid} accessibilityRole="button" accessibilityLabel="Сменить ребёнка" style={styles.switch}>
+              <Pressable onPress={cycleKid} accessibilityRole="button" accessibilityLabel={uiText("Сменить ребёнка")} style={styles.switch}>
                 <Text style={styles.switchText}>{kid.firstName}</Text>
                 <ChevronDown size={15} color={colors.textMid} />
               </Pressable>
@@ -159,7 +160,7 @@ export default function ParentGradesScreen() {
                   accessibilityState={{ selected: on }}
                   style={[styles.segItem, on && styles.segOn]}
                 >
-                  <Text style={[styles.segText, on && { color: '#FFFFFF' }]}>{m === 'grades' ? 'Оценки' : 'Домашние задания'}</Text>
+                  <Text style={[styles.segText, on && { color: '#FFFFFF' }]}>{m === 'grades' ? uiText("Оценки") : uiText("Домашние задания")}</Text>
                 </Pressable>
               )
             })}
@@ -170,20 +171,20 @@ export default function ParentGradesScreen() {
           <>
             <View style={styles.avgCard}>
               <View style={{ gap: 2 }}>
-                <Text style={styles.avgLabel}>Средний балл</Text>
+                <Text style={styles.avgLabel}>{uiText("Средний балл")}</Text>
                 <Text style={styles.avgValue}>{overall != null ? overall.toFixed(1) : '—'}</Text>
               </View>
               <View style={styles.avgChip}>
                 <Text style={styles.avgChipText}>
                   {trend != null
                     ? trendLabel(trend)
-                    : `${grades.length} ${grades.length === 1 ? 'оценка' : grades.length < 5 && grades.length > 0 ? 'оценки' : 'оценок'}`}
+                    : `${grades.length} ${grades.length === 1 ? uiText("оценка") : grades.length < 5 && grades.length > 0 ? uiText("оценки") : uiText("оценок")}`}
                 </Text>
               </View>
             </View>
 
             {rows.length === 0 ? (
-              <EmptyState title="Оценок пока нет" hint="Они появятся здесь, как только учитель поставит первую." />
+              <EmptyState title={uiText("Оценок пока нет")} hint={uiText("Они появятся здесь, как только учитель поставит первую.")} />
             ) : (
               rows.map((r) => {
                 const marks = (marksBySubject.get(r.subjectId) ?? []).slice(-6)
@@ -211,15 +212,15 @@ export default function ParentGradesScreen() {
             )}
           </>
         ) : upcoming.length === 0 ? (
-          <EmptyState title="Заданий нет" hint="Ближайших домашних заданий не найдено." />
+          <EmptyState title={uiText("Заданий нет")} hint={uiText("Ближайших домашних заданий не найдено.")} />
         ) : (
           upcoming.map((h) => (
             <Card key={h.id} padding={14} style={{ gap: 4 }}>
               <View style={styles.hwHead}>
                 <Text style={styles.subjectName} numberOfLines={1}>
-                  {h.subject?.name ?? 'Задание'}
+                  {h.subject?.name ?? uiText("Задание")}
                 </Text>
-                <Text style={styles.due}>до {dayjs(h.dueDate).format('D MMM')}</Text>
+                <Text style={styles.due}>{uiText("до") + " "}{dayjs(h.dueDate).format('D MMM')}</Text>
               </View>
               <Text style={styles.hwText}>{h.title}</Text>
               {h.description ? <Text style={styles.hwDesc}>{h.description}</Text> : null}

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useState } from 'react'
 import { App as AntdApp, Button, Tooltip } from 'antd'
 import { BellOutlined } from '@ant-design/icons'
@@ -9,23 +10,23 @@ export function describeAlertTest(r: AlertTestResult): { ok: boolean; text: stri
   if (r.ok) {
     return {
       ok: true,
-      text: `Проверочное письмо отправлено (адресов: ${r.recipients}). Найдите «Проверка оповещений» в почте, загляните и в «Спам».`,
+      text: uiText("Проверочное письмо отправлено (адресов: {0}). Найдите «Проверка оповещений» в почте, загляните и в «Спам».", r.recipients),
     }
   }
   switch (r.reason) {
     case 'NO_RECIPIENTS':
-      return { ok: false, text: 'Оповещения выключены: в Railway не задана переменная ALERT_EMAIL. Впишите туда свою почту.' }
+      return { ok: false, text: uiText("Оповещения выключены: в Railway не задана переменная ALERT_EMAIL. Впишите туда свою почту.") }
     case 'MAIL_NOT_CONFIGURED':
-      return { ok: false, text: 'Почта на сервере не настроена: в Railway нет RESEND_API_KEY.' }
+      return { ok: false, text: uiText("Почта на сервере не настроена: в Railway нет RESEND_API_KEY.") }
     case 'MAIL_REJECTED':
       return {
         ok: false,
-        text: `Почтовый сервис отклонил письмо${r.detail ? `: ${r.detail}` : ''}. Проверьте домен и ключ в Resend.`,
+        text: uiText("Почтовый сервис отклонил письмо{0}. Проверьте домен и ключ в Resend.", r.detail ? `: ${r.detail}` : ''),
       }
     case 'MAIL_NETWORK':
-      return { ok: false, text: 'Не удалось связаться с почтовым сервисом. Попробуйте ещё раз позже.' }
+      return { ok: false, text: uiText("Не удалось связаться с почтовым сервисом. Попробуйте ещё раз позже.") }
     default:
-      return { ok: false, text: 'Не удалось отправить проверочное письмо.' }
+      return { ok: false, text: uiText("Не удалось отправить проверочное письмо.") }
   }
 }
 
@@ -42,17 +43,16 @@ export default function AlertsCheckButton() {
       else message.warning(text, 10)
     } catch (err) {
       const e = err as { response?: { data?: { message?: string } } }
-      message.error(e.response?.data?.message || 'Не удалось выполнить проверку: сервер не ответил.')
+      message.error(e.response?.data?.message || uiText("Не удалось выполнить проверку: сервер не ответил."))
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Tooltip title="Отправит тестовое письмо на ALERT_EMAIL: так вы узнаете, что при поломке сервера письмо придёт">
+    <Tooltip title={uiText("Отправит тестовое письмо на ALERT_EMAIL: так вы узнаете, что при поломке сервера письмо придёт")}>
       <Button icon={<BellOutlined />} loading={loading} onClick={check}>
-        Проверить оповещения
-      </Button>
+        {" " + uiText("Проверить оповещения") + " "}</Button>
     </Tooltip>
   )
 }

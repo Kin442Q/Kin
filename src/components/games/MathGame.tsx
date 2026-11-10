@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 import { Input } from 'antd'
 
@@ -54,8 +55,8 @@ export default function MathGame({ onFinish }: GameProps) {
   return (
     <div style={{ textAlign: 'center' }}>
       <div style={{ display: 'flex', gap: 24, justifyContent: 'center', color: SP.textMid, fontWeight: 600 }}>
-        <span>Осталось: {Math.max(left, 0)} с</span>
-        <span>Верно: {correct}</span>
+        <span>{uiText("Осталось:") + " "}{Math.max(left, 0)} {" " + uiText("с")}</span>
+        <span>{uiText("Верно:") + " "}{correct}</span>
       </div>
       <div
         style={{
@@ -76,7 +77,7 @@ export default function MathGame({ onFinish }: GameProps) {
         onPressEnter={submit}
         inputMode="numeric"
         disabled={left <= 0}
-        placeholder="Ответ и Enter"
+        placeholder={uiText("Ответ и Enter")}
         style={{ maxWidth: 220, height: 48, fontSize: 22, textAlign: 'center' }}
       />
     </div>
