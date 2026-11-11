@@ -83,6 +83,8 @@ export function createPrismaMock() {
     kidNote: model(),
     subject: model(),
     libraryItem: model(),
+    storedFile: model(),
+    lessonMaterial: model(),
     examTrack: model(),
     quiz: model(),
     quizQuestion: model(),

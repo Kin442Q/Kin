@@ -93,6 +93,7 @@ export const ru = {
   'nav.homework': 'Домашние задания',
   'nav.schedule': 'Расписание уроков',
   'nav.library': 'Библиотека',
+  'nav.lessonMaterials': 'Материалы к урокам',
   'nav.quizzes': 'Квизы',
   'nav.payments': 'Оплата',
   'nav.expenses': 'Расходы',

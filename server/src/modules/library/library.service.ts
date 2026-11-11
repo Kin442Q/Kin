@@ -1,16 +1,26 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import type { Prisma } from '@prisma/client'
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
-import { assertCanManage, requireSchool } from '../../common/content-access'
+import { assertCanManage, assertSameSchool, requireSchool } from '../../common/content-access'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { FilesService } from '../files/files.service'
 import type { CreateLibraryItemDto, LibraryType, UpdateLibraryItemDto } from './library.dto'
 
 const READERS = ['STUDENT', 'TEACHER', 'ADMIN', 'SUPER_ADMIN']
 
+const INCLUDE = {
+  subject: { select: { id: true, name: true, color: true } },
+  author: { select: { id: true, fullName: true } },
+  file: { select: { id: true, name: true, size: true, mime: true } },
+} satisfies Prisma.LibraryItemInclude
+
 @Injectable()
 export class LibraryService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly files: FilesService,
+  ) {}
 
   private async assertSubject(kindergartenId: string, subjectId?: string | null) {
     if (!subjectId) return
@@ -46,28 +56,38 @@ export class LibraryService {
     return this.prisma.libraryItem.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: {
-        subject: { select: { id: true, name: true, color: true } },
-        author: { select: { id: true, fullName: true } },
-      },
+      include: INCLUDE,
     })
   }
 
   async create(user: AuthUser, dto: CreateLibraryItemDto) {
     const kindergartenId = requireSchool(user)
     await this.assertSubject(kindergartenId, dto.subjectId)
-    return this.prisma.libraryItem.create({
-      data: {
-        kindergartenId,
-        title: dto.title.trim(),
-        description: dto.description?.trim() || null,
-        type: dto.type,
-        url: dto.url.trim(),
-        subjectId: dto.subjectId || null,
-        gradeNumber: dto.gradeNumber ?? null,
-        authorId: user.sub,
-      },
-    })
+
+    const url = dto.url?.trim() || null
+    if (!url && !dto.fileId) throw new BadRequestException('Укажите ссылку или загрузите файл')
+
+    const file = dto.fileId ? await this.files.claim(user, dto.fileId) : null
+    try {
+      return await this.prisma.libraryItem.create({
+        data: {
+          kindergartenId,
+          title: dto.title.trim(),
+          description: dto.description?.trim() || null,
+          type: dto.type,
+          url,
+          fileId: file?.id ?? null,
+          subjectId: dto.subjectId || null,
+          gradeNumber: dto.gradeNumber ?? null,
+          authorId: user.sub,
+        },
+        include: INCLUDE,
+      })
+    } catch (e) {
+      // запись не создалась — отпустить файл, чтобы его убрала ночная чистка
+      if (file) await this.prisma.storedFile.update({ where: { id: file.id }, data: { attached: false } }).catch(() => undefined)
+      throw e
+    }
   }
 
   private async load(id: string) {
@@ -85,15 +105,47 @@ export class LibraryService {
     if (dto.title !== undefined) data.title = dto.title.trim()
     if (dto.description !== undefined) data.description = dto.description?.trim() || null
     if (dto.type !== undefined) data.type = dto.type
-    if (dto.url !== undefined) data.url = dto.url.trim()
+    if (dto.url !== undefined) data.url = dto.url?.trim() || null
     if (dto.subjectId !== undefined) data.subjectId = dto.subjectId || null
     if (dto.gradeNumber !== undefined) data.gradeNumber = dto.gradeNumber ?? null
-    return this.prisma.libraryItem.update({ where: { id }, data })
+
+    let newFileId: string | null | undefined
+    if (dto.fileId !== undefined) {
+      newFileId = dto.fileId ? (await this.files.claim(user, dto.fileId)).id : null
+      data.fileId = newFileId
+    }
+
+    // Проверяем только когда правка трогает ссылку или файл: правка названия
+    // не должна упираться в состояние, которого она не меняет.
+    if ('url' in data || 'fileId' in data) {
+      const nextUrl = 'url' in data ? data.url : item.url
+      const nextFile = 'fileId' in data ? data.fileId : item.fileId
+      if (!nextUrl && !nextFile) throw new BadRequestException('Нужна ссылка или файл')
+    }
+
+    const updated = await this.prisma.libraryItem.update({ where: { id }, data, include: INCLUDE })
+    // файл заменили или убрали — старый удаляем из хранилища
+    if (newFileId !== undefined && item.fileId && item.fileId !== newFileId) {
+      await this.files.removeFile(item.fileId)
+    }
+    return updated
   }
 
   async remove(user: AuthUser, id: string) {
     const item = await this.load(id)
     assertCanManage(user, item)
     await this.prisma.libraryItem.delete({ where: { id } })
+    await this.files.removeFile(item.fileId)
+  }
+
+  /** Ссылка на скачивание файла материала. */
+  async fileLink(user: AuthUser, id: string) {
+    if (!READERS.includes(user.role)) throw new ForbiddenException('Нет доступа')
+    const item = await this.load(id)
+    assertSameSchool(user, item.kindergartenId)
+    if (!item.fileId) throw new NotFoundException('У материала нет файла — откройте его по ссылке')
+    const file = await this.prisma.storedFile.findUnique({ where: { id: item.fileId } })
+    if (!file) throw new NotFoundException('Файл удалён')
+    return this.files.createLink(file)
   }
 }

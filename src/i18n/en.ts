@@ -84,6 +84,7 @@ export const en: Record<keyof typeof ru, Msg> = {
   'nav.homework': 'Homework',
   'nav.schedule': 'Lesson schedule',
   'nav.library': 'Library',
+  'nav.lessonMaterials': 'Lesson materials',
   'nav.quizzes': 'Quizzes',
   'nav.payments': 'Payments',
   'nav.expenses': 'Expenses',

@@ -64,6 +64,8 @@ import StudentQuizPlayScreen from '../screens/StudentQuizPlayScreen'
 import StudentExamScreen from '../screens/StudentExamScreen'
 import StudentGamesScreen from '../screens/StudentGamesScreen'
 import StudentGameScreen from '../screens/StudentGameScreen'
+import StudentMaterialsScreen from '../screens/StudentMaterialsScreen'
+import TeacherMaterialsScreen from '../screens/TeacherMaterialsScreen'
 
 import { themedValue } from '../theme/themedStyles'
 import { getScheme } from '../theme/colors'
@@ -117,7 +119,7 @@ function buildTabs(role: TabRole): TabConfig[] {
         label: uiText("Учёба"),
         icon: Brain,
         component: StudentLearnScreen,
-        anyFeature: ['library', 'quiz', 'exam_prep', 'games'],
+        anyFeature: ['library', 'lesson_materials', 'quiz', 'exam_prep', 'games'],
       },
       { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
     ]
@@ -231,6 +233,8 @@ function MainNavigator() {
       <RootStack.Screen name="StudentExam" component={StudentExamScreen} />
       <RootStack.Screen name="StudentGames" component={StudentGamesScreen} />
       <RootStack.Screen name="StudentGame" component={StudentGameScreen} />
+      <RootStack.Screen name="StudentMaterials" component={StudentMaterialsScreen} />
+      <RootStack.Screen name="TeacherMaterials" component={TeacherMaterialsScreen} />
     </RootStack.Navigator>
   )
 }

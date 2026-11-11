@@ -30,6 +30,7 @@ export type FeatureKey =
   | 'diary'
   | 'portal'
   | 'library'
+  | 'lesson_materials'
   | 'quiz'
   | 'exam_prep'
   | 'games'
@@ -147,6 +148,12 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
   library: {
     label: 'Библиотека',
     description: 'Книги, статьи, видео и ссылки для учеников: учителя добавляют, ученики читают',
+    group: 'studying',
+    defaultEnabled: true,
+  },
+  lesson_materials: {
+    label: 'Материалы к уроку',
+    description: 'Учитель выкладывает классу файл, ссылку или текст урока; хранится 30 дней и удаляется сам',
     group: 'studying',
     defaultEnabled: true,
   },
