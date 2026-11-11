@@ -10,6 +10,8 @@ import { SproutPageHeader } from '../../components/sprout'
 import { exportRows } from '../../lib/exportXlsx'
 import { ministryApi, type SchoolRow } from '../../api/ministryApi'
 import { HeatCell, MinistryFilterBar, num, placeName, useMinistryQuery } from './shared'
+import { TableTitle, helpColumns } from '../../components/TableHelp'
+import { ministryHelp, ministryTables } from './help'
 
 // Карта тяжёлая (Leaflet): грузится только когда её открыли.
 const SchoolsMap = lazy(() => import('./SchoolsMap'))
@@ -133,11 +135,11 @@ export default function MinistrySchoolsPage() {
           </Suspense>
         </>
       ) : (
-        <Card styles={{ body: { padding: 0 } }}>
+        <Card title={<TableTitle title={uiText('Школы')} {...ministryTables().schools} />} styles={{ body: { padding: 0 } }}>
           <Table<SchoolRow>
             size="middle"
             rowKey="id"
-            columns={columns}
+            columns={helpColumns(columns, { rowLabel: (r) => r.name, help: ministryHelp<SchoolRow>() })}
             dataSource={rows}
             pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }}
             scroll={{ x: 'max-content' }}

@@ -11,6 +11,8 @@ import { ministryApi, type MinistryOverview } from '../../api/ministryApi'
 import { HeatCell, MinistryFilterBar, num, pct, placeName, useMinistryFilters, useMinistryQuery } from './shared'
 
 import { BandsChart, CompareChart, TrendChart, type CompareItem } from './charts'
+import { TableTitle, helpColumns } from '../../components/TableHelp'
+import { ministryHelp, ministryTables } from './help'
 
 // Карта тянет leaflet — грузим её отдельным куском и только когда экран дошёл до неё.
 const SchoolsMap = lazy(() => import('./SchoolsMap'))
@@ -189,18 +191,18 @@ export default function MinistryOverviewPage() {
             )}
           </Card>
 
-          <Card title={uiText('По областям')} style={{ marginBottom: 16 }} styles={{ body: { padding: 0 } }}>
+          <Card title={<TableTitle title={uiText('По областям')} {...ministryTables().regions} />} style={{ marginBottom: 16 }} styles={{ body: { padding: 0 } }}>
             <Table<RegionRow>
               size="middle"
               rowKey={(r) => r.region?.id ?? 'none'}
-              columns={columns}
+              columns={helpColumns(columns, { rowLabel: (r) => placeName(r.region), help: ministryHelp<RegionRow>() })}
               dataSource={data?.regions ?? []}
               pagination={false}
               scroll={{ x: 'max-content' }}
             />
           </Card>
 
-          <Card title={uiText('Школы, которым нужно внимание')}>
+          <Card title={<TableTitle title={uiText('Школы, которым нужно внимание')} {...ministryTables().attention} />}>
             {data && data.attention.length > 0 ? (
               <div style={{ display: 'grid', gap: 10 }}>
                 {data.attention.map((s) => (
