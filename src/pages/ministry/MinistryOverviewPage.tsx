@@ -1,13 +1,19 @@
-import { Alert, Card, Empty, Skeleton, Table, Tag } from 'antd'
+import { lazy, Suspense, useMemo } from 'react'
+import { Alert, Card, Col, Empty, Row, Skeleton, Table, Tag } from 'antd'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, BookOpenCheck, GraduationCap, School, Stethoscope, Target, UserRound, Users } from 'lucide-react'
 import type { ColumnsType } from 'antd/es/table'
 
 import { uiText } from '../../i18n/uiText'
-import { useT } from '../../i18n'
+import { useLangStore, useT } from '../../i18n'
 import { SP, SproutKPI, SproutPageHeader } from '../../components/sprout'
 import { ministryApi, type MinistryOverview } from '../../api/ministryApi'
 import { HeatCell, MinistryFilterBar, num, pct, placeName, useMinistryFilters, useMinistryQuery } from './shared'
+
+import { BandsChart, CompareChart, TrendChart, type CompareItem } from './charts'
+
+// Карта тянет leaflet — грузим её отдельным куском и только когда экран дошёл до неё.
+const SchoolsMap = lazy(() => import('./SchoolsMap'))
 
 type RegionRow = MinistryOverview['regions'][number]
 
@@ -21,6 +27,50 @@ export default function MinistryOverviewPage() {
 
   const data = overview.data
   const t = data?.total
+  const lang = useLangStore((s) => s.lang)
+
+  // Что сравниваем на диаграмме: школы района, районы области или области. Если в охвате одна область,
+  // сразу районы: одна область на диаграмме ничего не сравнивает.
+  const mode: 'schools' | 'districts' | 'regions' = query.districtId
+    ? 'schools'
+    : query.regionId || data?.regions.length === 1
+      ? 'districts'
+      : 'regions'
+  const trend = useQuery({ queryKey: ['ministry', 'trend', query], queryFn: () => ministryApi.trend(query) })
+  const schoolsQ = useQuery({ queryKey: ['ministry', 'schools', query], queryFn: () => ministryApi.schools(query) })
+  const districtsQ = useQuery({
+    queryKey: ['ministry', 'districts', query],
+    queryFn: () => ministryApi.districts(query),
+    enabled: mode === 'districts',
+  })
+  const schoolRows = useMemo(() => schoolsQ.data?.schools ?? [], [schoolsQ.data])
+  const located = schoolRows.filter((s) => s.latitude != null && s.longitude != null).length
+
+  const compareItems: CompareItem[] = useMemo(() => {
+    if (mode === 'schools') {
+      return schoolRows.map((s) => ({ id: s.id, name: s.name, quality: s.quality, success: s.success, attendanceRate: s.attendanceRate }))
+    }
+    if (mode === 'districts') {
+      return (districtsQ.data?.districts ?? []).map((d) => ({
+        id: d.district?.id ?? 'none',
+        name: placeName(d.district),
+        quality: d.quality,
+        success: d.success,
+        attendanceRate: d.attendanceRate,
+      }))
+    }
+    return (data?.regions ?? []).map((r) => ({
+      id: r.region?.id ?? 'none',
+      name: placeName(r.region),
+      quality: r.quality,
+      success: r.success,
+      attendanceRate: r.attendanceRate,
+    }))
+    // lang: названия мест зависят от языка интерфейса
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, schoolRows, districtsQ.data, data, lang])
+  const compareTitle =
+    mode === 'schools' ? uiText('Школы района') : mode === 'districts' ? uiText('Районы и города') : uiText('Области')
 
   const columns: ColumnsType<RegionRow> = [
     { title: uiText('Область'), key: 'region', render: (_, r) => placeName(r.region), sorter: (a, b) => placeName(a.region).localeCompare(placeName(b.region)) },
@@ -85,6 +135,59 @@ export default function MinistryOverviewPage() {
               )}
             />
           )}
+
+          {data && data.noData.scaleMismatch > 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={uiText('Проверьте шкалу оценок у школ: {0}', data.noData.scaleMismatch)}
+              description={uiText(
+                'В этих школах есть оценки выше максимума шкалы (например, 8 при пятибалльной), поэтому средний балл может быть выше 100 %. Скорее всего, у школы выбрана пятибалльная шкала вместо десятибалльной. Шкалу меняет владелец платформы в настройках школы.',
+              )}
+            />
+          )}
+
+          <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+            <Col xs={24} lg={15}>
+              <Card title={uiText('Динамика по неделям')} extra={<span style={{ fontSize: 12, color: SP.muted }}>{uiText('в процентах')}</span>}>
+                {trend.isLoading ? <Skeleton active paragraph={{ rows: 5 }} /> : <TrendChart weeks={trend.data?.weeks ?? []} />}
+              </Card>
+            </Col>
+            <Col xs={24} lg={9}>
+              <Card title={uiText('Школы по среднему баллу')}>
+                {schoolsQ.isLoading ? <Skeleton active paragraph={{ rows: 5 }} /> : <BandsChart schools={schoolRows} />}
+              </Card>
+            </Col>
+          </Row>
+
+          <Card title={compareTitle} extra={<span style={{ fontSize: 12, color: SP.muted }}>{uiText('в процентах')}</span>} style={{ marginBottom: 16 }}>
+            {overview.isLoading || schoolsQ.isLoading || (mode === 'districts' && districtsQ.isLoading) ? (
+              <Skeleton active paragraph={{ rows: 5 }} />
+            ) : (
+              <CompareChart items={compareItems} />
+            )}
+          </Card>
+
+          <Card
+            title={uiText('Карта школ')}
+            style={{ marginBottom: 16 }}
+            extra={
+              <span style={{ fontSize: 12, color: SP.muted }}>
+                {uiText('Цвет метки — средний балл: красный — низкий, зелёный — высокий, серый — нет оценок, фиолетовый — проверить шкалу. На карте школ: {0} из {1}', located, schoolRows.length)}
+              </span>
+            }
+          >
+            {schoolsQ.isLoading ? (
+              <Skeleton active paragraph={{ rows: 6 }} />
+            ) : located > 0 ? (
+              <Suspense fallback={<Skeleton active paragraph={{ rows: 6 }} />}>
+                <SchoolsMap schools={schoolRows} height={420} />
+              </Suspense>
+            ) : (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={uiText('У школ выборки не заданы координаты, поэтому карту построить нельзя. Координаты школа указывает в настройках.')} />
+            )}
+          </Card>
 
           <Card title={uiText('По областям')} style={{ marginBottom: 16 }} styles={{ body: { padding: 0 } }}>
             <Table<RegionRow>

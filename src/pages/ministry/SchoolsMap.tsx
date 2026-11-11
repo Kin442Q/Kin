@@ -10,8 +10,15 @@ import { num, pct, placeName } from './shared'
 /** Центр Таджикистана: карта открывается на всю страну, пока нет школ с координатами. */
 const TAJIKISTAN: [number, number] = [38.9, 71.0]
 
-/** Цвет метки по среднему баллу: красный — низкий, зелёный — высокий, серый — оценок нет. */
-export function markerColor(avgPercent: number | null): string {
+/** Цвет метки школы, у которой оценки выше шкалы: её средний балл недостоверен, поэтому не зелёный и не красный. */
+export const SCALE_MISMATCH_COLOR = '#8B7BD4'
+
+/**
+ * Цвет метки по среднему баллу: красный — низкий, зелёный — высокий, серый — оценок нет,
+ * фиолетовый — оценки выше шкалы школы (шкалу надо проверить).
+ */
+export function markerColor(avgPercent: number | null, scaleMismatch = false): string {
+  if (scaleMismatch) return SCALE_MISMATCH_COLOR
   if (avgPercent == null) return '#94a3b8'
   const t = Math.min(1, Math.max(0, (avgPercent - 50) / 50))
   return `hsl(${Math.round(t * 130)}, 70%, 42%)`
@@ -47,7 +54,7 @@ export default function SchoolsMap({ schools, height = 520 }: { schools: SchoolR
             key={s.id}
             center={[s.latitude!, s.longitude!]}
             radius={8}
-            pathOptions={{ color: '#fff', weight: 2, fillColor: markerColor(s.avgPercent), fillOpacity: 0.95 }}
+            pathOptions={{ color: '#fff', weight: 2, fillColor: markerColor(s.avgPercent, s.flags.scaleMismatch), fillOpacity: 0.95 }}
           >
             <Popup>
               <strong>{s.name}</strong>
@@ -55,6 +62,12 @@ export default function SchoolsMap({ schools, height = 520 }: { schools: SchoolR
               {[placeName(s.region), placeName(s.district)].join(' · ')}
               <br />
               {uiText('Средний балл')}: {pct(s.avgPercent)}
+              {s.flags.scaleMismatch && (
+                <>
+                  <br />
+                  <em>{uiText('Оценки выше шкалы школы: проверьте шкалу')}</em>
+                </>
+              )}
               <br />
               {uiText('Качество знаний')}: {pct(s.quality)}
               <br />

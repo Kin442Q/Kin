@@ -104,7 +104,14 @@ export interface SchoolRow extends Metrics {
   /** Место в рейтинге по средней оценке среди школ выборки; null — оценок за период нет. */
   rank: number | null
   /** Чего не хватает в данных школы за период — чтобы пустое не читалось как плохое. */
-  flags: { noGrades: boolean; noAttendance: boolean; noTeachers: boolean; noLocation: boolean }
+  flags: {
+    noGrades: boolean
+    noAttendance: boolean
+    noTeachers: boolean
+    noLocation: boolean
+    /** Есть оценки выше максимума шкалы школы: вероятно, у школы указана пятибалльная шкала вместо десятибалльной. */
+    scaleMismatch: boolean
+  }
 }
 
 export interface Rollup extends Metrics {
@@ -144,7 +151,29 @@ type KindergartenWithGeo = Prisma.KindergartenGetPayload<{
   }
 }>
 
-interface GradeRow { schoolId: string; grades: number; gradeShare: number; good: number; passed: number }
+/** overScale — оценок выше максимума шкалы школы: признак того, что шкала (5 или 10) выбрана неверно. */
+interface GradeRow { schoolId: string; grades: number; gradeShare: number; good: number; passed: number; overScale?: number }
+interface GradeTrendRow { week: string; grades: number; gradeShare: number; good: number }
+interface AttendanceTrendRow { week: string; present: number; absent: number; sick: number }
+
+/** Одна неделя динамики; weekStart — понедельник (YYYY-MM-DD). */
+export interface TrendPoint {
+  weekStart: string
+  gradesCount: number
+  avgPercent: number | null
+  quality: number | null
+  attendanceMarks: number
+  attendanceRate: number | null
+}
+
+/** Условие выбора школ по области/району из фильтра экрана. */
+function schoolFilter(query: MinistryQuery): Prisma.KindergartenWhereInput {
+  return query.districtId
+    ? { districtId: query.districtId }
+    : query.regionId
+      ? { district: { regionId: query.regionId } }
+      : {}
+}
 interface AttendanceRow { schoolId: string; present: number; absent: number; sick: number; vacation: number }
 
 const isoDay = (d: Date) => d.toISOString().slice(0, 10)
@@ -232,6 +261,7 @@ export class MinistryService {
         grades: rows.filter((r) => r.flags.noGrades).length,
         attendance: rows.filter((r) => r.flags.noAttendance).length,
         teachers: rows.filter((r) => r.flags.noTeachers).length,
+        scaleMismatch: rows.filter((r) => r.flags.scaleMismatch).length,
       },
     }
   }
@@ -283,6 +313,57 @@ export class MinistryService {
     }
   }
 
+  /**
+   * Динамика по неделям (неделя начинается в понедельник): средняя оценка, качество знаний и посещаемость
+   * по всей выборке. Только суммы по неделям; крайние недели периода могут быть неполными.
+   */
+  async trend(user: AuthUser, query: MinistryQuery): Promise<{ period: { from: string; to: string }; weeks: TrendPoint[] }> {
+    const access = await this.scope.resolve(user)
+    const { from, to } = resolvePeriod(query.from, query.to)
+    const period = { from: isoDay(from), to: isoDay(to) }
+
+    const schools = await this.prisma.kindergarten.findMany({
+      where: { AND: [access.where, schoolFilter(query)] },
+      select: { id: true },
+    })
+    if (!schools.length) return { period, weeks: [] }
+    const ids = schools.map((s) => s.id)
+
+    const [grades, attendance] = await Promise.all([this.gradeTrend(ids, from, to), this.attendanceTrend(ids, from, to)])
+    const byWeek = new Map<string, Acc>()
+    const accOf = (week: string) => {
+      const acc = byWeek.get(week) ?? emptyAcc()
+      byWeek.set(week, acc)
+      return acc
+    }
+    for (const g of grades) {
+      const acc = accOf(g.week)
+      acc.grades += g.grades
+      acc.gradeShare += g.gradeShare
+      acc.good += g.good
+    }
+    for (const a of attendance) {
+      const acc = accOf(a.week)
+      acc.present += a.present
+      acc.absent += a.absent
+      acc.sick += a.sick
+    }
+    const weeks = [...byWeek.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([weekStart, acc]) => {
+        const m = metricsOf(acc)
+        return {
+          weekStart,
+          gradesCount: m.gradesCount,
+          avgPercent: m.avgPercent,
+          quality: m.quality,
+          attendanceMarks: m.attendanceMarks,
+          attendanceRate: m.attendanceRate,
+        }
+      })
+    return { period, weeks }
+  }
+
   /** Список школ охвата с фильтрами и показателями за период — общий источник для всех экранов. */
   private async collect(user: AuthUser, query: MinistryQuery): Promise<Collected> {
     const access = await this.scope.resolve(user)
@@ -290,11 +371,7 @@ export class MinistryService {
     const period = { from: isoDay(from), to: isoDay(to) }
 
     // Фильтр сужает охват, но не расширяет его: условия объединяются через AND.
-    const filter: Prisma.KindergartenWhereInput = query.districtId
-      ? { districtId: query.districtId }
-      : query.regionId
-        ? { district: { regionId: query.regionId } }
-        : {}
+    const filter = schoolFilter(query)
     const schools: KindergartenWithGeo[] = await this.prisma.kindergarten.findMany({
       where: { AND: [access.where, filter] },
       orderBy: { name: 'asc' },
@@ -370,6 +447,7 @@ export class MinistryService {
           noAttendance: m.attendanceMarks === 0,
           noTeachers: teachersN === 0,
           noLocation: s.latitude == null || s.longitude == null,
+          scaleMismatch: (g?.overScale ?? 0) > 0,
         },
         ...m,
       }
@@ -397,7 +475,8 @@ export class MinistryService {
              COUNT(*)::int AS "grades",
              COALESCE(SUM(g."value"::float8 / CASE WHEN k."gradeScale" = 'TEN' THEN ${ten.max}::int ELSE ${five.max}::int END), 0)::float8 AS "gradeShare",
              (COUNT(*) FILTER (WHERE g."value" >= CASE WHEN k."gradeScale" = 'TEN' THEN ${ten.good}::int ELSE ${five.good}::int END))::int AS "good",
-             (COUNT(*) FILTER (WHERE g."value" >= CASE WHEN k."gradeScale" = 'TEN' THEN ${ten.pass}::int ELSE ${five.pass}::int END))::int AS "passed"
+             (COUNT(*) FILTER (WHERE g."value" >= CASE WHEN k."gradeScale" = 'TEN' THEN ${ten.pass}::int ELSE ${five.pass}::int END))::int AS "passed",
+             (COUNT(*) FILTER (WHERE g."value" > CASE WHEN k."gradeScale" = 'TEN' THEN ${ten.max}::int ELSE ${five.max}::int END))::int AS "overScale"
         FROM "Grade" g
         JOIN "Student" s ON s."id" = g."studentId"
         JOIN "Kindergarten" k ON k."id" = s."kindergartenId"
@@ -420,6 +499,41 @@ export class MinistryService {
        WHERE gr."kindergartenId" = ANY(${ids}::text[])
          AND a."date" BETWEEN ${from} AND ${to}
        GROUP BY gr."kindergartenId"
+    `
+  }
+
+  /** Оценки по неделям: те же суммы, что и по школам, но сгруппированы по понедельнику недели. */
+  private async gradeTrend(ids: string[], from: Date, to: Date): Promise<GradeTrendRow[]> {
+    const five = GRADE_THRESHOLDS.FIVE
+    const ten = GRADE_THRESHOLDS.TEN
+    return this.prisma.$queryRaw<GradeTrendRow[]>`
+      SELECT to_char(date_trunc('week', g."date"), 'YYYY-MM-DD') AS "week",
+             COUNT(*)::int AS "grades",
+             COALESCE(SUM(g."value"::float8 / CASE WHEN k."gradeScale" = 'TEN' THEN ${ten.max}::int ELSE ${five.max}::int END), 0)::float8 AS "gradeShare",
+             (COUNT(*) FILTER (WHERE g."value" >= CASE WHEN k."gradeScale" = 'TEN' THEN ${ten.good}::int ELSE ${five.good}::int END))::int AS "good"
+        FROM "Grade" g
+        JOIN "Student" s ON s."id" = g."studentId"
+        JOIN "Kindergarten" k ON k."id" = s."kindergartenId"
+       WHERE s."kindergartenId" = ANY(${ids}::text[])
+         AND g."date" BETWEEN ${from} AND ${to}
+       GROUP BY 1
+       ORDER BY 1
+    `
+  }
+
+  /** Посещаемость по неделям. */
+  private async attendanceTrend(ids: string[], from: Date, to: Date): Promise<AttendanceTrendRow[]> {
+    return this.prisma.$queryRaw<AttendanceTrendRow[]>`
+      SELECT to_char(date_trunc('week', a."date"), 'YYYY-MM-DD') AS "week",
+             (COUNT(*) FILTER (WHERE a."status" = 'PRESENT'))::int AS "present",
+             (COUNT(*) FILTER (WHERE a."status" = 'ABSENT'))::int AS "absent",
+             (COUNT(*) FILTER (WHERE a."status" = 'SICK'))::int AS "sick"
+        FROM "Attendance" a
+        JOIN "Group" gr ON gr."id" = a."groupId"
+       WHERE gr."kindergartenId" = ANY(${ids}::text[])
+         AND a."date" BETWEEN ${from} AND ${to}
+       GROUP BY 1
+       ORDER BY 1
     `
   }
 }

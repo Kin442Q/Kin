@@ -52,7 +52,14 @@ export interface SchoolRow extends Metrics {
   classes: number
   studentsPerTeacher: number | null
   rank: number | null
-  flags: { noGrades: boolean; noAttendance: boolean; noTeachers: boolean; noLocation: boolean }
+  flags: {
+    noGrades: boolean
+    noAttendance: boolean
+    noTeachers: boolean
+    noLocation: boolean
+    /** Есть оценки выше максимума шкалы школы: вероятно, указана пятибалльная шкала вместо десятибалльной. */
+    scaleMismatch: boolean
+  }
 }
 
 export interface MinistryQuery {
@@ -80,7 +87,17 @@ export interface MinistryOverview {
   total: Rollup
   regions: Array<Rollup & { region: GeoName | null }>
   attention: Array<{ id: string; name: string; district: GeoName | null; region: GeoName | null; avgPercent: number | null; quality: number | null }>
-  noData: { grades: number; attendance: number; teachers: number }
+  noData: { grades: number; attendance: number; teachers: number; scaleMismatch: number }
+}
+
+/** Одна неделя динамики; weekStart — понедельник (YYYY-MM-DD). null — данных за неделю нет. */
+export interface TrendPoint {
+  weekStart: string
+  gradesCount: number
+  avgPercent: number | null
+  quality: number | null
+  attendanceMarks: number
+  attendanceRate: number | null
 }
 
 export type DistrictRow = Rollup & { district: GeoName | null; region: GeoName | null }
@@ -118,6 +135,8 @@ export const ministryApi = {
   overview: (query: MinistryQuery) => http.get<MinistryOverview>('/v1/ministry/overview', { params: params(query) }).then((r) => r.data),
   schools: (query: MinistryQuery) =>
     http.get<{ period: Period; schools: SchoolRow[] }>('/v1/ministry/schools', { params: params(query) }).then((r) => r.data),
+  trend: (query: MinistryQuery) =>
+    http.get<{ period: Period; weeks: TrendPoint[] }>('/v1/ministry/trend', { params: params(query) }).then((r) => r.data),
   districts: (query: MinistryQuery) =>
     http.get<{ period: Period; districts: DistrictRow[] }>('/v1/ministry/districts', { params: params(query) }).then((r) => r.data),
 

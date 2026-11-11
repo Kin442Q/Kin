@@ -45,6 +45,12 @@ export class MinistryController {
   districts(@CurrentUser() user: AuthUser, @Query() query: MinistryQuery) {
     return this.service.districts(user, query)
   }
+
+  @Get('trend')
+  @ApiOperation({ summary: 'Динамика по неделям: средняя оценка, качество знаний и посещаемость по выборке' })
+  trend(@CurrentUser() user: AuthUser, @Query() query: MinistryQuery) {
+    return this.service.trend(user, query)
+  }
 }
 
 /** Учётные записи наблюдателей — только владелец платформы. Наблюдателю эти ручки закрыты. */
