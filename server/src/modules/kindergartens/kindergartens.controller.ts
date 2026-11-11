@@ -44,6 +44,8 @@ export class KindergartensController {
       name?: string
       address?: string
       phone?: string
+      /** Шкала оценок школы: FIVE | TEN. Район директор не меняет — его назначает владелец платформы. */
+      gradeScale?: 'FIVE' | 'TEN'
       latitude?: number | null
       longitude?: number | null
       checkInRadiusMeters?: number
@@ -64,6 +66,9 @@ export class KindergartensController {
       name: string
       address?: string
       phone?: string
+      /** id района или города из справочника GET /regions. */
+      districtId: string
+      gradeScale?: 'FIVE' | 'TEN'
       owner: {
         fullName: string
         /** На этот адрес уходит приглашение со ссылкой, где директор сам задаёт пароль. */
@@ -94,6 +99,9 @@ export class KindergartensController {
       name?: string
       address?: string
       phone?: string
+      /** null — снять привязку к району. */
+      districtId?: string | null
+      gradeScale?: 'FIVE' | 'TEN'
       isActive?: boolean
       latitude?: number | null
       longitude?: number | null

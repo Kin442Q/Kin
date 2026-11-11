@@ -56,6 +56,7 @@ export const en: Record<keyof typeof ru, Msg> = {
   'role.teacher': 'Teacher',
   'role.parent': 'Parent',
   'role.student': 'Student',
+  'role.viewer': 'Observer',
 
   'nav.section.platform': 'Platform',
   'nav.section.main': 'Main',
@@ -70,6 +71,8 @@ export const en: Record<keyof typeof ru, Msg> = {
   'nav.section.student': 'My workspace',
 
   'nav.schools': 'Schools',
+  'nav.viewers': 'Ministry and districts',
+  'nav.ministry': 'National overview',
   'nav.myCabinet': 'My workspace',
   'nav.home': 'Home',
   'nav.classes': 'Classes',

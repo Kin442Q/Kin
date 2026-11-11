@@ -29,6 +29,8 @@ import {
   MessageCircle,
   KeyRound,
   LogOut,
+  Landmark,
+  Globe2,
 } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -130,6 +132,25 @@ const NAV: NavEntry[] = [
     labelKey: 'nav.schools',
     icon: <School size={ICON_SIZE} strokeWidth={2} />,
     accentClass: 'sp-icon-blue',
+    roles: ['SUPER_ADMIN'],
+    globalOnly: true,
+    section: 'platform',
+  },
+  {
+    key: '/admin/viewers',
+    labelKey: 'nav.viewers',
+    icon: <Landmark size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-lilac',
+    roles: ['SUPER_ADMIN'],
+    globalOnly: true,
+    section: 'platform',
+  },
+  {
+    // Кабинет министерства открывается в своём каркасе: владелец видит его так же, как наблюдатель.
+    key: '/ministry/overview',
+    labelKey: 'nav.ministry',
+    icon: <Globe2 size={ICON_SIZE} strokeWidth={2} />,
+    accentClass: 'sp-icon-cyan',
     roles: ['SUPER_ADMIN'],
     globalOnly: true,
     section: 'platform',

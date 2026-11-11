@@ -63,6 +63,7 @@ export const ru = {
   'role.teacher': 'Учитель',
   'role.parent': 'Родитель',
   'role.student': 'Ученик',
+  'role.viewer': 'Наблюдатель',
 
   // ── Меню: разделы ──────────────────────────────────────
   'nav.section.platform': 'Платформа',
@@ -79,6 +80,8 @@ export const ru = {
 
   // ── Меню: пункты ───────────────────────────────────────
   'nav.schools': 'Школы',
+  'nav.viewers': 'Министерство и районы',
+  'nav.ministry': 'Сводка по стране',
   'nav.myCabinet': 'Мой кабинет',
   'nav.home': 'Главная',
   'nav.classes': 'Классы',

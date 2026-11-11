@@ -60,6 +60,7 @@ export const tg: Record<keyof typeof ru, Msg> = {
   'role.teacher': 'Омӯзгор',
   'role.parent': 'Падару модар',
   'role.student': 'Хонанда',
+  'role.viewer': 'Нозир',
 
   'nav.section.platform': 'Платформа',
   'nav.section.main': 'Асосӣ',
@@ -74,6 +75,8 @@ export const tg: Record<keyof typeof ru, Msg> = {
   'nav.section.student': 'Кабинети ман',
 
   'nav.schools': 'Мактабҳо',
+  'nav.viewers': 'Вазорат ва ноҳияҳо',
+  'nav.ministry': 'Маълумоти умумии кишвар',
   'nav.myCabinet': 'Кабинети ман',
   'nav.home': 'Асосӣ',
   'nav.classes': 'Синфҳо',

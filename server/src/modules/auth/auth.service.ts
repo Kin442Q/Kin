@@ -459,7 +459,8 @@ export class AuthService {
     })
 
     // Включённые разделы учреждения — фронт и мобилка строят меню по ним.
-    const features = await this.features.enabledKeys(user.kindergartenId)
+    // Наблюдателю школьные разделы не открываются вовсе (у него нет школы, enabledKeys(null) вернул бы все).
+    const features = user.role === 'VIEWER' ? [] : await this.features.enabledKeys(user.kindergartenId)
 
     return {
       user: { ...this.serialize(user), features },
@@ -507,6 +508,8 @@ export class AuthService {
         },
         // Классы, где пользователь — классный руководитель (меню «Мой класс»).
         homeroomGroups: { select: { id: true, name: true } },
+        // Наблюдатель: чья это учётная запись (шапка кабинета министерства).
+        viewerScope: { select: { organization: true, allSchools: true } },
       },
     })
     if (!user) throw new UnauthorizedException('Пользователь не найден')
@@ -514,7 +517,8 @@ export class AuthService {
       ...this.serialize(user),
       institution: user.kindergarten ?? null,
       homeroomGroups: user.homeroomGroups,
-      features: await this.features.enabledKeys(user.kindergartenId),
+      viewer: user.viewerScope ?? null,
+      features: user.role === 'VIEWER' ? [] : await this.features.enabledKeys(user.kindergartenId),
     }
   }
 

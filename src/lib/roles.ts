@@ -22,6 +22,8 @@ export function roleLabel(user: Pick<User, 'role' | 'kindergartenId' | 'homeroom
       return t('role.parent')
     case 'STUDENT':
       return t('role.student')
+    case 'VIEWER':
+      return t('role.viewer')
     default:
       return ''
   }

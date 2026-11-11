@@ -53,6 +53,12 @@ import ParentSchedulePage from "./pages/parent/ParentSchedulePage";
 import ParentGradesPage from "./pages/parent/ParentGradesPage";
 import ParentPaymentsPage from "./pages/parent/ParentPaymentsPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import MinistryLayout from "./components/layout/MinistryLayout";
+import RequireMinistry from "./components/auth/RequireMinistry";
+import MinistryOverviewPage from "./pages/ministry/MinistryOverviewPage";
+import MinistryDistrictsPage from "./pages/ministry/MinistryDistrictsPage";
+import MinistrySchoolsPage from "./pages/ministry/MinistrySchoolsPage";
+import ViewersPage from "./pages/ministry/ViewersPage";
 
 export default function App() {
   const location = useLocation();
@@ -60,6 +66,7 @@ export default function App() {
   const isTeacher = user?.role === "TEACHER" || user?.role === "teacher";
   const isParent = user?.role === "PARENT";
   const isStudent = user?.role === "STUDENT";
+  const isViewer = user?.role === "VIEWER";
 
   useSessionSync();
 
@@ -67,13 +74,50 @@ export default function App() {
   //   PARENT → личный кабинет родителя
   //   TEACHER → свой кабинет
   //   остальные → admin/dashboard
-  const homePath = isStudent
+  const homePath = isViewer
+    ? "/ministry/overview"
+    : isStudent
     ? "/student/home"
     : isParent
     ? "/parent/home"
     : isTeacher
       ? "/teacher/dashboard"
       : "/admin/dashboard";
+
+  // Кабинет министерства: свой каркас без школьного меню. Открыт наблюдателю и владельцу платформы.
+  const ministryRoutes = (
+    <Route
+      element={
+        <RequireAuth>
+          <RequireMinistry>
+            <MinistryLayout />
+          </RequireMinistry>
+        </RequireAuth>
+      }
+    >
+      <Route path="ministry">
+        <Route index element={<Navigate to="overview" replace />} />
+        <Route path="overview" element={<MinistryOverviewPage />} />
+        <Route path="districts" element={<MinistryDistrictsPage />} />
+        <Route path="schools" element={<MinistrySchoolsPage />} />
+      </Route>
+    </Route>
+  );
+
+  // Наблюдателю доступен только кабинет министерства: любой другой адрес ведёт на сводку,
+  // школьные экраны для него не открываются вовсе (сервер их тоже закрывает).
+  if (isViewer) {
+    return (
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/set-password" element={<SetPasswordPage />} />
+          {ministryRoutes}
+          <Route path="*" element={<Navigate to="/ministry/overview" replace />} />
+        </Routes>
+      </AnimatePresence>
+    );
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -87,6 +131,8 @@ export default function App() {
           path="/"
           element={user ? <Navigate to={homePath} replace /> : <LandingPage />}
         />
+
+        {ministryRoutes}
 
         <Route
           element={
@@ -316,6 +362,14 @@ export default function App() {
               element={
                 <RequireRole roles={["SUPER_ADMIN"]}>
                   <SchoolsPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="viewers"
+              element={
+                <RequireRole roles={["SUPER_ADMIN"]}>
+                  <ViewersPage />
                 </RequireRole>
               }
             />
