@@ -69,13 +69,26 @@ describe('SchoolService — учитель работает только с вы
     ).rejects.toThrow(ForbiddenException)
   })
 
-  it('админ ставит оценку по любому предмету школы', async () => {
+  it('директор и администратор школы оценки не ставят: 403, в БД ничего не пишется', async () => {
     const { prisma, service } = setup()
     prisma.student.findUnique.mockResolvedValue({ id: 'st1', groupId: 'g1', kindergartenId: 'kA' })
     prisma.subject.findUnique.mockResolvedValue({ id: 'art', kindergartenId: 'kA' })
-    prisma.grade.create.mockResolvedValue({ id: 'gr1', subject: { name: 'Рисование' } })
-    await service.upsertGrade(admin, { studentId: 'st1', subjectId: 'art', value: 4, date: '2026-11-05' } as never)
-    expect(prisma.grade.create).toHaveBeenCalled()
+    const director: AuthUser = { ...admin, sub: 'dir1', role: 'SUPER_ADMIN' }
+    for (const who of [admin, director]) {
+      await expect(
+        service.upsertGrade(who, { studentId: 'st1', subjectId: 'art', value: 4, date: '2026-11-05' } as never),
+      ).rejects.toThrow('Оценки ставит только учитель')
+    }
+    expect(prisma.grade.create).not.toHaveBeenCalled()
+  })
+
+  it('удалять оценки тоже может только учитель', async () => {
+    const { prisma, service } = setup()
+    prisma.grade.findUnique.mockResolvedValue({ id: 'gr1', subjectId: 'math', student: { groupId: 'g1', kindergartenId: 'kA' } })
+    await expect(service.deleteGrade(admin, 'gr1')).rejects.toThrow('Оценки удаляет только учитель')
+    expect(prisma.grade.delete).not.toHaveBeenCalled()
+    await service.deleteGrade(teacher, 'gr1')
+    expect(prisma.grade.delete).toHaveBeenCalledWith({ where: { id: 'gr1' } })
   })
 
   it('чтение оценок: чужой предмет по id не отдаётся, без subjectId — только выданные', async () => {
