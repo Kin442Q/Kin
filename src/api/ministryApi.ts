@@ -52,6 +52,8 @@ export interface SchoolRow extends Metrics {
   classes: number
   studentsPerTeacher: number | null
   rank: number | null
+  /** Сколько оценок не учтено из-за неверной шкалы школы (они выше её максимума); 0 — всё учтено. */
+  excludedGrades: number
   flags: {
     noGrades: boolean
     noAttendance: boolean

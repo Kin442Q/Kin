@@ -263,12 +263,36 @@ describe('MinistryService: оценки выше шкалы школы', () => {
     const byId = Object.fromEntries(schools.map((r) => [r.id, r]))
     expect(byId.s1.flags.scaleMismatch).toBe(true)
     expect(byId.s2.flags.scaleMismatch).toBe(false)
+    // оценки школы с неверной шкалой не показываются как показатели: вместо «170 %» — «нет данных» и счётчик
+    expect(byId.s1).toMatchObject({ avgPercent: null, quality: null, success: null, gradesCount: 0, excludedGrades: 100, rank: null })
+    expect(byId.s1.flags.noGrades).toBe(false)
+    expect(byId.s2).toMatchObject({ avgPercent: 60, gradesCount: 50, excludedGrades: 0 })
 
     prisma.$queryRaw
       .mockResolvedValueOnce([{ schoolId: 's1', grades: 100, gradeShare: 170, good: 90, passed: 100, overScale: 12 }])
       .mockResolvedValueOnce([])
     const overview = await service.overview(viewer, {})
     expect(overview.noData.scaleMismatch).toBe(1)
+  })
+
+  it('итоги по стране считаются без школы с неверной шкалой: средний балл не выходит за 100 %', async () => {
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        { schoolId: 's1', grades: 100, gradeShare: 170, good: 90, passed: 100, overScale: 12 }, // 170 % — шкала неверна
+        { schoolId: 's2', grades: 50, gradeShare: 30, good: 20, passed: 45, overScale: 0 }, // 60 %
+      ])
+      .mockResolvedValueOnce([{ schoolId: 's1', present: 90, absent: 5, sick: 5, vacation: 0 }])
+    const { total, regions, noData } = await service.overview(viewer, {})
+    // в итог вошли только оценки второй школы
+    expect(total).toMatchObject({ gradesCount: 50, avgPercent: 60, quality: 40, success: 90, schoolsWithGrades: 1 })
+    expect(total.avgPercent!).toBeLessThanOrEqual(100)
+    expect(regions.every((r) => r.avgPercent == null || r.avgPercent <= 100)).toBe(true)
+    // посещаемость школы с неверной шкалой при этом учитывается: шкала на неё не влияет
+    expect(total.attendanceMarks).toBe(100)
+    expect(total.attendanceRate).toBe(90)
+    expect(noData.scaleMismatch).toBe(1)
+    // «нет оценок» и «неверная шкала» не смешиваются
+    expect(noData.grades).toBe(0)
   })
 
   it('без признака overScale в ответе базы флаг не ставится', async () => {

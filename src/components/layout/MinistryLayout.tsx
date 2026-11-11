@@ -51,7 +51,7 @@ export default function MinistryLayout() {
           backdropFilter: 'blur(12px)',
         }}
       >
-        <div style={{ maxWidth: 1280, margin: '0 auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ maxWidth: 1480, margin: '0 auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           {isOwner && (
             <Tooltip title={uiText('К платформе')}>
               <Button type="text" icon={<ArrowLeft size={18} />} aria-label={uiText('К платформе')} onClick={() => navigate('/admin/schools')} />
@@ -112,7 +112,7 @@ export default function MinistryLayout() {
         </div>
       </header>
 
-      <main style={{ maxWidth: 1280, margin: '0 auto', padding: '20px 20px 48px' }}>
+      <main style={{ maxWidth: 1480, margin: '0 auto', padding: '20px 20px 48px' }}>
         <Outlet />
       </main>
 
