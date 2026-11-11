@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
 
 import { SP } from '../sprout'
@@ -54,8 +55,8 @@ export default function MemoryGame({ onFinish }: GameProps) {
   return (
     <div>
       <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginBottom: 14, color: SP.textMid, fontWeight: 600 }}>
-        <span>Ходов: {moves}</span>
-        <span>Время: {seconds} с</span>
+        <span>{uiText("Ходов:") + " "}{moves}</span>
+        <span>{uiText("Время:") + " "}{seconds} {" " + uiText("с")}</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, maxWidth: 380, margin: '0 auto' }}>
         {deck.map((card) => {
@@ -64,7 +65,7 @@ export default function MemoryGame({ onFinish }: GameProps) {
             <button
               key={card.id}
               type="button"
-              aria-label={faceUp ? card.symbol : 'Закрытая карточка'}
+              aria-label={faceUp ? card.symbol : uiText("Закрытая карточка")}
               onClick={() => flip(card.id)}
               style={{
                 aspectRatio: '1',

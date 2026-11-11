@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import {
   App as AntdApp,
@@ -62,7 +63,7 @@ export default function CheckInAuditPage() {
       })
       setItems(r.data)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка загрузки')
+      message.error(e?.response?.data?.message || uiText("Ошибка загрузки"))
     } finally {
       setLoading(false)
     }
@@ -76,10 +77,10 @@ export default function CheckInAuditPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Журнал check-in"
+        title={uiText("Журнал check-in")}
         icon={<MapPin size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Кто, когда и откуда отметился. Координаты сохраняются для аудита геофенсинга."
+        description={uiText("Кто, когда и откуда отметился. Координаты сохраняются для аудита геофенсинга.")}
         actions={
           <Space>
             <RangePicker
@@ -93,8 +94,7 @@ export default function CheckInAuditPage() {
               format="DD.MM.YYYY"
             />
             <Button icon={<RefreshCw size={14} />} onClick={load} loading={loading}>
-              Обновить
-            </Button>
+              {" " + uiText("Обновить") + " "}</Button>
           </Space>
         }
       />
@@ -108,21 +108,19 @@ export default function CheckInAuditPage() {
         >
           <Space size={16} wrap>
             <span style={{ fontSize: 13, color: SP.muted }}>
-              Точка учреждения:
-            </span>
+              {" " + uiText("Точка учреждения:") + " "}</span>
             <Tag style={{ background: SP.primaryGhost, color: SP.primaryDeep, border: 'none' }}>
               {inst.latitude.toFixed(6)}, {inst.longitude.toFixed(6)}
             </Tag>
             <Tag style={{ background: SP.surfaceAlt, border: 'none' }}>
-              Радиус {radius} м
+              {" " + uiText("Радиус") + " "}{radius} м
             </Tag>
             <a
               href={`https://www.google.com/maps?q=${inst.latitude},${inst.longitude}`}
               target="_blank"
               rel="noreferrer"
             >
-              Открыть на карте
-            </a>
+              {" " + uiText("Открыть на карте") + " "}</a>
           </Space>
         </Card>
       )}
@@ -134,7 +132,7 @@ export default function CheckInAuditPage() {
       ) : items.length === 0 ? (
         <Card className="glass" bordered={false}>
           <Empty
-            description="Записей check-in нет за выбранный период"
+            description={uiText("Записей check-in нет за выбранный период")}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </Card>
@@ -151,7 +149,7 @@ export default function CheckInAuditPage() {
               const distLabel =
                 e.distanceMeters != null
                   ? e.distanceMeters >= 1000
-                    ? (e.distanceMeters / 1000).toFixed(1) + ' км'
+                    ? (e.distanceMeters / 1000).toFixed(1) + uiText("км")
                     : e.distanceMeters + ' м'
                   : '—'
               return (
@@ -184,10 +182,10 @@ export default function CheckInAuditPage() {
                     </div>
                     <Text type="secondary" style={{ fontSize: 11 }}>
                       {e.verifyMethod === 'FACE' && '🔐 Face ID'}
-                      {e.verifyMethod === 'MANUAL' && 'Вручную'}
+                      {e.verifyMethod === 'MANUAL' && uiText("Вручную")}
                       {e.verifyMethod === 'PIN' && 'PIN'}
                       {e.verifyMethod === 'QR' && 'QR'}
-                      {e.verifyMethod === 'TERMINAL' && 'Терминал'}
+                      {e.verifyMethod === 'TERMINAL' && uiText("Терминал")}
                     </Text>
                   </Col>
                   <Col xs={12} sm={5}>
@@ -200,9 +198,9 @@ export default function CheckInAuditPage() {
                     {e.checkOut && (
                       <div>
                         <Text type="secondary" style={{ fontSize: 11 }}>
-                          до {dayjs(e.checkOut).format('HH:mm')}
+                          {" " + uiText("до") + " "}{dayjs(e.checkOut).format('HH:mm')}
                           {e.minutesWorked != null &&
-                            ` · ${Math.round(e.minutesWorked / 60 * 10) / 10}ч`}
+                            uiText("· {0}ч", Math.round(e.minutesWorked / 60 * 10) / 10)}
                         </Text>
                       </div>
                     )}
@@ -219,15 +217,14 @@ export default function CheckInAuditPage() {
                       </a>
                     ) : (
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        нет координат
-                      </Text>
+                        {" " + uiText("нет координат") + " "}</Text>
                     )}
                   </Col>
                   <Col xs={24} sm={5} style={{ textAlign: 'right' }}>
                     {e.distanceMeters != null ? (
                       <Tag
                         style={{
-                          background: outside ? '#FCEAE5' : SP.primaryGhost,
+                          background: outside ? 'var(--sp-rose-soft)' : SP.primaryGhost,
                           color: outside ? SP.danger : SP.primaryDeep,
                           border: 'none',
                           fontWeight: 700,
@@ -239,8 +236,7 @@ export default function CheckInAuditPage() {
                       </Tag>
                     ) : (
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        без гео
-                      </Text>
+                        {" " + uiText("без гео") + " "}</Text>
                     )}
                   </Col>
                 </Row>

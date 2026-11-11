@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { uiLanguage, uiText } from '../i18n/uiText'
+import { useMemo, useRef, useState } from 'react'
 import {
   App as AntdApp,
   Button,
@@ -25,6 +26,10 @@ import * as XLSX from 'xlsx'
 import { http } from '../api'
 import { SP } from './sprout'
 import type { Group } from '../types'
+import { classKey, compactClassName, findClassByName } from '../lib/classes'
+
+/** Цвета для классов, которые создаются автоматически при импорте. */
+const AUTO_CLASS_COLORS = ['#0D7A7C', '#3B8FBF', '#FFB020', '#8B7BD4', '#FF8A65', '#D9709B', '#1BA6A0', '#075B5D']
 
 const { Text } = Typography
 
@@ -54,6 +59,21 @@ const newKey = () => `d${Date.now()}_${seq++}`
 
 const HEADER_MAP: Record<string, keyof Draft | 'monthlyFee'> = {
   фамилия: 'lastName',
+  'last name': 'lastName',
+  насаб: 'lastName',
+  'first name': 'firstName',
+  ном: 'firstName',
+  patronymic: 'middleName',
+  'номи падар': 'middleName',
+  'date of birth': 'birthDate',
+  'санаи таваллуд': 'birthDate',
+  ҷинс: 'gender',
+  синф: 'groupName',
+  гурӯҳ: 'groupName',
+  'mother’s phone': 'motherPhone',
+  'father’s phone': 'fatherPhone',
+  'телефони модар': 'motherPhone',
+  'телефони падар': 'fatherPhone',
   имя: 'firstName',
   отчество: 'middleName',
   'дата рождения': 'birthDate',
@@ -74,8 +94,8 @@ const HEADER_MAP: Record<string, keyof Draft | 'monthlyFee'> = {
 
 function normGender(v: unknown): 'MALE' | 'FEMALE' | '' {
   const s = String(v ?? '').trim().toLowerCase()
-  if (['m', 'м', 'муж', 'male', 'мальчик', 'м.'].includes(s)) return 'MALE'
-  if (['f', 'ж', 'жен', 'female', 'девочка', 'ж.'].includes(s)) return 'FEMALE'
+  if (['m', 'м', 'муж', 'male', 'писар', 'п', 'мальчик', 'м.'].includes(s)) return 'MALE'
+  if (['f', 'ж', 'жен', 'female', 'духтар', 'д', 'девочка', 'ж.'].includes(s)) return 'FEMALE'
   return ''
 }
 
@@ -105,15 +125,23 @@ export default function ImportStudentsModal({
   const [defaultGroupId, setDefaultGroupId] = useState<string | undefined>()
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const groupLabel = 'класс'
+  const groupLabel = uiText("класс")
 
   const resolveGroupId = (groupName?: string): string | undefined => {
-    if (!groupName) return undefined
-    const g = groups.find(
-      (x) => x.name.trim().toLowerCase() === groupName.trim().toLowerCase(),
-    )
-    return g?.id
+    return findClassByName(groups, groupName)?.id
   }
+
+  // Классы из файла, которых ещё нет в школе: создадутся при импорте сами.
+  const missingClasses = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const d of drafts) {
+      if (!d.groupId && d.groupName?.trim()) {
+        const k = classKey(d.groupName)
+        if (!seen.has(k)) seen.set(k, compactClassName(d.groupName))
+      }
+    }
+    return Array.from(seen.values())
+  }, [drafts, uiLanguage()])
 
   const update = (key: string, patch: Partial<Draft>) =>
     setDrafts((d) => d.map((r) => (r.key === key ? { ...r, ...patch } : r)))
@@ -131,7 +159,7 @@ export default function ImportStudentsModal({
         defval: '',
       })
       if (rows.length === 0) {
-        message.warning('Файл пустой')
+        message.warning(uiText("Файл пустой"))
         return
       }
       const parsed: Draft[] = rows.map((row) => {
@@ -156,9 +184,9 @@ export default function ImportStudentsModal({
         return d
       })
       setDrafts((prev) => [...prev, ...parsed])
-      message.success(`Распознано строк: ${parsed.length}`)
+      message.success(uiText("Распознано строк: {0}", parsed.length))
     } catch (e: any) {
-      message.error('Не удалось прочитать файл: ' + (e?.message || e))
+      message.error(uiText("Не удалось прочитать файл:") + (e?.message || e))
     }
   }
 
@@ -185,9 +213,9 @@ export default function ImportStudentsModal({
           fatherPhone: it.fatherPhone ?? '',
         }))
         setDrafts((prev) => [...prev, ...parsed])
-        message.success(`AI распознал: ${parsed.length}`)
+        message.success(uiText("AI распознал: {0}", parsed.length))
       } catch (e: any) {
-        message.error(e?.response?.data?.message || 'Не удалось распознать фото')
+        message.error(e?.response?.data?.message || uiText("Не удалось распознать фото"))
       } finally {
         setScanning(false)
       }
@@ -197,28 +225,55 @@ export default function ImportStudentsModal({
 
   const downloadTemplate = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ['Фамилия', 'Имя', 'Отчество', 'Дата рождения', 'Пол', 'Класс', 'Телефон мамы', 'Телефон папы'],
-      ['Каримова', 'Айша', 'Ивановна', '2020-05-01', 'Ж', groups[0]?.name ?? '', '+992900112233', ''],
+      [uiText("Фамилия"), uiText("Имя"), uiText("Отчество"), uiText("Дата рождения"), uiText("Пол"), uiText("Класс"), uiText("Телефон мамы"), uiText("Телефон папы")],
+      [uiText("Каримова"), uiText("Айша"), uiText("Ивановна"), '2020-05-01', uiText("Ж"), groups[0]?.name ?? '', '+992900112233', ''],
     ])
     const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Ученики')
+    XLSX.utils.book_append_sheet(wb, ws, uiText("Ученики"))
     XLSX.writeFile(wb, 'shablon_ucheniki.xlsx')
   }
 
   const submit = async () => {
     if (drafts.length === 0) {
-      message.warning('Нет строк для создания')
+      message.warning(uiText("Нет строк для создания"))
       return
     }
     setCreating(true)
     try {
+      // Сначала создаём недостающие классы, чтобы ученики попали в свои классы
+      const needed = new Map<string, string>()
+      for (const d of drafts) {
+        if (!d.groupId && d.groupName?.trim()) {
+          const k = classKey(d.groupName)
+          if (!needed.has(k)) needed.set(k, compactClassName(d.groupName))
+        }
+      }
+      const createdIds = new Map<string, string>()
+      let colorIdx = groups.length
+      for (const [k, name] of needed) {
+        try {
+          const res = await http.post<{ id: string }>('/v1/groups', {
+            name,
+            color: AUTO_CLASS_COLORS[colorIdx % AUTO_CLASS_COLORS.length],
+          })
+          createdIds.set(k, res.data.id)
+          colorIdx++
+        } catch (e: any) {
+          throw new Error(
+            uiText("Не удалось создать класс «{0}»: {1}", name, e?.response?.data?.message || e?.message || uiText("ошибка")),
+          )
+        }
+      }
+      const classIdOf = (d: Draft) =>
+        d.groupId ?? (d.groupName?.trim() ? createdIds.get(classKey(d.groupName)) : undefined)
+
       const items = drafts.map((d) => ({
         lastName: d.lastName,
         firstName: d.firstName,
         middleName: d.middleName || undefined,
         birthDate: d.birthDate,
         gender: d.gender || 'MALE',
-        groupId: d.groupId ?? defaultGroupId,
+        groupId: classIdOf(d) ?? defaultGroupId,
         motherPhone: d.motherPhone || undefined,
         fatherPhone: d.fatherPhone || undefined,
       }))
@@ -229,19 +284,22 @@ export default function ImportStudentsModal({
       }>('/v1/students/bulk', { items })
 
       const { createdCount, errorCount, errors } = r.data
-      if (createdCount > 0) message.success(`Создано: ${createdCount}`)
+      if (createdCount > 0) message.success(uiText("Создано: {0}", createdCount))
       if (errorCount > 0) {
-        message.warning(`С ошибками: ${errorCount} — оставлены в таблице`)
+        message.warning(uiText("С ошибками: {0} — оставлены в таблице", errorCount))
         // оставляем только ошибочные строки для исправления
         const errRows = new Set(errors.map((e) => e.row))
-        setDrafts((d) => d.filter((_, i) => errRows.has(i)))
+        // Созданные классы запоминаем в строках, чтобы повторная отправка не создала их заново
+        setDrafts((d) =>
+          d.filter((_, i) => errRows.has(i)).map((r) => ({ ...r, groupId: classIdOf(r) ?? r.groupId })),
+        )
       } else {
         setDrafts([])
         onClose()
       }
       onDone()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка импорта')
+      message.error(e?.response?.data?.message || e?.message || uiText("Ошибка импорта"))
     } finally {
       setCreating(false)
     }
@@ -258,15 +316,14 @@ export default function ImportStudentsModal({
 
   return (
     <Modal
-      title="Импорт учеников"
+      title={uiText("Импорт учеников")}
       open={open}
       onCancel={onClose}
       width={1100}
       destroyOnClose
       footer={[
         <Button key="c" onClick={onClose}>
-          Закрыть
-        </Button>,
+          {" " + uiText("Закрыть") + " "}</Button>,
         <Button
           key="s"
           type="primary"
@@ -274,7 +331,7 @@ export default function ImportStudentsModal({
           disabled={drafts.length === 0}
           onClick={submit}
         >
-          Создать всех ({drafts.length})
+          {" " + uiText("Создать всех (")}{drafts.length})
         </Button>,
       ]}
     >
@@ -287,7 +344,7 @@ export default function ImportStudentsModal({
             return false
           }}
         >
-          <Button icon={<FileExcelOutlined />}>Загрузить Excel/CSV</Button>
+          <Button icon={<FileExcelOutlined />}>{uiText("Загрузить Excel/CSV")}</Button>
         </Upload>
 
         <Upload
@@ -299,13 +356,11 @@ export default function ImportStudentsModal({
           }}
         >
           <Button icon={<CameraOutlined />} loading={scanning}>
-            Фото списка (AI)
-          </Button>
+            {" " + uiText("Фото списка (AI)") + " "}</Button>
         </Upload>
 
         <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>
-          Шаблон Excel
-        </Button>
+          {" " + uiText("Шаблон Excel") + " "}</Button>
 
         <Button
           onClick={() =>
@@ -324,32 +379,40 @@ export default function ImportStudentsModal({
             ])
           }
         >
-          + Пустая строка
-        </Button>
+          {" " + uiText("+ Пустая строка") + " "}</Button>
       </Space>
 
       <div style={{ marginBottom: 12 }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
-          {groupLabel[0].toUpperCase() + groupLabel.slice(1)} по умолчанию (если
-          в строке не указан/не распознан):{' '}
+          {groupLabel[0].toUpperCase() + groupLabel.slice(1)} {" " + uiText("по умолчанию (если в строке не указан/не распознан):")}{' '}
         </Text>
         <Select
           size="small"
           allowClear
           style={{ minWidth: 200 }}
-          placeholder={`Выберите ${groupLabel}`}
+          placeholder={uiText("Выберите {0}", groupLabel)}
           value={defaultGroupId}
           onChange={setDefaultGroupId}
           options={groups.map((g) => ({ value: g.id, label: g.name }))}
         />
       </div>
 
+      {drafts.length > 0 && missingClasses.length > 0 && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={uiText("Новые классы: {0}", missingClasses.join(', '))}
+          description={uiText("Этих классов ещё нет в школе. При создании учеников они появятся автоматически, и каждый ученик попадёт в свой класс.")}
+        />
+      )}
+
       {drafts.length === 0 ? (
         <Alert
           type="info"
           showIcon
           icon={<InboxOutlined />}
-          message="Загрузите Excel/CSV или сфотографируйте список — строки появятся здесь для проверки перед созданием."
+          message={uiText("Загрузите Excel/CSV или сфотографируйте список — строки появятся здесь для проверки перед созданием.")}
         />
       ) : (
         <Table<Draft>
@@ -359,18 +422,18 @@ export default function ImportStudentsModal({
           pagination={false}
           scroll={{ y: 360, x: 980 }}
           columns={[
-            { title: 'Фамилия', width: 130, render: (_, r) => cell(r.key, 'lastName') },
-            { title: 'Имя', width: 120, render: (_, r) => cell(r.key, 'firstName') },
-            { title: 'Отчество', width: 120, render: (_, r) => cell(r.key, 'middleName') },
+            { title: uiText("Фамилия"), width: 130, render: (_, r) => cell(r.key, 'lastName') },
+            { title: uiText("Имя"), width: 120, render: (_, r) => cell(r.key, 'firstName') },
+            { title: uiText("Отчество"), width: 120, render: (_, r) => cell(r.key, 'middleName') },
             {
-              title: 'Дата рожд.',
+              title: uiText("Дата рожд."),
               width: 140,
               render: (_, r) => (
                 <DatePicker
                   size="small"
                   style={{ width: '100%' }}
                   format="DD.MM.YYYY"
-                  placeholder="дата"
+                  placeholder={uiText("дата")}
                   value={
                     r.birthDate && dayjs(r.birthDate).isValid()
                       ? dayjs(r.birthDate)
@@ -383,7 +446,7 @@ export default function ImportStudentsModal({
               ),
             },
             {
-              title: 'Пол',
+              title: uiText("Пол"),
               width: 80,
               render: (_, r) => (
                 <Select
@@ -392,14 +455,14 @@ export default function ImportStudentsModal({
                   value={r.gender || undefined}
                   onChange={(v) => update(r.key, { gender: v })}
                   options={[
-                    { value: 'MALE', label: 'М' },
-                    { value: 'FEMALE', label: 'Ж' },
+                    { value: 'MALE', label: uiText("М") },
+                    { value: 'FEMALE', label: uiText("Ж") },
                   ]}
                 />
               ),
             },
             {
-              title: 'Класс',
+              title: uiText("Класс"),
               width: 160,
               render: (_, r) => {
                 // Если задан класс по умолчанию — колонка disabled и показывает
@@ -415,7 +478,7 @@ export default function ImportStudentsModal({
                       options={[
                         {
                           value: defaultGroupId,
-                          label: `${defGroup?.name ?? ''} (по умолч.)`,
+                          label: uiText("{0} (по умолч.)", defGroup?.name ?? ''),
                         },
                       ]}
                     />
@@ -435,8 +498,8 @@ export default function ImportStudentsModal({
                 )
               },
             },
-            { title: 'Тел. мамы', width: 140, render: (_, r) => cell(r.key, 'motherPhone') },
-            { title: 'Тел. папы', width: 140, render: (_, r) => cell(r.key, 'fatherPhone') },
+            { title: uiText("Тел. мамы"), width: 140, render: (_, r) => cell(r.key, 'motherPhone') },
+            { title: uiText("Тел. папы"), width: 140, render: (_, r) => cell(r.key, 'fatherPhone') },
             {
               title: '',
               width: 40,
@@ -455,9 +518,7 @@ export default function ImportStudentsModal({
       )}
       <input ref={fileRef} type="file" hidden />
       <div style={{ marginTop: 8, fontSize: 11, color: SP.muted }}>
-        Проверьте данные перед созданием. Строки с ошибками после импорта
-        останутся в таблице для исправления.
-      </div>
+        {" " + uiText("Проверьте данные перед созданием. Строки с ошибками после импорта останутся в таблице для исправления.") + " "}</div>
     </Modal>
   )
 }

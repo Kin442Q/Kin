@@ -27,6 +27,7 @@ export function useSessionSync() {
           features: me?.features,
           institution: me?.institution ?? null,
           homeroomGroups: me?.homeroomGroups ?? [],
+          mustChangePassword: !!me?.mustChangePassword,
         })
       })
       .catch(() => {

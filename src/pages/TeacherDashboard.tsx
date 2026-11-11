@@ -1,712 +1,338 @@
+import { uiLanguage } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Button,
-  Modal,
-  Row,
-  Col,
-  Tag,
-  Progress,
-  App as AntdApp,
-  Spin,
-  Table,
-  Tooltip,
-  Select,
-} from 'antd'
-import {
-  Clock,
-  LogIn,
-  LogOut,
-  Camera,
-  Wallet,
-  Calendar as CalendarIcon,
-  TrendingUp,
-  GraduationCap,
-} from 'lucide-react'
-import { motion } from 'framer-motion'
+import { Button, Col, Row } from 'antd'
+import { Bell, ChevronRight, ClipboardCheck, GraduationCap } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 
-import {
-  SP,
-  SproutCard,
-  SproutKPI,
-  SproutEmpty,
-  SproutPageHeader,
-} from '../components/sprout'
-import FaceCapture from '../components/face/FaceCapture'
+import { GreetingBanner, SP, SproutCard, SproutEmpty } from '../components/sprout'
+import { http } from '../api'
 import { useAuthStore } from '../store/authStore'
 import { useDataStore } from '../store/dataStore'
-import { useActiveClassStore } from '../store/activeClassStore'
-import { timeService, type TimeMonthSummary } from '../api'
-import { formatMoneyCompact, formatPercent } from '../lib/format'
+import { useFeature } from '../hooks/useFeature'
+import WeekSchedule from '../components/WeekSchedule'
+import { teacherLessons } from '../lib/scheduleWeek'
+import { useT } from '../i18n'
+import type { AppNotification } from '../types'
 
-type Mode = 'register' | 'verify' | null
+interface Lesson {
+  id: string
+  groupId: string
+  dayOfWeek: number // 1..7, Пн..Вс
+  startTime: string // «HH:mm»
+  endTime: string
+  activity: string
+  room?: string | null
+  teacherId?: string | null
+  subject?: { id: string; name: string; color: string } | null
+}
 
+const toMin = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + (m || 0)
+}
+
+/**
+ * Кабинет учителя — информационная главная: какие уроки сегодня, в каких классах,
+ * оповещения и мой класс. Учёта рабочего времени здесь нет.
+ */
 export default function TeacherDashboard() {
-  const { message } = AntdApp.useApp()
+  const t = useT()
+  const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
   const groups = useDataStore((s) => s.groups)
-  const activeClassId = useActiveClassStore((s) => s.activeClassId)
-  const setActiveClass = useActiveClassStore((s) => s.setActiveClass)
+  const children = useDataStore((s) => s.children)
+  const showSchedule = useFeature('schedule')
+  const showAttendance = useFeature('attendance')
+  const showGrades = useFeature('grades')
+  const showHomeroom = useFeature('homeroom')
 
-  // Классы, которые ведёт учитель (приходят из /v1/groups → dataStore).
-  // Текущий класс: сохранённый выбор, иначе основная группа, иначе первый.
-  const currentClassId =
-    (activeClassId && groups.some((g) => g.id === activeClassId)
-      ? activeClassId
-      : null) ??
-    (user?.groupId && groups.some((g) => g.id === user.groupId)
-      ? user.groupId
-      : null) ??
-    groups[0]?.id ??
-    null
-  const currentClass = groups.find((g) => g.id === currentClassId) ?? null
-
+  const [lessons, setLessons] = useState<Lesson[]>([])
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [loading, setLoading] = useState(true)
-  const [summary, setSummary] = useState<TimeMonthSummary | null>(null)
-  const [isWorking, setIsWorking] = useState(false)
-  const [activeCheckIn, setActiveCheckIn] = useState<string | null>(null)
-  const [hasFace, setHasFace] = useState(false)
-  const [faceDescriptor, setFaceDescriptor] = useState<number[] | null>(null)
   const [now, setNow] = useState(new Date())
 
-  const [faceModal, setFaceModal] = useState<Mode>(null)
-  /** 'check-in' | 'check-out' — что нужно сделать после успешной верификации */
-  const [pendingAction, setPendingAction] = useState<'in' | 'out' | null>(null)
-
-  const month = dayjs().format('YYYY-MM')
-
-  // Загрузка
-  const reload = async () => {
-    try {
-      setLoading(true)
-      const [statusRes, monthRes, faceRes] = await Promise.all([
-        timeService.status(),
-        timeService.myMonth(month),
-        timeService.getFace(),
-      ])
-      setIsWorking(statusRes.isWorking)
-      setActiveCheckIn(statusRes.activeEntry?.checkIn || null)
-      setSummary(monthRes)
-      setHasFace(faceRes.hasFace)
-      setFaceDescriptor(
-        Array.isArray(faceRes.descriptor) ? faceRes.descriptor : null,
-      )
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось загрузить данные')
-    } finally {
-      setLoading(false)
-    }
-  }
-
+  // Оповещения пользователя (сервер отдаёт последние 50)
   useEffect(() => {
-    reload()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false
+    http
+      .get<AppNotification[]>('/v1/notifications')
+      .then((r) => {
+        if (!cancelled) setNotifications(Array.isArray(r.data) ? r.data : [])
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
   }, [])
 
-  // Тикающий таймер для активной смены
+  const markAllRead = () => {
+    http
+      .post('/v1/notifications/read-all', {})
+      .then(() => setNotifications((list) => list.map((n) => ({ ...n, read: true }))))
+      .catch(() => {})
+  }
+
   useEffect(() => {
-    if (!isWorking) return
-    const id = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(id)
-  }, [isWorking])
-
-  const elapsedToday = useMemo(() => {
-    if (!isWorking || !activeCheckIn) return null
-    const start = new Date(activeCheckIn).getTime()
-    const sec = Math.max(0, Math.floor((now.getTime() - start) / 1000))
-    const h = Math.floor(sec / 3600)
-    const m = Math.floor((sec % 3600) / 60)
-    const s = sec % 60
-    return { h, m, s, total: sec }
-  }, [isWorking, activeCheckIn, now])
-
-  // ─── Действия ─────────────────────────────────────────────────────
-
-  const handleClick = (action: 'in' | 'out') => {
-    if (!hasFace) {
-      Modal.confirm({
-        title: 'Сначала зарегистрируйте лицо',
-        content:
-          'Для отметки Face ID нужно один раз показать камере своё лицо. Зарегистрировать сейчас?',
-        okText: 'Зарегистрировать',
-        cancelText: 'Позже',
-        onOk: () => setFaceModal('register'),
-      })
+    if (!showSchedule) {
+      setLoading(false)
       return
     }
-    setPendingAction(action)
-    setFaceModal('verify')
-  }
-
-  const onFaceRegistered = async (descriptor: number[]) => {
-    try {
-      await timeService.setFace(descriptor)
-      message.success('Лицо зарегистрировано! Теперь можно отмечаться.')
-      setHasFace(true)
-      setFaceDescriptor(descriptor)
-      setFaceModal(null)
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось сохранить')
+    let cancelled = false
+    http
+      .get<Lesson[]>('/v1/schedule')
+      .then((r) => {
+        if (!cancelled) setLessons(Array.isArray(r.data) ? r.data : [])
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
     }
-  }
+  }, [showSchedule])
 
-  const onFaceVerified = async () => {
-    const action = pendingAction
-    setFaceModal(null)
-    setPendingAction(null)
-    if (!action) return
+  // «Сейчас» для подсветки текущего урока
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
-    try {
-      if (action === 'in') {
-        await timeService.checkIn('FACE')
-        message.success('Добро пожаловать! Хорошего дня 🌿')
-      } else {
-        await timeService.checkOut()
-        message.success('До свидания! Хорошего отдыха 👋')
-      }
-      await reload()
-    } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось отметиться')
-    }
-  }
+  const groupById = useMemo(() => new Map(groups.map((g) => [g.id, g])), [groups, uiLanguage()])
 
-  const initials =
-    user?.fullName
-      ?.split(' ')
-      .map((p) => p[0])
-      .slice(0, 2)
-      .join('')
-      .toUpperCase() ?? '?'
+  // Мои уроки на неделю: если уроки закреплены за учителями — только мои, иначе все уроки моих классов.
+  const myWeek = useMemo(() => teacherLessons(lessons, user?.id), [lessons, user?.id, uiLanguage()])
 
-  if (loading && !summary) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-        <Spin size="large" />
-      </div>
-    )
-  }
+  // Уроки на сегодня — из той же недели
+  const todayLessons = useMemo(() => {
+    const dow = dayjs().day() === 0 ? 7 : dayjs().day()
+    return myWeek.filter((l) => l.dayOfWeek === dow).sort((a, b) => a.startTime.localeCompare(b.startTime))
+  }, [myWeek, uiLanguage()])
+
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const currentIdx = todayLessons.findIndex((l) => nowMin >= toMin(l.startTime) && nowMin < toMin(l.endTime))
+  const nextIdx = todayLessons.findIndex((l) => nowMin < toMin(l.startTime))
+
+  // Классы, где у меня сегодня уроки, и сколько уроков в каждом
+  const classesToday = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const l of todayLessons) counts.set(l.groupId, (counts.get(l.groupId) ?? 0) + 1)
+    return [...counts.entries()].map(([id, n]) => ({ id, n, group: groupById.get(id) }))
+  }, [todayLessons, groupById, uiLanguage()])
+
+  const homeroom = user?.homeroomGroups?.[0] ? groupById.get(user.homeroomGroups[0].id) ?? user.homeroomGroups[0] : null
+  const homeroomStudents = homeroom ? children.filter((c) => c.groupId === homeroom.id).length : 0
+
+  const notices = useMemo(
+    () => [...notifications].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5),
+    [notifications, uiLanguage()],
+  )
+
+  const hour = new Date().getHours()
+  const greeting =
+    hour < 6
+      ? t('dash.greet.night')
+      : hour < 12
+        ? t('dash.greet.morning')
+        : hour < 18
+          ? t('dash.greet.day')
+          : t('dash.greet.evening')
+  const parts = (user?.fullName ?? '').split(' ').filter(Boolean)
+  const firstName = parts[1] ?? parts[0] ?? t('dash.friend')
+
+  const subtitle = todayLessons.length
+    ? `${t('teacher.lessonsToday', { n: todayLessons.length })} · ${t('teacher.classesCount', { n: classesToday.length })}`
+    : t('teacher.noLessonsSub')
 
   return (
     <div>
-      <SproutPageHeader
-        title="Мой кабинет"
-        icon={<Clock size={22} strokeWidth={2} />}
-        iconAccent="mint"
-        description={`${dayjs().format('dddd, D MMMM')} · приход/уход через Face ID`}
+      <GreetingBanner
+        eyebrow={dayjs().format('dddd, D MMMM')}
+        title={`${greeting}, ${firstName}!`}
+        subtitle={subtitle}
+        actions={
+          <>
+            {showAttendance && (
+              <Button type="primary" size="large" icon={<ClipboardCheck size={18} />} onClick={() => navigate('/admin/attendance')}>
+                {t('dash.markAttendance')}
+              </Button>
+            )}
+            {showGrades && (
+              <Button size="large" icon={<GraduationCap size={18} />} onClick={() => navigate('/admin/grades')}>
+                {t('nav.grades')}
+              </Button>
+            )}
+          </>
+        }
       />
 
-      {/* Текущий класс — ярко и заметно. Если классов несколько — можно переключить. */}
-      {currentClass && (
-        <motion.div
-          key={currentClass.id}
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-          style={{ marginBottom: 16 }}
-        >
-          <div
-            style={{
-              position: 'relative',
-              overflow: 'hidden',
-              borderRadius: 18,
-              padding: '18px 22px',
-              background: `linear-gradient(120deg, ${currentClass.color}, ${currentClass.color}cc)`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 16,
-              flexWrap: 'wrap',
-              boxShadow: `0 14px 34px -12px ${currentClass.color}aa`,
-            }}
-          >
-            {/* пульсирующее свечение для привлечения внимания */}
-            <motion.div
-              aria-hidden
-              animate={{ opacity: [0.15, 0.4, 0.15], scale: [1, 1.15, 1] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-              style={{
-                position: 'absolute',
-                right: -40,
-                top: -40,
-                width: 180,
-                height: 180,
-                borderRadius: '50%',
-                background: 'rgba(255,255,255,0.35)',
-                filter: 'blur(8px)',
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 14,
-                position: 'relative',
-                zIndex: 1,
-              }}
-            >
-              <motion.div
-                animate={{ rotate: [0, -8, 8, 0] }}
-                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 14,
-                  background: 'rgba(255,255,255,0.25)',
-                  display: 'grid',
-                  placeItems: 'center',
-                  color: '#fff',
-                }}
-              >
-                <GraduationCap size={28} strokeWidth={2.2} />
-              </motion.div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: 'rgba(255,255,255,0.85)',
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5,
-                  }}
-                >
-                  Сейчас вы в классе
-                </div>
-                <div
-                  style={{
-                    fontSize: 26,
-                    fontWeight: 900,
-                    color: '#fff',
-                    lineHeight: 1.1,
-                    letterSpacing: -0.5,
-                  }}
-                >
-                  {currentClass.name}
-                </div>
-              </div>
-            </div>
-
-            {groups.length > 1 && (
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <Select
-                  value={currentClass.id}
-                  onChange={(v) => setActiveClass(v)}
-                  style={{ minWidth: 180 }}
-                  size="large"
-                  options={groups.map((g) => ({ value: g.id, label: g.name }))}
-                />
-              </div>
-            )}
-          </div>
-        </motion.div>
+      {/* Неделя целиком: в каких классах и в какие дни у меня уроки */}
+      {showSchedule && myWeek.length > 0 && (
+        <SproutCard style={{ marginBottom: 16 }} delay={0.05}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>{t('teacher.weekTitle')}</div>
+          <div style={{ fontSize: 12, color: SP.muted, marginBottom: 12 }}>{t('teacher.weekSub')}</div>
+          <WeekSchedule
+            lessons={myWeek}
+            groupName={(id) => groupById.get(id)?.name}
+            emptyDayText={t('teacher.weekDayEmpty')}
+            todayText={t('teacher.weekToday')}
+          />
+        </SproutCard>
       )}
 
-      {/* Центральный блок check-in/out */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <SproutCard
-              padding={28}
-              style={{
-                background: isWorking
-                  ? `linear-gradient(135deg, ${SP.primarySoft}, ${SP.yellowSoft})`
-                  : SP.surface,
-                textAlign: 'center',
-              }}
-            >
-              {/* Аватар */}
-              <div
-                style={{
-                  width: 84,
-                  height: 84,
-                  borderRadius: '50%',
-                  margin: '0 auto 16px',
-                  background: isWorking
-                    ? `linear-gradient(135deg, ${SP.primary}, ${SP.primaryDeep})`
-                    : SP.surfaceAlt,
-                  color: isWorking ? 'white' : SP.muted,
-                  display: 'grid',
-                  placeItems: 'center',
-                  fontSize: 28,
-                  fontWeight: 800,
-                  boxShadow: isWorking
-                    ? '0 8px 24px -8px rgba(79,178,134,0.5)'
-                    : 'none',
-                }}
-              >
-                {initials}
+      <Row gutter={[16, 16]} align="stretch">
+        <Col xs={24} lg={15} style={{ display: 'flex' }}>
+          <SproutCard style={{ width: '100%' }} delay={0.1}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: SP.text, marginBottom: 12 }}>{t('teacher.lessonsTitle')}</div>
+            {todayLessons.length === 0 ? (
+              <SproutEmpty
+                title={t('teacher.noLessons')}
+                description={loading ? undefined : t('teacher.noLessonsHint')}
+                minHeight={180}
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {todayLessons.map((l, i) => {
+                  const done = nowMin >= toMin(l.endTime)
+                  const current = i === currentIdx
+                  const upcoming = currentIdx < 0 && i === nextIdx
+                  const group = groupById.get(l.groupId)
+                  const color = l.subject?.color ?? group?.color ?? SP.primary
+                  return (
+                    <div
+                      key={l.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                        padding: '12px 14px',
+                        borderRadius: 16,
+                        background: current ? SP.primaryGhost : SP.surfaceAlt,
+                        border: current ? `1px solid ${SP.primary}` : `1px solid ${SP.borderSoft}`,
+                        opacity: done ? 0.55 : 1,
+                      }}
+                    >
+                      <div style={{ width: 92, flex: 'none' }}>
+                        <div style={{ fontSize: 14, fontWeight: 800, color: current ? SP.primaryDeep : SP.text }}>{l.startTime}</div>
+                        <div style={{ fontSize: 12, color: SP.muted }}>{l.endTime}</div>
+                      </div>
+                      <span style={{ width: 4, height: 38, borderRadius: 4, background: color, flex: 'none' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 15, fontWeight: 700, color: SP.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {l.subject?.name ?? l.activity}
+                        </div>
+                        <div style={{ fontSize: 12.5, color: SP.textMid }}>
+                          {group?.name ?? ''}
+                          {l.room ? `${group ? ' · ' : ''}${t('teacher.room', { room: l.room })}` : ''}
+                        </div>
+                      </div>
+                      {(current || upcoming || done) && (
+                        <span
+                          className="sp-chip"
+                          style={{
+                            background: current ? SP.rose : upcoming ? SP.primarySoft : 'transparent',
+                            color: current ? SP.text : upcoming ? SP.primaryDeep : SP.muted,
+                            padding: '3px 10px',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {current ? t('teacher.now') : upcoming ? t('teacher.next') : t('teacher.done')}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-
-              <div
-                style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: SP.text,
-                  marginBottom: 4,
-                }}
-              >
-                {user?.fullName}
-              </div>
-              <div style={{ fontSize: 12, color: SP.muted, marginBottom: 20 }}>
-                {isWorking ? '🟢 На работе сейчас' : '⚪ Не на работе'}
-              </div>
-
-              {/* Таймер */}
-              {isWorking && elapsedToday && (
-                <div
-                  className="sp-num"
-                  style={{
-                    fontSize: 44,
-                    fontWeight: 800,
-                    color: SP.primaryDeep,
-                    lineHeight: 1,
-                    marginBottom: 4,
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {String(elapsedToday.h).padStart(2, '0')}:
-                  {String(elapsedToday.m).padStart(2, '0')}:
-                  {String(elapsedToday.s).padStart(2, '0')}
-                </div>
-              )}
-              {isWorking && activeCheckIn && (
-                <div style={{ fontSize: 12, color: SP.muted, marginBottom: 20 }}>
-                  Пришли в {dayjs(activeCheckIn).format('HH:mm')}
-                </div>
-              )}
-
-              {/* Кнопка */}
-              {isWorking ? (
-                <Button
-                  type="primary"
-                  size="large"
-                  danger
-                  icon={<LogOut size={18} />}
-                  onClick={() => handleClick('out')}
-                  style={{
-                    width: '100%',
-                    height: 56,
-                    fontSize: 16,
-                    fontWeight: 700,
-                  }}
-                >
-                  Я ухожу
-                </Button>
-              ) : (
-                <Button
-                  type="primary"
-                  size="large"
-                  icon={<LogIn size={18} />}
-                  onClick={() => handleClick('in')}
-                  style={{
-                    width: '100%',
-                    height: 56,
-                    fontSize: 16,
-                    fontWeight: 700,
-                  }}
-                >
-                  Я пришёл
-                </Button>
-              )}
-
-              {!hasFace && (
-                <div
-                  style={{
-                    marginTop: 14,
-                    padding: 10,
-                    background: SP.yellowSoft,
-                    borderRadius: 10,
-                    fontSize: 12,
-                    color: SP.yellowDeep,
-                    fontWeight: 600,
-                  }}
-                >
-                  ⚠️ Сначала зарегистрируйте лицо для Face ID
-                </div>
-              )}
-              {hasFace && (
-                <Button
-                  type="link"
-                  icon={<Camera size={13} />}
-                  onClick={() => setFaceModal('register')}
-                  style={{ marginTop: 8, fontSize: 12 }}
-                >
-                  Перерегистрировать лицо
-                </Button>
-              )}
-            </SproutCard>
-          </motion.div>
+            )}
+          </SproutCard>
         </Col>
 
-        {/* Сводка за месяц */}
-        <Col xs={24} lg={12}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <Row gutter={[12, 12]}>
-              <Col xs={12}>
-                <SproutKPI
-                  label="Часов в месяце"
-                  value={`${summary?.totalHours ?? 0}ч`}
-                  hint={`из ${summary?.workNorm ?? 176}ч плана`}
-                  accent="mint"
-                  icon={<Clock size={18} />}
-                  delay={0}
-                />
-              </Col>
-              <Col xs={12}>
-                <SproutKPI
-                  label="К выплате"
-                  value={formatMoneyCompact(summary?.estimatedSalary ?? 0)}
-                  hint={
-                    summary?.salaryMode === 'HOURLY'
-                      ? `${summary.hourlyRate} сом/ч`
-                      : 'фикс. оклад'
-                  }
-                  accent="yellow"
-                  icon={<Wallet size={18} />}
-                  delay={0.05}
-                />
-              </Col>
-            </Row>
-
-            <SproutCard padding={18}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                  marginBottom: 8,
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 700, color: SP.text }}>
-                  Выполнение нормы
-                </div>
-                <div
-                  className="sp-num"
-                  style={{ fontSize: 14, fontWeight: 700, color: SP.primaryDeep }}
-                >
-                  {formatPercent(summary?.completionRate ?? 0)}
-                </div>
+        <Col xs={24} lg={9} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <SproutCard padding={18} delay={0.15}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>{t('teacher.classesTitle')}</div>
+            <div style={{ fontSize: 12, color: SP.muted, marginBottom: 12 }}>{t('teacher.classesSub')}</div>
+            {classesToday.length === 0 ? (
+              <div style={{ fontSize: 13, color: SP.textMid }}>{t('teacher.noClasses')}</div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {classesToday.map(({ id, n, group }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => group && navigate(`/admin/groups/${id}`)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 12px',
+                      borderRadius: 14,
+                      border: `1px solid ${SP.borderSoft}`,
+                      background: SP.surfaceAlt,
+                      cursor: group ? 'pointer' : 'default',
+                      color: SP.text,
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <i style={{ width: 10, height: 10, borderRadius: '50%', background: group?.color ?? SP.primary }} />
+                    <b style={{ fontSize: 14 }}>{group?.name ?? '—'}</b>
+                    <small style={{ color: SP.muted }}>{t('teacher.lessonsInClass', { n })}</small>
+                  </button>
+                ))}
               </div>
-              <Progress
-                percent={Math.round((summary?.completionRate ?? 0) * 100)}
-                strokeColor={{
-                  from: SP.primary,
-                  to: SP.primaryDeep,
-                }}
-                showInfo={false}
-                size="small"
-              />
-              <div
-                style={{
-                  fontSize: 11,
-                  color: SP.muted,
-                  marginTop: 8,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                }}
-              >
-                <span>{summary?.totalHours ?? 0}ч отработано</span>
-                <span>{summary?.workNorm ?? 176}ч норма</span>
+            )}
+          </SproutCard>
+
+          {homeroom && (
+            <SproutCard padding={18} delay={0.2}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 12, color: SP.muted }}>{t('teacher.homeroomTitle')}</div>
+                  <div className="sp-num" style={{ fontSize: 24, fontWeight: 800, color: SP.text }}>{homeroom.name}</div>
+                  <div style={{ fontSize: 12.5, color: SP.textMid }}>{t('teacher.students', { n: homeroomStudents })}</div>
+                </div>
+                {showHomeroom && (
+                  <Button onClick={() => navigate('/admin/homeroom')} icon={<ChevronRight size={16} />} iconPosition="end">
+                    {t('teacher.openSummary')}
+                  </Button>
+                )}
               </div>
             </SproutCard>
+          )}
 
-            <SproutCard padding={18}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                }}
-              >
-                <div
-                  style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: 11,
-                    background: SP.blueSoft,
-                    color: SP.blueDeep,
-                    display: 'grid',
-                    placeItems: 'center',
-                  }}
-                >
-                  <TrendingUp size={20} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, color: SP.muted }}>Режим зарплаты</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: SP.text }}>
-                    {summary?.salaryMode === 'HOURLY'
-                      ? `Почасовая · ${summary?.hourlyRate} сом/ч`
-                      : `Фикс. оклад · ${formatMoneyCompact(summary?.fixedSalary ?? 0)}`}
+          <SproutCard padding={18} delay={0.25}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 15, fontWeight: 700, color: SP.text }}>
+                <Bell size={15} /> {t('teacher.noticesTitle')}
+              </div>
+              {notices.some((n) => !n.read) && (
+                <Button size="small" type="link" onClick={markAllRead}>
+                  {t('header.markAllRead')}
+                </Button>
+              )}
+            </div>
+            {notices.length === 0 ? (
+              <div style={{ fontSize: 13, color: SP.textMid }}>{t('teacher.noNotices')}</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {notices.map((n) => (
+                  <div key={n.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span
+                      aria-hidden="true"
+                      style={{ width: 8, height: 8, marginTop: 6, borderRadius: '50%', flex: 'none', background: n.read ? SP.borderSoft : SP.rose }}
+                    />
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: n.read ? 500 : 700, color: SP.text }}>{n.title}</div>
+                      {n.description ? <div style={{ fontSize: 12, color: SP.textMid, lineHeight: 1.4 }}>{n.description}</div> : null}
+                      <div style={{ fontSize: 11, color: SP.muted, marginTop: 2 }}>{dayjs(n.createdAt).format('DD.MM HH:mm')}</div>
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
-            </SproutCard>
-          </div>
+            )}
+          </SproutCard>
         </Col>
       </Row>
-
-      {/* История по дням */}
-      <SproutCard style={{ marginTop: 16 }} delay={0.2}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            marginBottom: 14,
-            fontSize: 15,
-            fontWeight: 700,
-            color: SP.text,
-          }}
-        >
-          <CalendarIcon size={16} />
-          История за {dayjs(month + '-01').format('MMMM YYYY')}
-        </div>
-        {(summary?.entries.length ?? 0) === 0 ? (
-          <SproutEmpty
-            icon={<CalendarIcon size={28} strokeWidth={1.8} />}
-            title="Записей пока нет"
-            description="Ваша история появится после первой отметки прихода"
-            minHeight={200}
-          />
-        ) : (
-          <Table
-            rowKey="id"
-            dataSource={summary?.entries}
-            pagination={{ pageSize: 15, hideOnSinglePage: true }}
-            size="middle"
-            columns={[
-              {
-                title: 'Дата',
-                dataIndex: 'date',
-                render: (v: string) => (
-                  <span style={{ fontWeight: 600 }}>
-                    {dayjs(v).format('DD.MM.YYYY')}
-                  </span>
-                ),
-              },
-              {
-                title: 'Приход',
-                dataIndex: 'checkIn',
-                render: (v: string) => (
-                  <span className="sp-num">{dayjs(v).format('HH:mm')}</span>
-                ),
-              },
-              {
-                title: 'Уход',
-                dataIndex: 'checkOut',
-                render: (v: string | null) =>
-                  v ? (
-                    <span className="sp-num">{dayjs(v).format('HH:mm')}</span>
-                  ) : (
-                    <Tag
-                      style={{
-                        background: SP.primaryGhost,
-                        color: SP.primaryDeep,
-                        border: 'none',
-                      }}
-                    >
-                      Сейчас работаю
-                    </Tag>
-                  ),
-              },
-              {
-                title: 'Отработано',
-                dataIndex: 'minutesWorked',
-                render: (v: number | null) =>
-                  v != null ? (
-                    <span
-                      className="sp-num"
-                      style={{ fontWeight: 600 }}
-                    >{`${Math.floor(v / 60)}ч ${v % 60}м`}</span>
-                  ) : (
-                    '—'
-                  ),
-              },
-              {
-                title: 'Метод',
-                dataIndex: 'verifyMethod',
-                render: (v: string) => {
-                  const colors: Record<string, { bg: string; fg: string; label: string }> = {
-                    FACE: { bg: SP.primaryGhost, fg: SP.primaryDeep, label: '👤 Face ID' },
-                    MANUAL: { bg: SP.borderSoft, fg: SP.muted, label: '✋ Вручную' },
-                    PIN: { bg: SP.blueSoft, fg: SP.blueDeep, label: '🔢 PIN' },
-                    QR: { bg: SP.yellowSoft, fg: SP.yellowDeep, label: '📱 QR' },
-                  }
-                  const c = colors[v] || colors.MANUAL
-                  return (
-                    <Tag
-                      style={{
-                        background: c.bg,
-                        color: c.fg,
-                        border: 'none',
-                        fontSize: 11,
-                      }}
-                    >
-                      {c.label}
-                    </Tag>
-                  )
-                },
-              },
-              {
-                title: 'Заметка',
-                dataIndex: 'note',
-                render: (v: string | null) =>
-                  v ? (
-                    <Tooltip title={v}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          maxWidth: 120,
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          color: SP.muted,
-                          fontSize: 12,
-                        }}
-                      >
-                        {v}
-                      </span>
-                    </Tooltip>
-                  ) : (
-                    '—'
-                  ),
-              },
-            ]}
-          />
-        )}
-      </SproutCard>
-
-      {/* Face Modal */}
-      <Modal
-        title={faceModal === 'register' ? 'Регистрация лица' : 'Подтверждение Face ID'}
-        open={faceModal !== null}
-        onCancel={() => {
-          setFaceModal(null)
-          setPendingAction(null)
-        }}
-        footer={null}
-        destroyOnClose
-        width={420}
-      >
-        {faceModal && (
-          <FaceCapture
-            key={faceModal}
-            mode={faceModal}
-            verifyAgainst={faceDescriptor}
-            onSuccess={
-              faceModal === 'register' ? onFaceRegistered : onFaceVerified
-            }
-            onCancel={() => {
-              setFaceModal(null)
-              setPendingAction(null)
-            }}
-            height={280}
-          />
-        )}
-      </Modal>
     </div>
   )
 }

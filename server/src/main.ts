@@ -7,8 +7,10 @@ import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 
 import { AppModule } from './app.module'
-import { HttpExceptionFilter } from './common/filters/http-exception.filter'
-import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter'
+import { parseTrustProxy } from './common/trust-proxy'
+import { registerExceptionFilters } from './common/filters/register-filters'
+import { ErrorAlertsService } from './modules/monitoring/error-alerts.service'
+import { installProcessHandlers } from './modules/monitoring/process-handlers'
 import { TransformInterceptor } from './common/interceptors/transform.interceptor'
 
 /**
@@ -22,6 +24,10 @@ async function bootstrap() {
 
   // Логи через nestjs-pino — JSON в stdout, удобно для Loki/Datadog.
   app.useLogger(app.get(Logger))
+
+  // За прокси (Railway) настоящий адрес клиента приходит в X-Forwarded-For. Без этого req.ip у всех — адрес
+  // прокси, и лимит запросов (throttler) считает всех пользователей одним. TRUST_PROXY: число прокси (по умолчанию 1).
+  app.getHttpAdapter().getInstance().set('trust proxy', parseTrustProxy(config.get<string>('TRUST_PROXY')))
 
   // Безопасность HTTP-заголовков
   app.use(helmet())
@@ -81,8 +87,11 @@ async function bootstrap() {
     }),
   )
 
-  // Глобальные фильтры исключений
-  app.useGlobalFilters(new HttpExceptionFilter(), new PrismaExceptionFilter())
+  // Глобальные фильтры исключений. Серьёзные ошибки (5xx, поломки базы, необработанные исключения)
+  // уходят в письма владельцу — см. ALERT_EMAIL.
+  const alerts = app.get(ErrorAlertsService)
+  registerExceptionFilters(app, alerts)
+  installProcessHandlers(alerts)
 
   // Глобальные интерсепторы
   app.useGlobalInterceptors(
@@ -93,7 +102,7 @@ async function bootstrap() {
   // Swagger (только не в проде, либо за basic auth)
   if (config.get<string>('env') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('KinderCRM API')
+      .setTitle('Мактаби ман API')
       .setDescription('Backend API детского сада')
       .setVersion('1.0')
       .addBearerAuth()
@@ -109,7 +118,7 @@ async function bootstrap() {
   const port = config.get<number>('port')!
   await app.listen(port)
   // eslint-disable-next-line no-console
-  console.log(`✓ KinderCRM API: http://localhost:${port}/api/v1`)
+  console.log(`✓ Мактаби ман API: http://localhost:${port}/api/v1`)
 }
 
 bootstrap().catch((err) => {

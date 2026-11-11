@@ -1,5 +1,11 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState, type ComponentType } from 'react'
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native'
+import {
+  
+  ScrollView,
+  View,
+} from 'react-native'
+import { Text } from '../components/Text'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import { Trophy } from 'lucide-react-native'
 
@@ -15,6 +21,8 @@ import { colors, radius } from '../theme/colors'
 import { gamesApi, type GameKey, type LeaderRow } from '../api/learning'
 import { GAME_EMOJI } from '../lib/games'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 const GAME_COMPONENTS: Record<GameKey, ComponentType<GameProps>> = {
   memory: MemoryGame,
   math: MathGame,
@@ -45,7 +53,7 @@ export default function StudentGameScreen() {
       try {
         setResult(await gamesApi.submit(game, res))
       } catch (e: any) {
-        Alert.alert('Результат не сохранился', e?.response?.data?.message || 'Проверьте интернет')
+        notifyError(e, { fallback: uiText("Проверьте интернет"), title: uiText("Результат не сохранился") })
         setResult({ score: res.score, best: res.score, isRecord: false })
       }
       loadBoard()
@@ -64,12 +72,12 @@ export default function StudentGameScreen() {
             <Game key={`${game}-${round}`} onFinish={finish} />
           ) : (
             <View style={{ alignItems: 'center', gap: 6 }}>
-              <Text style={styles.meta}>Твой результат</Text>
+              <Text style={styles.meta}>{uiText("Твой результат")}</Text>
               <Text style={styles.score}>{result.score}</Text>
               {result.isRecord ? (
-                <Text style={styles.record}>🏆 Новый рекорд!</Text>
+                <Text style={styles.record}>{uiText("🏆 Новый рекорд!")}</Text>
               ) : (
-                <Text style={styles.meta}>Лучший результат: {result.best}</Text>
+                <Text style={styles.meta}>{uiText("Лучший результат:") + " "}{result.best}</Text>
               )}
               <View style={styles.actions}>
                 <Btn
@@ -78,11 +86,9 @@ export default function StudentGameScreen() {
                     setRound((r) => r + 1)
                   }}
                 >
-                  Играть ещё
-                </Btn>
+                  {" " + uiText("Играть ещё") + " "}</Btn>
                 <Btn variant="secondary" onPress={() => navigation.goBack()}>
-                  К списку
-                </Btn>
+                  {" " + uiText("К списку") + " "}</Btn>
               </View>
             </View>
           )}
@@ -91,10 +97,10 @@ export default function StudentGameScreen() {
         <Card padding={16}>
           <View style={styles.boardHead}>
             <Trophy size={18} color={colors.yellowDeep} />
-            <Text style={styles.boardTitle}>Рейтинг класса</Text>
+            <Text style={styles.boardTitle}>{uiText("Рейтинг класса")}</Text>
           </View>
           {board.length === 0 ? (
-            <Text style={styles.meta}>Пока никто не играл — стань первым!</Text>
+            <Text style={styles.meta}>{uiText("Пока никто не играл — стань первым!")}</Text>
           ) : (
             <View style={{ gap: 6 }}>
               {board.map((row) => (
@@ -108,7 +114,7 @@ export default function StudentGameScreen() {
                   <Text style={styles.rank}>{MEDAL[row.rank - 1] ?? row.rank}</Text>
                   <Text style={[styles.name, row.isMe && { fontWeight: '800' }]}>
                     {row.name}
-                    {row.isMe ? ' (ты)' : ''}
+                    {row.isMe ? uiText("(ты)") : ''}
                   </Text>
                   <Text style={styles.points}>{row.score}</Text>
                 </View>
@@ -121,7 +127,7 @@ export default function StudentGameScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { padding: 16, paddingBottom: 40, gap: 14 },
   meta: { fontSize: 13, color: colors.muted },
   score: { fontSize: 54, fontWeight: '800', color: colors.primaryDeep },
@@ -140,4 +146,4 @@ const styles = StyleSheet.create({
   rank: { width: 26, textAlign: 'center', fontWeight: '700', color: colors.textMid },
   name: { flex: 1, fontSize: 14, color: colors.text },
   points: { fontSize: 14, fontWeight: '700', color: colors.text },
-})
+}))

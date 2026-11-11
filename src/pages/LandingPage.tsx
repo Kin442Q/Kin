@@ -1,13 +1,15 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { App as AntdApp, Spin } from 'antd'
 
 import { useAuthStore } from '../store/authStore'
 import { http } from '../api'
+import { useLangStore } from '../i18n'
 
 /**
  * Публичный лендинг (роут «/»). Сам маркетинг лежит статикой в
- * public/landing/index.html и встраивается через iframe (полная изоляция
+ * landing/index.html и встраивается через iframe (полная изоляция
  * стилей от приложения). Кнопки лендинга шлют postMessage:
  *   { type: 'redi', action: 'demo' }  → вход в живое демо (read-only)
  *   { type: 'redi', action: 'login' } → страница входа
@@ -33,7 +35,7 @@ export default function LandingPage() {
       const resp = await http.post('/v1/auth/demo-login')
       const { user, accessToken } = resp.data || {}
       if (!user || !accessToken) {
-        message.error('Демо сейчас недоступно')
+        message.error(uiText("Демо сейчас недоступно"))
         return
       }
       // Подтягиваем institution (тип + isDemo) для лейблов и баннера.
@@ -63,7 +65,7 @@ export default function LandingPage() {
       navigate(homeFor(user.role), { replace: true })
     } catch (e: any) {
       message.error(
-        e?.response?.data?.message || 'Не удалось открыть демо. Попробуйте позже.',
+        e?.response?.data?.message || uiText("Не удалось открыть демо. Попробуйте позже."),
       )
     } finally {
       setLoadingDemo(false)
@@ -72,7 +74,12 @@ export default function LandingPage() {
 
   useEffect(() => {
     const onMsg = (ev: MessageEvent) => {
+      if (ev.origin !== window.location.origin) return
       const d = ev.data
+      if (d?.type === 'maktab-language' && ['ru', 'en', 'tg'].includes(d.lang)) {
+        useLangStore.getState().setLang(d.lang)
+        return
+      }
       if (!d || d.type !== 'redi') return
       if (d.action === 'demo') enterDemo()
       else if (d.action === 'login') navigate('/login')
@@ -84,7 +91,7 @@ export default function LandingPage() {
   return (
     <>
       <iframe
-        title="Лендинг"
+        title={uiText("Лендинг")}
         src={`${import.meta.env.BASE_URL}landing/index.html`}
         style={{
           position: 'fixed',
@@ -105,7 +112,7 @@ export default function LandingPage() {
             zIndex: 9999,
           }}
         >
-          <Spin size="large" tip="Открываем демо…" />
+          <Spin size="large" tip={uiText("Открываем демо…")} />
         </div>
       )}
     </>

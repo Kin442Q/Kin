@@ -1,4 +1,15 @@
+import { uiLanguage } from '../i18n/uiText'
 import dayjs from 'dayjs'
+import { currentLang } from '../i18n'
+
+/** Единицы и разделители по языкам: русский и таджикский — «1 234,5», английский — «1,234.5». */
+const UNITS = {
+  ru: { cur: 'сомони', k: 'тыс.', m: 'млн', b: 'млрд', locale: 'ru-RU', dec: ',' },
+  en: { cur: 'somoni', k: 'K', m: 'M', b: 'B', locale: 'en-US', dec: '.' },
+  tg: { cur: 'сомонӣ', k: 'ҳаз.', m: 'млн', b: 'млрд', locale: 'tg-TJ', dec: ',' },
+} as const
+const units = () => UNITS[currentLang()]
+const compact = (n: number, digits: number) => n.toFixed(digits).replace('.', units().dec)
 
 /* ============================================================
    Форматтеры для UI. Всё округляется и (для KPI) компактится,
@@ -12,7 +23,7 @@ import dayjs from 'dayjs'
 export function formatMoney(value: number | undefined | null): string {
   if (value == null || !isFinite(value) || isNaN(value)) return '—'
   const v = Math.round(value)
-  return new Intl.NumberFormat('ru-RU').format(v) + ' сомони'
+  return new Intl.NumberFormat(units().locale).format(v) + ' ' + units().cur
 }
 
 /**
@@ -29,32 +40,32 @@ export function formatMoneyCompact(value: number | undefined | null): string {
   const abs = Math.abs(value)
   const sign = value < 0 ? '-' : ''
   if (abs < 10_000) {
-    return sign + new Intl.NumberFormat('ru-RU').format(Math.round(abs)) + ' сомони'
+    return sign + new Intl.NumberFormat(units().locale).format(Math.round(abs)) + ' ' + units().cur
   }
   if (abs < 1_000_000) {
-    return sign + (abs / 1_000).toFixed(1).replace('.', ',') + ' тыс. сомони'
+    return sign + compact(abs / 1_000, 1) + ' ' + units().k + ' ' + units().cur
   }
   if (abs < 1_000_000_000) {
-    return sign + (abs / 1_000_000).toFixed(2).replace('.', ',') + ' млн сомони'
+    return sign + compact(abs / 1_000_000, 2) + ' ' + units().m + ' ' + units().cur
   }
   if (abs < 1_000_000_000_000) {
-    return sign + (abs / 1_000_000_000).toFixed(2).replace('.', ',') + ' млрд сомони'
+    return sign + compact(abs / 1_000_000_000, 2) + ' ' + units().b + ' ' + units().cur
   }
-  return sign + abs.toExponential(2) + ' сомони'
+  return sign + abs.toExponential(2) + ' ' + units().cur
 }
 
 /** Число без валюты для KPI-карточек («Детей: 60»). */
 export function formatNumberCompact(value: number | undefined | null): string {
   if (value == null || !isFinite(value) || isNaN(value)) return '—'
   const abs = Math.abs(value)
-  if (abs < 10_000) return new Intl.NumberFormat('ru-RU').format(Math.round(value))
-  if (abs < 1_000_000) return (value / 1_000).toFixed(1).replace('.', ',') + ' тыс.'
-  return (value / 1_000_000).toFixed(2).replace('.', ',') + ' млн'
+  if (abs < 10_000) return new Intl.NumberFormat(units().locale).format(Math.round(value))
+  if (abs < 1_000_000) return compact(value / 1_000, 1) + ' ' + units().k
+  return compact(value / 1_000_000, 2) + ' ' + units().m
 }
 
 export function formatNumber(value: number | undefined | null): string {
   if (value == null || !isFinite(value) || isNaN(value)) return '—'
-  return new Intl.NumberFormat('ru-RU').format(Math.round(value))
+  return new Intl.NumberFormat(units().locale).format(Math.round(value))
 }
 
 export function formatDate(d?: string): string {

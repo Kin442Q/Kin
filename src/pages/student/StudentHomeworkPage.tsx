@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { App as AntdApp, Segmented, Spin } from 'antd'
 import { BookOpen } from 'lucide-react'
@@ -22,7 +23,7 @@ export default function StudentHomeworkPage() {
       // с запасом назад: 60 дней
       setItems(await studentApi.homework({ from: dayjs().subtract(60, 'day').format('YYYY-MM-DD') }))
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось загрузить задания')
+      message.error(e?.response?.data?.message || uiText("Не удалось загрузить задания"))
     } finally {
       setLoading(false)
     }
@@ -51,23 +52,23 @@ export default function StudentHomeworkPage() {
       if (filter === 'done') return checked || status === 'SUBMITTED'
       return past && !checked
     })
-  }, [items, filter])
+  }, [items, filter, uiLanguage()])
 
   return (
     <div>
       <SproutPageHeader
-        title="Домашние задания"
+        title={uiText("Домашние задания")}
         icon={<BookOpen size={22} strokeWidth={2} />}
         iconAccent="yellow"
-        description="Что задано в вашем классе. Сделали — нажмите «Я сделал(а)», учитель проверит."
+        description={uiText("Что задано в вашем классе. Сделали — нажмите «Я сделал(а)», учитель проверит.")}
         actions={
           <Segmented
             value={filter}
             onChange={(v) => setFilter(v as Filter)}
             options={[
-              { value: 'open', label: 'Активные' },
-              { value: 'done', label: 'Сдано' },
-              { value: 'past', label: 'Прошедшие' },
+              { value: 'open', label: uiText("Активные") },
+              { value: 'done', label: uiText("Сдано") },
+              { value: 'past', label: uiText("Прошедшие") },
             ]}
           />
         }
@@ -78,8 +79,8 @@ export default function StudentHomeworkPage() {
           <SproutCard>
             <SproutEmpty
               icon={<BookOpen size={32} strokeWidth={1.8} />}
-              title={filter === 'open' ? 'Заданий нет' : 'Здесь пока пусто'}
-              description={filter === 'open' ? 'Все задания выполнены — отлично!' : undefined}
+              title={filter === 'open' ? uiText("Заданий нет") : uiText("Здесь пока пусто")}
+              description={filter === 'open' ? uiText("Все задания выполнены — отлично!") : undefined}
               minHeight={200}
             />
           </SproutCard>

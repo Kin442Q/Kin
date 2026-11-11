@@ -3,13 +3,13 @@ import {
   ActivityIndicator,
   Pressable,
   StyleProp,
-  StyleSheet,
-  Text,
   View,
   ViewStyle,
 } from 'react-native'
+import { Text } from './Text'
 import { colors, radius, font } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 interface Props {
   children: ReactNode
   onPress?: () => void
@@ -63,6 +63,7 @@ export default function Btn({
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.btn,
+        variant === 'primary' && !isDisabled && styles.primaryShadow,
         {
           backgroundColor: bg,
           paddingVertical: sizes.padV,
@@ -96,11 +97,18 @@ export default function Btn({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   btn: {
     borderRadius: radius.md,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  primaryShadow: {
+    shadowColor: '#0D7A7C',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.32,
+    shadowRadius: 14,
+    elevation: 4,
   },
   row: {
     flexDirection: 'row',
@@ -111,4 +119,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.1,
   },
-})
+}))

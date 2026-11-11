@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Avatar,
@@ -41,6 +42,8 @@ import StatCard from '../components/ui/StatCard'
 import { useDataStore } from '../store/dataStore'
 import { formatDate, formatMoney } from '../lib/format'
 import { http } from '../api'
+import { accessApi, type AccessGrant } from '../api/accessApi'
+import AccessResultModal from '../components/AccessResultModal'
 import {
   toBackendPosition,
   toRussianPosition,
@@ -95,6 +98,8 @@ export default function StaffPage() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [editing, setEditing] = useState<Staff | null>(null)
   const [form] = Form.useForm()
+  // Итог выдачи доступа: письмо ушло или не ушло (тогда можно отправить ещё раз)
+  const [access, setAccess] = useState<{ grant: AccessGrant; userId: string } | null>(null)
 
   const loadStaff = async () => {
     try {
@@ -105,7 +110,7 @@ export default function StaffPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить сотрудников'
+        uiText("Не удалось загрузить сотрудников")
       message.error(msg)
     } finally {
       setLoading(false)
@@ -133,7 +138,7 @@ export default function StaffPage() {
         hireDate: s.hireDate.slice(0, 10),
         createdAt: s.createdAt,
       })),
-    [staffApi],
+    [staffApi, uiLanguage()],
   )
 
   const list = useMemo(() => {
@@ -156,7 +161,7 @@ export default function StaffPage() {
       )
     }
     return r
-  }, [staff, posFilter, search])
+  }, [staff, posFilter, search, uiLanguage()])
 
   const totalSalary = staff.reduce((sum, s) => sum + (s.salary || 0), 0)
 
@@ -164,7 +169,7 @@ export default function StaffPage() {
     setEditing(null)
     form.resetFields()
     form.setFieldsValue({
-      position: 'Помощник воспитателя',
+      position: uiText("Помощник воспитателя"),
       hireDate: dayjs(),
       salary: 3500,
       canLogin: false,
@@ -216,7 +221,6 @@ export default function StaffPage() {
       if (v.canLogin) {
         body.canLogin = true
         body.role = v.role || 'TEACHER'
-        if (v.password) body.password = v.password
         body.salaryMode = v.salaryMode || 'HOURLY'
         if (v.hourlyRate !== undefined && v.hourlyRate !== null)
           body.hourlyRate = Number(v.hourlyRate)
@@ -226,38 +230,56 @@ export default function StaffPage() {
         if (v.terminalCode) body.terminalCode = v.terminalCode
       }
 
+      let saved: { access?: AccessGrant | null; user?: { id: string } | null } | undefined
       if (editing) {
-        await http.patch(`/v1/staff/${editing.id}`, body)
-        message.success('Сотрудник обновлён')
+        saved = (await http.patch(`/v1/staff/${editing.id}`, body)).data
+        message.success(uiText("Сотрудник обновлён"))
       } else {
-        await http.post('/v1/staff', body)
-        message.success('Сотрудник добавлен')
+        saved = (await http.post('/v1/staff', body)).data
+        message.success(uiText("Сотрудник добавлен"))
       }
 
       setDrawerOpen(false)
+      if (saved?.access && saved.user?.id) {
+        setAccess({ grant: saved.access, userId: saved.user.id })
+      }
       await loadStaff()
     } catch (err: any) {
       if (err?.errorFields) return
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось сохранить сотрудника'
+        uiText("Не удалось сохранить сотрудника")
       message.error(msg)
     } finally {
       setSubmitting(false)
     }
   }
 
+  /** id аккаунта редактируемого сотрудника (если у него есть вход в систему). */
+  const editingUserId = editing ? staffApi.find((row) => row.id === editing.id)?.user?.id : undefined
+
+  const sendLink = async () => {
+    if (!editing || !editingUserId) return
+    try {
+      const grant = await accessApi.sendLink(editingUserId)
+      setDrawerOpen(false)
+      setAccess({ grant, userId: editingUserId })
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || uiText("Не удалось отправить письмо"))
+    }
+  }
+
   const removeStaff = async (id: string) => {
     try {
       await http.delete(`/v1/staff/${id}`)
-      message.success('Сотрудник удалён')
+      message.success(uiText("Сотрудник удалён"))
       await loadStaff()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось удалить сотрудника'
+        uiText("Не удалось удалить сотрудника")
       message.error(msg)
     }
   }
@@ -265,30 +287,29 @@ export default function StaffPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Сотрудники"
+        title={uiText("Сотрудники")}
         icon={<Users size={22} strokeWidth={2} />}
         iconAccent="mint"
-        description="Управление персоналом и зарплатами"
+        description={uiText("Управление персоналом и зарплатами")}
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Новый сотрудник
-          </Button>
+            {" " + uiText("Новый сотрудник") + " "}</Button>
         }
       />
 
       <Row gutter={[16, 16]}>
         <Col xs={12} md={8}>
-          <StatCard title="Всего сотрудников" value={staff.length} variant="primary" />
+          <StatCard title={uiText("Всего сотрудников")} value={staff.length} variant="primary" />
         </Col>
         <Col xs={12} md={8}>
           <StatCard
-            title="Воспитателей"
+            title={uiText("Воспитателей")}
             value={staff.filter((s) => s.position === 'Воспитатель').length}
             variant="success"
           />
         </Col>
         <Col xs={24} md={8}>
-          <StatCard title="ФОТ в месяц" value={totalSalary} format="money" variant="warning" />
+          <StatCard title={uiText("ФОТ в месяц")} value={totalSalary} format="money" variant="warning" />
         </Col>
       </Row>
 
@@ -304,7 +325,7 @@ export default function StaffPage() {
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
-                placeholder="Поиск по имени, телефону, email"
+                placeholder={uiText("Поиск по имени, телефону, email")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -313,10 +334,10 @@ export default function StaffPage() {
               <Select
                 allowClear
                 style={{ width: '100%' }}
-                placeholder="Все должности"
+                placeholder={uiText("Все должности")}
                 value={posFilter}
                 onChange={(v) => setPosFilter(v as Position | undefined)}
-                options={STAFF_POSITIONS.map((p) => ({ value: p, label: p }))}
+                options={STAFF_POSITIONS.map((p) => ({ value: p, label: uiText(p) }))}
               />
             </Col>
           </Row>
@@ -329,7 +350,7 @@ export default function StaffPage() {
             scroll={{ x: 800 }}
             columns={[
               {
-                title: 'Сотрудник',
+                title: uiText("Сотрудник"),
                 key: 'fio',
                 render: (_, s: Staff) => {
                   const apiRow = staffApi.find((r) => r.id === s.id)
@@ -339,7 +360,7 @@ export default function StaffPage() {
                       <Avatar
                         size={36}
                         style={{
-                          background: 'linear-gradient(135deg,#4FB286,#2F8862)',
+                          background: 'linear-gradient(135deg,#0D7A7C,#075B5D)',
                         }}
                       >
                         {s.firstName[0]}
@@ -348,23 +369,22 @@ export default function StaffPage() {
                         <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                           {s.lastName} {s.firstName}
                           {hasLogin && (
-                            <Tooltip title="Может входить в систему">
+                            <Tooltip title={uiText("Может входить в систему")}>
                               <Tag
                                 style={{
-                                  background: '#D8EFE3',
-                                  color: '#2F8862',
+                                  background: 'var(--sp-primary-soft)',
+                                  color: '#075B5D',
                                   border: 'none',
                                   fontSize: 10,
                                   margin: 0,
                                 }}
                               >
-                                🔑 вход
-                              </Tag>
+                                {" " + uiText("🔑 вход") + " "}</Tag>
                             </Tooltip>
                           )}
                         </div>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          с {formatDate(s.hireDate)}
+                          {" " + uiText("с даты") + " "}{formatDate(s.hireDate)}
                         </Text>
                       </div>
                     </Space>
@@ -372,12 +392,12 @@ export default function StaffPage() {
                 },
               },
               {
-                title: 'Должность',
+                title: uiText("Должность"),
                 dataIndex: 'position',
-                render: (v) => <Tag color="geekblue">{v}</Tag>,
+                render: (v) => <Tag color="geekblue">{uiText(v)}</Tag>,
               },
               {
-                title: 'Группа',
+                title: uiText("Группа"),
                 dataIndex: 'groupId',
                 render: (v?: string) => {
                   if (!v) return <Tag>—</Tag>
@@ -386,7 +406,7 @@ export default function StaffPage() {
                 },
               },
               {
-                title: 'Контакты',
+                title: uiText("Контакты"),
                 key: 'contacts',
                 render: (_, s) => (
                   <div className="text-xs">
@@ -402,7 +422,7 @@ export default function StaffPage() {
                 ),
               },
               {
-                title: 'Зарплата',
+                title: uiText("Зарплата"),
                 dataIndex: 'salary',
                 sorter: (a, b) => (a.salary || 0) - (b.salary || 0),
                 render: (v: number) => <Text strong>{formatMoney(v)}</Text>,
@@ -412,11 +432,11 @@ export default function StaffPage() {
                 key: 'actions',
                 render: (_, s) => (
                   <Space>
-                    <Tooltip title="Редактировать">
+                    <Tooltip title={uiText("Редактировать")}>
                       <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEdit(s)} />
                     </Tooltip>
                     <Popconfirm
-                      title="Удалить сотрудника?"
+                      title={uiText("Удалить сотрудника?")}
                       onConfirm={() => removeStaff(s.id)}
                     >
                       <Button size="small" type="text" danger icon={<DeleteOutlined />} />
@@ -430,17 +450,16 @@ export default function StaffPage() {
       </motion.div>
 
       <Drawer
-        title={editing ? 'Редактировать сотрудника' : 'Новый сотрудник'}
+        title={editing ? uiText("Редактировать сотрудника") : uiText("Новый сотрудник")}
         width={isMobile ? '100%' : 460}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         destroyOnClose
         extra={
           <Space>
-            <Button onClick={() => setDrawerOpen(false)}>Отмена</Button>
+            <Button onClick={() => setDrawerOpen(false)}>{uiText("Отмена")}</Button>
             <Button type="primary" loading={submitting} onClick={submit}>
-              Сохранить
-            </Button>
+              {" " + uiText("Сохранить") + " "}</Button>
           </Space>
         }
       >
@@ -459,40 +478,54 @@ export default function StaffPage() {
         >
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="lastName" label="Фамилия" rules={[{ required: true }]}>
+              <Form.Item name="lastName" label={uiText("Фамилия")} rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="firstName" label="Имя" rules={[{ required: true }]}>
+              <Form.Item name="firstName" label={uiText("Имя")} rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="position" label="Должность" rules={[{ required: true }]}>
-            <Select options={STAFF_POSITIONS.map((p) => ({ value: p, label: p }))} />
+          <Form.Item name="position" label={uiText("Должность")} rules={[{ required: true }]}>
+            <Select options={STAFF_POSITIONS.map((p) => ({ value: p, label: uiText(p) }))} />
           </Form.Item>
-          <Form.Item name="groupId" label="Группа (если применимо)">
+          <Form.Item name="groupId" label={uiText("Группа (если применимо)")}>
             <Select
               allowClear
               options={groups.map((g) => ({ value: g.id, label: g.name }))}
-              placeholder="Выберите группу"
+              placeholder={uiText("Выберите группу")}
             />
           </Form.Item>
-          <Form.Item name="phone" label="Телефон" rules={[{ required: true }]}>
+          <Form.Item name="phone" label={uiText("Телефон")} rules={[{ required: true }]}>
             <Input prefix={<PhoneOutlined />} placeholder="+992 ..." />
           </Form.Item>
-          <Form.Item name="email" label="Email">
+          <Form.Item
+            name="email"
+            label="Email"
+            dependencies={['canLogin']}
+            extra={uiText("Если сотруднику нужен вход в систему, на этот адрес придёт письмо со ссылкой: пароль он придумает сам. Пароль вы не задаёте и не видите.")}
+            rules={[
+              { type: 'email', message: uiText("Некорректный email") },
+              ({ getFieldValue }) => ({
+                validator: (_, value) =>
+                  getFieldValue('canLogin') && !editing && !value?.trim()
+                    ? Promise.reject(new Error(uiText("Укажите email — на него придёт приглашение со ссылкой")))
+                    : Promise.resolve(),
+              }),
+            ]}
+          >
             <Input prefix={<MailOutlined />} placeholder="optional@example.com" />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="salary" label="Базовая зарплата">
-                <InputNumber min={0} style={{ width: '100%' }} addonAfter="сом" />
+              <Form.Item name="salary" label={uiText("Базовая зарплата")}>
+                <InputNumber min={0} style={{ width: '100%' }} addonAfter={uiText("сом")} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="hireDate" label="Дата найма" rules={[{ required: true }]}>
+              <Form.Item name="hireDate" label={uiText("Дата найма")} rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
               </Form.Item>
             </Col>
@@ -500,13 +533,12 @@ export default function StaffPage() {
 
           {/* ─── Раздел: учётная запись для входа в систему ─── */}
           <Divider style={{ margin: '8px 0 14px' }}>
-            <LockOutlined /> Учётная запись
-          </Divider>
+            <LockOutlined /> {" " + uiText("Учётная запись") + " "}</Divider>
           <Form.Item
             name="canLogin"
-            label="Может входить в систему"
+            label={uiText("Может входить в систему")}
             valuePropName="checked"
-            tooltip="Включите, если сотрудник должен иметь логин (для воспитателей — обязательно)"
+            tooltip={uiText("Включите, если сотрудник должен иметь логин (для воспитателей — обязательно)")}
           >
             <Switch />
           </Form.Item>
@@ -518,86 +550,73 @@ export default function StaffPage() {
             {({ getFieldValue }) =>
               getFieldValue('canLogin') ? (
                 <>
-                  <Row gutter={12}>
-                    <Col span={12}>
-                      <Form.Item
-                        name="role"
-                        label="Роль"
-                        rules={[{ required: true }]}
-                      >
-                        <Select
-                          options={[
-                            { value: 'TEACHER', label: '👨‍🏫 Воспитатель' },
-                            { value: 'ADMIN', label: '👤 Администратор' },
-                          ]}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col span={12}>
-                      <Form.Item
-                        name="password"
-                        label={editing ? 'Новый пароль (опц.)' : 'Пароль'}
-                        rules={
-                          editing
-                            ? []
-                            : [
-                                { required: true, message: 'Введите пароль' },
-                                { min: 6, message: 'Минимум 6 символов' },
-                              ]
-                        }
-                      >
-                        <Input.Password placeholder="Минимум 6 символов" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                  <Form.Item name="role" label={uiText("Роль")} rules={[{ required: true }]}>
+                    <Select
+                      options={[
+                        { value: 'TEACHER', label: uiText("👨‍🏫 Учитель") },
+                        { value: 'ADMIN', label: uiText("👤 Администратор") },
+                      ]}
+                    />
+                  </Form.Item>
+
+                  {editing && editingUserId && (
+                    <Popconfirm
+                      title={uiText("Отправить ссылку для пароля?")}
+                      description={uiText("Человеку уйдёт письмо со ссылкой: он сам задаст новый пароль. Вам пароль не показывается.")}
+                      okText={uiText("Отправить")}
+                      cancelText={uiText("Отмена")}
+                      onConfirm={sendLink}
+                    >
+                      <Button style={{ marginBottom: 16 }}>{uiText("Отправить ссылку для пароля")}</Button>
+                    </Popconfirm>
+                  )}
 
                   <Divider style={{ margin: '8px 0 14px' }} orientation="left">
-                    Зарплата (для табеля)
-                  </Divider>
-                  <Form.Item name="salaryMode" label="Режим оплаты">
+                    {" " + uiText("Зарплата (для табеля)") + " "}</Divider>
+                  <Form.Item name="salaryMode" label={uiText("Режим оплаты")}>
                     <Segmented
                       block
                       options={[
-                        { label: '⏱ Почасовая', value: 'HOURLY' },
-                        { label: '💼 Фикс. оклад', value: 'FIXED' },
+                        { label: uiText("⏱ Почасовая"), value: 'HOURLY' },
+                        { label: uiText("💼 Фикс. оклад"), value: 'FIXED' },
                       ]}
                     />
                   </Form.Item>
                   <Row gutter={12}>
                     <Col span={12}>
-                      <Form.Item name="hourlyRate" label="Ставка в час">
+                      <Form.Item name="hourlyRate" label={uiText("Ставка в час")}>
                         <InputNumber
                           min={0}
                           style={{ width: '100%' }}
-                          addonAfter="сом/ч"
+                          addonAfter={uiText("сом/ч")}
                         />
                       </Form.Item>
                     </Col>
                     <Col span={12}>
-                      <Form.Item name="monthlySalaryFixed" label="Фикс. оклад">
+                      <Form.Item name="monthlySalaryFixed" label={uiText("Фикс. оклад")}>
                         <InputNumber
                           min={0}
                           style={{ width: '100%' }}
-                          addonAfter="сом/мес"
+                          addonAfter={uiText("сом/мес")}
                         />
                       </Form.Item>
                     </Col>
                   </Row>
                   <Row gutter={12}>
                     <Col span={12}>
-                      <Form.Item name="workNorm" label="Норма часов/мес">
+                      <Form.Item name="workNorm" label={uiText("Норма часов/мес")}>
                         <InputNumber
                           min={1}
                           style={{ width: '100%' }}
-                          addonAfter="ч"
+                          addonAfter={uiText("ч")}
                         />
                       </Form.Item>
                     </Col>
                     <Col span={12}>
                       <Form.Item
                         name="terminalCode"
-                        label="Код терминала"
-                        tooltip="Код сотрудника на физическом терминале Face-ID"
+                        label={uiText("Код терминала")}
+                        tooltip={uiText("Код сотрудника на физическом терминале Face-ID")}
                       >
                         <Input placeholder="T001" />
                       </Form.Item>
@@ -609,6 +628,12 @@ export default function StaffPage() {
           </Form.Item>
         </Form>
       </Drawer>
+
+      <AccessResultModal
+        grant={access?.grant ?? null}
+        onRetry={access ? () => accessApi.sendLink(access.userId) : undefined}
+        onClose={() => setAccess(null)}
+      />
     </div>
   )
 }

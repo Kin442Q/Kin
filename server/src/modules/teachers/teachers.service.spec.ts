@@ -132,4 +132,41 @@ describe('TeachersService — изоляция школ', () => {
       expect(prisma.group.findMany.mock.calls[0][0].where.kindergartenId).toBe('kB')
     })
   })
+
+  describe('setSubjects', () => {
+    it('404 для учителя из чужой школы', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 't1', role: 'TEACHER', kindergartenId: 'kB' })
+      await expect(service.setSubjects(adminA, 't1', ['s1'])).rejects.toThrow(NotFoundException)
+      expect(prisma.user.update).not.toHaveBeenCalled()
+    })
+
+    it('404 если хотя бы один предмет чужой, в БД ничего не меняется', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 't1', role: 'TEACHER', kindergartenId: 'kA' })
+      prisma.subject.findMany.mockResolvedValue([{ id: 's1' }])
+      await expect(service.setSubjects(adminA, 't1', ['s1', 's2'])).rejects.toThrow(NotFoundException)
+      expect(prisma.subject.findMany.mock.calls[0][0].where).toEqual({
+        id: { in: ['s1', 's2'] },
+        kindergartenId: 'kA',
+      })
+      expect(prisma.user.update).not.toHaveBeenCalled()
+    })
+
+    it('открывает набор предметов, дубликаты убираются', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 't1', role: 'TEACHER', kindergartenId: 'kA' })
+      prisma.subject.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }])
+      prisma.user.update.mockResolvedValue({})
+      await service.setSubjects(adminA, 't1', ['s1', 's2', 's1'])
+      expect(prisma.user.update.mock.calls[0][0].data).toEqual({
+        teachingSubjects: { set: [{ id: 's1' }, { id: 's2' }] },
+      })
+    })
+
+    it('пустой список снимает все предметы и не ходит за предметами в БД', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 't1', role: 'TEACHER', kindergartenId: 'kA' })
+      prisma.user.update.mockResolvedValue({})
+      await service.setSubjects(adminA, 't1', [])
+      expect(prisma.subject.findMany).not.toHaveBeenCalled()
+      expect(prisma.user.update.mock.calls[0][0].data).toEqual({ teachingSubjects: { set: [] } })
+    })
+  })
 })

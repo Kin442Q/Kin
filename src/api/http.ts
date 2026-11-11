@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import axios, { AxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/authStore'
 
@@ -96,6 +97,10 @@ http.interceptors.response.use(
     return response
   },
   async (error) => {
+    const serverMessage = error?.response?.data?.message
+    if (typeof serverMessage === 'string') error.response.data.message = uiText(serverMessage)
+    else if (Array.isArray(serverMessage)) error.response.data.message = serverMessage.map(value => typeof value === 'string' ? uiText(value) : value)
+
     const config = error.config as
       | (ConfigWithMetadata & { _retry?: boolean })
       | undefined
@@ -110,7 +115,9 @@ http.interceptors.response.use(
     const status = error?.response?.status
     const url = config?.url || ''
     const isAuthCall =
-      url.includes('/auth/login') || url.includes('/auth/refresh')
+      url.includes('/auth/login') ||
+      url.includes('/auth/refresh') ||
+      url.includes('/auth/student-link')
 
     // 401 во время работы → пробуем обновить токен и повторить запрос один раз.
     if (

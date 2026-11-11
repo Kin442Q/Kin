@@ -1,3 +1,4 @@
+import { uiText, uiLanguage } from '../i18n/uiText'
 /**
  * ПРИМЕР: Полностью интегрированный компонент со всеми операциями CRUD
  * Используется для демонстрации правильного использования API hooks
@@ -103,13 +104,13 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
           { id: editingStudent.id, data },
           {
             onSuccess: () => {
-              message.success('Ученик обновлён')
+              message.success(uiText("Ученик обновлён"))
               handleCloseModal()
             },
             onError: (error) => {
               const axiosError = error as AxiosError<any>
               message.error(
-                axiosError?.response?.data?.message || 'Ошибка при обновлении',
+                axiosError?.response?.data?.message || uiText("Ошибка при обновлении"),
               )
             },
           },
@@ -118,13 +119,13 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
         // Создание
         createMutation.mutate(data, {
           onSuccess: () => {
-            message.success('Ученик добавлен')
+            message.success(uiText("Ученик добавлен"))
             handleCloseModal()
           },
           onError: (error) => {
             const axiosError = error as AxiosError<any>
             message.error(
-              axiosError?.response?.data?.message || 'Ошибка при добавлении',
+              axiosError?.response?.data?.message || uiText("Ошибка при добавлении"),
             )
           },
         })
@@ -138,12 +139,12 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
   const handleDelete = (id: string, name: string) => {
     deleteMutation.mutate(id, {
       onSuccess: () => {
-        message.success(`Ученик "${name}" удалён`)
+        message.success(uiText("Ученик \"{0}\" удалён", name))
       },
       onError: (error) => {
         const axiosError = error as AxiosError<any>
         message.error(
-          axiosError?.response?.data?.message || 'Ошибка при удалении',
+          axiosError?.response?.data?.message || uiText("Ошибка при удалении"),
         )
       },
     })
@@ -151,13 +152,13 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
 
   const columns = [
     {
-      title: 'ФИО',
+      title: uiText("ФИО"),
       dataIndex: 'firstName',
       key: 'firstName',
       render: (_: string, record: Child) => `${record.firstName} ${record.lastName}`,
     },
     {
-      title: 'Группа',
+      title: uiText("Группа"),
       dataIndex: 'groupId',
       key: 'groupId',
       render: (groupId: string) => {
@@ -166,20 +167,20 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
       },
     },
     {
-      title: 'Дата рождения',
+      title: uiText("Дата рождения"),
       dataIndex: 'birthDate',
       key: 'birthDate',
-      render: (date: string) => new Date(date).toLocaleDateString('ru-RU'),
+      render: (date: string) => new Date(date).toLocaleDateString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU'),
     },
     {
-      title: 'Пол',
+      title: uiText("Пол"),
       dataIndex: 'gender',
       key: 'gender',
       render: (gender: string) =>
-        gender === 'male' ? <Tag color="cyan">М</Tag> : <Tag color="magenta">Ж</Tag>,
+        gender === 'male' ? <Tag color="cyan">{uiText("М")}</Tag> : <Tag color="magenta">{uiText("Ж")}</Tag>,
     },
     {
-      title: 'Действия',
+      title: uiText("Действия"),
       key: 'actions',
       render: (_: any, record: Child) => (
         <Space size="small">
@@ -190,13 +191,13 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
             onClick={() => handleOpenModal(record)}
           />
           <Popconfirm
-            title="Удалить ученика?"
+            title={uiText("Удалить ученика?")}
             description={`${record.firstName} ${record.lastName}`}
             onConfirm={() =>
               handleDelete(record.id, `${record.firstName} ${record.lastName}`)
             }
-            okText="Да"
-            cancelText="Отмена"
+            okText={uiText("Да")}
+            cancelText={uiText("Отмена")}
           >
             <Button
               type="text"
@@ -216,12 +217,11 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
     return (
       <div className="p-6">
         <Empty
-          description="Ошибка загрузки"
+          description={uiText("Ошибка загрузки")}
           style={{ marginTop: 48, marginBottom: 48 }}
         >
           <Button type="primary" onClick={() => window.location.reload()}>
-            Перезагрузить
-          </Button>
+            {" " + uiText("Перезагрузить") + " "}</Button>
         </Empty>
       </div>
     )
@@ -235,8 +235,7 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
           icon={<PlusOutlined />}
           onClick={() => handleOpenModal()}
         >
-          Добавить ученика
-        </Button>
+          {" " + uiText("Добавить ученика") + " "}</Button>
       </div>
 
       <Spin spinning={isLoading}>
@@ -246,50 +245,49 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
           rowKey="id"
           pagination={{ pageSize: 20 }}
           locale={{
-            emptyText: 'Нет учеников',
+            emptyText: uiText("Нет учеников"),
           }}
         />
       </Spin>
 
       <Modal
-        title={editingStudent ? 'Редактировать ученика' : 'Новый ученик'}
+        title={editingStudent ? uiText("Редактировать ученика") : uiText("Новый ученик")}
         open={isModalOpen}
         onCancel={handleCloseModal}
         footer={[
           <Button key="cancel" onClick={handleCloseModal}>
-            Отмена
-          </Button>,
+            {" " + uiText("Отмена") + " "}</Button>,
           <Button
             key="submit"
             type="primary"
             loading={createMutation.isPending || updateMutation.isPending}
             onClick={handleSave}
           >
-            {editingStudent ? 'Обновить' : 'Добавить'}
+            {editingStudent ? uiText("Обновить") : uiText("Добавить")}
           </Button>,
         ]}
       >
         <Form form={form} layout="vertical">
           <Form.Item
-            label="Имя"
+            label={uiText("Имя")}
             name="firstName"
-            rules={[{ required: true, message: 'Введите имя' }]}
+            rules={[{ required: true, message: uiText("Введите имя") }]}
           >
             <Input />
           </Form.Item>
           <Form.Item
-            label="Фамилия"
+            label={uiText("Фамилия")}
             name="lastName"
-            rules={[{ required: true, message: 'Введите фамилию' }]}
+            rules={[{ required: true, message: uiText("Введите фамилию") }]}
           >
             <Input />
           </Form.Item>
           <Form.Item
-            label="Группа"
+            label={uiText("Группа")}
             name="groupId"
-            rules={[{ required: true, message: 'Выберите группу' }]}
+            rules={[{ required: true, message: uiText("Выберите группу") }]}
           >
-            <Select placeholder="Выберите группу">
+            <Select placeholder={uiText("Выберите группу")}>
               {groups.map((g) => (
                 <Select.Option key={g.id} value={g.id}>
                   {g.name}
@@ -298,26 +296,26 @@ export function StudentsManagement({ groupId }: { groupId?: string }) {
             </Select>
           </Form.Item>
           <Form.Item
-            label="Дата рождения"
+            label={uiText("Дата рождения")}
             name="birthDate"
-            rules={[{ required: true, message: 'Выберите дату' }]}
+            rules={[{ required: true, message: uiText("Выберите дату") }]}
           >
             <DatePicker format="YYYY-MM-DD" />
           </Form.Item>
           <Form.Item
-            label="Пол"
+            label={uiText("Пол")}
             name="gender"
-            rules={[{ required: true, message: 'Выберите пол' }]}
+            rules={[{ required: true, message: uiText("Выберите пол") }]}
           >
             <Select>
-              <Select.Option value="male">Мальчик</Select.Option>
-              <Select.Option value="female">Девочка</Select.Option>
+              <Select.Option value="male">{uiText("Мальчик")}</Select.Option>
+              <Select.Option value="female">{uiText("Девочка")}</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item label="Телефон мамы" name="motherPhone">
+          <Form.Item label={uiText("Телефон мамы")} name="motherPhone">
             <Input />
           </Form.Item>
-          <Form.Item label="Телефон папы" name="fatherPhone">
+          <Form.Item label={uiText("Телефон папы")} name="fatherPhone">
             <Input />
           </Form.Item>
         </Form>

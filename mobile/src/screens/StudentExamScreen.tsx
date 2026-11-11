@@ -1,14 +1,13 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import { Target } from 'lucide-react-native'
 
@@ -19,6 +18,8 @@ import EmptyState from '../components/EmptyState'
 import { colors, radius } from '../theme/colors'
 import { examTrackApi, type ExamTrack } from '../api/learning'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Подготовка к экзаменам: направления школы и прогресс ученика по каждому. */
 export default function StudentExamScreen() {
   const navigation = useNavigation<any>()
@@ -30,7 +31,7 @@ export default function StudentExamScreen() {
     try {
       setTracks(await examTrackApi.list())
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить направления')
+      notifyError(e, uiText("Не удалось загрузить направления"))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -45,7 +46,7 @@ export default function StudentExamScreen() {
 
   return (
     <Screen>
-      <StackHeader title="К экзаменам" />
+      <StackHeader title={uiText("К экзаменам")} />
       {loading ? (
         <View style={styles.loader}>
           <ActivityIndicator color={colors.primary} />
@@ -69,8 +70,8 @@ export default function StudentExamScreen() {
           ListEmptyComponent={
             <EmptyState
               icon={<Target size={34} color={colors.muted} />}
-              title="Направлений пока нет"
-              hint="Школа ещё не создала подготовку к экзаменам"
+              title={uiText("Направлений пока нет")}
+              hint={uiText("Школа ещё не создала подготовку к экзаменам")}
             />
           }
           renderItem={({ item: t }) => {
@@ -90,9 +91,9 @@ export default function StudentExamScreen() {
                   </View>
                   <Text style={styles.meta}>
                     {p
-                      ? `Пройдено ${p.attempted} из ${p.total}` +
-                        (p.avgPercent != null ? ` · средний результат ${p.avgPercent}%` : '')
-                      : `Квизов: ${t.quizzesCount}`}
+                      ? uiText("Пройдено {0} из {1}", p.attempted, p.total) +
+                        (p.avgPercent != null ? uiText("· средний результат {0}%", p.avgPercent) : '')
+                      : uiText("Квизов: {0}", t.quizzesCount)}
                   </Text>
                 </Card>
               </Pressable>
@@ -104,7 +105,7 @@ export default function StudentExamScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 16, paddingBottom: 32, flexGrow: 1 },
   tTitle: { fontSize: 16, fontWeight: '800', color: colors.text },
@@ -118,4 +119,4 @@ const styles = StyleSheet.create({
   },
   barFill: { height: 8, borderRadius: radius.pill, backgroundColor: colors.primary },
   meta: { fontSize: 12, color: colors.muted, marginTop: 6 },
-})
+}))

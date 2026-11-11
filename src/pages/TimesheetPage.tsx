@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Avatar,
@@ -97,7 +98,7 @@ export default function TimesheetPage() {
       const data = await timeService.allTeachers(month)
       setRows(data)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось загрузить')
+      message.error(e?.response?.data?.message || uiText("Не удалось загрузить"))
     } finally {
       setLoading(false)
     }
@@ -119,7 +120,7 @@ export default function TimesheetPage() {
       }),
       { totalHours: 0, totalSalary: 0, teachers: 0, working: 0 },
     )
-  }, [rows])
+  }, [rows, uiLanguage()])
 
   // ─── Действия ────────────────────────────────────────────────────
 
@@ -144,12 +145,12 @@ export default function TimesheetPage() {
     try {
       const v = await salaryForm.validateFields()
       await timeService.setTeacherSalary(selectedTeacher.teacher.id, v)
-      message.success('Ставка обновлена')
+      message.success(uiText("Ставка обновлена"))
       setSalaryModalOpen(false)
       reload()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Ошибка сохранения')
+      message.error(e?.response?.data?.message || uiText("Ошибка сохранения"))
     }
   }
 
@@ -171,22 +172,22 @@ export default function TimesheetPage() {
         checkOut: v.checkOut ? v.checkOut.toISOString() : null,
         note: v.note,
       })
-      message.success('Запись обновлена')
+      message.success(uiText("Запись обновлена"))
       setEditingEntry(null)
       reload()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
   }
 
   const deleteEntry = async (entry: TimeEntryDto) => {
     try {
       await timeService.removeEntry(entry.id)
-      message.success('Запись удалена')
+      message.success(uiText("Запись удалена"))
       reload()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
   }
 
@@ -195,10 +196,10 @@ export default function TimesheetPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Табель и зарплаты"
+        title={uiText("Табель и зарплаты")}
         icon={<Clock size={22} strokeWidth={2} />}
         iconAccent="lilac"
-        description="Учёт рабочих часов, расчёт зарплаты, настройка терминала контроля доступа"
+        description={uiText("Учёт рабочих часов, расчёт зарплаты, настройка терминала контроля доступа")}
         actions={
           <Space wrap>
             <DatePicker
@@ -213,15 +214,13 @@ export default function TimesheetPage() {
               onClick={reload}
               loading={loading}
             >
-              Обновить
-            </Button>
+              {" " + uiText("Обновить") + " "}</Button>
             <Button
               type="primary"
               icon={<Cpu size={14} />}
               onClick={() => setTerminalDrawerOpen(true)}
             >
-              Терминал
-            </Button>
+              {" " + uiText("Терминал") + " "}</Button>
           </Space>
         }
       />
@@ -230,43 +229,43 @@ export default function TimesheetPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <SproutKPI
-            label="Учителей"
+            label={uiText("Учителей")}
             value={String(totals.teachers)}
             accent="mint"
             icon={<Clock size={18} />}
-            hint={`${totals.working} сейчас на работе`}
+            hint={uiText("{0} сейчас на работе", totals.working)}
             delay={0}
           />
         </Col>
         <Col xs={12} md={6}>
           <SproutKPI
-            label="Часов в сумме"
-            value={`${Math.round(totals.totalHours)}ч`}
+            label={uiText("Часов в сумме")}
+            value={uiText("{0}ч", Math.round(totals.totalHours))}
             accent="blue"
             icon={<Clock size={18} />}
-            hint="за выбранный месяц"
+            hint={uiText("за выбранный месяц")}
             delay={0.05}
           />
         </Col>
         <Col xs={12} md={6}>
           <SproutKPI
-            label="Фонд оплаты труда"
+            label={uiText("Фонд оплаты труда")}
             value={formatMoneyCompact(totals.totalSalary)}
             accent="yellow"
             icon={<Wallet size={18} />}
-            hint="за месяц"
+            hint={uiText("за месяц")}
             delay={0.1}
           />
         </Col>
         <Col xs={12} md={6}>
           <SproutKPI
-            label="Средняя зарплата"
+            label={uiText("Средняя зарплата")}
             value={formatMoneyCompact(
               totals.teachers > 0 ? totals.totalSalary / totals.teachers : 0,
             )}
             accent="lilac"
             icon={<Wallet size={18} />}
-            hint="на одного учителя"
+            hint={uiText("на одного учителя")}
             delay={0.15}
           />
         </Col>
@@ -283,7 +282,7 @@ export default function TimesheetPage() {
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-            Учителя · {dayjs(month + '-01').format('MMMM YYYY')}
+            {" " + uiText("Учителя ·") + " "}{dayjs(month + '-01').format('MMMM YYYY')}
           </div>
           <Tag
             style={{
@@ -292,7 +291,7 @@ export default function TimesheetPage() {
               border: 'none',
             }}
           >
-            Всего: {rows.length}
+            {" " + uiText("Всего:") + " "}{rows.length}
           </Tag>
         </div>
 
@@ -303,8 +302,8 @@ export default function TimesheetPage() {
         ) : rows.length === 0 ? (
           <SproutEmpty
             icon={<Clock size={28} strokeWidth={1.8} />}
-            title="Учителей пока нет"
-            description="Сначала добавьте учителей на странице «Учителя»"
+            title={uiText("Учителей пока нет")}
+            description={uiText("Сначала добавьте учителей на странице «Учителя»")}
             minHeight={220}
           />
         ) : isMobile ? (
@@ -326,34 +325,31 @@ export default function TimesheetPage() {
                     <div className="sp-mcard-title">{r.teacher.fullName}</div>
                     <div className="sp-mcard-sub">
                       {r.teacher.salaryMode === 'HOURLY'
-                        ? `${r.teacher.hourlyRate || 0} сом/ч`
-                        : 'Фикс. оклад'}
+                        ? uiText("{0} сом/ч", r.teacher.hourlyRate || 0)
+                        : uiText("Фикс. оклад")}
                     </div>
                   </div>
                 </div>
                 <div className="sp-mcard-row">
-                  <span className="label">Часов</span>
+                  <span className="label">{uiText("Часов")}</span>
                   <span className="value sp-num">
-                    {Math.round(r.totalHours)}ч / {r.teacher.workNorm}ч
-                  </span>
+                    {Math.round(r.totalHours)}{uiText("ч /") + " "}{r.teacher.workNorm}{uiText("ч") + " "}</span>
                 </div>
                 <div className="sp-mcard-row">
-                  <span className="label">К выплате</span>
+                  <span className="label">{uiText("К выплате")}</span>
                   <span className="value sp-num" style={{ color: SP.primaryDeep }}>
                     {formatMoneyCompact(r.estimatedSalary)}
                   </span>
                 </div>
                 <div className="sp-mcard-actions">
                   <Button size="small" onClick={() => openTeacherDetail(r)}>
-                    Записи
-                  </Button>
+                    {" " + uiText("Записи") + " "}</Button>
                   <Button
                     size="small"
                     icon={<Pencil size={12} />}
                     onClick={() => openSalary(r)}
                   >
-                    Ставка
-                  </Button>
+                    {" " + uiText("Ставка") + " "}</Button>
                 </div>
               </div>
             ))}
@@ -366,7 +362,7 @@ export default function TimesheetPage() {
             size="middle"
             columns={[
               {
-                title: 'Учитель',
+                title: uiText("Учитель"),
                 key: 'teacher',
                 render: (_, r) => (
                   <Space>
@@ -385,28 +381,27 @@ export default function TimesheetPage() {
                       </div>
                       <Text type="secondary" style={{ fontSize: 11 }}>
                         {r.teacher.salaryMode === 'HOURLY'
-                          ? `${r.teacher.hourlyRate || 0} сом/ч`
-                          : `Оклад ${r.teacher.monthlySalaryFixed || 0}`}
+                          ? uiText("{0} сом/ч", r.teacher.hourlyRate || 0)
+                          : uiText("Оклад {0}", r.teacher.monthlySalaryFixed || 0)}
                       </Text>
                     </div>
                   </Space>
                 ),
               },
               {
-                title: 'Часов',
+                title: uiText("Часов"),
                 dataIndex: 'totalHours',
                 sorter: (a, b) => a.totalHours - b.totalHours,
                 render: (v: number, r) => (
                   <span className="sp-num" style={{ fontWeight: 600 }}>
-                    {Math.round(v)}ч{' '}
+                    {Math.round(v)}{uiText("ч")}{' '}
                     <Text type="secondary" style={{ fontSize: 11 }}>
-                      / {r.teacher.workNorm}ч
-                    </Text>
+                      / {r.teacher.workNorm}{uiText("ч") + " "}</Text>
                   </span>
                 ),
               },
               {
-                title: 'Записей',
+                title: uiText("Записей"),
                 key: 'entries',
                 render: (_, r) => (
                   <Tag
@@ -421,7 +416,7 @@ export default function TimesheetPage() {
                 ),
               },
               {
-                title: 'Сейчас работает',
+                title: uiText("Сейчас работает"),
                 key: 'working',
                 render: (_, r) => {
                   const isWorking = r.entries.some((e) => !e.checkOut)
@@ -433,8 +428,7 @@ export default function TimesheetPage() {
                         border: 'none',
                       }}
                     >
-                      🟢 Да
-                    </Tag>
+                      {" " + uiText("🟢 Да") + " "}</Tag>
                   ) : (
                     <Tag
                       style={{
@@ -443,13 +437,12 @@ export default function TimesheetPage() {
                         border: 'none',
                       }}
                     >
-                      ⚪ Нет
-                    </Tag>
+                      {" " + uiText("⚪ Нет") + " "}</Tag>
                   )
                 },
               },
               {
-                title: 'К выплате',
+                title: uiText("К выплате"),
                 dataIndex: 'estimatedSalary',
                 sorter: (a, b) => a.estimatedSalary - b.estimatedSalary,
                 render: (v: number) => (
@@ -469,7 +462,7 @@ export default function TimesheetPage() {
                 key: 'actions',
                 render: (_, r) => (
                   <Space>
-                    <Tooltip title="Записи прихода/ухода">
+                    <Tooltip title={uiText("Записи прихода/ухода")}>
                       <Button
                         size="small"
                         type="text"
@@ -477,7 +470,7 @@ export default function TimesheetPage() {
                         onClick={() => openTeacherDetail(r)}
                       />
                     </Tooltip>
-                    <Tooltip title="Ставка зарплаты">
+                    <Tooltip title={uiText("Ставка зарплаты")}>
                       <Button
                         size="small"
                         type="text"
@@ -497,8 +490,8 @@ export default function TimesheetPage() {
       <Drawer
         title={
           selectedTeacher
-            ? `Записи · ${selectedTeacher.teacher.fullName}`
-            : 'Записи'
+            ? uiText("Записи · {0}", selectedTeacher.teacher.fullName)
+            : uiText("Записи")
         }
         placement="right"
         open={entryDrawerOpen}
@@ -519,19 +512,16 @@ export default function TimesheetPage() {
             >
               <div>
                 <div style={{ fontSize: 11, color: SP.muted, fontWeight: 600 }}>
-                  За месяц
-                </div>
+                  {" " + uiText("За месяц") + " "}</div>
                 <div
                   className="sp-num"
                   style={{ fontSize: 18, fontWeight: 700, color: SP.text }}
                 >
-                  {Math.round(selectedTeacher.totalHours)}ч
-                </div>
+                  {Math.round(selectedTeacher.totalHours)}{uiText("ч") + " "}</div>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 11, color: SP.muted, fontWeight: 600 }}>
-                  К выплате
-                </div>
+                  {" " + uiText("К выплате") + " "}</div>
                 <div
                   className="sp-num"
                   style={{
@@ -546,8 +536,8 @@ export default function TimesheetPage() {
             </div>
             {selectedTeacher.entries.length === 0 ? (
               <SproutEmpty
-                title="Записей нет"
-                description="Учитель ещё не отмечался в этом месяце"
+                title={uiText("Записей нет")}
+                description={uiText("Учитель ещё не отмечался в этом месяце")}
                 minHeight={200}
               />
             ) : (
@@ -558,17 +548,17 @@ export default function TimesheetPage() {
                 pagination={false}
                 columns={[
                   {
-                    title: 'Дата',
+                    title: uiText("Дата"),
                     dataIndex: 'date',
                     render: (v: string) => dayjs(v).format('DD.MM'),
                   },
                   {
-                    title: 'Приход',
+                    title: uiText("Приход"),
                     dataIndex: 'checkIn',
                     render: (v: string) => dayjs(v).format('HH:mm'),
                   },
                   {
-                    title: 'Уход',
+                    title: uiText("Уход"),
                     dataIndex: 'checkOut',
                     render: (v: string | null) =>
                       v ? (
@@ -582,16 +572,15 @@ export default function TimesheetPage() {
                             fontSize: 10,
                           }}
                         >
-                          сейчас
-                        </Tag>
+                          {" " + uiText("сейчас") + " "}</Tag>
                       ),
                   },
                   {
-                    title: 'Часов',
+                    title: uiText("Часов"),
                     dataIndex: 'minutesWorked',
                     render: (v: number | null) =>
                       v != null
-                        ? `${Math.floor(v / 60)}ч ${v % 60}м`
+                        ? uiText("{0}ч {1}м", Math.floor(v / 60), v % 60)
                         : '—',
                   },
                   {
@@ -606,9 +595,9 @@ export default function TimesheetPage() {
                           onClick={() => openEditEntry(e)}
                         />
                         <Popconfirm
-                          title="Удалить?"
-                          okText="Да"
-                          cancelText="Нет"
+                          title={uiText("Удалить?")}
+                          okText={uiText("Да")}
+                          cancelText={uiText("Нет")}
                           okButtonProps={{ danger: true }}
                           onConfirm={() => deleteEntry(e)}
                         >
@@ -631,43 +620,43 @@ export default function TimesheetPage() {
 
       {/* ─── Modal: ставка ─── */}
       <Modal
-        title={`Ставка · ${selectedTeacher?.teacher.fullName ?? ''}`}
+        title={uiText("Ставка · {0}", selectedTeacher?.teacher.fullName ?? '')}
         open={salaryModalOpen}
         onOk={saveSalary}
         onCancel={() => setSalaryModalOpen(false)}
-        okText="Сохранить"
-        cancelText="Отмена"
+        okText={uiText("Сохранить")}
+        cancelText={uiText("Отмена")}
         destroyOnClose
       >
         <Form layout="vertical" form={salaryForm}>
-          <Form.Item label="Режим" name="salaryMode">
+          <Form.Item label={uiText("Режим")} name="salaryMode">
             <Segmented
               block
               options={[
-                { label: 'Почасовая', value: 'HOURLY' },
-                { label: 'Фикс. оклад', value: 'FIXED' },
+                { label: uiText("Почасовая"), value: 'HOURLY' },
+                { label: uiText("Фикс. оклад"), value: 'FIXED' },
               ]}
             />
           </Form.Item>
-          <Form.Item label="Ставка в час" name="hourlyRate">
+          <Form.Item label={uiText("Ставка в час")} name="hourlyRate">
             <InputNumber
               style={{ width: '100%' }}
               min={0}
-              addonAfter="сом/ч"
+              addonAfter={uiText("сом/ч")}
             />
           </Form.Item>
-          <Form.Item label="Фиксированный оклад" name="monthlySalaryFixed">
+          <Form.Item label={uiText("Фиксированный оклад")} name="monthlySalaryFixed">
             <InputNumber
               style={{ width: '100%' }}
               min={0}
-              addonAfter="сом/мес"
+              addonAfter={uiText("сом/мес")}
             />
           </Form.Item>
-          <Form.Item label="Норма часов в месяц" name="workNorm">
+          <Form.Item label={uiText("Норма часов в месяц")} name="workNorm">
             <InputNumber
               style={{ width: '100%' }}
               min={1}
-              addonAfter="ч"
+              addonAfter={uiText("ч")}
             />
           </Form.Item>
         </Form>
@@ -675,23 +664,23 @@ export default function TimesheetPage() {
 
       {/* ─── Modal: правка записи ─── */}
       <Modal
-        title="Коррекция записи"
+        title={uiText("Коррекция записи")}
         open={!!editingEntry}
         onOk={saveEntry}
         onCancel={() => setEditingEntry(null)}
-        okText="Сохранить"
-        cancelText="Отмена"
+        okText={uiText("Сохранить")}
+        cancelText={uiText("Отмена")}
         destroyOnClose
       >
         <Form layout="vertical" form={entryForm}>
-          <Form.Item label="Приход" name="checkIn" rules={[{ required: true }]}>
+          <Form.Item label={uiText("Приход")} name="checkIn" rules={[{ required: true }]}>
             <DatePicker
               showTime={{ format: 'HH:mm' }}
               format="DD.MM.YYYY HH:mm"
               style={{ width: '100%' }}
             />
           </Form.Item>
-          <Form.Item label="Уход" name="checkOut">
+          <Form.Item label={uiText("Уход")} name="checkOut">
             <DatePicker
               showTime={{ format: 'HH:mm' }}
               format="DD.MM.YYYY HH:mm"
@@ -699,7 +688,7 @@ export default function TimesheetPage() {
               allowClear
             />
           </Form.Item>
-          <Form.Item label="Заметка" name="note">
+          <Form.Item label={uiText("Заметка")} name="note">
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -745,7 +734,7 @@ function TerminalDrawer({
       const s = await terminalService.getSettings()
       setSettings(s)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     } finally {
       setLoading(false)
     }
@@ -758,37 +747,37 @@ function TerminalDrawer({
   const regenerate = async () => {
     try {
       const { apiKey } = await terminalService.regenerate()
-      message.success('Новый ключ сгенерирован')
+      message.success(uiText("Новый ключ сгенерирован"))
       setSettings((s) => (s ? { ...s, apiKey, hasApiKey: true } : s))
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
   }
 
   const disable = async () => {
     try {
       await terminalService.disable()
-      message.success('Терминал отключён')
+      message.success(uiText("Терминал отключён"))
       setSettings((s) => (s ? { ...s, apiKey: null, hasApiKey: false } : s))
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
   }
 
   const copyKey = () => {
     if (!settings?.apiKey) return
     navigator.clipboard.writeText(settings.apiKey)
-    message.success('Ключ скопирован')
+    message.success(uiText("Ключ скопирован"))
   }
 
   const saveTeacherCode = async (teacherId: string) => {
     const code = teacherCodes[teacherId]
     try {
       await terminalService.setTeacherCode(teacherId, code || null)
-      message.success('Код сохранён')
+      message.success(uiText("Код сохранён"))
       onTeacherUpdate()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
   }
 
@@ -798,7 +787,7 @@ function TerminalDrawer({
 
   return (
     <Drawer
-      title="Терминал контроля доступа"
+      title={uiText("Терминал контроля доступа")}
       placement="right"
       open={open}
       onClose={onClose}
@@ -828,7 +817,7 @@ function TerminalDrawer({
               }}
             >
               <KeyRound size={18} color={SP.primaryDeep} />
-              <strong style={{ color: SP.text }}>API ключ</strong>
+              <strong style={{ color: SP.text }}>{uiText("API ключ")}</strong>
               {settings.hasApiKey && (
                 <Tag
                   style={{
@@ -838,8 +827,7 @@ function TerminalDrawer({
                     marginLeft: 'auto',
                   }}
                 >
-                  Активен
-                </Tag>
+                  {" " + uiText("Активен") + " "}</Tag>
               )}
             </div>
 
@@ -848,7 +836,7 @@ function TerminalDrawer({
                 <Input
                   value={settings.apiKey}
                   readOnly
-                  style={{ fontFamily: 'monospace', fontSize: 12 }}
+                  style={{ fontFamily: 'Inter, sans-serif', fontSize: 12 }}
                 />
                 <Button icon={<Copy size={14} />} onClick={copyKey} />
               </Space.Compact>
@@ -860,8 +848,7 @@ function TerminalDrawer({
                   fontStyle: 'italic',
                 }}
               >
-                Ключ не сгенерирован. Терминал не сможет отправлять события.
-              </div>
+                {" " + uiText("Ключ не сгенерирован. Терминал не сможет отправлять события.") + " "}</div>
             )}
 
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
@@ -870,20 +857,19 @@ function TerminalDrawer({
                 icon={<RotateCcw size={12} />}
                 onClick={regenerate}
               >
-                {settings.hasApiKey ? 'Перегенерировать' : 'Сгенерировать'}
+                {settings.hasApiKey ? uiText("Перегенерировать") : uiText("Сгенерировать")}
               </Button>
               {settings.hasApiKey && (
                 <Popconfirm
-                  title="Отключить терминал?"
-                  description="После этого устройство не сможет отправлять события"
-                  okText="Да"
-                  cancelText="Нет"
+                  title={uiText("Отключить терминал?")}
+                  description={uiText("После этого устройство не сможет отправлять события")}
+                  okText={uiText("Да")}
+                  cancelText={uiText("Нет")}
                   okButtonProps={{ danger: true }}
                   onConfirm={disable}
                 >
                   <Button size="small" danger icon={<Power size={12} />}>
-                    Отключить
-                  </Button>
+                    {" " + uiText("Отключить") + " "}</Button>
                 </Popconfirm>
               )}
             </div>
@@ -899,12 +885,11 @@ function TerminalDrawer({
                 marginBottom: 6,
               }}
             >
-              Webhook URL (укажите в настройках терминала)
-            </div>
+              {" " + uiText("Webhook URL (укажите в настройках терминала)") + " "}</div>
             <Input
               value={`${serverOrigin()}${settings.webhookUrl}`}
               readOnly
-              style={{ fontFamily: 'monospace', fontSize: 12 }}
+              style={{ fontFamily: 'Inter, sans-serif', fontSize: 12 }}
               suffix={
                 <Copy
                   size={14}
@@ -913,7 +898,7 @@ function TerminalDrawer({
                     navigator.clipboard.writeText(
                       `${serverOrigin()}${settings.webhookUrl}`,
                     )
-                    message.success('Скопировано')
+                    message.success(uiText("Скопировано"))
                   }}
                 />
               }
@@ -926,10 +911,10 @@ function TerminalDrawer({
                 lineHeight: 1.5,
               }}
             >
-              Метод: POST · Header: <code>X-Terminal-Api-Key</code> · Body: <code>{'{ "employeeCode": "T001", "eventType": "auto" }'}</code>
+              {" " + uiText("Метод: POST · Header:") + " "}<code>X-Terminal-Api-Key</code> · Body: <code>{'{ "employeeCode": "T001", "eventType": "auto" }'}</code>
             </div>
             <div style={{ fontSize: 11, color: SP.muted, marginTop: 4 }}>
-              Также скрытый URL для localhost: <code>{webhookFullUrl}</code>
+              {" " + uiText("Также скрытый URL для localhost:") + " "}<code>{webhookFullUrl}</code>
             </div>
           </div>
 
@@ -942,8 +927,7 @@ function TerminalDrawer({
               marginBottom: 10,
             }}
           >
-            Коды учителей на терминале
-          </div>
+            {" " + uiText("Коды учителей на терминале") + " "}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {teachers.map((t) => (
               <div
@@ -976,7 +960,7 @@ function TerminalDrawer({
                   defaultValue={
                     (t.teacher as any).terminalCode || ''
                   }
-                  style={{ width: 90, fontFamily: 'monospace' }}
+                  style={{ width: 90, fontFamily: 'Inter, sans-serif' }}
                   onChange={(e) =>
                     setTeacherCodes((c) => ({
                       ...c,

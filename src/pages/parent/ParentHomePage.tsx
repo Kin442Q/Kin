@@ -1,3 +1,4 @@
+import { uiText, uiLanguage } from '../../i18n/uiText'
 import { useEffect, useState } from 'react'
 import {
   App as AntdApp,
@@ -33,26 +34,26 @@ import { parentApi, type ParentKid, type ParentToday } from '../../api/parentApi
 const { Text, Title } = Typography
 
 function attendanceMeta(isSchool: boolean) {
-  const present = 'В школе'
+  const present = uiText("В школе")
   return {
     PRESENT: { label: present, color: SP.primaryDeep, bg: SP.primarySoft, emoji: '🟢' },
-    ABSENT: { label: 'Нет', color: SP.danger, bg: '#FCEAE5', emoji: '🔴' },
-    SICK: { label: 'Болеет', color: SP.yellowDeep, bg: SP.yellowSoft, emoji: '🤒' },
-    VACATION: { label: 'В отпуске', color: SP.lilacDeep, bg: SP.lilacSoft, emoji: '🌴' },
+    ABSENT: { label: uiText("Нет"), color: SP.danger, bg: 'var(--sp-rose-soft)', emoji: '🔴' },
+    SICK: { label: uiText("Болеет"), color: SP.yellowDeep, bg: SP.yellowSoft, emoji: '🤒' },
+    VACATION: { label: uiText("В отпуске"), color: SP.lilacDeep, bg: SP.lilacSoft, emoji: '🌴' },
   } as const
 }
 
 function moodLabel(m: 'HAPPY' | 'NEUTRAL' | 'SAD' | 'SICK'): string {
-  return m === 'HAPPY' ? '😊 хорошее'
-    : m === 'NEUTRAL' ? '😐 обычное'
-    : m === 'SAD' ? '😟 грустное'
-    : '🤒 болел(а)'
+  return m === 'HAPPY' ? uiText("😊 хорошее")
+    : m === 'NEUTRAL' ? uiText("😐 обычное")
+    : m === 'SAD' ? uiText("😟 грустное")
+    : uiText("🤒 болел(а)")
 }
 function napLabel(n: 'GOOD' | 'NORMAL' | 'POOR' | 'NO_NAP'): string {
-  return n === 'GOOD' ? 'хорошо спал(а)'
-    : n === 'NORMAL' ? 'обычно'
-    : n === 'POOR' ? 'плохо спал(а)'
-    : 'не спал(а)'
+  return n === 'GOOD' ? uiText("хорошо спал(а)")
+    : n === 'NORMAL' ? uiText("обычно")
+    : n === 'POOR' ? uiText("плохо спал(а)")
+    : uiText("не спал(а)")
 }
 
 export default function ParentHomePage() {
@@ -73,7 +74,7 @@ export default function ParentHomePage() {
         else setLoading(false)
       })
       .catch((e) => {
-        message.error(e?.response?.data?.message || 'Не удалось загрузить детей')
+        message.error(e?.response?.data?.message || uiText("Не удалось загрузить детей"))
         setLoading(false)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,7 +87,7 @@ export default function ParentHomePage() {
       .today(activeKidId)
       .then(setToday)
       .catch((e) =>
-        message.error(e?.response?.data?.message || 'Не удалось загрузить'),
+        message.error(e?.response?.data?.message || uiText("Не удалось загрузить")),
       )
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -104,15 +105,15 @@ export default function ParentHomePage() {
     return (
       <div>
         <SproutPageHeader
-          title={`Доброе утро, ${user?.fullName ?? ''}`}
+          title={uiText("Доброе утро, {0}", user?.fullName ?? '')}
           icon={<Baby size={22} strokeWidth={2} />}
           iconAccent="mint"
         />
         <Card className="glass" bordered={false}>
           <SproutEmpty
             icon={<Baby size={32} strokeWidth={1.8} />}
-            title="Нет привязанных детей"
-            description={`Обратитесь к администратору школы.`}
+            title={uiText("Нет привязанных детей")}
+            description={uiText("Обратитесь к администратору школы.")}
             minHeight={200}
           />
         </Card>
@@ -132,7 +133,7 @@ export default function ParentHomePage() {
   return (
     <div>
       <SproutPageHeader
-        title={`Здравствуйте, ${user?.fullName ?? ''}`}
+        title={uiText("Здравствуйте, {0}", user?.fullName ?? '')}
         icon={<Baby size={22} strokeWidth={2} />}
         iconAccent="mint"
         description={dayjs().format('dddd, D MMMM')}
@@ -167,7 +168,7 @@ export default function ParentHomePage() {
                     {kid.firstName}
                   </Title>
                   <Text type="secondary">
-                    {'Класс'} «{kid.group?.name ?? '—'}»
+                    {uiText("Класс")} «{kid.group?.name ?? '—'}»
                     {kid.group?.ageRange ? ` · ${kid.group.ageRange}` : ''}
                   </Text>
                 </div>
@@ -185,7 +186,7 @@ export default function ParentHomePage() {
               >
                 {meta
                   ? `${meta.emoji} ${meta.label}`
-                  : `⚪ Учитель ещё не отметил`}
+                  : uiText("⚪ Учитель ещё не отметил")}
               </div>
 
               {lastPayment && (
@@ -203,14 +204,14 @@ export default function ParentHomePage() {
                   <Wallet size={20} color={SP.primaryDeep} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700 }}>
-                      {lastPayment.paid ? 'Оплачено' : 'К оплате'} · {lastPayment.month}
+                      {lastPayment.paid ? uiText("Оплачено") : uiText("К оплате")} · {lastPayment.month}
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: SP.text }}>
-                      {Math.round(Number(lastPayment.amount) || 0).toLocaleString('ru-RU')}{' '}
-                      <span style={{ color: SP.muted, fontSize: 14 }}>с</span>
+                      {Math.round(Number(lastPayment.amount) || 0).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')}{' '}
+                      <span style={{ color: SP.muted, fontSize: 14 }}>{uiText("сомони")}</span>
                     </div>
                   </div>
-                  {!lastPayment.paid && <Tag color="red">долг</Tag>}
+                  {!lastPayment.paid && <Tag color="red">{uiText("долг")}</Tag>}
                 </div>
               )}
             </Card>
@@ -231,24 +232,24 @@ export default function ParentHomePage() {
                 title={
                   <Space>
                     <BookOpen size={18} />
-                    <span>Дневник за сегодня</span>
+                    <span>{uiText("Дневник за сегодня")}</span>
                   </Space>
                 }
               >
                 {diary?.breakfast && (
-                  <DiaryRow icon={<Coffee size={14} color={SP.primaryDeep} />} bg={SP.primarySoft} label="Завтрак" text={diary.breakfast} />
+                  <DiaryRow icon={<Coffee size={14} color={SP.primaryDeep} />} bg={SP.primarySoft} label={uiText("Завтрак")} text={diary.breakfast} />
                 )}
                 {diary?.lunch && (
-                  <DiaryRow icon={<Soup size={14} color={SP.yellowDeep} />} bg={SP.yellowSoft} label="Обед" text={diary.lunch} />
+                  <DiaryRow icon={<Soup size={14} color={SP.yellowDeep} />} bg={SP.yellowSoft} label={uiText("Обед")} text={diary.lunch} />
                 )}
                 {diary?.snack && (
-                  <DiaryRow icon={<Cookie size={14} color={SP.danger} />} bg="#FCEAE5" label="Полдник" text={diary.snack} />
+                  <DiaryRow icon={<Cookie size={14} color={SP.danger} />} bg="#FCEAE5" label={uiText("Полдник")} text={diary.snack} />
                 )}
                 {diary?.activities && (
-                  <DiaryRow icon={<Sparkles size={14} color={SP.blueDeep} />} bg={SP.blueSoft} label="Активности" text={diary.activities} />
+                  <DiaryRow icon={<Sparkles size={14} color={SP.blueDeep} />} bg={SP.blueSoft} label={uiText("Активности")} text={diary.activities} />
                 )}
                 {diary?.note && (
-                  <DiaryRow icon={<StickyNote size={14} color={SP.lilacDeep} />} bg={SP.lilacSoft} label="Заметка" text={diary.note} />
+                  <DiaryRow icon={<StickyNote size={14} color={SP.lilacDeep} />} bg={SP.lilacSoft} label={uiText("Заметка")} text={diary.note} />
                 )}
                 {kidNote && (
                   <div
@@ -259,16 +260,16 @@ export default function ParentHomePage() {
                     }}
                   >
                     <div style={{ fontSize: 11, color: SP.primaryDeep, fontWeight: 700, marginBottom: 4 }}>
-                      О {kid.firstName.toUpperCase()}
+                      {uiText("О ребёнке")} · {kid.firstName.toUpperCase()}
                     </div>
                     {kidNote.mood && (
                       <div style={{ fontSize: 13, color: SP.text }}>
-                        Настроение: {moodLabel(kidNote.mood)}
+                        {" " + uiText("Настроение:") + " "}{moodLabel(kidNote.mood)}
                       </div>
                     )}
                     {kidNote.napQuality && (
                       <div style={{ fontSize: 13, color: SP.text }}>
-                        Сон: {napLabel(kidNote.napQuality)}
+                        {" " + uiText("Сон:") + " "}{napLabel(kidNote.napQuality)}
                       </div>
                     )}
                     {kidNote.note && (
@@ -283,7 +284,7 @@ export default function ParentHomePage() {
           ) : (
             <Card className="glass" bordered={false}>
               <Empty
-                description={`Учитель ещё не заполнил дневник на сегодня`}
+                description={uiText("Учитель ещё не заполнил дневник на сегодня")}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             </Card>
@@ -300,11 +301,11 @@ export default function ParentHomePage() {
             <Card
               className="glass"
               bordered={false}
-              title={`Сегодня в школе`}
+              title={uiText("Сегодня в школе")}
             >
               {lessons.length === 0 ? (
                 <Empty
-                  description="На сегодня занятий нет"
+                  description={uiText("На сегодня занятий нет")}
                   image={Empty.PRESENTED_IMAGE_SIMPLE}
                 />
               ) : (
@@ -329,9 +330,9 @@ export default function ParentHomePage() {
                       <span style={{ flex: 1, fontWeight: 600 }}>
                         {l.subject?.name ?? l.activity}
                       </span>
-                      {l.room && <Tag>каб. {l.room}</Tag>}
+                      {l.room && <Tag>{uiText("каб.") + " "}{l.room}</Tag>}
                       <Text type="secondary" style={{ fontSize: 12 }}>
-                        до {l.endTime}
+                        {" " + uiText("до") + " "}{l.endTime}
                       </Text>
                     </div>
                   ))}

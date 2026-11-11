@@ -1,10 +1,16 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  Pressable,
+  View,
+} from 'react-native'
+import { Text } from '../Text'
 
 import { colors, radius } from '../../theme/colors'
 import { checkSequence, extendSequence, sequenceScore } from '../../lib/games'
 import type { GameProps } from './types'
 
+import { themedStyles } from '../../theme/themedStyles'
 const PAD_COLORS = ['#EF4444', '#3B82F6', '#10B981', '#F59E0B']
 type Phase = 'showing' | 'input' | 'over'
 
@@ -60,21 +66,21 @@ export default function SequenceGame({ onFinish }: GameProps) {
 
   const status =
     phase === 'showing'
-      ? 'Смотри внимательно…'
+      ? uiText("Смотри внимательно…")
       : phase === 'input'
-        ? 'Повтори порядок!'
-        : 'Ошибка — игра окончена'
+        ? uiText("Повтори порядок!")
+        : uiText("Ошибка — игра окончена")
 
   return (
     <View style={{ alignItems: 'center' }}>
       <Text style={styles.status}>
-        Уровень {completed + 1} · {status}
+        {" " + uiText("Уровень") + " "}{completed + 1} · {status}
       </Text>
       <View style={styles.grid}>
         {PAD_COLORS.map((color, pad) => (
           <Pressable
             key={pad}
-            accessibilityLabel={`Огонёк ${pad + 1}`}
+            accessibilityLabel={uiText("Огонёк {0}", pad + 1)}
             disabled={phase !== 'input'}
             onPress={() => press(pad)}
             style={[
@@ -88,7 +94,7 @@ export default function SequenceGame({ onFinish }: GameProps) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   status: { color: colors.textMid, fontWeight: '700', fontSize: 14 },
   grid: {
     width: 260,
@@ -99,4 +105,4 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   pad: { width: 123, height: 110, borderRadius: radius.lg },
-})
+}))

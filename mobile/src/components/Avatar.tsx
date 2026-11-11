@@ -1,17 +1,22 @@
-import { StyleSheet, Text, View } from 'react-native'
+import {
+  
+  View,
+} from 'react-native'
+import { Text } from './Text'
 import { colors } from '../theme/colors'
 
+import { themedStyles, themedValue } from '../theme/themedStyles'
 interface Props {
   name: string
   size?: number
 }
 
-const palettes: Array<[string, string]> = [
+const palettes = themedValue<Array<[string, string]>>(() => ([
   [colors.primarySoft, colors.primaryDeep],
   [colors.blueSoft, colors.blueDeep],
   [colors.yellowSoft, colors.yellowDeep],
   [colors.lilacSoft, colors.lilacDeep],
-]
+]))
 
 /** Sprout-аватар: квадрат с закруглением 1/3 + инициалы. */
 export default function Avatar({ name, size = 40 }: Props) {
@@ -21,8 +26,8 @@ export default function Avatar({ name, size = 40 }: Props) {
     .slice(0, 2)
     .join('')
     .toUpperCase()
-  const idx = name.charCodeAt(0) % palettes.length
-  const [bg, fg] = palettes[idx]
+  const idx = name.charCodeAt(0) % palettes().length
+  const [bg, fg] = palettes()[idx]
   return (
     <View
       style={[
@@ -49,9 +54,9 @@ export default function Avatar({ name, size = 40 }: Props) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   box: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-})
+}))

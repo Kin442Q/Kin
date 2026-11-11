@@ -1,15 +1,16 @@
+import { uiText } from '../i18n/uiText'
 import { useState } from 'react'
 import {
   FlatList,
   Modal,
   Pressable,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from './Text'
 import { ChevronDown, Check } from 'lucide-react-native'
 import { colors, radius, shadow } from '../theme/colors'
 
+import { themedStyles } from '../theme/themedStyles'
 export interface DropdownOption<T extends string> {
   value: T
   label: string
@@ -33,7 +34,7 @@ export default function Dropdown<T extends string>({
   value,
   options,
   onChange,
-  placeholder = 'Выбрать',
+  placeholder = uiText("Выбрать"),
 }: Props<T>) {
   const [open, setOpen] = useState(false)
   const current = options.find((o) => o.value === value)
@@ -108,12 +109,12 @@ export default function Dropdown<T extends string>({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.borderSoft,
@@ -124,12 +125,12 @@ const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6 },
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(15,30,25,0.4)',
+    backgroundColor: colors.overlay,
     justifyContent: 'center',
     padding: 28,
   },
   sheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     borderRadius: radius.lg,
     overflow: 'hidden',
   },
@@ -143,4 +144,4 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderSoft,
   },
   optionText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
-})
+}))

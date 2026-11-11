@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import type { ReactNode } from 'react'
 import { Inbox } from 'lucide-react'
 import { SP } from './tokens'
@@ -15,11 +16,11 @@ interface Props {
 
 /**
  * Универсальный empty-state для пустых блоков, таблиц, карточек.
- * Sprout-стиль: мятная иконка в круглой плашке + заголовок + описание + опц. кнопка.
+ * Бирюзовая иконка в круглой плашке + заголовок + описание + опц. кнопка.
  */
 export default function SproutEmpty({
   icon,
-  title = 'Пока ничего нет',
+  title = uiText("Пока ничего нет"),
   description,
   action,
   minHeight = 200,
@@ -44,7 +45,7 @@ export default function SproutEmpty({
           height: 64,
           borderRadius: '50%',
           background: SP.primaryGhost,
-          color: SP.primary,
+          color: SP.primaryDeep,
           display: 'grid',
           placeItems: 'center',
         }}
@@ -53,8 +54,9 @@ export default function SproutEmpty({
       </div>
       <div
         style={{
-          fontSize: 15,
-          fontWeight: 700,
+          fontSize: 16,
+          fontWeight: 800,
+          fontFamily: "'Inter', sans-serif",
           color: SP.text,
         }}
       >
@@ -64,7 +66,7 @@ export default function SproutEmpty({
         <div
           style={{
             fontSize: 13,
-            color: SP.muted,
+            color: SP.textMid,
             maxWidth: 320,
             lineHeight: 1.5,
           }}

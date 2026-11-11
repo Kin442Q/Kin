@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
@@ -5,10 +6,9 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import dayjs from 'dayjs'
 import { CheckCircle2, AlertCircle, Wallet } from 'lucide-react-native'
 
@@ -21,12 +21,14 @@ import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
 import { adminApi, type AdminPaymentDto } from '../api/admin'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 type Method = 'CASH' | 'CARD' | 'TRANSFER'
 
 type Filter = 'all' | 'paid' | 'unpaid'
 
 export default function AdminPaymentsScreen() {
-  const month = useMemo(() => dayjs().format('YYYY-MM'), [])
+  const month = useMemo(() => dayjs().format('YYYY-MM'), [uiLanguage()])
   const [items, setItems] = useState<AdminPaymentDto[]>([])
   const [filter, setFilter] = useState<Filter>('all')
   const [loading, setLoading] = useState(true)
@@ -41,7 +43,7 @@ export default function AdminPaymentsScreen() {
       const list = await adminApi.payments({ month })
       setItems(list)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -60,13 +62,13 @@ export default function AdminPaymentsScreen() {
       .filter((p) => !p.paid)
       .reduce((sum, p) => sum + Number(p.amount), 0)
     return { paid, due, paidCount: items.filter((p) => p.paid).length }
-  }, [items])
+  }, [items, uiLanguage()])
 
   const visible = useMemo(() => {
     if (filter === 'paid') return items.filter((p) => p.paid)
     if (filter === 'unpaid') return items.filter((p) => !p.paid)
     return items
-  }, [items, filter])
+  }, [items, filter, uiLanguage()])
 
   if (loading) {
     return (
@@ -96,7 +98,7 @@ export default function AdminPaymentsScreen() {
         }
         ListHeaderComponent={
           <View style={{ marginBottom: 14 }}>
-            <Text style={styles.title}>Оплаты</Text>
+            <Text style={styles.title}>{uiText("Оплаты")}</Text>
             <Text style={styles.subtitle}>
               {dayjs(month + '-01').format('MMMM YYYY')}
             </Text>
@@ -109,19 +111,18 @@ export default function AdminPaymentsScreen() {
                 <View style={styles.kpiHead}>
                   <CheckCircle2 size={16} color={colors.primaryDeep} />
                   <Text style={[styles.kpiLabel, { color: colors.primaryDeep }]}>
-                    Оплачено
-                  </Text>
+                    {" " + uiText("Оплачено") + " "}</Text>
                 </View>
                 <Text style={[styles.kpiValue, { color: colors.primaryDeep }]}>
-                  {Math.round(stats.paid).toLocaleString('ru-RU')}
-                  <Text style={styles.kpiUnit}> с</Text>
+                  {Math.round(stats.paid).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')}
+                  <Text style={styles.kpiUnit}> {" " + uiText("сомони")}</Text>
                 </Text>
-                <Text style={styles.kpiSub}>{stats.paidCount} платежей</Text>
+                <Text style={styles.kpiSub}>{stats.paidCount} {" " + uiText("платежей")}</Text>
               </Card>
               <Card padding={16} style={[
                 {
                   flex: 1,
-                  backgroundColor: stats.due > 0 ? colors.roseSoft : colors.surface,
+                  backgroundColor: stats.due > 0 ? colors.roseSoft : colors.surfaceSolid,
                 },
                 shadow.sm,
               ]}>
@@ -136,8 +137,7 @@ export default function AdminPaymentsScreen() {
                       { color: stats.due > 0 ? colors.roseDeep : colors.muted },
                     ]}
                   >
-                    Долг
-                  </Text>
+                    {" " + uiText("Долг") + " "}</Text>
                 </View>
                 <Text
                   style={[
@@ -145,12 +145,11 @@ export default function AdminPaymentsScreen() {
                     { color: stats.due > 0 ? colors.roseDeep : colors.muted },
                   ]}
                 >
-                  {Math.round(stats.due).toLocaleString('ru-RU')}
-                  <Text style={styles.kpiUnit}> с</Text>
+                  {Math.round(stats.due).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')}
+                  <Text style={styles.kpiUnit}> {" " + uiText("сомони")}</Text>
                 </Text>
                 <Text style={styles.kpiSub}>
-                  {items.length - stats.paidCount} не оплатили
-                </Text>
+                  {items.length - stats.paidCount} {" " + uiText("не оплатили") + " "}</Text>
               </Card>
             </View>
 
@@ -175,7 +174,7 @@ export default function AdminPaymentsScreen() {
                         fontSize: 12,
                       }}
                     >
-                      {f === 'all' ? 'Все' : f === 'paid' ? 'Оплачено' : 'Не оплатили'}
+                      {f === 'all' ? uiText("Все") : f === 'paid' ? uiText("Оплачено") : uiText("Не оплатили")}
                     </Text>
                   </Pressable>
                 )
@@ -204,8 +203,8 @@ export default function AdminPaymentsScreen() {
                     <Text style={styles.name}>{name}</Text>
                     <Text style={styles.meta}>
                       {item.paid
-                        ? `Оплачено${item.paidAt ? ' · ' + dayjs(item.paidAt).format('D MMM') : ''}`
-                        : 'Не оплачено'}
+                        ? uiText("Оплачено{0}", item.paidAt ? ' · ' + dayjs(item.paidAt).format('D MMM') : '')
+                        : uiText("Не оплачено")}
                       {item.method ? ` · ${methodLabel(item.method)}` : ''}
                     </Text>
                   </View>
@@ -216,8 +215,7 @@ export default function AdminPaymentsScreen() {
                         { color: item.paid ? colors.text : colors.roseDeep },
                       ]}
                     >
-                      {Math.round(Number(item.amount)).toLocaleString('ru-RU')} с
-                    </Text>
+                      {Math.round(Number(item.amount)).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')} {" " + uiText("сомони") + " "}</Text>
                     {item.paid ? (
                       <CheckCircle2 size={16} color={colors.primaryDeep} />
                     ) : (
@@ -233,10 +231,10 @@ export default function AdminPaymentsScreen() {
           <View style={styles.empty}>
             <Text style={styles.emptyText}>
               {filter === 'paid'
-                ? 'Оплат за этот месяц пока нет.'
+                ? uiText("Оплат за этот месяц пока нет.")
                 : filter === 'unpaid'
-                  ? 'Все оплатили 🎉'
-                  : 'Платежей за этот месяц нет.'}
+                  ? uiText("Все оплатили 🎉")
+                  : uiText("Платежей за этот месяц нет.")}
             </Text>
           </View>
         }
@@ -245,7 +243,7 @@ export default function AdminPaymentsScreen() {
       <BottomModal
         visible={!!editing}
         onClose={() => setEditing(null)}
-        title={editing?.paid ? 'Изменить платёж' : 'Принять оплату'}
+        title={editing?.paid ? uiText("Изменить платёж") : uiText("Принять оплату")}
       >
         {editing && (
           <>
@@ -266,28 +264,27 @@ export default function AdminPaymentsScreen() {
                 </Text>
                 <Text style={styles.modalMeta}>
                   {dayjs(editing.month + '-01').format('MMMM YYYY')} ·{' '}
-                  {Math.round(Number(editing.amount)).toLocaleString('ru-RU')} с
-                </Text>
+                  {Math.round(Number(editing.amount)).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')} {" " + uiText("сомони") + " "}</Text>
               </View>
             </View>
 
             <Select<Method>
-              label="Способ оплаты"
+              label={uiText("Способ оплаты")}
               value={method}
               onChange={setMethod}
               options={[
-                { value: 'CASH', label: 'Наличные' },
-                { value: 'CARD', label: 'Карта' },
-                { value: 'TRANSFER', label: 'Перевод' },
+                { value: 'CASH', label: uiText("Наличные") },
+                { value: 'CARD', label: uiText("Карта") },
+                { value: 'TRANSFER', label: uiText("Перевод") },
               ]}
               columns={3}
             />
 
             <Field
-              label="Комментарий"
+              label={uiText("Комментарий")}
               value={comment}
               onChangeText={setComment}
-              placeholder="(необязательно)"
+              placeholder={uiText("(необязательно)")}
               multiline
             />
 
@@ -311,14 +308,13 @@ export default function AdminPaymentsScreen() {
                     setEditing(null)
                     reload()
                   } catch (e: any) {
-                    Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+                    notifyError(e)
                   } finally {
                     setSaving(false)
                   }
                 }}
               >
-                Принять оплату
-              </Btn>
+                {" " + uiText("Принять оплату") + " "}</Btn>
             )}
 
             {editing.paid && (
@@ -330,12 +326,12 @@ export default function AdminPaymentsScreen() {
                 onPress={async () => {
                   if (!editing) return
                   Alert.alert(
-                    'Отменить оплату?',
-                    'Платёж будет помечен как не оплаченный.',
+                    uiText("Отменить оплату?"),
+                    uiText("Платёж будет помечен как не оплаченный."),
                     [
-                      { text: 'Отмена', style: 'cancel' },
+                      { text: uiText("Отмена"), style: 'cancel' },
                       {
-                        text: 'Отменить оплату',
+                        text: uiText("Отменить оплату"),
                         style: 'destructive',
                         onPress: async () => {
                           setSaving(true)
@@ -350,7 +346,7 @@ export default function AdminPaymentsScreen() {
                             reload()
                           } catch (e: any) {
                             Alert.alert(
-                              'Ошибка',
+                              uiText("Ошибка"),
                               e?.response?.data?.message || String(e),
                             )
                           } finally {
@@ -362,8 +358,7 @@ export default function AdminPaymentsScreen() {
                   )
                 }}
               >
-                Отменить оплату
-              </Btn>
+                {" " + uiText("Отменить оплату") + " "}</Btn>
             )}
           </>
         )}
@@ -373,13 +368,13 @@ export default function AdminPaymentsScreen() {
 }
 
 function methodLabel(m: string): string {
-  if (m === 'CASH') return 'Наличные'
-  if (m === 'CARD') return 'Карта'
-  if (m === 'TRANSFER') return 'Перевод'
+  if (m === 'CASH') return uiText("Наличные")
+  if (m === 'CARD') return uiText("Карта")
+  if (m === 'TRANSFER') return uiText("Перевод")
   return m
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   list: { padding: 20, paddingBottom: 40 },
   title: {
@@ -422,4 +417,4 @@ const styles = StyleSheet.create({
   modalHead: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   modalName: { fontSize: 16, fontWeight: '800', color: colors.text },
   modalMeta: { fontSize: 13, color: colors.muted, marginTop: 2 },
-})
+}))

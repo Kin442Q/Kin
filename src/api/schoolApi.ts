@@ -1,3 +1,4 @@
+import { localizeCopy } from '../i18n/uiText'
 import { http } from './http'
 
 /* ============================================================
@@ -10,12 +11,12 @@ export type SubmissionStatus = 'SUBMITTED' | 'DONE' | 'PARTIAL' | 'NOT_DONE'
 export type StaffStatus = 'DONE' | 'PARTIAL' | 'NOT_DONE'
 export type NoticeTemplate = 'NOT_DONE' | 'PARTIAL' | 'REMINDER'
 
-export const STATUS_LABEL: Record<SubmissionStatus, string> = {
+export const STATUS_LABEL: Record<SubmissionStatus, string> = localizeCopy({
   SUBMITTED: 'Ученик отметил «сделал»',
   DONE: 'Выполнено',
   PARTIAL: 'Частично',
   NOT_DONE: 'Не выполнено',
-}
+})
 
 export const STATUS_COLOR: Record<SubmissionStatus, string> = {
   SUBMITTED: 'blue',
@@ -143,31 +144,82 @@ export const studentApi = {
   schedule: () => http.get<StudentLesson[]>('/v1/student/schedule').then((r) => r.data),
 }
 
-// ─── Доступ ученика (вход в кабинет) ──────────────────────────
+// ─── Доступ ученика (вход в кабинет по личной ссылке) ────────
+// У учеников нет логина и пароля: классный руководитель выдаёт личную ссылку.
 
 export interface StudentAccount {
   id: string
-  login: string
   isActive: boolean
   lastLoginAt: string | null
+  /** Личная ссылка входа; null — аккаунт есть, а ссылки нет. */
+  link: string | null
+  /** Логин для входа вместе с паролем (без служебного домена) */
+  login: string | null
+  /** Классный руководитель выдал пароль (сам пароль нигде не хранится в открытом виде) */
+  passwordIssued: boolean
 }
 
-export interface IssuedAccount {
-  account: StudentAccount
-  /** Показывается один раз — на сервере хранится только хеш. */
-  password: string
+/** Ответ на выдачу пароля: пароль есть только здесь и показывается один раз. */
+export type StudentPasswordIssued = StudentAccount & { password: string }
+
+export interface ClassLinkRow {
+  studentId: string
+  firstName: string
+  lastName: string
+  lastLoginAt: string | null
+  /** null — ссылка ещё не выдана. */
+  link: string | null
+  login: string | null
+  passwordIssued: boolean
+}
+
+export interface ClassPasswordRow {
+  studentId: string
+  firstName: string
+  lastName: string
+  login: string | null
+  passwordIssued: boolean
+  /** Есть только у тех, кому пароль выдан сейчас; null — выдан раньше, показать его нельзя. */
+  password: string | null
+}
+
+export interface ClassPasswords {
+  group: { id: string; name: string }
+  students: ClassPasswordRow[]
+}
+
+export interface ClassLinks {
+  group: { id: string; name: string }
+  students: ClassLinkRow[]
 }
 
 export const studentAccountApi = {
+  /** null — доступа нет. */
   get: (studentId: string) =>
     http.get<StudentAccount | null>(`/v1/students/${studentId}/account`).then((r) => r.data),
-  create: (studentId: string, body: { login?: string; password?: string } = {}) =>
-    http.post<IssuedAccount>(`/v1/students/${studentId}/account`, body).then((r) => r.data),
-  resetPassword: (studentId: string, body: { password?: string } = {}) =>
-    http
-      .post<IssuedAccount>(`/v1/students/${studentId}/account/reset-password`, body)
-      .then((r) => r.data),
+  /** Выдать ссылку (аккаунт создаётся, если его нет). Повторный вызов вернёт ту же ссылку. */
+  issue: (studentId: string) =>
+    http.post<StudentAccount>(`/v1/students/${studentId}/account`).then((r) => r.data),
+  /** Новая ссылка: старая сразу перестаёт работать. */
+  regenerate: (studentId: string) =>
+    http.post<StudentAccount>(`/v1/students/${studentId}/account/regenerate-link`).then((r) => r.data),
+  /** Отключить доступ: аккаунт удаляется, ученик и его данные остаются. */
   remove: (studentId: string) => http.delete(`/v1/students/${studentId}/account`),
+
+  /** Логин и пароль (пароль создаёт система и показывает один раз). */
+  issuePassword: (studentId: string) =>
+    http.post<StudentPasswordIssued>(`/v1/students/${studentId}/account/password`).then((r) => r.data),
+  /** Забрать пароль: ученик входит только по ссылке. */
+  revokePassword: (studentId: string) =>
+    http.delete<StudentAccount>(`/v1/students/${studentId}/account/password`).then((r) => r.data),
+  /** Логины и пароли всему классу. По умолчанию только тем, у кого пароля ещё нет; onlyMissing=false — заново всем. */
+  issueClassPasswords: (groupId: string, onlyMissing = true) =>
+    http.post<ClassPasswords>('/v1/students/class-passwords', { groupId, onlyMissing }).then((r) => r.data),
+
+  classLinks: (groupId: string) =>
+    http.get<ClassLinks>('/v1/students/links', { params: { groupId } }).then((r) => r.data),
+  issueClassLinks: (groupId: string) =>
+    http.post<ClassLinks>('/v1/students/links/issue', { groupId }).then((r) => r.data),
 }
 
 // ─── Классный руководитель ────────────────────────────────────

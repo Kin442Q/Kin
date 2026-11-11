@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   App as AntdApp,
@@ -23,7 +24,7 @@ import {
 
 const { Text } = Typography
 
-const DAYS_FULL: Record<number, string> = {
+const DAYS_FULL: Record<number, string> = localizeCopy({
   1: 'Понедельник',
   2: 'Вторник',
   3: 'Среда',
@@ -31,8 +32,8 @@ const DAYS_FULL: Record<number, string> = {
   5: 'Пятница',
   6: 'Суббота',
   7: 'Воскресенье',
-}
-const DAYS_SHORT: Record<number, string> = {
+})
+const DAYS_SHORT: Record<number, string> = localizeCopy({
   1: 'Пн',
   2: 'Вт',
   3: 'Ср',
@@ -40,17 +41,17 @@ const DAYS_SHORT: Record<number, string> = {
   5: 'Пт',
   6: 'Сб',
   7: 'Вс',
-}
+})
 
 function durationLabel(start: string, end: string) {
   const [sh, sm] = start.split(':').map(Number)
   const [eh, em] = end.split(':').map(Number)
   const mins = eh * 60 + em - (sh * 60 + sm)
   if (mins <= 0) return ''
-  if (mins < 60) return `${mins} мин`
+  if (mins < 60) return uiText("{0} мин", mins)
   const h = Math.floor(mins / 60)
   const m = mins % 60
-  return m ? `${h} ч ${m} мин` : `${h} ч`
+  return m ? uiText("{0} ч {1} мин", h, m) : uiText("{0} ч", h)
 }
 
 export default function ParentSchedulePage() {
@@ -73,7 +74,7 @@ export default function ParentSchedulePage() {
         else setLoading(false)
       })
       .catch((e) => {
-        message.error(e?.response?.data?.message || 'Ошибка')
+        message.error(e?.response?.data?.message || uiText("Ошибка"))
         setLoading(false)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -86,7 +87,7 @@ export default function ParentSchedulePage() {
       .schedule(activeKidId)
       .then(setItems)
       .catch((e) =>
-        message.error(e?.response?.data?.message || 'Ошибка'),
+        message.error(e?.response?.data?.message || uiText("Ошибка")),
       )
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -97,13 +98,13 @@ export default function ParentSchedulePage() {
       items
         .filter((i) => i.dayOfWeek === day)
         .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [items, day],
+    [items, day, uiLanguage()],
   )
 
   return (
     <div>
       <SproutPageHeader
-        title={'Расписание уроков'}
+        title={uiText("Расписание уроков")}
         icon={<Calendar size={22} strokeWidth={2} />}
         iconAccent="blue"
       />
@@ -148,7 +149,7 @@ export default function ParentSchedulePage() {
       ) : dayItems.length === 0 ? (
         <Card className="glass" bordered={false} style={{ marginTop: 12 }}>
           <Empty
-            description={`На ${DAYS_FULL[day].toLowerCase()} уроков нет`}
+            description={uiText("На {0} уроков нет", DAYS_FULL[day].toLowerCase())}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </Card>
@@ -188,7 +189,7 @@ export default function ParentSchedulePage() {
                   </div>
                   <Text type="secondary" style={{ fontSize: 12 }}>
                     {durationLabel(l.startTime, l.endTime)}
-                    {l.room && <> · каб. {l.room}</>}
+                    {l.room && <> {" " + uiText("· каб.") + " "}{l.room}</>}
                   </Text>
                 </div>
                 {l.subject && (

@@ -1,10 +1,16 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import {
+  Pressable,
+  View,
+} from 'react-native'
+import { Text } from '../Text'
 
 import { colors, radius } from '../../theme/colors'
 import { createMemoryDeck, memoryScore } from '../../lib/games'
 import type { GameProps } from './types'
 
+import { themedStyles } from '../../theme/themedStyles'
 const PAIRS = 6
 
 /** «Найди пары»: открывай карточки по две. Меньше ходов и времени — больше очков. */
@@ -55,8 +61,8 @@ export default function MemoryGame({ onFinish }: GameProps) {
   return (
     <View>
       <View style={styles.stats}>
-        <Text style={styles.stat}>Ходов: {moves}</Text>
-        <Text style={styles.stat}>Время: {seconds} с</Text>
+        <Text style={styles.stat}>{uiText("Ходов:") + " "}{moves}</Text>
+        <Text style={styles.stat}>{uiText("Время:") + " "}{seconds} {" " + uiText("с")}</Text>
       </View>
       <View style={styles.grid}>
         {deck.map((card) => {
@@ -65,12 +71,12 @@ export default function MemoryGame({ onFinish }: GameProps) {
           return (
             <Pressable
               key={card.id}
-              accessibilityLabel={faceUp ? card.symbol : 'Закрытая карточка'}
+              accessibilityLabel={faceUp ? card.symbol : uiText("Закрытая карточка")}
               onPress={() => flip(card.id)}
               style={[
                 styles.card,
                 {
-                  backgroundColor: faceUp ? colors.surface : colors.primary,
+                  backgroundColor: faceUp ? colors.surfaceSolid : colors.primary,
                   borderColor: isMatched ? colors.primary : colors.borderSoft,
                 },
               ]}
@@ -84,7 +90,7 @@ export default function MemoryGame({ onFinish }: GameProps) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   stats: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -107,4 +113,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   symbol: { fontSize: 30, color: '#fff' },
-})
+}))

@@ -66,12 +66,22 @@ export class KindergartensController {
       phone?: string
       owner: {
         fullName: string
+        /** На этот адрес уходит приглашение со ссылкой, где директор сам задаёт пароль. */
         email: string
-        password: string
       }
     },
   ) {
     return this.service.create(user, dto)
+  }
+
+  @Post(':id/resend-invite')
+  @Roles('SUPER_ADMIN')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Отправить директору школы приглашение ещё раз (или ссылку для смены пароля, если он уже входил)',
+  })
+  resendInvite(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.resendOwnerInvite(user, id)
   }
 
   @Patch(':id')

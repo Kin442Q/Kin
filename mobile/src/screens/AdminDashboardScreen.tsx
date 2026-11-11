@@ -1,67 +1,93 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
-import {
-  Users,
-  LayoutGrid,
-  TrendingUp,
-  TrendingDown,
-  Wallet,
-  ArrowDownCircle,
-  Baby,
-  Receipt,
-  CalendarHeart,
-  ChevronRight,
-} from 'lucide-react-native'
+import { Baby, CalendarHeart, ChevronRight, Receipt } from 'lucide-react-native'
 
+import { Text } from '../components/Text'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
-import { colors, radius, shadow } from '../theme/colors'
-import { useAuthStore } from '../store/authStore'
+import { CardTitle, ScreenHeading, Tile } from '../components/ui'
+import { colors } from '../theme/colors'
+import { gradeKeyOf } from '../lib/classes'
 import { hasFeature } from '../lib/features'
-import { useLabels } from '../theme/useLabels'
-import { cap } from '../theme/labels'
-import { adminApi, type DashboardDto } from '../api/admin'
+import { useAuthStore } from '../store/authStore'
+import { http } from '../api/http'
+import { adminApi, type AdminStudentDto, type DashboardDto, type GroupDto } from '../api/admin'
+import { attendanceApi, type AttendanceDto } from '../api/attendance'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
+/** Параллели, объединённые в столбцы диаграммы посещаемости (как в макете). */
+const BUCKETS: { label: string; grades: number[] }[] = [
+  { label: '1–2', grades: [1, 2] },
+  { label: '3–4', grades: [3, 4] },
+  { label: '5–6', grades: [5, 6] },
+  { label: '7–8', grades: [7, 8] },
+  { label: '9', grades: [9] },
+  { label: '10–11', grades: [10, 11] },
+]
+
+/** Сводка школы для директора: цифры дня, посещаемость по параллелям, на что обратить внимание. */
 export default function AdminDashboardScreen() {
   const user = useAuthStore((s) => s.user)
   const navigation = useNavigation<any>()
-  const L = useLabels()
-  const month = useMemo(() => dayjs().format('YYYY-MM'), [])
+  const month = useMemo(() => dayjs().format('YYYY-MM'), [uiLanguage()])
+  const money = hasFeature(user, 'analytics')
 
-  const [data, setData] = useState<DashboardDto | null>(null)
+  const [groups, setGroups] = useState<(GroupDto & { homeroomTeacher?: { id: string } | null })[]>([])
+  const [students, setStudents] = useState<AdminStudentDto[]>([])
+  const [marks, setMarks] = useState<AttendanceDto[]>([])
+  const [staffCount, setStaffCount] = useState<number | null>(null)
+  const [finance, setFinance] = useState<DashboardDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const reload = useCallback(async () => {
     try {
-      const d = await adminApi.dashboard(month)
-      setData(d)
+      const day = dayjs().format('YYYY-MM-DD')
+      const [g, s, a, staff, fin] = await Promise.all([
+        adminApi.groups(),
+        adminApi.students({ status: 'ACTIVE' }),
+        hasFeature(user, 'attendance') ? attendanceApi.listByDay(day).catch(() => [] as AttendanceDto[]) : Promise.resolve([] as AttendanceDto[]),
+        hasFeature(user, 'staff')
+          ? http.get<unknown[]>('/v1/staff').then((r) => (Array.isArray(r.data) ? r.data.length : null)).catch(() => null)
+          : Promise.resolve(null),
+        money ? adminApi.dashboard(month).catch(() => null) : Promise.resolve(null),
+      ])
+      setGroups(g)
+      setStudents(s)
+      setMarks(a)
+      setStaffCount(staff)
+      setFinance(fin)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [month])
+  }, [month, money, user])
 
   useEffect(() => {
     reload()
   }, [reload])
 
+  const gradeOfGroup = useMemo(() => {
+    const m = new Map<string, number | 'other'>()
+    for (const g of groups) m.set(g.id, gradeKeyOf(g.name))
+    return m
+  }, [groups, uiLanguage()])
+
   if (loading) {
     return (
-      <Screen>
+      <Screen variant="home">
         <View style={styles.loader}>
           <ActivityIndicator color={colors.primary} />
         </View>
@@ -69,8 +95,37 @@ export default function AdminDashboardScreen() {
     )
   }
 
+  const present = marks.filter((m) => m.status === 'PRESENT').length
+  const todayPct = marks.length ? Math.round((present / marks.length) * 100) : null
+
+  const bars = BUCKETS.map((b) => {
+    const inBucket = marks.filter((m) => {
+      const k = gradeOfGroup.get(m.groupId)
+      return typeof k === 'number' && b.grades.includes(k)
+    })
+    const ok = inBucket.filter((m) => m.status === 'PRESENT').length
+    return { label: b.label, pct: inBucket.length ? Math.round((ok / inBucket.length) * 100) : null }
+  })
+  const hasBars = bars.some((b) => b.pct != null)
+
+  const noClass = students.filter((s) => !s.groupId).length
+  const noTeacher = groups.filter((g) => 'homeroomTeacher' in g && !g.homeroomTeacher)
+  const attention: { text: string; warn: boolean }[] = []
+  if (noClass > 0) attention.push({ text: uiText("{0} {1} без класса", noClass, noClass === 1 ? uiText("ученик") : noClass < 5 ? uiText("ученика") : uiText("учеников")), warn: true })
+  for (const g of noTeacher.slice(0, 3)) attention.push({ text: uiText("{0} — нет классного руководителя", g.name), warn: false })
+
+  const school = user?.institution?.name ?? uiText("Школа")
+
+  const links: { label: string; icon: React.ReactNode; to: string }[] = [
+    { label: uiText("Ученики"), icon: <Baby size={20} color={colors.primaryDeep} />, to: 'AdminStudents' },
+  ]
+  if (hasFeature(user, 'meetings'))
+    links.push({ label: uiText("Родительские собрания"), icon: <CalendarHeart size={20} color={colors.primaryDeep} />, to: 'AdminMeetings' })
+  if (hasFeature(user, 'expenses'))
+    links.push({ label: uiText("Расходы"), icon: <Receipt size={20} color={colors.primaryDeep} />, to: 'AdminExpenses' })
+
   return (
-    <Screen>
+    <Screen variant="home">
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -84,302 +139,123 @@ export default function AdminDashboardScreen() {
           />
         }
       >
-        <Text style={styles.greeting}>Привет,</Text>
-        <Text style={styles.name}>{user?.fullName}</Text>
-        <Text style={styles.date}>
-          {dayjs().format('MMMM YYYY')} · сводка по {L.institution === 'школа' ? 'школе' : 'садику'}
-        </Text>
+        <ScreenHeading eyebrow={`${school} · ${dayjs().format('dddd, D MMMM')}`} title={uiText("Сводка школы")} />
 
-        <View style={styles.kpiRow}>
-          <KpiCard
-            icon={<Users size={18} color={colors.primaryDeep} />}
-            bg={colors.primaryGhost}
-            label={`Активных ${L.students.toLowerCase() === 'дети' ? 'детей' : 'учеников'}`}
-            value={String(data?.activeStudents ?? 0)}
-            sub={data ? `из ${data.totalStudents} всего` : ''}
-          />
-          <KpiCard
-            icon={<LayoutGrid size={18} color={colors.blueDeep} />}
-            bg={colors.blueSoft}
-            label={L.groups}
-            value={String(data?.groups ?? 0)}
-            sub="активных"
-          />
+        <View style={styles.grid}>
+          <Tile label={uiText("Учеников")} value={students.length} style={styles.cell} />
+          <Tile label={uiText("Сегодня в школе")} value={todayPct != null ? `${todayPct}%` : '—'} tone="teal" style={styles.cell} />
+          <Tile label={uiText("Классов")} value={groups.length} style={styles.cell} />
+          <Tile label={uiText("Сотрудников")} value={staffCount ?? '—'} style={styles.cell} />
         </View>
 
-        <Card padding={20} style={[styles.profit, shadow.md]}>
-          <Text style={styles.profitLabel}>Прибыль месяца</Text>
-          <View style={styles.profitRow}>
-            <Text
-              style={[
-                styles.profitValue,
-                {
-                  color:
-                    (data?.profit ?? 0) >= 0
-                      ? colors.primaryDeep
-                      : colors.roseDeep,
-                },
-              ]}
-            >
-              {Math.round(data?.profit ?? 0).toLocaleString('ru-RU')}
-              <Text style={styles.profitUnit}> с</Text>
-            </Text>
-            {(data?.profit ?? 0) >= 0 ? (
-              <TrendingUp size={28} color={colors.primaryDeep} />
-            ) : (
-              <TrendingDown size={28} color={colors.roseDeep} />
+        {money && finance && (
+          <View style={styles.grid}>
+            <Tile
+              label={uiText("Прибыль месяца")}
+              value={uiText("{0} с", Math.round(finance.profit).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU'))}
+              hint={uiText("Маржа {0}%", (finance.margin * 100).toFixed(0))}
+              style={styles.cell}
+            />
+            <Tile
+              label={uiText("Поступления")}
+              value={uiText("{0} с", Math.round(finance.income).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU'))}
+              style={styles.cell}
+            />
+          </View>
+        )}
+
+        {hasBars && (
+          <Card padding={16} style={{ gap: 10 }}>
+            <CardTitle title={uiText("Посещаемость по параллелям")} />
+            <View style={styles.bars}>
+              {bars.map((b) => (
+                <View key={b.label} style={styles.barCol}>
+                  <View style={styles.barTrack}>
+                    <View
+                      style={[
+                        styles.bar,
+                        {
+                          height: `${Math.max(6, b.pct ?? 0)}%`,
+                          backgroundColor: b.pct == null ? 'rgba(16,40,42,0.08)' : b.pct < 90 ? colors.coral : colors.primary,
+                        },
+                      ]}
+                    />
+                  </View>
+                  <Text style={styles.barLabel}>{b.label}</Text>
+                </View>
+              ))}
+            </View>
+          </Card>
+        )}
+
+        <Card padding={16} style={{ gap: 8 }}>
+          <View style={styles.attHead}>
+            <Text style={styles.attTitle}>{uiText("Требует внимания")}</Text>
+            {attention.length > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{attention.length}</Text>
+              </View>
             )}
           </View>
-          {data && (
-            <Text style={styles.profitMargin}>
-              Маржа {(data.margin * 100).toFixed(1)}%
-            </Text>
+          {attention.length === 0 ? (
+            <Text style={styles.ok}>{uiText("Всё в порядке: замечаний нет.")}</Text>
+          ) : (
+            attention.map((a) => (
+              <View
+                key={a.text}
+                style={[styles.attRow, { backgroundColor: a.warn ? 'rgba(255,138,101,0.2)' : 'rgba(255,255,255,0.7)' }]}
+              >
+                <Text style={styles.attText}>{a.text}</Text>
+              </View>
+            ))
           )}
         </Card>
 
-        <Text style={styles.section}>Быстрые действия</Text>
-        <View style={styles.quickRow}>
-          <QuickAction
-            icon={<Baby size={20} color={colors.primaryDeep} />}
-            bg={colors.primarySoft}
-            label={L.students}
-            onPress={() => navigation.navigate('AdminStudents')}
-          />
-          {hasFeature(user, 'expenses') && (
-            <QuickAction
-              icon={<Receipt size={20} color={colors.roseDeep} />}
-              bg={colors.roseSoft}
-              label="Расходы"
-              onPress={() => navigation.navigate('AdminExpenses')}
-            />
-          )}
-          {hasFeature(user, 'meetings') && (
-            <QuickAction
-              icon={<CalendarHeart size={20} color={colors.lilacDeep} />}
-              bg={colors.lilacSoft}
-              label="Собрания"
-              onPress={() => navigation.navigate('AdminMeetings')}
-            />
-          )}
-        </View>
-
-        <Text style={styles.section}>Доходы и расходы</Text>
-
-        <Card padding={16}>
-          <Row
-            icon={<Wallet size={18} color={colors.primaryDeep} />}
-            bg={colors.primarySoft}
-            label="Поступления по оплате"
-            value={data?.income ?? 0}
-          />
-          <Divider />
-          <Row
-            icon={<TrendingUp size={18} color={colors.yellowDeep} />}
-            bg={colors.yellowSoft}
-            label="Доп. доходы"
-            value={data?.extraIncome ?? 0}
-          />
-        </Card>
-
-        <Card padding={16}>
-          <Row
-            icon={<ArrowDownCircle size={18} color={colors.roseDeep} />}
-            bg={colors.roseSoft}
-            label="Текущие расходы"
-            value={data?.expenses ?? 0}
-            negative
-          />
-          <Divider />
-          <Row
-            icon={<ArrowDownCircle size={18} color={colors.lilacDeep} />}
-            bg={colors.lilacSoft}
-            label="Фикс. расходы"
-            value={data?.fixedExpenses ?? 0}
-            negative
-          />
-          <Divider />
-          <Row
-            icon={<ArrowDownCircle size={18} color={colors.muted} />}
-            bg={colors.surfaceAlt}
-            label="Зарплаты"
-            value={data?.salaries ?? 0}
-            negative
-          />
-          <Divider />
-          <Row
-            icon={<ArrowDownCircle size={18} color={colors.muted} />}
-            bg={colors.surfaceAlt}
-            label="Налоги"
-            value={data?.taxes ?? 0}
-            negative
-          />
+        <Card padding={6}>
+          {links.map((l, i) => (
+            <Pressable
+              key={l.to}
+              onPress={() => navigation.navigate(l.to)}
+              accessibilityRole="button"
+              style={[styles.link, i > 0 && styles.linkBorder]}
+            >
+              <View style={styles.linkIcon}>{l.icon}</View>
+              <Text style={styles.linkText}>{l.label}</Text>
+              <ChevronRight size={18} color={colors.muted} />
+            </Pressable>
+          ))}
         </Card>
       </ScrollView>
     </Screen>
   )
 }
 
-interface KpiProps {
-  icon: React.ReactNode
-  bg: string
-  label: string
-  value: string
-  sub?: string
-}
-function KpiCard({ icon, bg, label, value, sub }: KpiProps) {
-  return (
-    <Card style={{ flex: 1, ...shadow.sm }}>
-      <View style={[styles.kpiIconBox, { backgroundColor: bg }]}>{icon}</View>
-      <Text style={styles.kpiLabel}>{label}</Text>
-      <Text style={styles.kpiValue}>{value}</Text>
-      {sub ? <Text style={styles.kpiSub}>{sub}</Text> : null}
-    </Card>
-  )
-}
-
-interface RowProps {
-  icon: React.ReactNode
-  bg: string
-  label: string
-  value: number
-  negative?: boolean
-}
-function Row({ icon, bg, label, value, negative }: RowProps) {
-  return (
-    <View style={styles.rowItem}>
-      <View style={[styles.rowIcon, { backgroundColor: bg }]}>{icon}</View>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <Text
-        style={[
-          styles.rowValue,
-          { color: negative ? colors.roseDeep : colors.text },
-        ]}
-      >
-        {negative ? '−' : ''}
-        {Math.round(value).toLocaleString('ru-RU')}
-        <Text style={styles.rowUnit}> с</Text>
-      </Text>
-    </View>
-  )
-}
-function Divider() {
-  return <View style={styles.divider} />
-}
-
-interface QuickProps {
-  icon: React.ReactNode
-  bg: string
-  label: string
-  onPress: () => void
-}
-function QuickAction({ icon, bg, label, onPress }: QuickProps) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.quickCard,
-        pressed && { opacity: 0.7, transform: [{ scale: 0.97 }] },
-      ]}
-    >
-      <View style={[styles.quickIcon, { backgroundColor: bg }]}>{icon}</View>
-      <Text style={styles.quickLabel}>{label}</Text>
-      <ChevronRight size={14} color={colors.muted} />
-    </Pressable>
-  )
-}
-
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  container: { padding: 20, gap: 14 },
-  greeting: { fontSize: 14, color: colors.muted, fontWeight: '500' },
-  name: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  date: { fontSize: 13, color: colors.textMid, marginBottom: 4 },
-  kpiRow: { flexDirection: 'row', gap: 12 },
-  kpiIconBox: {
+  container: { padding: 16, gap: 12 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  cell: { flexBasis: '47%', flexGrow: 1 },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 110 },
+  barCol: { flex: 1, height: '100%', alignItems: 'center', gap: 6 },
+  barTrack: { flex: 1, width: '100%', justifyContent: 'flex-end' },
+  bar: { width: '100%', borderRadius: 8 },
+  barLabel: { fontSize: 11, color: colors.textMid },
+  attHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  attTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
+  badge: { paddingHorizontal: 9, paddingVertical: 2, borderRadius: 999, backgroundColor: colors.coral },
+  badgeText: { fontSize: 12, fontWeight: '800', color: colors.text },
+  ok: { fontSize: 14, color: colors.textMid },
+  attRow: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12 },
+  attText: { fontSize: 14, color: colors.text },
+  link: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 10 },
+  linkBorder: { borderTopWidth: 1, borderTopColor: colors.borderSoft },
+  linkIcon: {
     width: 36,
     height: 36,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  kpiLabel: { fontSize: 11, color: colors.muted, fontWeight: '700' },
-  kpiValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-    marginTop: 2,
-  },
-  kpiSub: { fontSize: 11, color: colors.muted, marginTop: 2 },
-  profit: { marginTop: 4 },
-  profitLabel: { fontSize: 12, color: colors.muted, fontWeight: '700' },
-  profitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 6,
-  },
-  profitValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    letterSpacing: -1,
-    fontVariant: ['tabular-nums'],
-  },
-  profitUnit: { fontSize: 16, fontWeight: '600', opacity: 0.6 },
-  profitMargin: { fontSize: 12, color: colors.muted, marginTop: 4 },
-  section: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.text,
-    marginTop: 10,
-  },
-  rowItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 4 },
-  rowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  rowLabel: { flex: 1, fontSize: 14, color: colors.text },
-  rowValue: {
-    fontSize: 15,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-    fontVariant: ['tabular-nums'],
-  },
-  rowUnit: { fontSize: 12, fontWeight: '600', opacity: 0.6 },
-  divider: {
-    height: 1,
-    backgroundColor: colors.borderSoft,
-    marginVertical: 6,
-    marginLeft: 46,
-  },
-  quickRow: { gap: 8 },
-  quickCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSoft,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  quickIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    borderRadius: 11,
+    backgroundColor: colors.primarySoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickLabel: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
-})
+  linkText: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+}))

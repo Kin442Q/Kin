@@ -11,7 +11,7 @@ interface Props {
   animate?: boolean
   /** Задержка анимации появления, сек */
   delay?: number
-  /** Дополнительный фон-градиент */
+  /** Цветная подсветка поверх стекла */
   accent?: 'mint' | 'yellow' | 'blue' | 'mint-yellow'
   className?: string
   style?: CSSProperties
@@ -22,12 +22,12 @@ const accentBg: Record<NonNullable<Props['accent']>, string> = {
   mint: `linear-gradient(135deg, ${SP.primarySoft}, ${SP.surface})`,
   yellow: `linear-gradient(135deg, ${SP.yellowSoft}, ${SP.surface})`,
   blue: `linear-gradient(135deg, ${SP.blueSoft}, ${SP.surface})`,
-  'mint-yellow': `linear-gradient(95deg, ${SP.primarySoft}, ${SP.yellowSoft})`,
+  'mint-yellow': `linear-gradient(95deg, ${SP.primarySoft}, ${SP.roseSoft})`,
 }
 
 /**
- * Базовая Sprout-карточка. Можно использовать вместо Ant Card,
- * либо в дополнение — наследует те же скругления и тени.
+ * Базовая карточка-«стекло». Можно использовать вместо Ant Card,
+ * либо в дополнение — те же скругления, рамка и тень.
  */
 export default function SproutCard({
   children,
@@ -41,21 +41,16 @@ export default function SproutCard({
   onClick,
 }: Props) {
   const baseStyle: CSSProperties = {
-    background: accent ? accentBg[accent] : SP.surface,
-    border: `1px solid ${SP.borderSoft}`,
-    boxShadow: shadow.md,
-    borderRadius: 18,
+    ...(accent ? { background: accentBg[accent] } : null),
     padding,
     ...style,
   }
 
-  const hoverStyle = hoverable
-    ? { y: -2, boxShadow: shadow.lg }
-    : undefined
+  const hoverStyle = hoverable ? { y: -3, boxShadow: shadow.lg } : undefined
 
   return (
     <motion.div
-      className={className}
+      className={`sp-card${className ? ` ${className}` : ''}`}
       style={baseStyle}
       onClick={onClick}
       initial={animate ? { opacity: 0, y: 8 } : false}

@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
@@ -38,6 +39,7 @@ import {
   ExpenseCategoryEnum,
 } from '../lib/expenseCategoryMap'
 import { EXPENSE_CATEGORIES, Expense, ExpenseCategory } from '../types'
+import { useChartTheme } from '../theme/chartTheme'
 
 interface ExpenseApi {
   id: string
@@ -65,6 +67,7 @@ interface ExtraIncomeApi {
 const { useBreakpoint } = Grid
 
 export default function ExpensesPage() {
+  const chartTheme = useChartTheme()
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
   const isMobile = !screens.md
@@ -98,7 +101,7 @@ export default function ExpensesPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить данные'
+        uiText("Не удалось загрузить данные")
       message.error(msg)
     } finally {
       setLoading(false)
@@ -124,7 +127,7 @@ export default function ExpensesPage() {
         groupId: e.groupId || undefined,
         createdAt: e.createdAt,
       })),
-    [expensesApi],
+    [expensesApi, uiLanguage()],
   )
 
   const monthExtra = useMemo(
@@ -138,7 +141,7 @@ export default function ExpensesPage() {
         comment: e.comment || undefined,
         createdAt: e.createdAt,
       })),
-    [extraIncomeApi],
+    [extraIncomeApi, uiLanguage()],
   )
 
   const total = monthExpenses.reduce((s, e) => s + e.amount, 0)
@@ -155,8 +158,8 @@ export default function ExpensesPage() {
   const byCategoryData = useMemo(() => {
     const map = new Map<string, number>()
     monthExpenses.forEach((e) => map.set(e.category, (map.get(e.category) || 0) + e.amount))
-    return Array.from(map.entries()).map(([type, value]) => ({ type, value }))
-  }, [monthExpenses])
+    return Array.from(map.entries()).map(([type, value]) => ({ type: uiText(type), value }))
+  }, [monthExpenses, uiLanguage()])
 
   const openCreate = () => {
     setEditing(null)
@@ -189,10 +192,10 @@ export default function ExpensesPage() {
 
       if (editing) {
         await http.patch(`/v1/expenses/${editing.id}`, body)
-        message.success('Сохранено')
+        message.success(uiText("Сохранено"))
       } else {
         await http.post('/v1/expenses', body)
-        message.success('Расход добавлен')
+        message.success(uiText("Расход добавлен"))
       }
 
       setModalOpen(false)
@@ -207,7 +210,7 @@ export default function ExpensesPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось сохранить расход'
+        uiText("Не удалось сохранить расход")
       message.error(msg)
     } finally {
       setSubmitting(false)
@@ -217,13 +220,13 @@ export default function ExpensesPage() {
   const removeExpense = async (id: string) => {
     try {
       await http.delete(`/v1/expenses/${id}`)
-      message.success('Удалено')
+      message.success(uiText("Удалено"))
       await loadExpenses(month)
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось удалить расход'
+        uiText("Не удалось удалить расход")
       message.error(msg)
     }
   }
@@ -241,7 +244,7 @@ export default function ExpensesPage() {
         comment: v.comment || undefined,
       })
       setIncomeModal(false)
-      message.success('Дополнительный доход добавлен')
+      message.success(uiText("Дополнительный доход добавлен"))
       incomeForm.resetFields()
       if (targetMonth === month) {
         await loadAll(month)
@@ -253,7 +256,7 @@ export default function ExpensesPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось добавить'
+        uiText("Не удалось добавить")
       message.error(msg)
     } finally {
       setSubmitting(false)
@@ -263,10 +266,10 @@ export default function ExpensesPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Расходы и доп. доходы"
+        title={uiText("Расходы и доп. доходы")}
         icon={<PieChart size={22} strokeWidth={2} />}
         iconAccent="pink"
-        description={`Учёт за ${dayjs(month + '-01').format('MMMM YYYY')}`}
+        description={uiText("Учёт за {0}", dayjs(month + '-01').format('MMMM YYYY'))}
         actions={
           <Space>
             <DatePicker
@@ -276,27 +279,25 @@ export default function ExpensesPage() {
               allowClear={false}
             />
             <Button onClick={() => { incomeForm.setFieldsValue({ month: dayjs(month + '-01') }); setIncomeModal(true) }}>
-              + Доход
-            </Button>
+              {" " + uiText("+ Доход") + " "}</Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              Добавить расход
-            </Button>
+              {" " + uiText("Добавить расход") + " "}</Button>
           </Space>
         }
       />
 
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
-          <StatCard title="Расходы месяца" value={total} format="money" variant="warning" />
+          <StatCard title={uiText("Расходы месяца")} value={total} format="money" variant="warning" />
         </Col>
         <Col xs={12} md={6}>
-          <StatCard title="Зарплаты" value={salaries} format="money" variant="primary" />
+          <StatCard title={uiText("Зарплаты")} value={salaries} format="money" variant="primary" />
         </Col>
         <Col xs={12} md={6}>
-          <StatCard title="Налоги" value={taxes} format="money" variant="danger" />
+          <StatCard title={uiText("Налоги")} value={taxes} format="money" variant="danger" />
         </Col>
         <Col xs={12} md={6}>
-          <StatCard title="Аренда" value={rent} format="money" variant="primary" />
+          <StatCard title={uiText("Аренда")} value={rent} format="money" variant="primary" />
         </Col>
       </Row>
 
@@ -309,10 +310,10 @@ export default function ExpensesPage() {
           >
             <Card className="glass" bordered={false}>
               <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
-                Структура расходов
-              </Title>
+                {" " + uiText("Структура расходов") + " "}</Title>
               {byCategoryData.length > 0 ? (
                 <Pie
+                  theme={chartTheme}
                   data={byCategoryData}
                   angleField="value"
                   colorField="type"
@@ -320,13 +321,13 @@ export default function ExpensesPage() {
                   innerRadius={0.55}
                   height={280}
                   legend={{ position: 'bottom' }}
-                  color={['#4FB286', '#5BA9D1', '#E5B43A', '#9B7BD4', '#D88EAE', '#3FA8B3']}
+                  color={['#0D7A7C', '#3B8FBF', '#FFB020', '#8B7BD4', '#D9709B', '#1BA6A0']}
                 />
               ) : (
                 <SproutEmpty
                   icon={<PieChart size={28} strokeWidth={1.8} />}
-                  title="Данных пока нет"
-                  description="Диаграмма появится после первого добавленного расхода в этом месяце"
+                  title={uiText("Данных пока нет")}
+                  description={uiText("Диаграмма появится после первого добавленного расхода в этом месяце")}
                   minHeight={280}
                 />
               )}
@@ -341,14 +342,14 @@ export default function ExpensesPage() {
           >
             <Card className="glass" bordered={false}>
               <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
-                По категориям
-              </Title>
+                {" " + uiText("По категориям") + " "}</Title>
               {byCategoryData.length > 0 ? (
                 <Column
+                  theme={chartTheme}
                   data={byCategoryData}
                   xField="type"
                   yField="value"
-                  color="#4FB286"
+                  color="#0D7A7C"
                   columnStyle={{ radius: [8, 8, 0, 0] }}
                   height={280}
                   xAxis={{ label: { autoRotate: true } }}
@@ -356,8 +357,8 @@ export default function ExpensesPage() {
               ) : (
                 <SproutEmpty
                   icon={<BarChart3 size={28} strokeWidth={1.8} />}
-                  title="Категорий пока нет"
-                  description="График по категориям появится после первого расхода"
+                  title={uiText("Категорий пока нет")}
+                  description={uiText("График по категориям появится после первого расхода")}
                   minHeight={280}
                 />
               )}
@@ -367,14 +368,14 @@ export default function ExpensesPage() {
       </Row>
 
       <Card className="glass mt-4" bordered={false}>
-        <Title level={5}>Список расходов</Title>
+        <Title level={5}>{uiText("Список расходов")}</Title>
         {isMobile ? (
           // Мобильные карточки
           monthExpenses.length === 0 ? (
             <SproutEmpty
               icon={<Inbox size={28} strokeWidth={1.8} />}
-              title="Расходов пока нет"
-              description="Добавьте первый расход кнопкой «Добавить расход» сверху"
+              title={uiText("Расходов пока нет")}
+              description={uiText("Добавьте первый расход кнопкой «Добавить расход» сверху")}
               minHeight={180}
             />
           ) : (
@@ -388,14 +389,14 @@ export default function ExpensesPage() {
                         <div className="sp-mcard-title">{e.description || '—'}</div>
                         <div className="sp-mcard-sub">
                           <Tag color="purple" style={{ marginRight: 4 }}>
-                            {e.category}
+                            {uiText(e.category)}
                           </Tag>
                           {g ? (
                             <Tag color="geekblue" style={{ margin: 0 }}>
                               {g.name}
                             </Tag>
                           ) : (
-                            <Tag style={{ margin: 0 }}>Общий</Tag>
+                            <Tag style={{ margin: 0 }}>{uiText("Общий")}</Tag>
                           )}
                         </div>
                       </div>
@@ -411,12 +412,11 @@ export default function ExpensesPage() {
                         icon={<EditOutlined />}
                         onClick={() => openEdit(e)}
                       >
-                        Изменить
-                      </Button>
+                        {" " + uiText("Изменить") + " "}</Button>
                       <Popconfirm
-                        title="Удалить расход?"
-                        okText="Удалить"
-                        cancelText="Отмена"
+                        title={uiText("Удалить расход?")}
+                        okText={uiText("Удалить")}
+                        cancelText={uiText("Отмена")}
                         okButtonProps={{ danger: true }}
                         onConfirm={() => removeExpense(e.id)}
                       >
@@ -438,46 +438,46 @@ export default function ExpensesPage() {
             emptyText: (
               <SproutEmpty
                 icon={<Inbox size={28} strokeWidth={1.8} />}
-                title="Расходов пока нет"
-                description="Добавьте первый расход кнопкой «Добавить расход» сверху"
+                title={uiText("Расходов пока нет")}
+                description={uiText("Добавьте первый расход кнопкой «Добавить расход» сверху")}
                 minHeight={180}
               />
             ),
           }}
           columns={[
             {
-              title: 'Категория',
+              title: uiText("Категория"),
               dataIndex: 'category',
-              filters: EXPENSE_CATEGORIES.map((c) => ({ text: c, value: c })),
+              filters: EXPENSE_CATEGORIES.map((c) => ({ text: uiText(c), value: c })),
               onFilter: (v, r) => r.category === v,
-              render: (v) => <Tag color="purple">{v}</Tag>,
+              render: (v) => <Tag color="purple">{uiText(v)}</Tag>,
             },
-            { title: 'Описание', dataIndex: 'description' },
+            { title: uiText("Описание"), dataIndex: 'description' },
             {
               title: cap(L.group),
               dataIndex: 'groupId',
               render: (v?: string) => {
-                if (!v) return <Tag>Общий</Tag>
+                if (!v) return <Tag>{uiText("Общий")}</Tag>
                 const g = groups.find((x) => x.id === v)
                 return <Tag color="geekblue">{g?.name || '—'}</Tag>
               },
             },
             {
-              title: 'Сумма',
+              title: uiText("Сумма"),
               dataIndex: 'amount',
               sorter: (a, b) => a.amount - b.amount,
               render: (v: number) => <Text strong>{formatMoney(v)}</Text>,
             },
             {
-              title: 'Действия',
+              title: uiText("Действия"),
               key: 'actions',
               render: (_, e: Expense) => (
                 <Space>
-                  <Tooltip title="Редактировать">
+                  <Tooltip title={uiText("Редактировать")}>
                     <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEdit(e)} />
                   </Tooltip>
                   <Popconfirm
-                    title="Удалить?"
+                    title={uiText("Удалить?")}
                     onConfirm={() => removeExpense(e.id)}
                   >
                     <Button size="small" type="text" danger icon={<DeleteOutlined />} />
@@ -492,55 +492,55 @@ export default function ExpensesPage() {
 
       {monthExtra.length > 0 && (
         <Card className="glass mt-4" bordered={false}>
-          <Title level={5}>Дополнительные доходы за месяц</Title>
+          <Title level={5}>{uiText("Дополнительные доходы за месяц")}</Title>
           <Table
             rowKey="id"
             dataSource={monthExtra}
             pagination={false}
             columns={[
-              { title: 'Название', dataIndex: 'title' },
+              { title: uiText("Название"), dataIndex: 'title' },
               {
-                title: 'Группа',
+                title: uiText("Группа"),
                 dataIndex: 'groupId',
-                render: (v?: string) => (v ? groups.find((g) => g.id === v)?.name : <Tag>Общий</Tag>),
+                render: (v?: string) => (v ? groups.find((g) => g.id === v)?.name : <Tag>{uiText("Общий")}</Tag>),
               },
-              { title: 'Сумма', dataIndex: 'amount', render: (v: number) => formatMoney(v) },
-              { title: 'Комментарий', dataIndex: 'comment' },
+              { title: uiText("Сумма"), dataIndex: 'amount', render: (v: number) => formatMoney(v) },
+              { title: uiText("Комментарий"), dataIndex: 'comment' },
             ]}
           />
         </Card>
       )}
 
       <Modal
-        title={editing ? 'Редактировать расход' : 'Новый расход'}
+        title={editing ? uiText("Редактировать расход") : uiText("Новый расход")}
         open={modalOpen}
         onOk={submit}
         onCancel={() => setModalOpen(false)}
-        okText={editing ? 'Сохранить' : 'Добавить'}
-        cancelText="Отмена"
+        okText={editing ? uiText("Сохранить") : uiText("Добавить")}
+        cancelText={uiText("Отмена")}
         confirmLoading={submitting}
         destroyOnClose
       >
         <Form layout="vertical" form={form}>
-          <Form.Item name="category" label="Категория" rules={[{ required: true }]}>
-            <Select options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: c }))} />
+          <Form.Item name="category" label={uiText("Категория")} rules={[{ required: true }]}>
+            <Select options={EXPENSE_CATEGORIES.map((c) => ({ value: c, label: uiText(c) }))} />
           </Form.Item>
-          <Form.Item name="description" label="Описание" rules={[{ required: true }]}>
+          <Form.Item name="description" label={uiText("Описание")} rules={[{ required: true }]}>
             <Input />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="amount" label="Сумма" rules={[{ required: true }]}>
-                <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
+              <Form.Item name="amount" label={uiText("Сумма")} rules={[{ required: true }]}>
+                <InputNumber min={0} style={{ width: '100%' }} addonAfter={uiText("сомони")} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="month" label="Месяц" rules={[{ required: true }]}>
+              <Form.Item name="month" label={uiText("Месяц")} rules={[{ required: true }]}>
                 <DatePicker picker="month" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="groupId" label={`${cap(L.group)} (если относится к одному)`}>
+          <Form.Item name="groupId" label={uiText("{0} (если относится к одному)", cap(L.group))}>
             <Select
               allowClear
               options={groups.map((g) => ({ value: g.id, label: g.name }))}
@@ -550,35 +550,35 @@ export default function ExpensesPage() {
       </Modal>
 
       <Modal
-        title="Дополнительный доход"
+        title={uiText("Дополнительный доход")}
         open={incomeModal}
         onOk={submitIncome}
         onCancel={() => setIncomeModal(false)}
-        okText="Добавить"
-        cancelText="Отмена"
+        okText={uiText("Добавить")}
+        cancelText={uiText("Отмена")}
         confirmLoading={submitting}
         destroyOnClose
       >
         <Form layout="vertical" form={incomeForm}>
-          <Form.Item name="title" label="Название" rules={[{ required: true }]}>
-            <Input placeholder="Например, Кружок «Английский»" />
+          <Form.Item name="title" label={uiText("Название")} rules={[{ required: true }]}>
+            <Input placeholder={uiText("Например, Кружок «Английский»")} />
           </Form.Item>
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item name="amount" label="Сумма" rules={[{ required: true }]}>
-                <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
+              <Form.Item name="amount" label={uiText("Сумма")} rules={[{ required: true }]}>
+                <InputNumber min={0} style={{ width: '100%' }} addonAfter={uiText("сомони")} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="month" label="Месяц" rules={[{ required: true }]}>
+              <Form.Item name="month" label={uiText("Месяц")} rules={[{ required: true }]}>
                 <DatePicker picker="month" style={{ width: '100%' }} />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="groupId" label={`${cap(L.group)} (если относится к одному)`}>
+          <Form.Item name="groupId" label={uiText("{0} (если относится к одному)", cap(L.group))}>
             <Select allowClear options={groups.map((g) => ({ value: g.id, label: g.name }))} />
           </Form.Item>
-          <Form.Item name="comment" label="Комментарий">
+          <Form.Item name="comment" label={uiText("Комментарий")}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>

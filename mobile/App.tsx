@@ -1,21 +1,17 @@
-import { useEffect } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { StatusBar } from 'expo-status-bar'
-import { View, ActivityIndicator, StyleSheet } from 'react-native'
+import { useFonts } from 'expo-font'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
-import {
-  useFonts,
-  PlusJakartaSans_400Regular,
-  PlusJakartaSans_500Medium,
-  PlusJakartaSans_600SemiBold,
-  PlusJakartaSans_700Bold,
-  PlusJakartaSans_800ExtraBold,
-} from '@expo-google-fonts/plus-jakarta-sans'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import RootNavigator from './src/navigation'
 import { useAuthStore } from './src/store/authStore'
-import { colors } from './src/theme/colors'
+import { fontFiles } from './src/theme/fonts'
+import { useThemeStore } from './src/theme/themeStore'
+import NoticeHost from './src/components/NoticeHost'
+import SplashView from './src/components/SplashView'
+import { useLangStore } from './src/i18n'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -24,27 +20,34 @@ const queryClient = new QueryClient({
 })
 
 export default function App() {
+  const lang = useLangStore(s => s.lang)
+  const hydrateLang = useLangStore(s => s.hydrate)
   const hydrate = useAuthStore((s) => s.hydrate)
   const isHydrated = useAuthStore((s) => s.isHydrated)
+  const scheme = useThemeStore((s) => s.scheme)
+  const hydrateTheme = useThemeStore((s) => s.hydrate)
+  const [themeReady, setThemeReady] = useState(false)
 
-  const [fontsLoaded] = useFonts({
-    PlusJakartaSans_400Regular,
-    PlusJakartaSans_500Medium,
-    PlusJakartaSans_600SemiBold,
-    PlusJakartaSans_700Bold,
-    PlusJakartaSans_800ExtraBold,
-  })
+  // Mont Black из локального файла пользователя.
+  const [fontsLoaded, fontError] = useFonts(fontFiles)
 
   // При старте подтянуть сохранённую сессию из AsyncStorage
   useEffect(() => {
     hydrate()
   }, [hydrate])
 
-  if (!fontsLoaded || !isHydrated) {
+  // Сохранённый выбор темы читаем до первого экрана, чтобы не мигать светлым
+  useEffect(() => {
+    Promise.all([hydrateTheme(), hydrateLang()]).finally(() => setThemeReady(true))
+  }, [hydrateTheme, hydrateLang])
+
+  // Если шрифты не загрузились — не блокируем приложение, работаем на системных
+  if ((!fontsLoaded && !fontError) || !isHydrated || !themeReady) {
     return (
-      <View style={styles.splash}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <SplashView />
+      </SafeAreaProvider>
     )
   }
 
@@ -52,19 +55,14 @@ export default function App() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style="dark" />
-          <RootNavigator />
+          {/* При смене темы дерево собирается заново: экраны читают цвета активной палитры */}
+          <Fragment key={scheme}>
+            <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+            <RootNavigator />
+            <NoticeHost />
+          </Fragment>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 }
-
-const styles = StyleSheet.create({
-  splash: {
-    flex: 1,
-    backgroundColor: colors.bg,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-})

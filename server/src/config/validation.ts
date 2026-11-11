@@ -21,9 +21,21 @@ export const envValidationSchema = Joi.object({
   JWT_REFRESH_SECRET: Joi.string().min(16).required(),
   JWT_ACCESS_TTL: Joi.string().default('15m'),
   JWT_REFRESH_TTL: Joi.string().default('30d'),
+  STUDENT_LINK_SECRET: Joi.string().min(16).optional().allow(''),
 
   THROTTLE_TTL: Joi.number().default(60),
   THROTTLE_LIMIT: Joi.number().default(120),
+
+  RESEND_API_KEY: Joi.string().optional().allow(''),
+  RESEND_API_URL: Joi.string().uri().optional().allow(''),
+  MAIL_FROM: Joi.string().optional().allow(''),
+  APP_URL: Joi.string().uri().optional().allow(''),
+
+  /** Сколько прокси перед сервером (по умолчанию 1, как на Railway): от этого зависит настоящий адрес клиента для лимита запросов. */
+  TRUST_PROXY: Joi.string().optional().allow(''),
+
+  /** Адреса (через запятую), куда писать об ошибках сервера. Нужен RESEND_API_KEY. */
+  ALERT_EMAIL: Joi.string().optional().allow(''),
 
   TELEGRAM_BOT_TOKEN: Joi.string().optional().allow(''),
   TELEGRAM_CHAT_ID: Joi.string().optional().allow(''),

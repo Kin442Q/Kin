@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   App as AntdApp,
@@ -77,7 +78,7 @@ export default function HomeworkPage() {
       .get<SubjectDto[]>('/v1/subjects')
       .then((r) => setSubjects(r.data))
       .catch((e) =>
-        message.error(e?.response?.data?.message || 'Не удалось загрузить предметы'),
+        message.error(e?.response?.data?.message || uiText("Не удалось загрузить предметы")),
       )
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -93,7 +94,7 @@ export default function HomeworkPage() {
       })
       setItems(r.data)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось загрузить ДЗ')
+      message.error(e?.response?.data?.message || uiText("Не удалось загрузить ДЗ"))
     } finally {
       setLoading(false)
     }
@@ -112,7 +113,7 @@ export default function HomeworkPage() {
       if (filter === 'past') return due < now
       return true
     })
-  }, [items, filter])
+  }, [items, filter, uiLanguage()])
 
   // ─── Modal handlers ──────────────────────────────────────────────
   const openCreate = () => {
@@ -152,16 +153,16 @@ export default function HomeworkPage() {
           description: body.description,
           dueDate: body.dueDate,
         })
-        message.success('ДЗ обновлено')
+        message.success(uiText("ДЗ обновлено"))
       } else {
         await http.post('/v1/homework', body)
-        message.success('ДЗ создано — родителям отправится уведомление')
+        message.success(uiText("ДЗ создано — родителям отправится уведомление"))
       }
       setModalOpen(false)
       await loadHomework()
     } catch (e: any) {
       if (e?.errorFields) return
-      message.error(e?.response?.data?.message || 'Ошибка сохранения')
+      message.error(e?.response?.data?.message || uiText("Ошибка сохранения"))
     } finally {
       setSaving(false)
     }
@@ -170,10 +171,10 @@ export default function HomeworkPage() {
   const remove = async (h: HomeworkDto) => {
     try {
       await http.delete(`/v1/homework/${h.id}`)
-      message.success('Удалено')
+      message.success(uiText("Удалено"))
       await loadHomework()
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Ошибка')
+      message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
   }
 
@@ -181,14 +182,13 @@ export default function HomeworkPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Домашние задания"
+        title={uiText("Домашние задания")}
         icon={<BookOpen size={22} strokeWidth={2} />}
         iconAccent="yellow"
-        description="Задания для класса с автоматической рассылкой родителям"
+        description={uiText("Задания для класса с автоматической рассылкой родителям")}
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Задать ДЗ
-          </Button>
+            {" " + uiText("Задать ДЗ") + " "}</Button>
         }
       />
 
@@ -196,26 +196,24 @@ export default function HomeworkPage() {
         <Row gutter={[12, 12]} align="middle">
           <Col xs={24} md={8}>
             <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
-              ПЕРИОД
-            </div>
+              {" " + uiText("ПЕРИОД") + " "}</div>
             <Segmented
               block
               value={filter}
               onChange={(v) => setFilter(v as Filter)}
               options={[
-                { value: 'upcoming', label: 'Активные' },
-                { value: 'past', label: 'Прошедшие' },
-                { value: 'all', label: 'Все' },
+                { value: 'upcoming', label: uiText("Активные") },
+                { value: 'past', label: uiText("Прошедшие") },
+                { value: 'all', label: uiText("Все") },
               ]}
             />
           </Col>
           <Col xs={12} md={8}>
             <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
-              КЛАСС
-            </div>
+              {" " + uiText("КЛАСС") + " "}</div>
             <Select
               allowClear
-              placeholder="Все классы"
+              placeholder={uiText("Все классы")}
               style={{ width: '100%' }}
               value={groupFilter ?? undefined}
               onChange={(v) => setGroupFilter(v ?? null)}
@@ -224,11 +222,10 @@ export default function HomeworkPage() {
           </Col>
           <Col xs={12} md={8}>
             <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
-              ПРЕДМЕТ
-            </div>
+              {" " + uiText("ПРЕДМЕТ") + " "}</div>
             <Select
               allowClear
-              placeholder="Все предметы"
+              placeholder={uiText("Все предметы")}
               style={{ width: '100%' }}
               value={subjectFilter ?? undefined}
               onChange={(v) => setSubjectFilter(v ?? null)}
@@ -263,11 +260,11 @@ export default function HomeworkPage() {
           <Card className="glass" bordered={false}>
             <SproutEmpty
               icon={<BookOpen size={32} strokeWidth={1.8} />}
-              title="Заданий нет"
+              title={uiText("Заданий нет")}
               description={
                 filter === 'upcoming'
-                  ? 'Активных ДЗ пока нет. Нажмите «Задать ДЗ» чтобы создать.'
-                  : 'Ничего не найдено по фильтрам.'
+                  ? uiText("Активных ДЗ пока нет. Нажмите «Задать ДЗ» чтобы создать.")
+                  : uiText("Ничего не найдено по фильтрам.")
               }
               minHeight={200}
             />
@@ -336,7 +333,7 @@ export default function HomeworkPage() {
                         <Tag style={{ background: SP.surfaceAlt, border: 'none' }}>
                           {h.group?.name ?? '—'}
                         </Tag>
-                        {overdue && <Tag color="red">просрочено</Tag>}
+                        {overdue && <Tag color="red">{uiText("просрочено")}</Tag>}
                       </div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: SP.text, marginTop: 6 }}>
                         {h.title}
@@ -358,8 +355,7 @@ export default function HomeworkPage() {
                         icon={<CheckSquareOutlined />}
                         onClick={() => setStatusFor(h.id)}
                       >
-                        Кто сделал
-                      </Button>
+                        {" " + uiText("Кто сделал") + " "}</Button>
                       <Button
                         size="small"
                         type="text"
@@ -367,9 +363,9 @@ export default function HomeworkPage() {
                         onClick={() => openEdit(h)}
                       />
                       <Popconfirm
-                        title="Удалить ДЗ?"
-                        okText="Удалить"
-                        cancelText="Отмена"
+                        title={uiText("Удалить ДЗ?")}
+                        okText={uiText("Удалить")}
+                        cancelText={uiText("Отмена")}
                         okButtonProps={{ danger: true }}
                         onConfirm={() => remove(h)}
                       >
@@ -389,8 +385,7 @@ export default function HomeworkPage() {
         )}
         {loading && (
           <Text type="secondary" style={{ fontSize: 12 }}>
-            Загружаю...
-          </Text>
+            {" " + uiText("Загружаю...") + " "}</Text>
         )}
       </motion.div>
 
@@ -398,12 +393,12 @@ export default function HomeworkPage() {
 
       {/* Modal */}
       <Modal
-        title={editing ? 'Редактировать ДЗ' : 'Задать ДЗ'}
+        title={editing ? uiText("Редактировать ДЗ") : uiText("Задать ДЗ")}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={submit}
-        okText={editing ? 'Сохранить' : 'Задать'}
-        cancelText="Отмена"
+        okText={editing ? uiText("Сохранить") : uiText("Задать")}
+        cancelText={uiText("Отмена")}
         confirmLoading={saving}
         destroyOnClose
       >
@@ -412,8 +407,8 @@ export default function HomeworkPage() {
             <Col span={12}>
               <Form.Item
                 name="subjectId"
-                label="Предмет"
-                rules={[{ required: true, message: 'Выберите предмет' }]}
+                label={uiText("Предмет")}
+                rules={[{ required: true, message: uiText("Выберите предмет") }]}
               >
                 <Select
                   disabled={!!editing}
@@ -421,20 +416,20 @@ export default function HomeworkPage() {
                     value: s.id,
                     label: s.name,
                   }))}
-                  placeholder="Выберите"
+                  placeholder={uiText("Выберите")}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item
                 name="groupId"
-                label="Класс"
-                rules={[{ required: true, message: 'Выберите класс' }]}
+                label={uiText("Класс")}
+                rules={[{ required: true, message: uiText("Выберите класс") }]}
               >
                 <Select
                   disabled={!!editing}
                   options={groups.map((g) => ({ value: g.id, label: g.name }))}
-                  placeholder="Выберите"
+                  placeholder={uiText("Выберите")}
                 />
               </Form.Item>
             </Col>
@@ -442,20 +437,20 @@ export default function HomeworkPage() {
 
           <Form.Item
             name="title"
-            label="Заголовок"
-            rules={[{ required: true, message: 'Введите заголовок' }]}
+            label={uiText("Заголовок")}
+            rules={[{ required: true, message: uiText("Введите заголовок") }]}
           >
-            <Input placeholder="Упр. 23 на стр. 45" />
+            <Input placeholder={uiText("Упр. 23 на стр. 45")} />
           </Form.Item>
 
-          <Form.Item name="description" label="Описание">
-            <Input.TextArea rows={3} placeholder="Подробности задания" />
+          <Form.Item name="description" label={uiText("Описание")}>
+            <Input.TextArea rows={3} placeholder={uiText("Подробности задания")} />
           </Form.Item>
 
           <Form.Item
             name="dueDate"
-            label="Срок сдачи"
-            rules={[{ required: true, message: 'Укажите срок' }]}
+            label={uiText("Срок сдачи")}
+            rules={[{ required: true, message: uiText("Укажите срок") }]}
           >
             <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
           </Form.Item>

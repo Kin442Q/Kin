@@ -307,6 +307,8 @@ model User {
   /// Учитель может преподавать в нескольких классах; основная группа выше —
   /// одна из них (для совместимости со старой логикой посещаемости и т.п.).
   teachingGroups Group[]  @relation("TeacherClasses")
+  /// Предметы, которые админ открыл учителю в журнале и ДЗ (M:N).
+  teachingSubjects Subject[] @relation("TeacherSubjects")
 
   /// Для PARENT — id ребёнка.
   childId       String?
@@ -315,6 +317,15 @@ model User {
   /// Для STUDENT — ученик, чей это аккаунт (один аккаунт на ученика).
   studentId     String?  @unique
   student       Student? @relation("StudentAccount", fields: [studentId], references: [id], onDelete: SetNull)
+  /// Для STUDENT: версия личной ссылки входа. null — ссылки нет; выдача = 1, перевыпуск = +1.
+  /// Сама ссылка нигде не хранится: она подписывается (HMAC) от id и версии, поэтому
+  /// её можно показать снова, а перевыпуск мгновенно убивает старую.
+  linkVersion   Int?
+  /// Для STUDENT: когда классный руководитель выдал логин и пароль. null — пароль не выдан, вход только по ссылке.
+  passwordIssuedAt DateTime?
+
+  /// Админ выдал временный пароль — при первом входе его обязательно сменить.
+  mustChangePassword Boolean @default(false)
 
   /// Классы, где пользователь — классный руководитель.
   homeroomGroups Group[] @relation("Homeroom")
@@ -354,6 +365,7 @@ model User {
   updatedAt     DateTime @updatedAt
 
   refreshTokens RefreshToken[]
+  passwordTokens PasswordToken[]
   auditLogs     AuditLog[]      @relation("AuditActor")
   notifications Notification[]
   timeEntries   TimeEntry[]
@@ -433,6 +445,31 @@ model RefreshToken {
   createdAt  DateTime @default(now())
 
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/// Зачем выдан одноразовый токен для установки пароля.
+enum PasswordTokenPurpose {
+  /// Приглашение: новый пользователь сам задаёт пароль по ссылке из письма.
+  INVITE
+  /// Восстановление: «Забыли пароль?».
+  RESET
+}
+
+/// Одноразовые ссылки «задать пароль» из писем. Сам токен нигде не хранится —
+/// только sha256 (как у RefreshToken); использованный токен гасится usedAt.
+model PasswordToken {
+  id        String               @id @default(cuid())
+  userId    String
+  tokenHash String               @unique
+  purpose   PasswordTokenPurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime             @default(now())
+
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
@@ -878,6 +915,8 @@ model Subject {
   libraryItems    LibraryItem[]
   quizzes         Quiz[]
   lessonMaterials LessonMaterial[]
+  /// Учителя, которым открыт этот предмет.
+  teachers        User[]   @relation("TeacherSubjects")
 
   @@unique([kindergartenId, name])
   @@index([kindergartenId])

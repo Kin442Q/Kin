@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useState } from 'react'
 import { App as AntdApp, Button, Tag, Typography } from 'antd'
 import { CheckCircleFilled } from '@ant-design/icons'
@@ -40,7 +41,7 @@ export default function StudentHomeworkCard({ hw, onChange }: Props) {
       const r = await studentApi.setSubmitted(hw.id, !submitted)
       onChange(hw.id, r.status)
     } catch (e: any) {
-      message.error(e?.response?.data?.message || 'Не удалось отметить')
+      message.error(e?.response?.data?.message || uiText("Не удалось отметить"))
     } finally {
       setBusy(false)
     }
@@ -79,9 +80,9 @@ export default function StudentHomeworkCard({ hw, onChange }: Props) {
           <Tag style={{ background: hw.subject.color, color: '#fff', border: 'none', fontWeight: 700 }}>
             {hw.subject.name}
           </Tag>
-          {overdue && <Tag color="red">срок прошёл</Tag>}
+          {overdue && <Tag color="red">{uiText("срок прошёл")}</Tag>}
           {verdict && <Tag color={STATUS_COLOR[verdict]}>{STATUS_LABEL[verdict]}</Tag>}
-          {submitted && <Tag color={STATUS_COLOR.SUBMITTED}>Ждёт проверки учителя</Tag>}
+          {submitted && <Tag color={STATUS_COLOR.SUBMITTED}>{uiText("Ждёт проверки учителя")}</Tag>}
         </div>
         <div style={{ fontSize: 15, fontWeight: 700, marginTop: 6 }}>{hw.title}</div>
         {hw.description && (
@@ -91,7 +92,7 @@ export default function StudentHomeworkCard({ hw, onChange }: Props) {
         )}
         {hw.submission?.comment && verdict && (
           <Text style={{ display: 'block', fontSize: 13, marginTop: 4, color: SP.textMid }}>
-            Учитель: {hw.submission.comment}
+            {" " + uiText("Учитель:") + " "}{hw.submission.comment}
           </Text>
         )}
       </div>
@@ -103,7 +104,7 @@ export default function StudentHomeworkCard({ hw, onChange }: Props) {
           loading={busy}
           onClick={toggle}
         >
-          {submitted ? 'Я сделал(а) ✓' : 'Я сделал(а)'}
+          {submitted ? uiText("Я сделал(а) ✓") : uiText("Я сделал(а)")}
         </Button>
       )}
     </div>

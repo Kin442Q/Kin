@@ -1,14 +1,13 @@
+import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { CheckCircle2, AlertCircle, Wallet } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
@@ -20,10 +19,12 @@ import {
   type PaymentDto,
 } from '../api/parent'
 
-const MONTH_RU = [
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
+const MONTH_RU = localizeCopy([
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
-]
+])
 
 function monthLabel(m: string): string {
   const [y, mo] = m.split('-').map(Number)
@@ -45,7 +46,7 @@ export default function ParentPaymentsScreen() {
       if (list.length && !activeKidId) setActiveKidId(list[0].id)
       else if (!list.length) setLoading(false)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
       setLoading(false)
     }
   }, [activeKidId])
@@ -56,7 +57,7 @@ export default function ParentPaymentsScreen() {
       const list = await parentApi.payments(activeKidId)
       setPayments(list)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -79,7 +80,7 @@ export default function ParentPaymentsScreen() {
       .filter((p) => !p.paid)
       .reduce((sum, p) => sum + Number(p.amount), 0)
     return { totalPaid, totalDue }
-  }, [payments])
+  }, [payments, uiLanguage()])
 
   if (loading) {
     return (
@@ -95,7 +96,7 @@ export default function ParentPaymentsScreen() {
     return (
       <Screen>
         <View style={styles.empty}>
-          <Text style={styles.emptyText}>Нет привязанных детей.</Text>
+          <Text style={styles.emptyText}>{uiText("Нет привязанных детей.")}</Text>
         </View>
       </Screen>
     )
@@ -119,7 +120,7 @@ export default function ParentPaymentsScreen() {
         }
         ListHeaderComponent={
           <View style={{ marginBottom: 16 }}>
-            <Text style={styles.title}>Оплата</Text>
+            <Text style={styles.title}>{uiText("Оплата")}</Text>
 
             {kids.length > 1 && (
               <View style={styles.kidTabs}>
@@ -156,17 +157,16 @@ export default function ParentPaymentsScreen() {
                 <View style={styles.kpiHead}>
                   <CheckCircle2 size={16} color={colors.primaryDeep} />
                   <Text style={[styles.kpiLabel, { color: colors.primaryDeep }]}>
-                    Оплачено
-                  </Text>
+                    {" " + uiText("Оплачено") + " "}</Text>
                 </View>
                 <Text style={[styles.kpiValue, { color: colors.primaryDeep }]}>
-                  {Math.round(stats.totalPaid).toLocaleString('ru-RU')}
-                  <Text style={styles.kpiUnit}> с</Text>
+                  {Math.round(stats.totalPaid).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')}
+                  <Text style={styles.kpiUnit}> {" " + uiText("сомони")}</Text>
                 </Text>
               </Card>
               <Card padding={16} style={[
                 styles.kpiCard,
-                { backgroundColor: stats.totalDue > 0 ? colors.roseSoft : colors.surface },
+                { backgroundColor: stats.totalDue > 0 ? colors.roseSoft : colors.surfaceSolid },
                 shadow.sm,
               ]}>
                 <View style={styles.kpiHead}>
@@ -180,8 +180,7 @@ export default function ParentPaymentsScreen() {
                       { color: stats.totalDue > 0 ? colors.roseDeep : colors.muted },
                     ]}
                   >
-                    К оплате
-                  </Text>
+                    {" " + uiText("К оплате") + " "}</Text>
                 </View>
                 <Text
                   style={[
@@ -189,13 +188,13 @@ export default function ParentPaymentsScreen() {
                     { color: stats.totalDue > 0 ? colors.roseDeep : colors.muted },
                   ]}
                 >
-                  {Math.round(stats.totalDue).toLocaleString('ru-RU')}
-                  <Text style={styles.kpiUnit}> с</Text>
+                  {Math.round(stats.totalDue).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')}
+                  <Text style={styles.kpiUnit}> {" " + uiText("сомони")}</Text>
                 </Text>
               </Card>
             </View>
 
-            <Text style={styles.section}>История оплат</Text>
+            <Text style={styles.section}>{uiText("История оплат")}</Text>
           </View>
         }
         ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -221,8 +220,8 @@ export default function ParentPaymentsScreen() {
                 <Text style={styles.month}>{monthLabel(item.month)}</Text>
                 <Text style={styles.meta}>
                   {item.paid
-                    ? `Оплачено${item.paidAt ? ' · ' + new Date(item.paidAt).toLocaleDateString('ru-RU') : ''}`
-                    : 'Не оплачено'}
+                    ? uiText("Оплачено{0}", item.paidAt ? ' · ' + new Date(item.paidAt).toLocaleDateString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU') : '')
+                    : uiText("Не оплачено")}
                   {item.method ? ` · ${methodLabel(item.method)}` : ''}
                 </Text>
               </View>
@@ -232,15 +231,14 @@ export default function ParentPaymentsScreen() {
                   { color: item.paid ? colors.text : colors.roseDeep },
                 ]}
               >
-                {Math.round(Number(item.amount)).toLocaleString('ru-RU')} с
-              </Text>
+                {Math.round(Number(item.amount)).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')} {" " + uiText("сомони") + " "}</Text>
             </View>
             {item.comment && <Text style={styles.comment}>{item.comment}</Text>}
           </Card>
         )}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={styles.emptyText}>Записей об оплате нет.</Text>
+            <Text style={styles.emptyText}>{uiText("Записей об оплате нет.")}</Text>
           </View>
         }
       />
@@ -249,13 +247,13 @@ export default function ParentPaymentsScreen() {
 }
 
 function methodLabel(m: string): string {
-  if (m === 'CASH') return 'Наличные'
-  if (m === 'CARD') return 'Карта'
-  if (m === 'TRANSFER') return 'Перевод'
+  if (m === 'CASH') return uiText("Наличные")
+  if (m === 'CARD') return uiText("Карта")
+  if (m === 'TRANSFER') return uiText("Перевод")
   return m
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   empty: { paddingVertical: 60, alignItems: 'center' },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
@@ -312,4 +310,4 @@ const styles = StyleSheet.create({
     borderTopColor: colors.borderSoft,
     fontStyle: 'italic',
   },
-})
+}))

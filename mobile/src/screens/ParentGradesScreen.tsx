@@ -1,31 +1,34 @@
-import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
-import { useNavigation } from '@react-navigation/native'
+import { uiLanguage, uiText } from '../i18n/uiText'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, View } from 'react-native'
 import dayjs from 'dayjs'
-import { ChevronLeft, GraduationCap, BookOpen } from 'lucide-react-native'
+import { ChevronDown } from 'lucide-react-native'
 
+import { Text } from '../components/Text'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
-import { colors, radius, shadow } from '../theme/colors'
+import EmptyState from '../components/EmptyState'
+import { ScreenHeading } from '../components/ui'
+import { colors, radius } from '../theme/colors'
+import { averageColor, gradeTone } from '../lib/gradeStyle'
+import { trendLabel, weeklyTrend } from '../lib/gradeTrend'
+import { hasFeature } from '../lib/features'
+import { useAuthStore } from '../store/authStore'
 import {
   parentApi,
+  type GradeStatsRow,
   type KidDto,
   type ParentGradeDto,
   type ParentHomeworkDto,
-  type GradeStatsRow,
 } from '../api/parent'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
+/** Оценки и домашние задания ребёнка: средний балл, предметы с последними оценками. */
 export default function ParentGradesScreen() {
-  const navigation = useNavigation()
+  const user = useAuthStore((s) => s.user)
+  const showHomework = hasFeature(user, 'homework')
+
   const [kids, setKids] = useState<KidDto[]>([])
   const [activeKidId, setActiveKidId] = useState<string | null>(null)
   const [grades, setGrades] = useState<ParentGradeDto[]>([])
@@ -42,7 +45,7 @@ export default function ParentGradesScreen() {
       if (list.length && !activeKidId) setActiveKidId(list[0].id)
       else if (!list.length) setLoading(false)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
       setLoading(false)
     }
   }, [activeKidId])
@@ -53,51 +56,72 @@ export default function ParentGradesScreen() {
       const [g, s, h] = await Promise.all([
         parentApi.grades(activeKidId),
         parentApi.gradeStats(activeKidId),
-        parentApi.homework(activeKidId),
+        showHomework ? parentApi.homework(activeKidId).catch(() => [] as ParentHomeworkDto[]) : Promise.resolve([] as ParentHomeworkDto[]),
       ])
       setGrades(g)
       setStats(s)
       setHomework(h)
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
+      notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeKidId])
+  }, [activeKidId, showHomework])
 
   useEffect(() => {
     loadKids()
   }, [loadKids])
-
   useEffect(() => {
     if (activeKidId) loadData()
   }, [activeKidId, loadData])
 
+  // Последние оценки по предметам (от старых к новым, не больше шести)
+  const marksBySubject = useMemo(() => {
+    const map = new Map<string, number[]>()
+    const sorted = [...grades].sort((a, b) => a.date.localeCompare(b.date))
+    for (const g of sorted) {
+      const arr = map.get(g.subjectId) ?? []
+      arr.push(g.value)
+      map.set(g.subjectId, arr)
+    }
+    return map
+  }, [grades, uiLanguage()])
+
+  const kid = kids.find((k) => k.id === activeKidId) ?? kids[0]
+  const rows = stats.filter((s) => s.count > 0)
+  const overall = rows.length ? rows.reduce((a, r) => a + r.average, 0) / rows.length : null
+  // Как изменился средний балл за неделю; null, если сравнивать не с чем или он не изменился
+  const trend = useMemo(() => weeklyTrend(grades), [grades, uiLanguage()])
+  const upcoming = [...homework]
+    .filter((h) => !dayjs(h.dueDate).isBefore(dayjs().startOf('day')))
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+
   if (loading) {
     return (
       <Screen>
-        <View style={styles.loader}>
+        <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>
       </Screen>
     )
   }
+  if (!kid) {
+    return (
+      <Screen>
+        <EmptyState title={uiText("Нет данных")} hint={uiText("К вашему аккаунту пока не привязан ни один ученик.")} />
+      </Screen>
+    )
+  }
+
+  const cycleKid = () => {
+    if (kids.length < 2) return
+    const i = kids.findIndex((k) => k.id === kid.id)
+    setActiveKidId(kids[(i + 1) % kids.length].id)
+  }
 
   return (
     <Screen>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.backBtn}
-        >
-          <ChevronLeft size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.topTitle}>Школа</Text>
-        <View style={{ width: 36 }} />
-      </View>
-
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -111,253 +135,140 @@ export default function ParentGradesScreen() {
           />
         }
       >
-        {kids.length > 1 && (
-          <View style={styles.kidTabs}>
-            {kids.map((k) => {
-              const on = k.id === activeKidId
+        <ScreenHeading
+          eyebrow={`${kid.firstName}${kid.group?.name ? ' · ' + kid.group.name : ''}`}
+          title={uiText("Оценки")}
+          right={
+            kids.length > 1 ? (
+              <Pressable onPress={cycleKid} accessibilityRole="button" accessibilityLabel={uiText("Сменить ребёнка")} style={styles.switch}>
+                <Text style={styles.switchText}>{kid.firstName}</Text>
+                <ChevronDown size={15} color={colors.textMid} />
+              </Pressable>
+            ) : undefined
+          }
+        />
+
+        {showHomework && (
+          <View style={styles.seg} accessibilityRole="tablist">
+            {(['grades', 'homework'] as const).map((m) => {
+              const on = tab === m
               return (
                 <Pressable
-                  key={k.id}
-                  onPress={() => setActiveKidId(k.id)}
-                  style={[
-                    styles.kidChip,
-                    {
-                      backgroundColor: on ? colors.primary : colors.surfaceAlt,
-                    },
-                  ]}
+                  key={m}
+                  onPress={() => setTab(m)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: on }}
+                  style={[styles.segItem, on && styles.segOn]}
                 >
-                  <Text
-                    style={{
-                      color: on ? '#fff' : colors.text,
-                      fontWeight: '700',
-                      fontSize: 13,
-                    }}
-                  >
-                    {k.firstName}
-                  </Text>
+                  <Text style={[styles.segText, on && { color: '#FFFFFF' }]}>{m === 'grades' ? uiText("Оценки") : uiText("Домашние задания")}</Text>
                 </Pressable>
               )
             })}
           </View>
         )}
 
-        <View style={styles.modeTabs}>
-          {(['grades', 'homework'] as const).map((m) => {
-            const on = tab === m
-            return (
-              <Pressable
-                key={m}
-                onPress={() => setTab(m)}
-                style={[
-                  styles.modeTab,
-                  { backgroundColor: on ? colors.primary : colors.surfaceAlt },
-                ]}
-              >
-                <Text
-                  style={{
-                    color: on ? '#fff' : colors.text,
-                    fontWeight: '700',
-                    fontSize: 13,
-                  }}
-                >
-                  {m === 'grades' ? 'Оценки' : 'Домашка'}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
-
         {tab === 'grades' ? (
           <>
-            {stats.length > 0 && (
-              <>
-                <Text style={styles.section}>Средняя по предметам</Text>
-                {stats.map((row) => (
-                  <Card key={row.subjectId} padding={12} style={shadow.sm}>
-                    <View style={styles.statRow}>
-                      <View
-                        style={[styles.dot, { backgroundColor: row.color }]}
-                      />
-                      <Text style={styles.statName}>{row.name}</Text>
-                      <Text
-                        style={[
-                          styles.statValue,
-                          { color: gradeColor(row.average) },
-                        ]}
-                      >
-                        {row.average.toFixed(1)}
-                      </Text>
-                      <Text style={styles.statCount}>{row.count} оц.</Text>
-                    </View>
-                  </Card>
-                ))}
-              </>
-            )}
+            <View style={styles.avgCard}>
+              <View style={{ gap: 2 }}>
+                <Text style={styles.avgLabel}>{uiText("Средний балл")}</Text>
+                <Text style={styles.avgValue}>{overall != null ? overall.toFixed(1) : '—'}</Text>
+              </View>
+              <View style={styles.avgChip}>
+                <Text style={styles.avgChipText}>
+                  {trend != null
+                    ? trendLabel(trend)
+                    : `${grades.length} ${grades.length === 1 ? uiText("оценка") : grades.length < 5 && grades.length > 0 ? uiText("оценки") : uiText("оценок")}`}
+                </Text>
+              </View>
+            </View>
 
-            <Text style={styles.section}>Все оценки</Text>
-            {grades.length === 0 ? (
-              <Card padding={20}>
-                <Text style={styles.empty}>Оценок пока нет</Text>
-              </Card>
+            {rows.length === 0 ? (
+              <EmptyState title={uiText("Оценок пока нет")} hint={uiText("Они появятся здесь, как только учитель поставит первую.")} />
             ) : (
-              grades.map((g) => (
-                <Card key={g.id} padding={12}>
-                  <View style={styles.gradeRow}>
-                    <View
-                      style={[
-                        styles.gradeCircle,
-                        { backgroundColor: gradeColor(g.value) },
-                      ]}
-                    >
-                      <Text style={styles.gradeCircleText}>{g.value}</Text>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.subjectName}>
-                        {g.subject?.name ?? '—'}
-                      </Text>
-                      <Text style={styles.subjectMeta}>
-                        {dayjs(g.date).format('D MMMM')} ·{' '}
-                        {gradeTypeLabel(g.type)}
-                        {g.author ? ` · ${g.author.fullName}` : ''}
-                      </Text>
-                      {g.comment && (
-                        <Text style={styles.comment}>«{g.comment}»</Text>
-                      )}
-                    </View>
-                  </View>
-                </Card>
-              ))
-            )}
-          </>
-        ) : (
-          <>
-            <Text style={styles.section}>Заданное</Text>
-            {homework.length === 0 ? (
-              <Card padding={20}>
-                <Text style={styles.empty}>Домашних заданий нет</Text>
-              </Card>
-            ) : (
-              homework.map((h) => {
-                const overdue =
-                  new Date(h.dueDate).getTime() < Date.now() - 86400000
+              rows.map((r) => {
+                const marks = (marksBySubject.get(r.subjectId) ?? []).slice(-6)
                 return (
-                  <Card
-                    key={h.id}
-                    padding={14}
-                    style={overdue ? { opacity: 0.55 } : undefined}
-                  >
-                    <View style={styles.hwRow}>
-                      <View
-                        style={[
-                          styles.dot,
-                          {
-                            backgroundColor: h.subject?.color ?? colors.primary,
-                            marginTop: 6,
-                          },
-                        ]}
-                      />
-                      <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={styles.hwTitle}>{h.title}</Text>
-                        <Text style={styles.hwMeta}>
-                          {h.subject?.name ?? '—'} · до{' '}
-                          {dayjs(h.dueDate).format('dd, D MMM')}
-                          {overdue ? ' (просрочено)' : ''}
-                        </Text>
-                        {h.description && (
-                          <Text style={styles.hwDesc}>{h.description}</Text>
-                        )}
+                  <Card key={r.subjectId} padding={12} style={styles.subjectRow}>
+                    <View style={{ flex: 1, gap: 6 }}>
+                      <Text style={styles.subjectName} numberOfLines={1}>
+                        {r.name}
+                      </Text>
+                      <View style={styles.marks}>
+                        {marks.map((v, i) => {
+                          const tone = gradeTone(v)
+                          return (
+                            <View key={i} style={[styles.mark, { backgroundColor: tone.bg }]}>
+                              <Text style={[styles.markText, { color: tone.fg }]}>{v}</Text>
+                            </View>
+                          )
+                        })}
                       </View>
                     </View>
+                    <Text style={[styles.avg, { color: averageColor(r.average) }]}>{r.average.toFixed(1)}</Text>
                   </Card>
                 )
               })
             )}
           </>
+        ) : upcoming.length === 0 ? (
+          <EmptyState title={uiText("Заданий нет")} hint={uiText("Ближайших домашних заданий не найдено.")} />
+        ) : (
+          upcoming.map((h) => (
+            <Card key={h.id} padding={14} style={{ gap: 4 }}>
+              <View style={styles.hwHead}>
+                <Text style={styles.subjectName} numberOfLines={1}>
+                  {h.subject?.name ?? uiText("Задание")}
+                </Text>
+                <Text style={styles.due}>{uiText("до") + " "}{dayjs(h.dueDate).format('D MMM')}</Text>
+              </View>
+              <Text style={styles.hwText}>{h.title}</Text>
+              {h.description ? <Text style={styles.hwDesc}>{h.description}</Text> : null}
+            </Card>
+          ))
         )}
       </ScrollView>
     </Screen>
   )
 }
 
-function gradeColor(v: number): string {
-  if (v >= 9) return colors.primaryDeep
-  if (v >= 7) return colors.primary
-  if (v >= 5) return colors.yellowDeep
-  if (v >= 4) return colors.yellowDeep
-  return colors.roseDeep
-}
-function gradeTypeLabel(t: string): string {
-  if (t === 'CLASSWORK') return 'урок'
-  if (t === 'HOMEWORK') return 'ДЗ'
-  if (t === 'CONTROL') return 'контрольная'
-  if (t === 'EXAM') return 'экзамен'
-  if (t === 'PROJECT') return 'проект'
-  return 'другое'
-}
-
-const styles = StyleSheet.create({
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  topBar: {
+const styles = themedStyles(() => ({
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  container: { padding: 16, gap: 12 },
+  switch: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-  },
-  topTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
-  container: { padding: 16, paddingBottom: 40, gap: 8 },
-  kidTabs: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 8 },
-  kidChip: {
-    paddingHorizontal: 14,
+    gap: 6,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: radius.pill,
+    backgroundColor: colors.surface,
   },
-  modeTabs: { flexDirection: 'row', gap: 6, marginBottom: 8 },
-  modeTab: {
-    flex: 1,
-    paddingVertical: 10,
+  switchText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  seg: { flexDirection: 'row', gap: 6, padding: 4, borderRadius: 16, backgroundColor: colors.surface },
+  segItem: { flex: 1, paddingVertical: 9, borderRadius: 12, alignItems: 'center' },
+  segOn: { backgroundColor: colors.primary },
+  segText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  avgCard: {
+    padding: 16,
+    borderRadius: 22,
+    backgroundColor: colors.primary,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: radius.md,
   },
-  section: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '700',
-    marginTop: 10,
-    marginBottom: 4,
-    marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  statRow: { flexDirection: 'row', alignItems: 'center' },
-  dot: { width: 10, height: 10, borderRadius: 5 },
-  statName: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.text, marginLeft: 10 },
-  statValue: { fontSize: 18, fontWeight: '800', letterSpacing: -0.3, marginRight: 8 },
-  statCount: { fontSize: 11, color: colors.muted, fontWeight: '600' },
-  gradeRow: { flexDirection: 'row', alignItems: 'center' },
-  gradeCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  gradeCircleText: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  subjectName: { fontSize: 14, fontWeight: '700', color: colors.text },
-  subjectMeta: { fontSize: 11, color: colors.muted, marginTop: 2 },
-  comment: { fontSize: 12, color: colors.textMid, fontStyle: 'italic', marginTop: 4 },
-  hwRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  hwTitle: { fontSize: 14, fontWeight: '800', color: colors.text },
-  hwMeta: { fontSize: 11, color: colors.muted, marginTop: 2 },
-  hwDesc: { fontSize: 13, color: colors.textMid, marginTop: 6, lineHeight: 18 },
-  empty: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-})
+  avgLabel: { fontSize: 13, color: '#BDEBE8' },
+  avgValue: { fontSize: 34, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.8 },
+  avgChip: { backgroundColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill },
+  avgChipText: { fontSize: 12, fontWeight: '700', color: '#FFFFFF' },
+  subjectRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  subjectName: { fontSize: 15, fontWeight: '700', color: colors.text, flexShrink: 1 },
+  marks: { flexDirection: 'row', gap: 4, flexWrap: 'wrap' },
+  mark: { width: 24, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+  markText: { fontSize: 13, fontWeight: '800' },
+  avg: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4 },
+  hwHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  due: { fontSize: 12, fontWeight: '700', color: colors.roseDeep },
+  hwText: { fontSize: 14, color: colors.text, lineHeight: 20 },
+  hwDesc: { fontSize: 13, color: colors.textMid, lineHeight: 18 },
+}))

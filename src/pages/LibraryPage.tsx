@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import {
   App as AntdApp,
@@ -71,7 +72,7 @@ export default function LibraryPage() {
     libraryApi
       .list({ type: type === 'ALL' ? undefined : type, q: query || undefined })
       .then(setItems)
-      .catch((e) => message.error(errorText(e, 'Не удалось загрузить библиотеку')))
+      .catch((e) => message.error(errorText(e, uiText("Не удалось загрузить библиотеку"))))
       .finally(() => setLoading(false))
   }, [type, query, message])
 
@@ -135,11 +136,11 @@ export default function LibraryPage() {
       }
       if (editing) await libraryApi.update(editing.id, body)
       else await libraryApi.create(body)
-      message.success(editing ? 'Материал обновлён' : 'Материал добавлен')
+      message.success(editing ? uiText("Материал обновлён") : uiText("Материал добавлен"))
       setOpen(false)
       load()
     } catch (e) {
-      message.error(errorText(e, 'Не удалось сохранить'))
+      message.error(errorText(e, uiText("Не удалось сохранить")))
     } finally {
       setSaving(false)
     }
@@ -148,31 +149,30 @@ export default function LibraryPage() {
   const remove = async (i: LibraryItem) => {
     try {
       await libraryApi.remove(i.id)
-      message.success('Материал удалён')
+      message.success(uiText("Материал удалён"))
       load()
     } catch (e) {
-      message.error(errorText(e, 'Не удалось удалить'))
+      message.error(errorText(e, uiText("Не удалось удалить")))
     }
   }
 
   return (
     <div>
       <SproutPageHeader
-        title="Библиотека"
+        title={uiText("Библиотека")}
         icon={<Library size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Материалы для учеников: книги, статьи, видео — ссылкой или файлом"
+        description={uiText("Материалы для учеников: книги, статьи, видео — ссылкой или файлом")}
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            Добавить материал
-          </Button>
+            {" " + uiText("Добавить материал") + " "}</Button>
         }
       />
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
         <Input.Search
           allowClear
-          placeholder="Поиск по названию и описанию"
+          placeholder={uiText("Поиск по названию и описанию")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           style={{ maxWidth: 340 }}
@@ -180,7 +180,7 @@ export default function LibraryPage() {
         <Segmented
           value={type}
           onChange={(v) => setType(v as LibraryType | 'ALL')}
-          options={[{ value: 'ALL', label: 'Все' }, ...LIBRARY_TYPES.map((t) => ({ value: t.value, label: `${t.emoji} ${t.label}` }))]}
+          options={[{ value: 'ALL', label: uiText("Все") }, ...LIBRARY_TYPES.map((t) => ({ value: t.value, label: `${t.emoji} ${t.label}` }))]}
         />
       </div>
 
@@ -189,8 +189,8 @@ export default function LibraryPage() {
           <SproutCard>
             <SproutEmpty
               icon={<Library size={32} strokeWidth={1.8} />}
-              title="Материалов нет"
-              description="Нажмите «Добавить материал»: вставьте ссылку или загрузите файл с книгой, статьёй, видео"
+              title={uiText("Материалов нет")}
+              description={uiText("Нажмите «Добавить материал»: вставьте ссылку или загрузите файл с книгой, статьёй, видео")}
               minHeight={200}
             />
           </SproutCard>
@@ -205,9 +205,9 @@ export default function LibraryPage() {
                     <>
                       <Button size="small" type="text" icon={<EditOutlined />} onClick={() => openEdit(i)} />
                       <Popconfirm
-                        title="Удалить материал?"
-                        okText="Удалить"
-                        cancelText="Отмена"
+                        title={uiText("Удалить материал?")}
+                        okText={uiText("Удалить")}
+                        cancelText={uiText("Отмена")}
                         okButtonProps={{ danger: true }}
                         onConfirm={() => remove(i)}
                       >
@@ -224,61 +224,61 @@ export default function LibraryPage() {
 
       <Modal
         open={open}
-        title={editing ? 'Редактировать материал' : 'Новый материал'}
+        title={editing ? uiText("Редактировать материал") : uiText("Новый материал")}
         onCancel={() => setOpen(false)}
         onOk={save}
-        okText={editing ? 'Сохранить' : 'Добавить'}
-        cancelText="Отмена"
+        okText={editing ? uiText("Сохранить") : uiText("Добавить")}
+        cancelText={uiText("Отмена")}
         confirmLoading={saving}
         destroyOnClose
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="title" label="Название" rules={[{ required: true, message: 'Введите название' }]}>
+          <Form.Item name="title" label={uiText("Название")} rules={[{ required: true, message: uiText("Введите название") }]}>
             <Input maxLength={200} />
           </Form.Item>
-          <Form.Item label="Материал">
+          <Form.Item label={uiText("Материал")}>
             <Segmented
               value={source}
               onChange={(v) => setSource(v as 'link' | 'file')}
               options={[
-                { value: 'link', label: '🔗 Ссылка' },
-                { value: 'file', label: '📎 Файл' },
+                { value: 'link', label: '🔗 ' + uiText("Ссылка") },
+                { value: 'file', label: '📎 ' + uiText("Файл") },
               ]}
             />
           </Form.Item>
           {source === 'link' ? (
             <Form.Item
               name="url"
-              label="Ссылка на материал"
+              label={uiText("Ссылка на материал")}
               rules={[
-                { required: true, message: 'Вставьте ссылку' },
-                { pattern: /^https?:\/\/\S+$/i, message: 'Ссылка должна начинаться с http:// или https://' },
+                { required: true, message: uiText("Вставьте ссылку") },
+                { pattern: /^https?:\/\/\S+$/i, message: uiText("Ссылка должна начинаться с http:// или https://") },
               ]}
-              extra="Google Drive, YouTube, сайт школы…"
+              extra={uiText("Google Drive, YouTube, сайт школы…")}
             >
               <Input placeholder="https://…" />
             </Form.Item>
           ) : (
-            <Form.Item name="file" label="Файл" rules={[{ required: true, message: 'Загрузите файл' }]}>
+            <Form.Item name="file" label={uiText("Файл")} rules={[{ required: true, message: uiText("Загрузите файл") }]}>
               <FileUploadField upload={libraryApi.upload} />
             </Form.Item>
           )}
-          <Form.Item name="type" label="Тип" rules={[{ required: true }]}>
+          <Form.Item name="type" label={uiText("Тип")} rules={[{ required: true }]}>
             <Select options={LIBRARY_TYPES.map((t) => ({ value: t.value, label: `${t.emoji} ${t.label}` }))} />
           </Form.Item>
-          <Form.Item name="description" label="Описание (необязательно)">
+          <Form.Item name="description" label={uiText("Описание (необязательно)")}>
             <Input.TextArea rows={3} maxLength={2000} showCount />
           </Form.Item>
           <div style={{ display: 'flex', gap: 12 }}>
-            <Form.Item name="subjectId" label="Предмет" style={{ flex: 1 }}>
+            <Form.Item name="subjectId" label={uiText("Предмет")} style={{ flex: 1 }}>
               <Select
                 allowClear
-                placeholder="Любой"
+                placeholder={uiText("Любой")}
                 options={subjects.map((s) => ({ value: s.id, label: s.name }))}
               />
             </Form.Item>
-            <Form.Item name="gradeNumber" label="Класс (параллель)" style={{ width: 160 }}>
-              <InputNumber min={1} max={12} placeholder="Для всех" style={{ width: '100%' }} />
+            <Form.Item name="gradeNumber" label={uiText("Класс (параллель)")} style={{ width: 160 }}>
+              <InputNumber min={1} max={12} placeholder={uiText("Для всех")} style={{ width: '100%' }} />
             </Form.Item>
           </div>
         </Form>

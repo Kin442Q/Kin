@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import { useCallback, useEffect, useState, type ComponentType } from 'react'
 import { App as AntdApp, Button, Tag } from 'antd'
 import { Gamepad2, Trophy } from 'lucide-react'
@@ -30,7 +31,7 @@ export default function StudentGamesPage() {
     gamesApi
       .list()
       .then(setGames)
-      .catch((e) => message.error(e?.response?.data?.message || 'Не удалось загрузить игры'))
+      .catch((e) => message.error(e?.response?.data?.message || uiText("Не удалось загрузить игры")))
   }, [message])
 
   const loadBoard = useCallback((key: GameKey) => {
@@ -51,7 +52,7 @@ export default function StudentGamesPage() {
       try {
         setResult(await gamesApi.submit(active, res))
       } catch (e: any) {
-        message.error(e?.response?.data?.message || 'Результат не сохранился')
+        message.error(e?.response?.data?.message || uiText("Результат не сохранился"))
         setResult({ score: res.score, best: res.score, isRecord: false })
       }
       loadGames()
@@ -66,10 +67,10 @@ export default function StudentGamesPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Игры для мозга"
+        title={uiText("Игры для мозга")}
         icon={<Gamepad2 size={22} strokeWidth={2} />}
         iconAccent="lilac"
-        description="Тренируй память, счёт и внимание. Лучшие результаты попадают в рейтинг класса."
+        description={uiText("Тренируй память, счёт и внимание. Лучшие результаты попадают в рейтинг класса.")}
         actions={
           active ? (
             <Button
@@ -78,8 +79,7 @@ export default function StudentGamesPage() {
                 setResult(null)
               }}
             >
-              ← Ко всем играм
-            </Button>
+              {" " + uiText("← Ко всем играм") + " "}</Button>
           ) : undefined
         }
       />
@@ -94,7 +94,7 @@ export default function StudentGamesPage() {
               <div style={{ fontSize: 13, color: SP.textMid, minHeight: 56 }}>{g.description}</div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
                 <span style={{ fontSize: 12, color: SP.muted }}>
-                  {g.myBest != null ? `Мой рекорд: ${g.myBest}` : 'Ещё не играл(а)'}
+                  {g.myBest != null ? uiText("Мой рекорд: {0}", g.myBest) : uiText("Ещё не играл(а)")}
                 </span>
                 <Button
                   type="primary"
@@ -104,14 +104,13 @@ export default function StudentGamesPage() {
                     setActive(g.key)
                   }}
                 >
-                  Играть
-                </Button>
+                  {" " + uiText("Играть") + " "}</Button>
               </div>
             </SproutCard>
           ))}
           {games.length === 0 && (
             <SproutCard>
-              <SproutEmpty title="Игр пока нет" minHeight={140} />
+              <SproutEmpty title={uiText("Игр пока нет")} minHeight={140} />
             </SproutCard>
           )}
         </div>
@@ -128,14 +127,13 @@ export default function StudentGamesPage() {
               <Game key={`${active}-${round}`} onFinish={finish} />
             ) : (
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 14, color: SP.textMid }}>Твой результат</div>
+                <div style={{ fontSize: 14, color: SP.textMid }}>{uiText("Твой результат")}</div>
                 <div style={{ fontSize: 54, fontWeight: 800, color: SP.primaryDeep }}>{result.score}</div>
                 {result.isRecord ? (
                   <Tag color="gold" style={{ fontSize: 14, padding: '2px 10px' }}>
-                    🏆 Новый рекорд!
-                  </Tag>
+                    {" " + uiText("🏆 Новый рекорд!") + " "}</Tag>
                 ) : (
-                  <div style={{ color: SP.muted }}>Лучший результат: {result.best}</div>
+                  <div style={{ color: SP.muted }}>{uiText("Лучший результат:") + " "}{result.best}</div>
                 )}
                 <div style={{ marginTop: 18, display: 'flex', gap: 8, justifyContent: 'center' }}>
                   <Button
@@ -145,9 +143,8 @@ export default function StudentGamesPage() {
                       setRound((r) => r + 1)
                     }}
                   >
-                    Играть ещё
-                  </Button>
-                  <Button onClick={() => setActive(null)}>К списку</Button>
+                    {" " + uiText("Играть ещё") + " "}</Button>
+                  <Button onClick={() => setActive(null)}>{uiText("К списку")}</Button>
                 </div>
               </div>
             )}
@@ -155,10 +152,9 @@ export default function StudentGamesPage() {
 
           <SproutCard padding={20}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, marginBottom: 12 }}>
-              <Trophy size={18} color={SP.yellowDeep} /> Рейтинг класса
-            </div>
+              <Trophy size={18} color={SP.yellowDeep} /> {" " + uiText("Рейтинг класса") + " "}</div>
             {board.length === 0 ? (
-              <SproutEmpty title="Пока никто не играл" description="Стань первым!" minHeight={120} />
+              <SproutEmpty title={uiText("Пока никто не играл")} description={uiText("Стань первым!")} minHeight={120} />
             ) : (
               <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {board.map((row) => (
@@ -179,7 +175,7 @@ export default function StudentGamesPage() {
                     </span>
                     <span style={{ flex: 1 }}>
                       {row.name}
-                      {row.isMe ? ' (ты)' : ''}
+                      {row.isMe ? uiText("(ты)") : ''}
                     </span>
                     <span style={{ fontVariantNumeric: 'tabular-nums' }}>{row.score}</span>
                   </li>

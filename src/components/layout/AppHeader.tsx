@@ -1,3 +1,4 @@
+import { uiText } from '../../i18n/uiText'
 import {
   Avatar,
   Badge,
@@ -11,6 +12,8 @@ import {
   Empty,
   Tag,
   Input,
+  Modal,
+  Tabs,
 } from 'antd'
 import {
   Bell,
@@ -20,13 +23,15 @@ import {
   PanelLeftClose,
   Moon,
   Search,
+  KeyRound,
   Settings as SettingsIcon,
   Sun,
-  Sparkles,
   GraduationCap,
   User as UserIcon,
 } from 'lucide-react'
 import { motion } from 'framer-motion'
+import ChangePasswordForm from '../ChangePasswordForm'
+import ChangeEmailForm from '../ChangeEmailForm'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -38,6 +43,9 @@ import { useActiveClassStore } from '../../store/activeClassStore'
 import { chatApi } from '../../api/chatApi'
 import { getSocket } from '../../lib/socket'
 import { SP } from '../sprout'
+import { initialsOf, roleLabel } from '../../lib/roles'
+import LanguageSwitcher from '../LanguageSwitcher'
+import { useT } from '../../i18n'
 
 const { Header } = Layout
 
@@ -48,12 +56,13 @@ interface Props {
 
 export default function AppHeader({ collapsed, onToggle }: Props) {
   const navigate = useNavigate()
+  const t = useT()
   const mode = useThemeStore((s) => s.mode)
   const toggleTheme = useThemeStore((s) => s.toggle)
-  const design = useThemeStore((s) => s.design)
-  const toggleDesign = useThemeStore((s) => s.toggleDesign)
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  // «Пароль и вход»: свой пароль и email человек меняет сам (ученики входят по ссылке — им не нужно)
+  const [securityOpen, setSecurityOpen] = useState(false)
   const notifications = useDataStore((s) => s.notifications)
   const markAllRead = useDataStore((s) => s.markAllNotificationsRead)
   const groups = useDataStore((s) => s.groups)
@@ -100,12 +109,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
     }
   }, [user, loadChatUnread])
 
-  const initials = user?.fullName
-    ?.split(' ')
-    .map((p) => p[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase() ?? '?'
+  const initials = initialsOf(user?.fullName)
 
   const userMenu: MenuProps['items'] = [
     {
@@ -118,13 +122,23 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
     {
       key: 'settings',
       icon: <SettingsIcon size={14} />,
-      label: 'Настройки',
+      label: t('nav.settings'),
       onClick: () => navigate('/admin/settings'),
     },
+    ...(user && user.role !== 'STUDENT'
+      ? [
+          {
+            key: 'security',
+            icon: <KeyRound size={14} />,
+            label: uiText("Пароль и вход"),
+            onClick: () => setSecurityOpen(true),
+          },
+        ]
+      : []),
     {
       key: 'logout',
       icon: <LogOut size={14} />,
-      label: 'Выйти',
+      label: t('nav.logout'),
       onClick: () => {
         logout()
         navigate('/login', { replace: true })
@@ -151,14 +165,14 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
         transition={{ duration: 0.35 }}
         style={{
           background: SP.surface,
-          border: `1px solid ${SP.borderSoft}`,
-          borderRadius: 16,
-          padding: '10px 14px',
+          border: '1px solid var(--sp-glass-border)',
+          borderRadius: 22,
+          padding: '10px 12px 10px 14px',
           display: 'flex',
           alignItems: 'center',
           gap: 12,
           minHeight: 56,
-          boxShadow: 'var(--sp-shadow-sm)',
+          boxShadow: 'var(--sp-shadow-md)',
         }}
       >
         {/* Toggle */}
@@ -171,9 +185,10 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: 11,
+            borderRadius: 13,
             background: SP.surfaceAlt,
           }}
+          aria-label={collapsed ? t('header.expand') : t('header.collapse')}
           icon={collapsed ? <MenuIcon size={18} /> : <PanelLeftClose size={18} />}
         />
 
@@ -188,14 +203,15 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
           />
           <Input
-            placeholder="Поиск ребёнка, группы…"
+            placeholder={t('header.searchPlaceholder')}
+            aria-label={t('header.search')}
             style={{
-              paddingLeft: 36,
+              paddingLeft: 38,
               background: SP.surfaceAlt,
-              border: 'none',
-              borderRadius: 12,
-              height: 38,
-              fontSize: 13,
+              border: `1px solid ${SP.borderSoft}`,
+              borderRadius: 14,
+              height: 40,
+              fontSize: 14,
             }}
           />
         </div>
@@ -239,7 +255,7 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
                 fontWeight: 700,
                 maxWidth: 180,
               }}
-              title="Текущий класс"
+              title={t('header.currentClass')}
             >
               <GraduationCap size={16} />
               <span
@@ -259,34 +275,11 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
           </Dropdown>
         )}
 
-        {/* Дизайн: премиум-редизайн ↔ классический */}
-        <Tooltip
-          title={
-            design === 'premium'
-              ? 'Премиум-редизайн (нажмите для классического)'
-              : 'Классическое оформление (нажмите для премиума)'
-          }
-        >
-          <Button
-            type="text"
-            onClick={toggleDesign}
-            style={{
-              width: 38,
-              height: 38,
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: 11,
-              background:
-                design === 'premium' ? SP.primaryGhost : SP.surfaceAlt,
-              color: design === 'premium' ? SP.primaryDeep : undefined,
-            }}
-            icon={<Sparkles size={17} />}
-          />
-        </Tooltip>
+        {/* Язык */}
+        <LanguageSwitcher />
 
         {/* Theme */}
-        <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
+        <Tooltip title={mode === 'dark' ? t('theme.light') : t('theme.dark')}>
           <Button
             type="text"
             onClick={toggleTheme}
@@ -296,15 +289,16 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: 11,
+              borderRadius: 13,
               background: SP.surfaceAlt,
             }}
+            aria-label={mode === 'dark' ? t('theme.light') : t('theme.dark')}
             icon={mode === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
           />
         </Tooltip>
 
         {/* Сообщения чата — бейдж с числом непрочитанных, иконка «дрожит» когда есть новые */}
-        <Tooltip title="Сообщения">
+        <Tooltip title={t('header.messages')}>
           <Badge count={chatUnread} size="small" offset={[-4, 4]}>
             <motion.div
               animate={
@@ -328,10 +322,11 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  borderRadius: 11,
+                  borderRadius: 13,
                   background: chatUnread > 0 ? SP.primaryGhost : SP.surfaceAlt,
                   color: chatUnread > 0 ? SP.primaryDeep : undefined,
                 }}
+                aria-label={t('header.messages')}
                 icon={<MessageCircle size={17} />}
               />
             </motion.div>
@@ -349,9 +344,10 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              borderRadius: 11,
+              borderRadius: 13,
               background: SP.surfaceAlt,
             }}
+            aria-label={t('header.notifications')}
             icon={<Bell size={17} />}
           />
         </Badge>
@@ -364,9 +360,10 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               alignItems: 'center',
               gap: 10,
               padding: '4px 10px 4px 4px',
-              borderRadius: 12,
+              borderRadius: 14,
               background: SP.surfaceAlt,
-              border: 'none',
+              border: `1px solid ${SP.borderSoft}`,
+              color: SP.text,
               cursor: 'pointer',
               transition: 'all 0.2s',
             }}
@@ -374,8 +371,8 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
             <Avatar
               size={32}
               style={{
-                background: `linear-gradient(135deg, ${SP.yellow}, ${SP.primarySoft})`,
-                color: SP.primaryDeep,
+                background: SP.primarySolid,
+                color: '#fff',
                 fontWeight: 700,
                 fontSize: 13,
               }}
@@ -386,37 +383,27 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
               <div style={{ fontSize: 13, fontWeight: 600, color: SP.text }}>
                 {user?.fullName}
               </div>
-              <Tag
-                style={{
-                  margin: 0,
-                  fontSize: 10,
-                  lineHeight: '14px',
-                  background: SP.primaryGhost,
-                  color: SP.primaryDeep,
-                  border: 'none',
-                  padding: '0 8px',
-                }}
-              >
-                {user?.role}
-              </Tag>
+              <span style={{ fontSize: 11.5, color: SP.muted, lineHeight: '14px' }}>
+                {roleLabel(user)}
+              </span>
             </div>
           </button>
         </Dropdown>
       </motion.div>
 
       <Drawer
-        title="Уведомления"
+        title={t('header.notifications')}
         placement="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         extra={
           <Button size="small" type="link" onClick={markAllRead}>
-            Прочитать все
+            {t('header.markAllRead')}
           </Button>
         }
       >
         {notifications.length === 0 ? (
-          <Empty description="Нет уведомлений" />
+          <Empty description={t('header.noNotifications')} />
         ) : (
           <List
             dataSource={notifications}
@@ -443,6 +430,15 @@ export default function AppHeader({ collapsed, onToggle }: Props) {
           />
         )}
       </Drawer>
+
+      <Modal open={securityOpen} onCancel={() => setSecurityOpen(false)} title={uiText("Пароль и вход")} footer={null} destroyOnClose>
+        <Tabs
+          items={[
+            { key: 'password', label: uiText("Пароль"), children: <ChangePasswordForm onDone={() => setSecurityOpen(false)} /> },
+            { key: 'email', label: uiText("Email для входа"), children: <ChangeEmailForm /> },
+          ]}
+        />
+      </Modal>
     </Header>
   )
 }

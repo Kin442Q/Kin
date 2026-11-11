@@ -68,6 +68,7 @@ export function createPrismaMock() {
     menuItem: model(),
     phoneChatLink: model(),
     refreshToken: model(),
+    passwordToken: model(),
     notification: model(),
     auditLog: model(),
     salary: model(),

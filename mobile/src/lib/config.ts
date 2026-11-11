@@ -7,7 +7,7 @@
  * как `process.env.EXPO_PUBLIC_API_URL` (динамический доступ не работает),
  * а после правки .env.local приложение нужно перезагрузить (Reload).
  */
-const PROD_SERVER_URL = 'https://kin-production-efe6.up.railway.app'
+const PROD_SERVER_URL = 'https://api.tahlilgar.cyou'
 
 /** Хост без завершающего слэша и без /api: нужен сокету. */
 export const SERVER_URL = (process.env.EXPO_PUBLIC_API_URL || PROD_SERVER_URL).replace(/\/+$/, '')

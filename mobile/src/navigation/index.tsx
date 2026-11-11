@@ -1,8 +1,10 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useRef } from 'react'
 import {
   NavigationContainer,
   DefaultTheme,
   createNavigationContainerRef,
+  type NavigationState,
 } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
@@ -16,11 +18,14 @@ import {
   LayoutGrid,
   BarChart3,
   BookOpen,
+  Brain,
+  ClipboardList,
   GraduationCap,
-  Library,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react-native'
 
+import FloatingTabBar from '../components/FloatingTabBar'
 import { useAuthStore } from '../store/authStore'
 import { hasFeature, type FeatureKey } from '../lib/features'
 import { colors } from '../theme/colors'
@@ -33,6 +38,7 @@ import ParentHomeScreen from '../screens/ParentHomeScreen'
 import ParentSchedulePlaceholder from '../screens/ParentSchedulePlaceholder'
 import ParentPaymentsPlaceholder from '../screens/ParentPaymentsPlaceholder'
 import ProfileScreen from '../screens/ProfileScreen'
+import MustChangePasswordScreen from '../screens/MustChangePasswordScreen'
 import AdminDashboardScreen from '../screens/AdminDashboardScreen'
 import AdminGroupsScreen from '../screens/AdminGroupsScreen'
 import AdminPaymentsScreen from '../screens/AdminPaymentsScreen'
@@ -52,6 +58,7 @@ import StudentHomeworkScreen from '../screens/StudentHomeworkScreen'
 import StudentGradesScreen from '../screens/StudentGradesScreen'
 import StudentLearnScreen from '../screens/StudentLearnScreen'
 import StudentLibraryScreen from '../screens/StudentLibraryScreen'
+import StudentScheduleScreen from '../screens/StudentScheduleScreen'
 import StudentQuizzesScreen from '../screens/StudentQuizzesScreen'
 import StudentQuizPlayScreen from '../screens/StudentQuizPlayScreen'
 import StudentExamScreen from '../screens/StudentExamScreen'
@@ -60,17 +67,20 @@ import StudentGameScreen from '../screens/StudentGameScreen'
 import StudentMaterialsScreen from '../screens/StudentMaterialsScreen'
 import TeacherMaterialsScreen from '../screens/TeacherMaterialsScreen'
 
-const navTheme = {
+import { themedValue } from '../theme/themedStyles'
+import { getScheme } from '../theme/colors'
+const navTheme = themedValue(() => ({
   ...DefaultTheme,
+  dark: getScheme() === 'dark',
   colors: {
     ...DefaultTheme.colors,
     background: colors.bg,
-    card: colors.surface,
+    card: colors.surfaceSolid,
     text: colors.text,
     primary: colors.primary,
     border: colors.borderSoft,
   },
-}
+}))
 
 const AuthStack = createNativeStackNavigator()
 function AuthNavigator() {
@@ -101,45 +111,46 @@ function buildTabs(role: TabRole): TabConfig[] {
   if (role === 'student') {
     // Ученик: Главная / ДЗ / Оценки / Учёба / Я (5)
     return [
-      { name: 'StudentHome', label: 'Главная', icon: Home, component: StudentHomeScreen },
-      { name: 'StudentHomework', label: 'ДЗ', icon: BookOpen, component: StudentHomeworkScreen, feature: 'homework' },
-      { name: 'StudentGrades', label: 'Оценки', icon: GraduationCap, component: StudentGradesScreen, feature: 'grades' },
+      { name: 'StudentHome', label: uiText("Главная"), icon: Home, component: StudentHomeScreen },
+      { name: 'StudentHomework', label: uiText("ДЗ"), icon: ClipboardList, component: StudentHomeworkScreen, feature: 'homework' },
+      { name: 'StudentGrades', label: uiText("Оценки"), icon: TrendingUp, component: StudentGradesScreen, feature: 'grades' },
       {
         name: 'StudentLearn',
-        label: 'Учёба',
-        icon: Library,
+        label: uiText("Учёба"),
+        icon: Brain,
         component: StudentLearnScreen,
         anyFeature: ['library', 'lesson_materials', 'quiz', 'exam_prep', 'games'],
       },
-      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+      { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
     ]
   }
   if (role === 'admin') {
     return [
-      // «Сводка» целиком про деньги (доходы/расходы) — это раздел «Аналитика».
-      { name: 'AdminDashboard', label: 'Сводка', icon: BarChart3, component: AdminDashboardScreen, feature: 'analytics' },
+      // «Сводка школы»: ученики, посещаемость, классы, на что обратить внимание.
+      // Денежные плитки на ней показываются только при включённой «Аналитике».
+      { name: 'AdminDashboard', label: uiText("Сводка"), icon: BarChart3, component: AdminDashboardScreen },
       { name: 'AdminGroups', label: L.groups, icon: LayoutGrid, component: AdminGroupsScreen, feature: 'groups' },
-      { name: 'AdminPayments', label: 'Оплаты', icon: CreditCard, component: AdminPaymentsScreen, feature: 'payments' },
-      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+      { name: 'AdminPayments', label: uiText("Оплаты"), icon: CreditCard, component: AdminPaymentsScreen, feature: 'payments' },
+      { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
     ]
   }
   if (role === 'teacher') {
     // Учитель: Кабинет / Отметить / Журнал / ДЗ / Я (5)
     return [
-      { name: 'TeacherHome', label: 'Кабинет', icon: LayoutGrid, component: TeacherHomeScreen },
-      { name: 'TeacherAttendance', label: 'Отметить', icon: ClipboardCheck, component: TeacherAttendanceScreen, feature: 'attendance' },
-      { name: 'TeacherGrades', label: 'Журнал', icon: GraduationCap, component: TeacherGradesScreen, feature: 'grades' },
-      { name: 'TeacherHomework', label: 'ДЗ', icon: BookOpen, component: TeacherHomeworkScreen, feature: 'homework' },
-      { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+      { name: 'TeacherHome', label: uiText("Кабинет"), icon: LayoutGrid, component: TeacherHomeScreen },
+      { name: 'TeacherAttendance', label: uiText("Отметить"), icon: ClipboardCheck, component: TeacherAttendanceScreen, feature: 'attendance' },
+      { name: 'TeacherGrades', label: uiText("Журнал"), icon: GraduationCap, component: TeacherGradesScreen, feature: 'grades' },
+      { name: 'TeacherHomework', label: uiText("ДЗ"), icon: BookOpen, component: TeacherHomeworkScreen, feature: 'homework' },
+      { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
     ]
   }
   // Родитель: Главная / Расписание / Оценки / Оплата / Я (5)
   return [
-    { name: 'ParentHome', label: 'Главная', icon: Home, component: ParentHomeScreen },
-    { name: 'ParentSchedule', label: 'Расписание', icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
-    { name: 'ParentGrades', label: 'Оценки', icon: GraduationCap, component: ParentGradesScreen, feature: 'grades' },
-    { name: 'ParentPay', label: 'Оплата', icon: CreditCard, component: ParentPaymentsPlaceholder, feature: 'payments' },
-    { name: 'Profile', label: 'Я', icon: User, component: ProfileScreen },
+    { name: 'ParentHome', label: uiText("Главная"), icon: Home, component: ParentHomeScreen },
+    { name: 'ParentSchedule', label: uiText("Расписание"), icon: Calendar, component: ParentSchedulePlaceholder, feature: 'schedule' },
+    { name: 'ParentGrades', label: uiText("Оценки"), icon: GraduationCap, component: ParentGradesScreen, feature: 'grades' },
+    { name: 'ParentPay', label: uiText("Оплата"), icon: CreditCard, component: ParentPaymentsPlaceholder, feature: 'payments' },
+    { name: 'Profile', label: uiText("Я"), icon: User, component: ProfileScreen },
   ]
 }
 
@@ -162,38 +173,13 @@ function MainTabs() {
       (!t.anyFeature || t.anyFeature.some((f) => hasFeature(user, f))),
   )
 
+  // Иконки вкладок для плавающей панели (по имени маршрута).
+  const icons = Object.fromEntries(tabs.map((t) => [t.name, t.icon])) as Record<string, LucideIcon>
+
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => {
-        const tab = tabs.find((t) => t.name === route.name)
-        const Icon = tab?.icon ?? Home
-        return {
-          headerShown: false,
-          tabBarShowLabel: true,
-          tabBarActiveTintColor: colors.primaryDeep,
-          tabBarInactiveTintColor: colors.muted,
-          tabBarLabelStyle: {
-            fontSize: 10.5,
-            fontWeight: '600',
-            marginTop: -2,
-          },
-          tabBarStyle: {
-            backgroundColor: colors.surface,
-            borderTopColor: colors.borderSoft,
-            borderTopWidth: 1,
-            height: 64,
-            paddingTop: 6,
-            paddingBottom: 8,
-          },
-          tabBarIcon: ({ color, focused }) => (
-            <Icon
-              size={22}
-              color={color}
-              strokeWidth={focused ? 2.4 : 2}
-            />
-          ),
-        }
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={(p) => <FloatingTabBar {...p} icons={icons} />}
     >
       {tabs.map((t) => (
         <Tab.Screen
@@ -241,6 +227,7 @@ function MainNavigator() {
       <RootStack.Screen name="TeacherHomeroom" component={TeacherHomeroomScreen} />
       <RootStack.Screen name="TeacherHomeworkRoster" component={TeacherHomeworkRosterScreen} />
       <RootStack.Screen name="StudentLibrary" component={StudentLibraryScreen} />
+      <RootStack.Screen name="StudentSchedule" component={StudentScheduleScreen} />
       <RootStack.Screen name="StudentQuizzes" component={StudentQuizzesScreen} />
       <RootStack.Screen name="StudentQuizPlay" component={StudentQuizPlayScreen} />
       <RootStack.Screen name="StudentExam" component={StudentExamScreen} />
@@ -253,6 +240,10 @@ function MainNavigator() {
 }
 
 const navRef = createNavigationContainerRef<any>()
+
+// Смена темы перемонтирует дерево: запоминаем, где был человек, чтобы вернуть его на тот же экран.
+let savedNavState: NavigationState | undefined
+let savedNavUser: string | undefined
 
 /**
  * Куда переходить при тапе по уведомлению — на основе data.kind:
@@ -319,8 +310,16 @@ export default function RootNavigator() {
   }, [user?.role])
 
   return (
-    <NavigationContainer theme={navTheme} ref={navRef}>
-      {user ? <MainNavigator /> : <AuthNavigator />}
+    <NavigationContainer
+      theme={navTheme()}
+      ref={navRef}
+      initialState={savedNavUser === user?.id ? savedNavState : undefined}
+      onStateChange={(state) => {
+        savedNavState = state
+        savedNavUser = user?.id
+      }}
+    >
+      {user ? user.mustChangePassword ? <MustChangePasswordScreen /> : <MainNavigator /> : <AuthNavigator />}
     </NavigationContainer>
   )
 }

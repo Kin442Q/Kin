@@ -5,20 +5,36 @@ import {
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common'
+import type { Kindergarten, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import type { AuthUser } from '../../common/types/jwt-payload'
 import { FilesService } from '../files/files.service'
+import { randomPassword } from '../../common/random-password'
+import { assertNoPassword, requireInviteEmail } from '../access/access.service'
+import { MailService, type MailResult } from '../mail/mail.service'
+import { inviteEmail, resetEmail } from '../mail/mail-templates'
+import { PasswordTokensService } from '../password-tokens/password-tokens.service'
 
-interface CreateKindergartenDto {
+export interface CreateKindergartenDto {
   name: string
   address?: string
   phone?: string
   owner: {
     fullName: string
+    /** На этот адрес уходит приглашение со ссылкой, где директор сам задаёт пароль. */
     email: string
-    password: string
   }
+}
+
+/** Что произошло с приглашением директора. */
+export interface OwnerInvite {
+  sent: boolean
+  email: string
+  /** Почему не ушло: NOT_CONFIGURED | REJECTED | NETWORK. */
+  reason?: 'NOT_CONFIGURED' | 'REJECTED' | 'NETWORK'
+  /** Сообщение почтового сервиса (без секретов). */
+  detail?: string
 }
 
 interface UpdateKindergartenDto {
@@ -31,11 +47,21 @@ interface UpdateKindergartenDto {
   checkInRadiusMeters?: number
 }
 
+/** Ответ POST /kindergartens. */
+export interface CreateKindergartenResult {
+  kindergarten: Kindergarten
+  owner: { id: string; email: string; fullName: string; role: Role }
+  /** Результат отправки приглашения директору; не ушло — можно повторить. */
+  invite: OwnerInvite
+}
+
 @Injectable()
 export class KindergartensService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly files: FilesService,
+    private readonly mail: MailService,
+    private readonly passwordTokens: PasswordTokensService,
   ) {}
 
   /**
@@ -90,7 +116,7 @@ export class KindergartensService {
   }
 
   /** Создать новый садик + первого SUPER_ADMIN. Атомарно. */
-  async create(user: AuthUser, dto: CreateKindergartenDto) {
+  async create(user: AuthUser, dto: CreateKindergartenDto): Promise<CreateKindergartenResult> {
     this.assertGlobalOwner(user)
 
     if (!dto.name?.trim()) {
@@ -99,14 +125,13 @@ export class KindergartensService {
     if (!dto.owner?.email?.trim()) {
       throw new BadRequestException('Email владельца обязателен')
     }
-    if (!dto.owner?.password || dto.owner.password.length < 6) {
-      throw new BadRequestException('Пароль минимум 6 символов')
-    }
+    // Пароль не задаётся: директор получает приглашение и придумывает его сам по ссылке из письма.
+    assertNoPassword(dto.owner)
     if (!dto.owner?.fullName?.trim()) {
       throw new BadRequestException('ФИО владельца обязательно')
     }
 
-    const ownerEmail = dto.owner.email.trim().toLowerCase()
+    const ownerEmail = requireInviteEmail(dto.owner.email)
 
     // Проверяем что email свободен
     const existing = await this.prisma.user.findUnique({
@@ -119,7 +144,8 @@ export class KindergartensService {
     // Генерируем уникальный slug из названия
     const slug = await this.generateUniqueSlug(dto.name)
 
-    const passwordHash = await bcrypt.hash(dto.owner.password, 10)
+    // Пока директор не задал свой, пароль случайный: его никто не знает и не увидит.
+    const passwordHash = await bcrypt.hash(randomPassword(), 10)
 
     // Создаём в транзакции: садик + первый супер-админ
     const result = await this.prisma.$transaction(async (tx) => {
@@ -155,7 +181,44 @@ export class KindergartensService {
       return { kindergarten, owner }
     })
 
-    return result
+    // Приглашение: ссылка на 48 часов, где директор сам задаёт пароль. Письмо — не
+    // критичный путь: если оно не ушло, школа уже создана, а владелец платформы видит причину
+    // и отправляет приглашение ещё раз (пароль никому не показывается).
+    const invite = await this.sendOwnerInvite(result.owner, 'INVITE')
+    return { ...result, invite }
+  }
+
+  /** Письмо директору со ссылкой для пароля; результат — для окна «Приглашение отправлено». */
+  private async sendOwnerInvite(
+    owner: { id: string; email: string; fullName: string },
+    purpose: 'INVITE' | 'RESET',
+  ): Promise<OwnerInvite> {
+    let sent: MailResult
+    try {
+      const { link, hours } = await this.passwordTokens.issue(owner.id, purpose)
+      const template = purpose === 'INVITE' ? inviteEmail : resetEmail
+      sent = await this.mail.send({ to: owner.email, ...template({ name: owner.fullName, link, hours }) })
+    } catch {
+      // сбой базы при выдаче ссылки не должен ронять уже созданную школу
+      sent = { sent: false, reason: 'NETWORK' }
+    }
+    return sent.sent
+      ? { sent: true, email: owner.email }
+      : { sent: false, email: owner.email, reason: sent.reason, detail: sent.detail }
+  }
+
+  /**
+   * Отправить директору школы приглашение ещё раз (или ссылку для смены пароля, если он уже входил).
+   * Только владелец платформы.
+   */
+  async resendOwnerInvite(user: AuthUser, kindergartenId: string): Promise<OwnerInvite> {
+    this.assertGlobalOwner(user)
+    const owner = await this.prisma.user.findFirst({
+      where: { kindergartenId, role: 'SUPER_ADMIN' },
+      orderBy: { createdAt: 'asc' },
+    })
+    if (!owner) throw new NotFoundException('У школы нет директора')
+    return this.sendOwnerInvite(owner, owner.lastLoginAt ? 'RESET' : 'INVITE')
   }
 
   async update(user: AuthUser, id: string, dto: UpdateKindergartenDto) {

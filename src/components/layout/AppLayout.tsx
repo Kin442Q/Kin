@@ -2,11 +2,14 @@ import { useState } from 'react'
 import { Layout, Grid, Drawer } from 'antd'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { Lock } from 'lucide-react'
 import AppSidebar from './AppSidebar'
 import AppHeader from './AppHeader'
 import { useTenantSync } from '../../hooks/useTenantSync'
 import { useAuthStore } from '../../store/authStore'
+import { useT } from '../../i18n'
 import { SP } from '../sprout'
+import MustChangePasswordGate from '../MustChangePasswordGate'
 
 const { Content, Sider } = Layout
 const { useBreakpoint } = Grid
@@ -23,6 +26,7 @@ export default function AppLayout() {
   const isMobile = !screens.md
 
   const navigate = useNavigate()
+  const t = useT()
   const isDemo = useAuthStore((s) => !!s.user?.institution?.isDemo)
   const logout = useAuthStore((s) => s.logout)
   const exitDemo = () => {
@@ -39,13 +43,14 @@ export default function AppLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
+      <MustChangePasswordGate />
       {!isMobile && (
         <Sider
           breakpoint="md"
           collapsedWidth={110}
           collapsed={collapsed}
           onCollapse={setCollapsed}
-          width={252}
+          width={276}
           trigger={null}
           style={{
             position: 'sticky',
@@ -95,9 +100,9 @@ export default function AppLayout() {
               borderBottom: `1px solid ${SP.border}`,
             }}
           >
-            <span>
-              🔒 Демо-режим — данные доступны только для просмотра, изменения
-              отключены.
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <Lock size={14} aria-hidden="true" />
+              {t('layout.demoBanner')}
             </span>
             <button
               type="button"
@@ -114,7 +119,7 @@ export default function AppLayout() {
                 fontFamily: 'inherit',
               }}
             >
-              Выйти из демо
+              {t('layout.exitDemo')}
             </button>
           </div>
         )}

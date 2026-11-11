@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -5,11 +6,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native'
+import { Text, TextInput } from '../components/Text'
 import { useFocusEffect } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import { Send } from 'lucide-react-native'
@@ -20,6 +19,7 @@ import { useAuthStore } from '../store/authStore'
 import { connectSocket } from '../lib/socket'
 import { chatApi, type ChatMessage, type ChatScope } from '../api/chat'
 
+import { themedStyles } from '../theme/themedStyles'
 export default function ParentChatScreen() {
   const user = useAuthStore((s) => s.user)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -113,9 +113,9 @@ export default function ParentChatScreen() {
     <Screen>
       <View style={styles.header}>
         <Text style={styles.title}>
-          {scope === 'ADMIN' ? 'Чат с администрацией' : 'Чат с учителем'}
+          {scope === 'ADMIN' ? uiText("Чат с администрацией") : uiText("Чат с учителем")}
         </Text>
-        {groupName && <Text style={styles.sub}>Класс «{groupName}»</Text>}
+        {groupName && <Text style={styles.sub}>{uiText("Класс «")}{groupName}»</Text>}
         <View style={styles.switcher}>
           {(['GENERAL', 'ADMIN'] as ChatScope[]).map((s) => {
             const active = scope === s
@@ -133,7 +133,7 @@ export default function ParentChatScreen() {
                 <Text
                   style={[styles.switchText, active && styles.switchTextActive]}
                 >
-                  {s === 'ADMIN' ? 'Администрация' : 'Учитель'}
+                  {s === 'ADMIN' ? uiText("Администрация") : uiText("Учитель")}
                 </Text>
               </Pressable>
             )
@@ -159,7 +159,7 @@ export default function ParentChatScreen() {
             if (item.kind === 'PAYMENT') {
               return (
                 <View style={styles.payCard}>
-                  <Text style={styles.payTitle}>💰 Напоминание об оплате</Text>
+                  <Text style={styles.payTitle}>{uiText("💰 Напоминание об оплате")}</Text>
                   <Text style={styles.payText}>{item.text}</Text>
                   <Text style={styles.payTime}>
                     {dayjs(item.createdAt).format('DD.MM HH:mm')}
@@ -202,8 +202,8 @@ export default function ParentChatScreen() {
             <View style={styles.empty}>
               <Text style={styles.emptyText}>
                 {scope === 'ADMIN'
-                  ? 'Здесь администрация присылает напоминания об оплате. Можно написать первым 👇'
-                  : 'Здесь можно написать учителю. Напишите первое сообщение 👇'}
+                  ? uiText("Здесь администрация присылает напоминания об оплате. Можно написать первым 👇")
+                  : uiText("Здесь можно написать учителю. Напишите первое сообщение 👇")}
               </Text>
             </View>
           }
@@ -213,7 +213,7 @@ export default function ParentChatScreen() {
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Сообщение..."
+            placeholder={uiText("Сообщение...")}
             placeholderTextColor={colors.muted}
             style={styles.input}
             multiline
@@ -234,7 +234,7 @@ export default function ParentChatScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
@@ -274,7 +274,7 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '80%', borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 8 },
   bubbleMine: { backgroundColor: colors.primary, borderBottomRightRadius: 4 },
   bubbleOther: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     borderBottomLeftRadius: 4,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
   },
   input: {
     flex: 1,
@@ -312,4 +312,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-})
+}))

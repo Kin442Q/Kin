@@ -36,6 +36,7 @@ import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
 import { Feature } from '../../common/decorators/feature.decorator'
+import { buildDirectorReport, type ReportGrade, type ReportSubject } from './director-report'
 
 // ─── DTOs ─────────────────────────────────────────────────────────────
 
@@ -75,7 +76,7 @@ class UpdateHomeworkDto {
 // ─── Service ──────────────────────────────────────────────────────────
 
 @Injectable()
-class SchoolService {
+export class SchoolService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly push: PushService,
@@ -100,11 +101,32 @@ class SchoolService {
     )
   }
 
+  /** Предметы, которые администратор открыл учителю. */
+  private async teacherSubjectIds(user: AuthUser): Promise<string[]> {
+    const rows = await this.prisma.subject.findMany({
+      where: { teachers: { some: { id: user.sub } } },
+      select: { id: true },
+    })
+    return rows.map((r) => r.id)
+  }
+
+  /** Учитель работает только с предметами, которые ему выдали. Админу проверка не нужна. */
+  private async assertTeacherSubject(user: AuthUser, subjectId: string) {
+    if (user.role !== 'TEACHER') return
+    if (!(await this.teacherSubjectIds(user)).includes(subjectId)) {
+      throw new ForbiddenException('Этот предмет вам не выдан. Попросите администратора открыть доступ.')
+    }
+  }
+
   // ─── Subjects ───────────────────────────────────────────────────────
 
   async listSubjects(user: AuthUser) {
     return this.prisma.subject.findMany({
-      where: this.tenantFilter(user),
+      where: {
+        ...this.tenantFilter(user),
+        // Учитель видит только свои предметы, а не все предметы школы
+        ...(user.role === 'TEACHER' ? { teachers: { some: { id: user.sub } } } : {}),
+      },
       orderBy: { name: 'asc' },
     })
   }
@@ -163,6 +185,12 @@ class SchoolService {
     const where: Record<string, unknown> = {}
     if (params.studentId) where.studentId = params.studentId
     if (params.subjectId) where.subjectId = params.subjectId
+    if (user.role === 'TEACHER') {
+      // только выданные предметы: чужой предмет не показываем, даже если запросили по id
+      const subjectIds = await this.teacherSubjectIds(user)
+      if (params.subjectId ? !subjectIds.includes(params.subjectId) : subjectIds.length === 0) return []
+      if (!params.subjectId) where.subjectId = { in: subjectIds }
+    }
     if (params.from || params.to) {
       where.date = {
         ...(params.from ? { gte: new Date(params.from) } : {}),
@@ -208,6 +236,7 @@ class SchoolService {
       if (!student.groupId || !groups.includes(student.groupId)) {
         throw new ForbiddenException('Ученик не из ваших классов')
       }
+      await this.assertTeacherSubject(user, dto.subjectId)
     }
     if (
       user.kindergartenId &&
@@ -257,6 +286,7 @@ class SchoolService {
     ) {
       throw new ForbiddenException('Не ваш ученик')
     }
+    await this.assertTeacherSubject(user, g.subjectId)
     if (user.kindergartenId && g.student.kindergartenId !== user.kindergartenId) {
       throw new ForbiddenException('Из другого учреждения')
     }
@@ -309,6 +339,109 @@ class SchoolService {
     }))
   }
 
+  /**
+   * Отчёт директору за период: общий средний балл, полнота журнала по классам,
+   * отличные и самые низкие оценки.
+   */
+  async directorReport(user: AuthUser, params: { from?: string; to?: string }) {
+    if (user.role === 'TEACHER') {
+      throw new ForbiddenException('Отчёт доступен директору')
+    }
+    if (!user.kindergartenId) {
+      return buildDirectorReport({
+        groups: [],
+        subjectsByGroup: new Map(),
+        schoolSubjects: [],
+        grades: [],
+      })
+    }
+
+    const kg = user.kindergartenId
+    const [groups, subjects, schedule, gradeRows] = await Promise.all([
+      this.prisma.group.findMany({
+        where: { kindergartenId: kg, isActive: true },
+        orderBy: [{ gradeNumber: 'asc' }, { name: 'asc' }],
+        select: {
+          id: true,
+          name: true,
+          gradeLabel: true,
+          students: {
+            where: { status: 'ACTIVE' },
+            select: { id: true, firstName: true, lastName: true },
+            orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+          },
+        },
+      }),
+      this.prisma.subject.findMany({
+        where: { kindergartenId: kg },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      }),
+      this.prisma.scheduleItem.findMany({
+        where: { subjectId: { not: null }, group: { kindergartenId: kg, isActive: true } },
+        select: {
+          groupId: true,
+          subject: { select: { id: true, name: true } },
+        },
+      }),
+      this.prisma.grade.findMany({
+        where: {
+          student: { kindergartenId: kg, status: 'ACTIVE' },
+          ...(params.from || params.to
+            ? {
+                date: {
+                  ...(params.from ? { gte: new Date(params.from) } : {}),
+                  ...(params.to ? { lte: new Date(params.to) } : {}),
+                },
+              }
+            : {}),
+        },
+        select: {
+          value: true,
+          date: true,
+          studentId: true,
+          subjectId: true,
+          subject: { select: { name: true } },
+          student: { select: { firstName: true, lastName: true, groupId: true } },
+        },
+      }),
+    ])
+
+    const subjectsByGroup = new Map<string, ReportSubject[]>()
+    for (const item of schedule) {
+      if (!item.subject) continue
+      const list = subjectsByGroup.get(item.groupId) ?? []
+      if (!list.some((s) => s.id === item.subject!.id)) {
+        list.push({ id: item.subject.id, name: item.subject.name })
+      }
+      subjectsByGroup.set(item.groupId, list)
+    }
+
+    const grades: ReportGrade[] = gradeRows.map((g) => ({
+      value: g.value,
+      date: utcDay(g.date),
+      studentId: g.studentId,
+      studentName: `${g.student.lastName} ${g.student.firstName}`.trim(),
+      groupId: g.student.groupId,
+      subjectId: g.subjectId,
+      subjectName: g.subject.name,
+    }))
+
+    return buildDirectorReport({
+      groups: groups.map((g) => ({
+        id: g.id,
+        name: g.gradeLabel?.trim() || g.name,
+        students: g.students.map((s) => ({
+          id: s.id,
+          name: `${s.lastName} ${s.firstName}`.trim(),
+        })),
+      })),
+      subjectsByGroup,
+      schoolSubjects: subjects,
+      grades,
+    })
+  }
+
   // ─── Homework ───────────────────────────────────────────────────────
 
   async listHomework(
@@ -329,6 +462,9 @@ class SchoolService {
       where.groupId = params.groupId && groups.includes(params.groupId)
         ? params.groupId
         : { in: groups }
+      const subjectIds = await this.teacherSubjectIds(user)
+      if (params.subjectId ? !subjectIds.includes(params.subjectId) : subjectIds.length === 0) return []
+      if (!params.subjectId) where.subjectId = { in: subjectIds }
     } else if (params.groupId) {
       where.groupId = params.groupId
     }
@@ -336,13 +472,52 @@ class SchoolService {
       where.group = { kindergartenId: user.kindergartenId }
     }
 
-    return this.prisma.homework.findMany({
+    const list = await this.prisma.homework.findMany({
       where,
       orderBy: { dueDate: 'asc' },
       include: {
         subject: { select: { id: true, name: true, color: true } },
         group: { select: { id: true, name: true } },
       },
+    })
+    return this.withSubmissionStats(list)
+  }
+
+  /**
+   * Сколько учеников класса сдали каждое ДЗ: `total` — учеников в классе, `submitted` — отметили «сделал» или
+   * получили вердикт учителя (выполнено / частично), `toCheck` — отметили сами, а учитель ещё не проверил.
+   */
+  private async withSubmissionStats<T extends { id: string; groupId: string }>(list: T[]) {
+    if (list.length === 0) return list.map((h) => ({ ...h, stats: { total: 0, submitted: 0, toCheck: 0 } }))
+    const [byStatus, sizes] = await Promise.all([
+      this.prisma.homeworkSubmission.groupBy({
+        by: ['homeworkId', 'status'],
+        where: { homeworkId: { in: list.map((h) => h.id) } },
+        _count: { _all: true },
+      }),
+      this.prisma.student.groupBy({
+        by: ['groupId'],
+        where: { groupId: { in: [...new Set(list.map((h) => h.groupId))] }, status: 'ACTIVE' },
+        _count: { _all: true },
+      }),
+    ])
+    const total = new Map(sizes.map((s) => [s.groupId, s._count._all]))
+    const counts = new Map<string, Record<string, number>>()
+    for (const row of byStatus) {
+      const cur = counts.get(row.homeworkId) ?? {}
+      cur[row.status] = row._count._all
+      counts.set(row.homeworkId, cur)
+    }
+    return list.map((h) => {
+      const c = counts.get(h.id) ?? {}
+      return {
+        ...h,
+        stats: {
+          total: total.get(h.groupId) ?? 0,
+          submitted: (c.SUBMITTED ?? 0) + (c.DONE ?? 0) + (c.PARTIAL ?? 0),
+          toCheck: c.SUBMITTED ?? 0,
+        },
+      }
     })
   }
 
@@ -356,6 +531,7 @@ class SchoolService {
     ) {
       throw new ForbiddenException('Можно задавать только своим классам')
     }
+    await this.assertTeacherSubject(user, dto.subjectId)
     const [group, subject] = await Promise.all([
       this.prisma.group.findUnique({ where: { id: dto.groupId } }),
       this.prisma.subject.findUnique({ where: { id: dto.subjectId } }),
@@ -408,6 +584,7 @@ class SchoolService {
     ) {
       throw new ForbiddenException()
     }
+    await this.assertTeacherSubject(user, hw.subjectId)
     if (user.kindergartenId && hw.group.kindergartenId !== user.kindergartenId) {
       throw new ForbiddenException()
     }
@@ -434,6 +611,7 @@ class SchoolService {
     ) {
       throw new ForbiddenException()
     }
+    await this.assertTeacherSubject(user, hw.subjectId)
     if (user.kindergartenId && hw.group.kindergartenId !== user.kindergartenId) {
       throw new ForbiddenException()
     }
@@ -522,6 +700,27 @@ class GradesController {
   stats(@CurrentUser() user: AuthUser, @Param('studentId') studentId: string) {
     return this.service.gradeStats(user, studentId)
   }
+
+  @Get('report')
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({ summary: 'Отчёт директору: средние баллы, полнота журнала, лучшие и слабые оценки' })
+  @ApiQuery({ name: 'from', required: false })
+  @ApiQuery({ name: 'to', required: false })
+  report(
+    @CurrentUser() user: AuthUser,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    return this.service.directorReport(user, { from, to })
+  }
+}
+
+/** День @db.Date в UTC, без сдвига пояса. */
+function utcDay(d: Date): string {
+  const y = d.getUTCFullYear()
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 @ApiTags('homework')

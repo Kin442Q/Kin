@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from "react";
 import {
   Button,
@@ -89,7 +90,7 @@ export default function PaymentsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Не удалось загрузить платежи";
+        uiText("Не удалось загрузить платежи");
       message.error(msg);
     } finally {
       setPaymentsLoading(false);
@@ -121,7 +122,7 @@ export default function PaymentsPage() {
     if (user?.role === "TEACHER")
       res = res.filter((c) => c.groupId === user.groupId);
     return res;
-  }, [childrenAll, user]);
+  }, [childrenAll, user, uiLanguage()]);
 
   // Платёж для каждого ребёнка в выбранный месяц. Если платежа нет — создаём виртуальный «не оплачено».
   const rows = useMemo(() => {
@@ -149,7 +150,7 @@ export default function PaymentsPage() {
             .toLowerCase()
             .includes(search.toLowerCase()),
     );
-  }, [children, payments, groups, month, groupFilter, search]);
+  }, [children, payments, groups, month, groupFilter, search, uiLanguage()]);
 
   const totals = useMemo(() => {
     const paid = rows.filter((r) => r.paid).reduce((s, r) => s + r.amount, 0);
@@ -160,7 +161,7 @@ export default function PaymentsPage() {
       paidCount: rows.filter((r) => r.paid).length,
       debtCount: rows.filter((r) => !r.paid).length,
     };
-  }, [rows]);
+  }, [rows, uiLanguage()]);
 
   const togglePaid = async (row: (typeof rows)[number]) => {
     try {
@@ -187,17 +188,17 @@ export default function PaymentsPage() {
       });
       if (newPaid && computedAmount === 0) {
         message.warning(
-          "Сохранено, но плата не задана — укажите Индивидуальную плату или Ежемесячную плату группы",
+          uiText("Сохранено, но плата не задана — укажите Индивидуальную плату или Ежемесячную плату группы"),
         );
       } else {
-        message.success(newPaid ? "Помечено как оплачено" : "Помечено как долг");
+        message.success(newPaid ? uiText("Помечено как оплачено") : uiText("Помечено как долг"));
       }
       await loadPayments(month);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Не удалось сохранить платёж";
+        uiText("Не удалось сохранить платёж");
       message.error(msg);
     }
   };
@@ -213,14 +214,14 @@ export default function PaymentsPage() {
       const res = await chatApi.paymentReminder(row.child.id, month, row.amount);
       if (res.sent > 0) {
         message.success(
-          `Напоминание отправлено в чат (${res.sent} родител${res.sent === 1 ? "ю" : "ям"})`,
+          uiText("Напоминание отправлено в чат ({0} родител{1})", res.sent, res.sent === 1 ? "ю" : "ям"),
         );
       } else {
-        message.warning("Нет родителей с аккаунтом для чата");
+        message.warning(uiText("Нет родителей с аккаунтом для чата"));
       }
     } catch (err: any) {
       message.error(
-        err?.response?.data?.message || "Не удалось отправить в чат",
+        err?.response?.data?.message || uiText("Не удалось отправить в чат"),
       );
     } finally {
       setChatRemindId(null);
@@ -230,13 +231,13 @@ export default function PaymentsPage() {
   const removePayment = async (id: string) => {
     try {
       await http.delete(`/v1/payments/${id}`);
-      message.success("Платёж удалён");
+      message.success(uiText("Платёж удалён"));
       await loadPayments(month);
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Не удалось удалить платёж";
+        uiText("Не удалось удалить платёж");
       message.error(msg);
     }
   };
@@ -270,7 +271,7 @@ export default function PaymentsPage() {
         comment: values.comment || undefined,
       });
       setModalOpen(false);
-      message.success("Платёж зарегистрирован");
+      message.success(uiText("Платёж зарегистрирован"));
       if (targetMonth === month) {
         await loadPayments(month);
       } else {
@@ -281,14 +282,14 @@ export default function PaymentsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        "Не удалось сохранить платёж";
+        uiText("Не удалось сохранить платёж");
       message.error(msg);
     } finally {
       setSubmitting(false);
     }
   };
   const formatMoney = (value: number) =>
-    new Intl.NumberFormat("ru-RU").format(Math.round(value));
+    new Intl.NumberFormat(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU').format(Math.round(value));
 
   const getDaysLeftInMonth = (m: string) => {
     const [year, monthNum] = m.split("-").map(Number);
@@ -365,7 +366,7 @@ export default function PaymentsPage() {
               studentName: name,
               sent: 0,
               skipped: true,
-              reason: "Родители не зарегистрированы в боте",
+              reason: uiText("Родители не зарегистрированы в боте"),
             });
           } else {
             results.push({
@@ -388,7 +389,7 @@ export default function PaymentsPage() {
           studentName: `${r.child.firstName} ${r.child.lastName}`,
           sent: 0,
           skipped: true,
-          reason: "Нет телефона родителей",
+          reason: uiText("Нет телефона родителей"),
         });
       });
 
@@ -404,20 +405,20 @@ export default function PaymentsPage() {
 
       if (totalSent > 0) {
         message.success(
-          `Отправлено ${totalSent} напоминаний из ${debtors.length} должников`,
+          uiText("Отправлено {0} напоминаний из {1} должников", totalSent, debtors.length),
         );
       } else if (debtors.length === 0) {
-        message.info("Должников не найдено за этот месяц");
+        message.info(uiText("Должников не найдено за этот месяц"));
       } else {
         message.warning(
-          `Найдено ${debtors.length} должников, но никому не отправлено`,
+          uiText("Найдено {0} должников, но никому не отправлено", debtors.length),
         );
       }
     } catch (error: any) {
       const errorMsg =
         error?.response?.data?.message ||
         error?.message ||
-        "Ошибка отправки напоминаний";
+        uiText("Ошибка отправки напоминаний");
       message.error(errorMsg);
     } finally {
       setRemindersLoading(false);
@@ -427,10 +428,10 @@ export default function PaymentsPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Оплата"
+        title={uiText("Оплата")}
         icon={<Wallet size={22} strokeWidth={2} />}
         iconAccent="rose"
-        description={`Платежи за ${dayjs(month + "-01").format("MMMM YYYY")}`}
+        description={uiText("Платежи за {0}", dayjs(month + "-01").format("MMMM YYYY"))}
         actions={
           <Space>
             <DatePicker
@@ -440,20 +441,20 @@ export default function PaymentsPage() {
               allowClear={false}
             />
             {user?.role !== "TEACHER" && totals.debtCount > 0 && (
-              <Tooltip title="Отправить Telegram напоминания всем должникам">
+              <Tooltip title={uiText("Отправить Telegram напоминания всем должникам")}>
                 <Button
                   icon={<SendOutlined />}
                   onClick={() => setRemindersModalOpen(true)}
                   danger
                 >
                   {isMobile
-                    ? `Напомнить (${totals.debtCount})`
-                    : `Напомнить должникам (${totals.debtCount})`}
+                    ? uiText("Напомнить ({0})", totals.debtCount)
+                    : uiText("Напомнить должникам ({0})", totals.debtCount)}
                 </Button>
               </Tooltip>
             )}
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              {isMobile ? "Платёж" : "Записать платёж"}
+              {isMobile ? uiText("Платёж") : uiText("Записать платёж")}
             </Button>
           </Space>
         }
@@ -462,14 +463,14 @@ export default function PaymentsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <StatCard
-            title="Оплатили"
+            title={uiText("Оплатили")}
             value={formatMoney(totals.paidCount)}
             variant="success"
           />
         </Col>
         <Col xs={12} md={6}>
           <StatCard
-            title="Должники"
+            title={uiText("Должники")}
             value={formatMoney(totals.debtCount)}
             variant="danger"
           />
@@ -484,9 +485,9 @@ export default function PaymentsPage() {
         </Col> */}
         <Col xs={12} md={6}>
           <StatCard
-            title="Ожидается"
+            title={uiText("Ожидается")}
             value={formatMoney(totals.debt)}
-            suffix=" сомони"
+            suffix={uiText("сомони")}
             variant="warning"
           />
         </Col>
@@ -504,7 +505,7 @@ export default function PaymentsPage() {
               <Input
                 allowClear
                 prefix={<SearchOutlined />}
-                placeholder="Поиск по ребёнку"
+                placeholder={uiText("Поиск по ребёнку")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -513,7 +514,7 @@ export default function PaymentsPage() {
               <Select
                 allowClear
                 style={{ width: "100%" }}
-                placeholder="Все группы"
+                placeholder={uiText("Все группы")}
                 value={groupFilter}
                 onChange={setGroupFilter}
                 disabled={user?.role === "TEACHER"}
@@ -526,7 +527,7 @@ export default function PaymentsPage() {
             <div className="flex flex-col gap-3">
               {rows.length === 0 && (
                 <div className="text-center py-6 text-muted">
-                  <Text type="secondary">Нет записей</Text>
+                  <Text type="secondary">{uiText("Нет записей")}</Text>
                 </div>
               )}
               {rows.map((r) => (
@@ -535,14 +536,14 @@ export default function PaymentsPage() {
                   size="small"
                   style={{
                     borderRadius: 12,
-                    borderLeft: `4px solid ${r.paid ? "#10b981" : "#ef4444"}`,
+                    borderLeft: `4px solid ${r.paid ? "#0D7A7C" : "#E5533D"}`,
                   }}
                   styles={{ body: { padding: 12 } }}
                 >
                   <div className="flex items-center gap-3 mb-2">
                     <Avatar
                       size={40}
-                      style={{ background: r.group?.color || "#6366f1" }}
+                      style={{ background: r.group?.color || "#3B8FBF" }}
                     >
                       {r.child.firstName[0]}
                     </Avatar>
@@ -568,29 +569,25 @@ export default function PaymentsPage() {
                         icon={<CheckOutlined />}
                         style={{ margin: 0 }}
                       >
-                        Оплачено
-                      </Tag>
+                        {" " + uiText("Оплачено") + " "}</Tag>
                     ) : (
                       <Tag
                         color="volcano"
                         icon={<CloseOutlined />}
                         style={{ margin: 0 }}
                       >
-                        Долг
-                      </Tag>
+                        {" " + uiText("Долг") + " "}</Tag>
                     )}
                   </div>
 
                   <div className="flex items-center justify-between mt-2 mb-3">
                     <div>
                       <Text type="secondary" style={{ fontSize: 11 }}>
-                        Сумма
-                      </Text>
+                        {" " + uiText("Сумма") + " "}</Text>
                       <div style={{ fontWeight: 700, fontSize: 16 }}>
                         {formatMoney(r.amount)}{" "}
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          сомони
-                        </Text>
+                          {" " + uiText("сомони") + " "}</Text>
                       </div>
                     </div>
                     {r.payment?.method && (
@@ -606,7 +603,7 @@ export default function PaymentsPage() {
                       icon={r.paid ? <CloseOutlined /> : <CheckOutlined />}
                       onClick={() => togglePaid(r)}
                     >
-                      {r.paid ? "Снять оплату" : "Отметить оплачено"}
+                      {r.paid ? uiText("Снять оплату") : uiText("Отметить оплачено")}
                     </Button>
                     {isAdmin && !r.paid && (
                       <Button
@@ -618,9 +615,9 @@ export default function PaymentsPage() {
                     )}
                     {r.payment && (
                       <Popconfirm
-                        title="Удалить запись?"
-                        okText="Да"
-                        cancelText="Нет"
+                        title={uiText("Удалить запись?")}
+                        okText={uiText("Да")}
+                        cancelText={uiText("Нет")}
                         onConfirm={() => removePayment(r.payment!.id)}
                       >
                         <Button
@@ -643,13 +640,13 @@ export default function PaymentsPage() {
               pagination={{ pageSize: 10 }}
               columns={[
                 {
-                  title: "Ребёнок",
+                  title: uiText("Ребёнок"),
                   key: "child",
                   render: (_, r) => (
                     <Space>
                       <Avatar
                         size={32}
-                        style={{ background: r.group?.color || "#6366f1" }}
+                        style={{ background: r.group?.color || "#3B8FBF" }}
                       >
                         {r.child.firstName[0]}
                       </Avatar>
@@ -665,45 +662,43 @@ export default function PaymentsPage() {
                   ),
                 },
                 {
-                  title: "Сумма",
+                  title: uiText("Сумма"),
                   key: "amount",
                   render: (_, r) => formatMoney(r.amount),
                 },
                 {
-                  title: "Статус",
+                  title: uiText("Статус"),
                   key: "status",
                   filters: [
-                    { text: "Оплачено", value: "paid" },
-                    { text: "Должник", value: "debt" },
+                    { text: uiText("Оплачено"), value: "paid" },
+                    { text: uiText("Должник"), value: "debt" },
                   ],
                   onFilter: (v, r) => (v === "paid" ? r.paid : !r.paid),
                   render: (_, r) =>
                     r.paid ? (
                       <Tag color="green" icon={<CheckOutlined />}>
-                        Оплачено
-                        {r.payment?.paidAt
+                        {" " + uiText("Оплачено") + " "}{r.payment?.paidAt
                           ? ` · ${dayjs(r.payment.paidAt).format("DD.MM")}`
                           : ""}
                       </Tag>
                     ) : (
                       <Tag color="volcano" icon={<CloseOutlined />}>
-                        Долг
-                      </Tag>
+                        {" " + uiText("Долг") + " "}</Tag>
                     ),
                 },
                 {
-                  title: "Способ",
+                  title: uiText("Способ"),
                   key: "method",
                   render: (_, r) =>
                     r.payment?.method ? <Tag>{r.payment.method}</Tag> : "—",
                 },
                 {
-                  title: "Действия",
+                  title: uiText("Действия"),
                   key: "actions",
                   render: (_, r) => (
                     <Space>
                       <Tooltip
-                        title={r.paid ? "Снять оплату" : "Отметить оплачено"}
+                        title={r.paid ? uiText("Снять оплату") : uiText("Отметить оплачено")}
                       >
                         <Button
                           size="small"
@@ -711,11 +706,11 @@ export default function PaymentsPage() {
                           icon={r.paid ? <CloseOutlined /> : <CheckOutlined />}
                           onClick={() => togglePaid(r)}
                         >
-                          {r.paid ? "Долг" : "Оплачено"}
+                          {r.paid ? uiText("Долг") : uiText("Оплачено")}
                         </Button>
                       </Tooltip>
                       {isAdmin && !r.paid && (
-                        <Tooltip title="Напомнить об оплате в чате">
+                        <Tooltip title={uiText("Напомнить об оплате в чате")}>
                           <Button
                             size="small"
                             icon={<MessageOutlined />}
@@ -726,9 +721,9 @@ export default function PaymentsPage() {
                       )}
                       {r.payment && (
                         <Popconfirm
-                          title="Удалить запись?"
-                          okText="Да"
-                          cancelText="Нет"
+                          title={uiText("Удалить запись?")}
+                          okText={uiText("Да")}
+                          cancelText={uiText("Нет")}
                           onConfirm={() => removePayment(r.payment!.id)}
                         >
                           <Button
@@ -749,19 +744,19 @@ export default function PaymentsPage() {
       </motion.div>
 
       <Modal
-        title="Регистрация платежа"
+        title={uiText("Регистрация платежа")}
         open={modalOpen}
         onOk={submit}
         onCancel={() => setModalOpen(false)}
-        okText="Сохранить"
-        cancelText="Отмена"
+        okText={uiText("Сохранить")}
+        cancelText={uiText("Отмена")}
         confirmLoading={submitting}
         destroyOnClose
       >
         <Form layout="vertical" form={form}>
           <Form.Item
             name="childId"
-            label="Ребёнок"
+            label={uiText("Ребёнок")}
             rules={[{ required: true }]}
           >
             <Select
@@ -773,26 +768,26 @@ export default function PaymentsPage() {
               }))}
             />
           </Form.Item>
-          <Form.Item name="month" label="Месяц" rules={[{ required: true }]}>
+          <Form.Item name="month" label={uiText("Месяц")} rules={[{ required: true }]}>
             <DatePicker picker="month" style={{ width: "100%" }} />
           </Form.Item>
-          <Form.Item name="amount" label="Сумма" rules={[{ required: true }]}>
+          <Form.Item name="amount" label={uiText("Сумма")} rules={[{ required: true }]}>
             <InputNumber
               style={{ width: "100%" }}
-              addonAfter="сомони"
+              addonAfter={uiText("сомони")}
               min={0}
             />
           </Form.Item>
-          <Form.Item name="method" label="Способ оплаты">
+          <Form.Item name="method" label={uiText("Способ оплаты")}>
             <Select
               options={[
-                { value: "cash", label: "Наличные" },
-                { value: "card", label: "Карта" },
-                { value: "transfer", label: "Перевод" },
+                { value: "cash", label: uiText("Наличные") },
+                { value: "card", label: uiText("Карта") },
+                { value: "transfer", label: uiText("Перевод") },
               ]}
             />
           </Form.Item>
-          <Form.Item name="comment" label="Комментарий">
+          <Form.Item name="comment" label={uiText("Комментарий")}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -801,11 +796,11 @@ export default function PaymentsPage() {
       <Modal
         title={
           <Space>
-            <SendOutlined style={{ color: "#6366f1" }} />
+            <SendOutlined style={{ color: "#3B8FBF" }} />
             <span>
               {remindersResult
-                ? "Результат отправки"
-                : "Отправить напоминания должникам"}
+                ? uiText("Результат отправки")
+                : uiText("Отправить напоминания должникам")}
             </span>
           </Space>
         }
@@ -823,13 +818,11 @@ export default function PaymentsPage() {
                 setRemindersResult(null);
               }}
             >
-              Закрыть
-            </Button>
+              {" " + uiText("Закрыть") + " "}</Button>
           ) : (
             <Space>
               <Button onClick={() => setRemindersModalOpen(false)}>
-                Отмена
-              </Button>
+                {" " + uiText("Отмена") + " "}</Button>
               <Button
                 type="primary"
                 icon={<SendOutlined />}
@@ -837,8 +830,7 @@ export default function PaymentsPage() {
                 onClick={sendReminders}
                 danger
               >
-                Отправить
-              </Button>
+                {" " + uiText("Отправить") + " "}</Button>
             </Space>
           )
         }
@@ -856,31 +848,29 @@ export default function PaymentsPage() {
             >
               <Space align="start">
                 <WarningOutlined
-                  style={{ color: "#ef4444", fontSize: 20, marginTop: 2 }}
+                  style={{ color: "#E5533D", fontSize: 20, marginTop: 2 }}
                 />
                 <div>
                   <Text strong>
-                    Будет отправлено {totals.debtCount}{" "}
-                    {totals.debtCount === 1 ? "напоминание" : "напоминаний"}
+                    {" " + uiText("Будет отправлено") + " "}{totals.debtCount}{" "}
+                    {totals.debtCount === 1 ? uiText("напоминание") : uiText("напоминаний")}
                   </Text>
                   <div>
                     <Text type="secondary">
-                      За месяц:{" "}
+                      {" " + uiText("За месяц:")}{" "}
                       <b>{dayjs(month + "-01").format("MMMM YYYY")}</b>
                     </Text>
                   </div>
                   <div>
                     <Text type="secondary">
-                      Сумма долга: <b>{formatMoney(totals.debt)} сомони</b>
+                      {" " + uiText("Сумма долга:") + " "}<b>{formatMoney(totals.debt)} {" " + uiText("сомони")}</b>
                     </Text>
                   </div>
                 </div>
               </Space>
             </Card>
             <Text type="secondary">
-              💡 Напоминания будут отправлены только тем родителям, у которых
-              привязан Telegram Chat ID.
-            </Text>
+              {" " + uiText("💡 Напоминания будут отправлены только тем родителям, у которых привязан Telegram Chat ID.") + " "}</Text>
           </div>
         ) : (
           <div>
@@ -894,11 +884,11 @@ export default function PaymentsPage() {
                   }}
                 >
                   <div
-                    style={{ fontSize: 28, fontWeight: 600, color: "#ef4444" }}
+                    style={{ fontSize: 28, fontWeight: 600, color: "#E5533D" }}
                   >
                     {remindersResult.totalOverdue}
                   </div>
-                  <Text type="secondary">Должников</Text>
+                  <Text type="secondary">{uiText("Должников")}</Text>
                 </Card>
               </Col>
               <Col span={8}>
@@ -910,11 +900,11 @@ export default function PaymentsPage() {
                   }}
                 >
                   <div
-                    style={{ fontSize: 28, fontWeight: 600, color: "#10b981" }}
+                    style={{ fontSize: 28, fontWeight: 600, color: "#0D7A7C" }}
                   >
                     {remindersResult.remindersSent}
                   </div>
-                  <Text type="secondary">Отправлено</Text>
+                  <Text type="secondary">{uiText("Отправлено")}</Text>
                 </Card>
               </Col>
               <Col span={8}>
@@ -926,16 +916,16 @@ export default function PaymentsPage() {
                   }}
                 >
                   <div
-                    style={{ fontSize: 28, fontWeight: 600, color: "#f59e0b" }}
+                    style={{ fontSize: 28, fontWeight: 600, color: "#FFB020" }}
                   >
                     {remindersResult.skipped}
                   </div>
-                  <Text type="secondary">Без Telegram</Text>
+                  <Text type="secondary">{uiText("Без Telegram")}</Text>
                 </Card>
               </Col>
             </Row>
 
-            <Text strong>Детали:</Text>
+            <Text strong>{uiText("Детали:")}</Text>
             <div
               style={{
                 maxHeight: 300,
@@ -961,7 +951,7 @@ export default function PaymentsPage() {
                   {r.skipped ? (
                     <Tag color="orange">{r.reason}</Tag>
                   ) : (
-                    <Tag color="green">Отправлено: {r.sent}</Tag>
+                    <Tag color="green">{uiText("Отправлено:") + " "}{r.sent}</Tag>
                   )}
                 </div>
               ))}

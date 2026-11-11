@@ -1,3 +1,4 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useMemo, useState } from "react";
 import {
   Card,
@@ -38,10 +39,12 @@ import StatCard from "../components/ui/StatCard";
 import { calcGroupFinances } from "../lib/finance";
 import { calcAge, formatMoney, formatPercent } from "../lib/format";
 import type { Child, Expense, Payment } from "../types";
+import { useChartTheme } from '../theme/chartTheme'
 
 const { Text, Title } = Typography;
 
 export default function GroupDetailPage() {
+  const chartTheme = useChartTheme()
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -85,11 +88,11 @@ export default function GroupDetailPage() {
     extraIncome,
     attendance,
     month,
-  ]);
+  , uiLanguage()]);
 
   const groupChildren: Child[] = useMemo(
     () => children.filter((c) => c.groupId === id),
-    [children, id],
+    [children, id, uiLanguage()],
   );
   const groupPayments: Payment[] = useMemo(
     () =>
@@ -97,11 +100,11 @@ export default function GroupDetailPage() {
         (p) =>
           groupChildren.some((c) => c.id === p.childId) && p.month === month,
       ),
-    [payments, groupChildren, month],
+    [payments, groupChildren, month, uiLanguage()],
   );
   const groupExpenses: Expense[] = useMemo(
     () => expenses.filter((e) => e.groupId === id && e.month === month),
-    [expenses, id, month],
+    [expenses, id, month, uiLanguage()],
   );
 
   // 6-месячный тренд прибыли для группы
@@ -125,17 +128,16 @@ export default function GroupDetailPage() {
       });
     }
     return arr;
-  }, [group, groups, children, payments, expenses, extraIncome, attendance]);
+  }, [group, groups, children, payments, expenses, extraIncome, attendance, uiLanguage()]);
 
   if (!group) {
     return (
       <Result
         status="404"
-        title="Группа не найдена"
+        title={uiText("Группа не найдена")}
         extra={
           <Button type="primary" onClick={() => navigate("/admin/groups")}>
-            К списку
-          </Button>
+            {" " + uiText("К списку") + " "}</Button>
         }
       />
     );
@@ -145,8 +147,8 @@ export default function GroupDetailPage() {
 
   // Диаграмма «оплатили / должники»
   const paidVsDebt = [
-    { type: "Оплатили", value: f.paidCount },
-    { type: "Должники", value: f.debtorsCount },
+    { type: uiText("Оплатили"), value: f.paidCount },
+    { type: uiText("Должники"), value: f.debtorsCount },
   ].filter((x) => x.value > 0);
 
   // Распределение расходов группы по категориям
@@ -160,10 +162,10 @@ export default function GroupDetailPage() {
       f.expenses -
       groupExpenses.reduce((s, e) => s + e.amount, 0) -
       (group.fixedMonthlyExpense || 0);
-    if (commonShare > 0) map.set("Общие (доля)", commonShare);
+    if (commonShare > 0) map.set(uiText("Общие (доля)"), commonShare);
     if (group.fixedMonthlyExpense)
-      map.set("Фикс. расходы группы", group.fixedMonthlyExpense);
-    return Array.from(map.entries()).map(([type, value]) => ({ type, value }));
+      map.set(uiText("Фикс. расходы группы"), group.fixedMonthlyExpense);
+    return Array.from(map.entries()).map(([type, value]) => ({ type: uiText(type), value }));
   })();
 
   return (
@@ -179,19 +181,19 @@ export default function GroupDetailPage() {
             {group.name}
             <Tag
               style={{
-                background: f.profit >= 0 ? SP.primaryGhost : '#FCEAE5',
+                background: f.profit >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
                 color: f.profit >= 0 ? SP.primaryDeep : SP.danger,
                 border: 'none',
                 fontWeight: 600,
               }}
             >
-              {f.profit >= 0 ? "Выгодная" : "Убыточная"}
+              {f.profit >= 0 ? uiText("Выгодная") : uiText("Убыточная")}
             </Tag>
           </Space>
         }
         icon={<LayoutGrid size={22} strokeWidth={2} />}
         iconAccent="yellow"
-        description={`Возраст: ${group.ageRange}${teacher ? ` · Воспитатель: ${teacher.lastName} ${teacher.firstName}` : ""}`}
+        description={uiText("Возраст: {0}{1}", group.ageRange, teacher ? uiText("· Воспитатель: {0} {1}", teacher.lastName, teacher.firstName) : "")}
         actions={
           <Space>
             <DatePicker
@@ -204,8 +206,7 @@ export default function GroupDetailPage() {
               icon={<ArrowLeftOutlined />}
               onClick={() => navigate("/admin/groups")}
             >
-              К группам
-            </Button>
+              {" " + uiText("К группам") + " "}</Button>
           </Space>
         }
       />
@@ -213,7 +214,7 @@ export default function GroupDetailPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <StatCard
-            title="Детей"
+            title={uiText("Детей")}
             value={f.childrenCount}
             icon={<TeamOutlined />}
             variant="primary"
@@ -223,7 +224,7 @@ export default function GroupDetailPage() {
           <>
         <Col xs={12} md={6}>
           <StatCard
-            title="Оплатили"
+            title={uiText("Оплатили")}
             value={f.paidCount}
             icon={<CheckCircleOutlined />}
             variant="success"
@@ -231,7 +232,7 @@ export default function GroupDetailPage() {
         </Col>
         <Col xs={12} md={6}>
           <StatCard
-            title="Должники"
+            title={uiText("Должники")}
             value={f.debtorsCount}
             icon={<CloseCircleOutlined />}
             variant="danger"
@@ -241,7 +242,7 @@ export default function GroupDetailPage() {
         )}
         <Col xs={12} md={6}>
           <StatCard
-            title="Посещаемость"
+            title={uiText("Посещаемость")}
             value={Math.round(f.attendanceRate * 100)}
             suffix="%"
             variant="primary"
@@ -259,10 +260,10 @@ export default function GroupDetailPage() {
             transition={{ duration: 0.3 }}
             className="glass kpi-gradient-emerald p-5"
           >
-            <Text type="secondary">Доход группы</Text>
+            <Text type="secondary">{uiText("Доход группы")}</Text>
             <Statistic
               value={f.income}
-              suffix=" сомони"
+              suffix={uiText("сомони")}
               precision={0}
               valueStyle={{ fontWeight: 700 }}
             />
@@ -275,10 +276,10 @@ export default function GroupDetailPage() {
             transition={{ duration: 0.3, delay: 0.05 }}
             className="glass kpi-gradient-amber p-5"
           >
-            <Text type="secondary">Расходы группы</Text>
+            <Text type="secondary">{uiText("Расходы группы")}</Text>
             <Statistic
               value={f.expenses}
-              suffix=" сомони"
+              suffix={uiText("сомони")}
               precision={0}
               valueStyle={{ fontWeight: 700 }}
             />
@@ -291,22 +292,22 @@ export default function GroupDetailPage() {
             transition={{ duration: 0.3, delay: 0.1 }}
             className={`glass p-5 ${f.profit >= 0 ? "kpi-gradient" : "kpi-gradient-rose"}`}
           >
-            <Text type="secondary">Чистая прибыль</Text>
+            <Text type="secondary">{uiText("Чистая прибыль")}</Text>
             <Statistic
               value={f.profit}
-              suffix=" сомони"
+              suffix={uiText("сомони")}
               precision={0} // Округлит до целых (напр. 10.5 -> 11)
               valueStyle={{
                 fontWeight: 700,
-                color: f.profit >= 0 ? "#10b981" : "#f43f5e",
+                color: f.profit >= 0 ? "#0D7A7C" : "#E5533D",
               }}
             />
             <div className="mt-2">
               <Progress
                 percent={Math.max(0, Math.min(100, f.margin * 100 + 50))}
                 size="small"
-                strokeColor={f.profit >= 0 ? "#10b981" : "#f43f5e"}
-                format={() => `маржа ${formatPercent(f.margin)}`}
+                strokeColor={f.profit >= 0 ? "#0D7A7C" : "#E5533D"}
+                format={() => uiText("маржа {0}", formatPercent(f.margin))}
               />
             </div>
           </motion.div>
@@ -317,10 +318,10 @@ export default function GroupDetailPage() {
         <Col xs={24} lg={12}>
           <Card className="glass" bordered={false}>
             <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
-              <PieChartOutlined /> Структура расходов
-            </Title>
+              <PieChartOutlined /> {" " + uiText("Структура расходов") + " "}</Title>
             {expenseByCategory.length > 0 ? (
               <Pie
+                theme={chartTheme}
                 data={expenseByCategory}
                 angleField="value"
                 colorField="type"
@@ -330,23 +331,23 @@ export default function GroupDetailPage() {
                 legend={{ position: "bottom" }}
               />
             ) : (
-              <Text type="secondary">Нет расходов</Text>
+              <Text type="secondary">{uiText("Нет расходов")}</Text>
             )}
           </Card>
         </Col>
         <Col xs={24} lg={12}>
           <Card className="glass" bordered={false}>
             <Title level={5} style={{ margin: 0, marginBottom: 8 }}>
-              Динамика прибыли (6 мес.)
-            </Title>
+              {" " + uiText("Динамика прибыли (6 мес.)") + " "}</Title>
             <Area
+              theme={chartTheme}
               data={trend}
               xField="month"
               yField="profit"
               //@ts-ignore
               smooth
               height={260}
-              color="#6366f1"
+              color="#3B8FBF"
               areaStyle={{ fillOpacity: 0.3 }}
               animation={{ appear: { animation: "wave-in", duration: 900 } }}
             />
@@ -361,7 +362,7 @@ export default function GroupDetailPage() {
           items={[
             {
               key: "children",
-              label: `Дети (${groupChildren.length})`,
+              label: uiText("Дети ({0})", groupChildren.length),
               children: (
                 <Table
                   rowKey="id"
@@ -370,11 +371,11 @@ export default function GroupDetailPage() {
                   dataSource={groupChildren}
                   columns={[
                     {
-                      title: "ФИО",
+                      title: uiText("ФИО"),
                       key: "fio",
                       render: (_: unknown, c: Child) => (
                         <Space>
-                          <Avatar size={28} style={{ background: "#6366f1" }}>
+                          <Avatar size={28} style={{ background: "#3B8FBF" }}>
                             {c.firstName[0]}
                           </Avatar>
                           <span>
@@ -384,19 +385,19 @@ export default function GroupDetailPage() {
                       ),
                     },
                     {
-                      title: "Возраст",
+                      title: uiText("Возраст"),
                       key: "age",
                       render: (_: unknown, c: Child) =>
-                        `${calcAge(c.birthDate)} л.`,
+                        uiText("{0} л.", calcAge(c.birthDate)),
                     },
                     {
-                      title: "Родитель",
+                      title: uiText("Родитель"),
                       key: "parent",
                       render: (_: unknown, c: Child) =>
                         c.motherName || c.fatherName || "—",
                     },
                     {
-                      title: "Телефон",
+                      title: uiText("Телефон"),
                       key: "phone",
                       render: (_: unknown, c: Child) =>
                         c.motherPhone || c.fatherPhone || "—",
@@ -407,7 +408,7 @@ export default function GroupDetailPage() {
             },
             {
               key: "attendance",
-              label: "Посещаемость",
+              label: uiText("Посещаемость"),
               children: (() => {
                 const dataByDay = new Map<
                   string,
@@ -428,27 +429,28 @@ export default function GroupDetailPage() {
                   .sort(([a], [b]) => a.localeCompare(b))
                   .slice(-10)
                   .flatMap(([date, v]) => [
-                    { date, type: "Присутствовали", value: v.present },
-                    { date, type: "Отсутствовали", value: v.absent },
+                    { date, type: uiText("Присутствовали"), value: v.present },
+                    { date, type: uiText("Отсутствовали"), value: v.absent },
                   ]);
                 return chartData.length > 0 ? (
                   <Column
+                    theme={chartTheme}
                     data={chartData}
                     xField="date"
                     yField="value"
                     seriesField="type"
                     isStack
                     height={300}
-                    color={["#10b981", "#f43f5e"]}
+                    color={["#0D7A7C", "#E5533D"]}
                   />
                 ) : (
-                  <Text type="secondary">Нет данных о посещаемости</Text>
+                  <Text type="secondary">{uiText("Нет данных о посещаемости")}</Text>
                 );
               })(),
             },
             {
               key: "payments",
-              label: `Оплата (${groupPayments.length})`,
+              label: uiText("Оплата ({0})", groupPayments.length),
               children: (
                 <Table
                   rowKey="id"
@@ -456,7 +458,7 @@ export default function GroupDetailPage() {
                   dataSource={groupPayments}
                   columns={[
                     {
-                      title: "Ребёнок",
+                      title: uiText("Ребёнок"),
                       key: "child",
                       render: (_: unknown, row: Payment) => {
                         const c = groupChildren.find(
@@ -466,22 +468,22 @@ export default function GroupDetailPage() {
                       },
                     },
                     {
-                      title: "Сумма",
+                      title: uiText("Сумма"),
                       dataIndex: "amount",
                       render: (v: number) => formatMoney(v),
                     },
                     {
-                      title: "Статус",
+                      title: uiText("Статус"),
                       key: "status",
                       render: (_: unknown, p: Payment) =>
                         p.paid ? (
-                          <Tag color="green">Оплачено</Tag>
+                          <Tag color="green">{uiText("Оплачено")}</Tag>
                         ) : (
-                          <Tag color="volcano">Должник</Tag>
+                          <Tag color="volcano">{uiText("Должник")}</Tag>
                         ),
                     },
                     {
-                      title: "Способ",
+                      title: uiText("Способ"),
                       dataIndex: "method",
                       render: (v?: string) => (v ? <Tag>{v}</Tag> : "—"),
                     },
@@ -491,17 +493,17 @@ export default function GroupDetailPage() {
             },
             {
               key: "expenses",
-              label: "Расходы группы",
+              label: uiText("Расходы группы"),
               children: (
                 <Table
                   rowKey="id"
                   size="small"
                   dataSource={groupExpenses}
                   columns={[
-                    { title: "Категория", dataIndex: "category" },
-                    { title: "Описание", dataIndex: "description" },
+                    { title: uiText("Категория"), dataIndex: "category", render: (value: string) => uiText(value) },
+                    { title: uiText("Описание"), dataIndex: "description" },
                     {
-                      title: "Сумма",
+                      title: uiText("Сумма"),
                       dataIndex: "amount",
                       render: (v: number) => formatMoney(v),
                     },
@@ -511,62 +513,62 @@ export default function GroupDetailPage() {
             },
             {
               key: "finance",
-              label: "Финансовая диагностика",
+              label: uiText("Финансовая диагностика"),
               children: (
                 <Row gutter={[16, 16]}>
                   <Col xs={24} md={12}>
                     <Card className="glass" bordered={false}>
                       <Title level={5}>
-                        <WalletOutlined /> Оплата / долги
-                      </Title>
+                        <WalletOutlined /> {" " + uiText("Оплата / долги") + " "}</Title>
                       {paidVsDebt.length > 0 ? (
                         <Pie
+                          theme={chartTheme}
                           data={paidVsDebt}
                           angleField="value"
                           colorField="type"
                           radius={0.9}
                           height={260}
-                          color={["#10b981", "#f43f5e"]}
+                          color={["#0D7A7C", "#E5533D"]}
                           legend={{ position: "bottom" }}
                         />
                       ) : (
-                        <Text type="secondary">Нет данных</Text>
+                        <Text type="secondary">{uiText("Нет данных")}</Text>
                       )}
                     </Card>
                   </Col>
                   <Col xs={24} md={12}>
                     <Card className="glass" bordered={false}>
-                      <Title level={5}>Итог по группе</Title>
-                      <Tooltip title="Группа считается выгодной, если прибыль положительна">
+                      <Title level={5}>{uiText("Итог по группе")}</Title>
+                      <Tooltip title={uiText("Группа считается выгодной, если прибыль положительна")}>
                         <Tag
                           color={f.profit >= 0 ? "green" : "red"}
                           style={{ fontSize: 14, padding: "4px 10px" }}
                         >
                           {f.profit >= 0
-                            ? `Группа выгодна: +${formatMoney(f.profit)} прибыли в месяц`
-                            : `Группа убыточна: ${formatMoney(f.profit)} потерь в месяц`}
+                            ? uiText("Группа выгодна: +{0} прибыли в месяц", formatMoney(f.profit))
+                            : uiText("Группа убыточна: {0} потерь в месяц", formatMoney(f.profit))}
                         </Tag>
                       </Tooltip>
                       <ul className="mt-3 space-y-1 text-sm">
                         <li>
-                          Доход: <Text strong>{formatMoney(f.income)}</Text>
+                          {" " + uiText("Доход:") + " "}<Text strong>{formatMoney(f.income)}</Text>
                         </li>
                         <li>
-                          Расход: <Text strong>{formatMoney(f.expenses)}</Text>
+                          {" " + uiText("Расход:") + " "}<Text strong>{formatMoney(f.expenses)}</Text>
                         </li>
                         <li>
-                          Маржа:{" "}
+                          {" " + uiText("Маржа:")}{" "}
                           <Text
                             strong
                             style={{
-                              color: f.profit >= 0 ? "#10b981" : "#f43f5e",
+                              color: f.profit >= 0 ? "#0D7A7C" : "#E5533D",
                             }}
                           >
                             {formatPercent(f.margin)}
                           </Text>
                         </li>
                         <li>
-                          Посещаемость:{" "}
+                          {" " + uiText("Посещаемость:")}{" "}
                           <Text strong>{formatPercent(f.attendanceRate)}</Text>
                         </li>
                       </ul>

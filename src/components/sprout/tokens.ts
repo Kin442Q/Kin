@@ -1,19 +1,18 @@
 /**
- * Sprout design tokens — единый источник правды для всех Sprout-компонентов.
+ * Токены дизайн-системы «Мактаби ман» (палитра «Помир») — единый источник
+ * правды для Sprout-компонентов. Имя «Sprout» осталось только в коде.
  *
- * - Базовые цвета (фон, поверхность, текст, границы) — это **CSS-переменные**,
- *   они автоматически переключаются между светлой и тёмной темой через
- *   `[data-theme='dark']` в index.css.
- * - Акцентные цвета (мята, голубой, жёлтый, и т.д.) — hex-константы,
- *   потому что они одинаковые в обеих темах.
- *
- * Если нужны hex-значения базовых цветов (для графиков/charts), используйте
- * `SPHex` ниже — там лежат сырые цвета светлой темы.
+ * - Цвета — это **CSS-переменные** (см. index.css): светлая тема «закат» и
+ *   тёмная «ночь» переключаются через html[data-theme='dark'].
+ * - Для графиков, где нельзя использовать CSS var, есть `SPHex` —
+ *   сырые hex-цвета палитры светлой темы.
  */
 export const SP = {
   // ─── Базовые: реагируют на тему через CSS-переменные ─────────────
   bg: 'var(--sp-bg)',
   surface: 'var(--sp-surface)',
+  /** Непрозрачная поверхность: окна, меню, липкие ячейки */
+  solid: 'var(--sp-solid)',
   surfaceAlt: 'var(--sp-surface-alt)',
   text: 'var(--sp-text)',
   textMid: 'var(--sp-text-mid)',
@@ -21,12 +20,10 @@ export const SP = {
   border: 'var(--sp-border)',
   borderSoft: 'var(--sp-border-soft)',
 
-  // ─── Акценты: теперь тоже CSS-переменные ─────────────────────────
-  // Раньше это были hex-константы, из-за чего инлайн-стили (логотип,
-  // аватар, кнопки, плашки иконок, Pro-карточка) НЕ реагировали на
-  // переключение classic ↔ premium. Теперь каждый акцент переключается
-  // вместе с дизайн-темой (значения см. в index.css).
+  // ─── Акценты: бирюза — бренд, коралловый (rose) — второй акцент ───
   primary: 'var(--sp-primary)',
+  /** Сплошная бирюза под белый текст (кнопки, активные плашки) — одна в обеих темах */
+  primarySolid: 'var(--sp-primary-solid)',
   primaryDeep: 'var(--sp-primary-deep)',
   primarySoft: 'var(--sp-primary-soft)',
   primaryGhost: 'var(--sp-primary-ghost)',
@@ -61,21 +58,28 @@ export const SP = {
  * использовать CSS var (например конфиг chart-библиотеки).
  */
 export const SPHex = {
-  bg: '#FBF9F4',
+  bg: '#FFEEE4',
   surface: '#FFFFFF',
-  surfaceAlt: '#F4F1EA',
-  text: '#1F2D27',
-  textMid: '#4A5752',
-  muted: '#8A968F',
-  border: '#E8E4DA',
-  borderSoft: '#F0EDE4',
+  surfaceAlt: '#F1F5F4',
+  text: '#10282A',
+  textMid: '#2C4749',
+  muted: '#4A6466',
+  border: '#D5DEDD',
+  borderSoft: '#E6ECEB',
+  primary: '#0D7A7C',
+  primaryDeep: '#075B5D',
+  coral: '#FF8A65',
+  amber: '#FFB020',
+  blue: '#3B8FBF',
+  lilac: '#8B7BD4',
+  cyan: '#1BA6A0',
 } as const
 
 export const shadow = {
-  sm: '0 1px 2px rgba(31,45,39,0.04)',
-  md: '0 4px 16px -4px rgba(31,45,39,0.06)',
-  lg: '0 16px 48px -16px rgba(79,178,134,0.18), 0 4px 12px -2px rgba(31,45,39,0.04)',
-  glow: '0 0 0 4px rgba(79,178,134,0.12)',
+  sm: '0 1px 2px rgba(16,40,42,0.05)',
+  md: '0 10px 30px -22px rgba(16,40,42,0.38)',
+  lg: '0 22px 44px -26px rgba(16,40,42,0.42)',
+  glow: '0 0 0 4px rgba(13,122,124,0.16)',
 } as const
 
 export type SproutAccent =

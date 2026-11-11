@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { App as AntdApp, Button, Tag } from 'antd'
+import { uiText } from '../i18n/uiText'
 
 import { SP, SproutCard } from './sprout'
 import { libraryApi, libraryTypeInfo, type LibraryItem } from '../api/learningApi'
@@ -17,7 +18,7 @@ export default function LibraryCard({ item, actions }: { item: LibraryItem; acti
     try {
       await openFileLink(() => libraryApi.fileLink(item.id))
     } catch (e) {
-      message.error((e as any)?.response?.data?.message || 'Не удалось открыть файл')
+      message.error((e as any)?.response?.data?.message || uiText('Не удалось открыть файл'))
     } finally {
       setOpening(false)
     }
@@ -37,7 +38,7 @@ export default function LibraryCard({ item, actions }: { item: LibraryItem; acti
                 {item.subject.name}
               </Tag>
             )}
-            {item.gradeNumber && <Tag style={{ margin: 0 }}>{item.gradeNumber} класс</Tag>}
+            {item.gradeNumber && <Tag style={{ margin: 0 }}>{item.gradeNumber} {" " + uiText("класс")}</Tag>}
           </div>
           <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>{item.title}</div>
           {item.description && (
@@ -55,15 +56,15 @@ export default function LibraryCard({ item, actions }: { item: LibraryItem; acti
               {item.description}
             </div>
           )}
-          {item.author && <div style={{ fontSize: 11, color: SP.muted, marginTop: 6 }}>Добавил(а): {item.author.fullName}</div>}
+          {item.author && <div style={{ fontSize: 11, color: SP.muted, marginTop: 6 }}>{uiText("Добавил(а):") + " "}{item.author.fullName}</div>}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
             {item.file ? (
               <Button type="primary" size="small" loading={opening} onClick={openFile}>
-                Открыть
+                {uiText("Открыть")}
               </Button>
             ) : (
               <Button type="primary" size="small" href={item.url ?? undefined} target="_blank" rel="noopener noreferrer">
-                Открыть
+                {uiText("Открыть")}
               </Button>
             )}
             {item.file && (

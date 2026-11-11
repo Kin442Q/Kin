@@ -2,21 +2,23 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { ConfigProvider, App as AntdApp } from 'antd'
-import ruRU from 'antd/locale/ru_RU'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import 'dayjs/locale/ru'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
 dayjs.extend(relativeTime)
 
 import App from './App'
 import ErrorBoundary from './components/ErrorBoundary'
+import AppBackdrop from './components/layout/AppBackdrop'
 import './index.css'
+import { antdLocale } from './i18n/antdLocale'
+import { useLangStore } from './i18n'
 import { useThemeStore } from './store/themeStore'
 import { buildAntdTheme } from './theme/antdTheme'
 
-dayjs.locale('ru')
+// Язык дат (dayjs) и атрибут lang у <html> ставит хранилище языка при загрузке и при смене.
+dayjs.locale(useLangStore.getState().lang)
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,18 +28,17 @@ const queryClient = new QueryClient({
 
 function Root() {
   const mode = useThemeStore((s) => s.mode)
-  const design = useThemeStore((s) => s.design)
+  const lang = useLangStore((s) => s.lang)
 
-  // Применяем атрибуты data-theme (светлая/тёмная) и data-design
-  // (classic/premium) на html. Делаем сразу при инициализации.
+  // Применяем data-theme (светлая «закат» / тёмная «ночь») на html.
   React.useEffect(() => {
     document.documentElement.setAttribute('data-theme', mode)
-    document.documentElement.setAttribute('data-design', design)
-  }, [mode, design])
+  }, [mode])
 
   return (
-    <ConfigProvider locale={ruRU} theme={buildAntdTheme(mode, design)}>
+    <ConfigProvider locale={antdLocale(lang)} theme={buildAntdTheme(mode)}>
       <AntdApp>
+        <AppBackdrop />
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
             <BrowserRouter basename={import.meta.env.BASE_URL}>

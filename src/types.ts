@@ -44,6 +44,8 @@ export interface User {
   studentId?: string
   /** Классы, где пользователь — классный руководитель (приходит с /auth/me). */
   homeroomGroups?: Array<{ id: string; name: string }>
+  /** true — вошли по временному паролю от админа: пароль нужно сменить сразу (приходит с /auth/me). */
+  mustChangePassword?: boolean
   /** Заполняется в ответе /auth/me — тип учреждения для лейблов UI. */
   institution?: Institution | null
   /**

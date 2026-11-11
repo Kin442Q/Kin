@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useState } from 'react'
 import {
   Alert,
@@ -5,14 +6,11 @@ import {
   Avatar,
   Button,
   Card,
-  Col,
   Drawer,
   Form,
   Grid,
   Input,
-  Modal,
   Popconfirm,
-  Row,
   Space,
   Table,
   Tag,
@@ -28,12 +26,9 @@ import {
   EditOutlined,
   DeleteOutlined,
   MailOutlined,
-  LockOutlined,
   PhoneOutlined,
   EnvironmentOutlined,
-  KeyOutlined,
-  ReloadOutlined,
-  CopyOutlined,
+  SendOutlined,
 } from '@ant-design/icons'
 import { motion } from 'framer-motion'
 
@@ -41,9 +36,18 @@ import { School } from 'lucide-react'
 import { SproutPageHeader } from '../components/sprout'
 import { http } from '../api'
 import FeaturesModal from '../components/FeaturesModal'
+import AccessResultModal from '../components/AccessResultModal'
+import AlertsCheckButton from '../components/AlertsCheckButton'
+import type { AccessGrant } from '../api/accessApi'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
+
+/** Ответ POST /v1/kindergartens: директору всегда уходит приглашение со ссылкой, пароля нет. */
+interface CreateSchoolResponse {
+  kindergarten: { id: string }
+  invite: AccessGrant
+}
 
 interface KindergartenApi {
   id: string
@@ -60,6 +64,10 @@ interface KindergartenApi {
   }
 }
 
+/** Приглашение директору школы ещё раз (или ссылка для смены пароля, если он уже входил). */
+const resendOwnerInvite = (kindergartenId: string) =>
+  http.post<AccessGrant>(`/v1/kindergartens/${kindergartenId}/resend-invite`).then((r) => r.data)
+
 export default function SchoolsPage() {
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
@@ -72,13 +80,8 @@ export default function SchoolsPage() {
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
 
-  // Модалка с учётными данными после создания
-  const [credentialsModal, setCredentialsModal] = useState<{
-    kindergartenName: string
-    ownerName: string
-    email: string
-    password: string
-  } | null>(null)
+  // Итог приглашения директору: письмо ушло или не ушло (тогда можно отправить ещё раз)
+  const [access, setAccess] = useState<{ grant: AccessGrant; kindergartenId: string } | null>(null)
 
   // Школа, чьи разделы редактируются в модалке
   const [featuresFor, setFeaturesFor] = useState<KindergartenApi | null>(null)
@@ -92,7 +95,7 @@ export default function SchoolsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось загрузить школы'
+        uiText("Не удалось загрузить школы")
       message.error(msg)
     } finally {
       setLoading(false)
@@ -102,16 +105,6 @@ export default function SchoolsPage() {
   useEffect(() => {
     load()
   }, [])
-
-  const generatePassword = () => {
-    const chars =
-      'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
-    let pwd = ''
-    for (let i = 0; i < 10; i++) {
-      pwd += chars[Math.floor(Math.random() * chars.length)]
-    }
-    form.setFieldsValue({ ownerPassword: pwd })
-  }
 
   const openCreate = () => {
     setEditing(null)
@@ -141,25 +134,21 @@ export default function SchoolsPage() {
           address: v.address || undefined,
           phone: v.phone || undefined,
         })
-        message.success('Школа обновлена')
+        message.success(uiText("Школа обновлена"))
       } else {
-        await http.post('/v1/kindergartens', {
+        const ownerEmail = v.ownerEmail.trim().toLowerCase()
+        const res = await http.post<CreateSchoolResponse>('/v1/kindergartens', {
           name: v.name,
           address: v.address || undefined,
           phone: v.phone || undefined,
-          owner: {
-            fullName: v.ownerFullName,
-            email: v.ownerEmail.trim().toLowerCase(),
-            password: v.ownerPassword,
-          },
+          // Пароль не задаётся: директору уйдёт письмо со ссылкой, и он придумает его сам.
+          owner: { fullName: v.ownerFullName, email: ownerEmail },
         })
-        setCredentialsModal({
-          kindergartenName: v.name,
-          ownerName: v.ownerFullName,
-          email: v.ownerEmail.trim().toLowerCase(),
-          password: v.ownerPassword,
-        })
-        message.success('Школа создана')
+        const created = res.data
+        if (created?.invite && created.kindergarten?.id) {
+          setAccess({ grant: created.invite, kindergartenId: created.kindergarten.id })
+        }
+        message.success(uiText("Школа создана"))
       }
 
       setDrawerOpen(false)
@@ -169,23 +158,32 @@ export default function SchoolsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось сохранить'
+        uiText("Не удалось сохранить")
       message.error(msg)
     } finally {
       setSubmitting(false)
     }
   }
 
+  const resendInvite = async (k: KindergartenApi) => {
+    try {
+      const grant = await resendOwnerInvite(k.id)
+      setAccess({ grant, kindergartenId: k.id })
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || uiText("Не удалось отправить письмо"))
+    }
+  }
+
   const remove = async (k: KindergartenApi) => {
     try {
       await http.delete(`/v1/kindergartens/${k.id}`)
-      message.success(`«${k.name}» удалено`)
+      message.success(uiText("«{0}» удалено", k.name))
       await load()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        'Не удалось удалить'
+        uiText("Не удалось удалить")
       message.error(msg)
     }
   }
@@ -193,22 +191,25 @@ export default function SchoolsPage() {
   return (
     <div>
       <SproutPageHeader
-        title="Школы"
+        title={uiText("Школы")}
         icon={<School size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Управление всеми школами платформы. Каждая школа изолирована: свои классы, ученики и данные."
+        description={uiText("Управление всеми школами платформы. Каждая школа изолирована: свои классы, ученики и данные.")}
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-            {isMobile ? 'Новая' : 'Новая школа'}
-          </Button>
+          <Space wrap>
+            <AlertsCheckButton />
+            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+              {isMobile ? uiText("Новая") : uiText("Новая школа")}
+            </Button>
+          </Space>
         }
       />
 
       <Alert
         type="info"
         showIcon
-        message="Вы — владелец платформы"
-        description="Создавайте школы и назначайте им директоров. Разделами каждой школы (кнопка «Разделы» в строке) вы управляете сами."
+        message={uiText("Вы — владелец платформы")}
+        description={uiText("Создавайте школы и назначайте им директоров. Разделами каждой школы (кнопка «Разделы» в строке) вы управляете сами.")}
         style={{ marginBottom: 16 }}
       />
 
@@ -226,13 +227,13 @@ export default function SchoolsPage() {
             scroll={{ x: 700 }}
             columns={[
               {
-                title: 'Название',
+                title: uiText("Название"),
                 key: 'name',
                 render: (_, k) => (
                   <Space>
                     <Avatar
                       icon={<BankOutlined />}
-                      style={{ background: 'linear-gradient(135deg,#0EA5E9,#6366f1)' }}
+                      style={{ background: 'linear-gradient(135deg,#3B8FBF,#3B8FBF)' }}
                     />
                     <div>
                       <div style={{ fontWeight: 600 }}>
@@ -246,7 +247,7 @@ export default function SchoolsPage() {
                 ),
               },
               {
-                title: 'Адрес',
+                title: uiText("Адрес"),
                 key: 'address',
                 render: (_, k) =>
                   k.address ? (
@@ -258,7 +259,7 @@ export default function SchoolsPage() {
                   ),
               },
               {
-                title: 'Телефон',
+                title: uiText("Телефон"),
                 key: 'phone',
                 render: (_, k) =>
                   k.phone ? (
@@ -270,7 +271,7 @@ export default function SchoolsPage() {
                   ),
               },
               {
-                title: 'Статистика',
+                title: uiText("Статистика"),
                 key: 'stats',
                 render: (_, k) => (
                   <Space wrap size={4}>
@@ -287,13 +288,13 @@ export default function SchoolsPage() {
                 ),
               },
               {
-                title: 'Статус',
+                title: uiText("Статус"),
                 dataIndex: 'isActive',
                 render: (active: boolean) =>
                   active ? (
-                    <Tag color="green">Активен</Tag>
+                    <Tag color="green">{uiText("Активен")}</Tag>
                   ) : (
-                    <Tag color="red">Отключён</Tag>
+                    <Tag color="red">{uiText("Отключён")}</Tag>
                   ),
               },
               {
@@ -301,7 +302,7 @@ export default function SchoolsPage() {
                 key: 'actions',
                 render: (_, k) => (
                   <Space>
-                    <Tooltip title="Разделы">
+                    <Tooltip title={uiText("Разделы")}>
                       <Button
                         size="small"
                         type="text"
@@ -309,7 +310,23 @@ export default function SchoolsPage() {
                         onClick={() => setFeaturesFor(k)}
                       />
                     </Tooltip>
-                    <Tooltip title="Редактировать">
+                    <Popconfirm
+                      title={uiText("Отправить директору ссылку?")}
+                      description={uiText("Директору уйдёт письмо со ссылкой: он сам задаст пароль. Вам пароль не показывается.")}
+                      okText={uiText("Отправить")}
+                      cancelText={uiText("Отмена")}
+                      onConfirm={() => resendInvite(k)}
+                    >
+                      <Tooltip title={uiText("Отправить директору ссылку для пароля")}>
+                        <Button
+                          size="small"
+                          type="text"
+                          icon={<SendOutlined />}
+                          aria-label={uiText("Отправить директору ссылку для пароля")}
+                        />
+                      </Tooltip>
+                    </Popconfirm>
+                    <Tooltip title={uiText("Редактировать")}>
                       <Button
                         size="small"
                         type="text"
@@ -318,11 +335,11 @@ export default function SchoolsPage() {
                       />
                     </Tooltip>
                     <Popconfirm
-                      title={`Удалить «${k.name}»?`}
-                      description="Все данные школы (классы, ученики, оценки, домашние задания, платежи) удалятся безвозвратно!"
-                      okText="Удалить"
+                      title={uiText("Удалить «{0}»?", k.name)}
+                      description={uiText("Все данные школы (классы, ученики, оценки, домашние задания, платежи) удалятся безвозвратно!")}
+                      okText={uiText("Удалить")}
                       okButtonProps={{ danger: true }}
-                      cancelText="Отмена"
+                      cancelText={uiText("Отмена")}
                       onConfirm={() => remove(k)}
                     >
                       <Button
@@ -341,254 +358,83 @@ export default function SchoolsPage() {
       </motion.div>
 
       <Drawer
-        title={editing ? 'Редактировать школу' : 'Новая школа'}
+        title={editing ? uiText("Редактировать школу") : uiText("Новая школа")}
         width={isMobile ? '100%' : 480}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         destroyOnClose
         extra={
           <Space>
-            <Button onClick={() => setDrawerOpen(false)}>Отмена</Button>
+            <Button onClick={() => setDrawerOpen(false)}>{uiText("Отмена")}</Button>
             <Button type="primary" loading={submitting} onClick={submit}>
-              {editing ? 'Сохранить' : 'Создать'}
+              {editing ? uiText("Сохранить") : uiText("Создать")}
             </Button>
           </Space>
         }
       >
         <Form layout="vertical" form={form}>
-          <Typography.Title level={5}>📍 Информация о школе</Typography.Title>
+          <Typography.Title level={5}>{uiText("📍 Информация о школе")}</Typography.Title>
 
           <Form.Item
             name="name"
-            label="Название"
-            rules={[{ required: true, message: 'Введите название' }]}
+            label={uiText("Название")}
+            rules={[{ required: true, message: uiText("Введите название") }]}
           >
             <Input
-              placeholder="Например, Школа №42"
+              placeholder={uiText("Например, Школа №42")}
             />
           </Form.Item>
 
-          <Form.Item name="address" label="Адрес">
-            <Input prefix={<EnvironmentOutlined />} placeholder="Город, улица" />
+          <Form.Item name="address" label={uiText("Адрес")}>
+            <Input prefix={<EnvironmentOutlined />} placeholder={uiText("Город, улица")} />
           </Form.Item>
 
-          <Form.Item name="phone" label="Телефон">
+          <Form.Item name="phone" label={uiText("Телефон")}>
             <Input prefix={<PhoneOutlined />} placeholder="+992 …" />
           </Form.Item>
 
           {!editing && (
             <>
               <Typography.Title level={5} style={{ marginTop: 24 }}>
-                👤 Первый администратор
-              </Typography.Title>
+                {" " + uiText("👤 Первый администратор") + " "}</Typography.Title>
 
               <Alert
                 type="info"
                 showIcon
-                message="Это будет директор школы"
-                description="Передайте ему email и пароль — он сможет управлять своей школой."
+                message={uiText("Это будет директор школы")}
+                description={uiText("Ему придёт письмо со ссылкой на 48 часов: по ней он сам придумает пароль и войдёт. Пароль вы не задаёте, не видите и не передаёте.")}
                 style={{ marginBottom: 12 }}
               />
 
               <Form.Item
                 name="ownerFullName"
-                label="ФИО владельца"
-                rules={[{ required: true, message: 'Введите ФИО' }]}
+                label={uiText("ФИО владельца")}
+                rules={[{ required: true, message: uiText("Введите ФИО") }]}
               >
-                <Input placeholder="Например, Шерамардов Кутбиддин" />
+                <Input placeholder={uiText("Например, Шерамардов Кутбиддин")} />
               </Form.Item>
 
               <Form.Item
                 name="ownerEmail"
                 label="Email"
                 rules={[
-                  { required: true, message: 'Введите email' },
-                  { type: 'email', message: 'Некорректный email' },
+                  { required: true, message: uiText("Введите email") },
+                  { type: 'email', message: uiText("Некорректный email") },
                 ]}
               >
                 <Input prefix={<MailOutlined />} placeholder="owner@example.com" />
               </Form.Item>
 
-              <Form.Item
-                name="ownerPassword"
-                label="Пароль"
-                rules={[
-                  { required: true, message: 'Введите пароль' },
-                  { min: 6, message: 'Минимум 6 символов' },
-                ]}
-                extra={
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    💡 Сгенерируйте пароль или придумайте свой. Будет показан один раз.
-                  </Text>
-                }
-              >
-                <Input.Password
-                  prefix={<LockOutlined />}
-                  placeholder="••••••••"
-                  addonAfter={
-                    <Tooltip title="Сгенерировать">
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={generatePassword}
-                        style={{
-                          border: 'none',
-                          height: 'auto',
-                          padding: '0 4px',
-                        }}
-                      >
-                        Создать
-                      </Button>
-                    </Tooltip>
-                  }
-                />
-              </Form.Item>
             </>
           )}
         </Form>
       </Drawer>
 
-      <Modal
-        title={
-          <Space>
-            <KeyOutlined style={{ color: '#10b981' }} />
-            <span>Учётные данные директора школы</span>
-          </Space>
-        }
-        open={!!credentialsModal}
-        onCancel={() => setCredentialsModal(null)}
-        footer={[
-          <Button
-            key="copy"
-            icon={<CopyOutlined />}
-            onClick={() => {
-              if (!credentialsModal) return
-              const text =
-                `Maktab — Доступ к школе "${credentialsModal.kindergartenName}"\n\n` +
-                `👤 ${credentialsModal.ownerName}\n` +
-                `📧 Email: ${credentialsModal.email}\n` +
-                `🔑 Пароль: ${credentialsModal.password}\n\n` +
-                `На странице входа выберите вкладку "Администратор".`
-              navigator.clipboard.writeText(text)
-              message.success('Скопировано')
-            }}
-          >
-            Скопировать всё
-          </Button>,
-          <Button
-            key="close"
-            type="primary"
-            onClick={() => setCredentialsModal(null)}
-          >
-            Готово
-          </Button>,
-        ]}
-        width={isMobile ? '100%' : 500}
-      >
-        {credentialsModal && (
-          <div>
-            <Alert
-              type="warning"
-              showIcon
-              message="Сохраните пароль сейчас!"
-              description="После закрытия окна пароль увидеть нельзя — только сбросить."
-              style={{ marginBottom: 16 }}
-            />
-
-            <div
-              style={{
-                background: 'rgba(99,102,241,0.05)',
-                border: '1px solid rgba(99,102,241,0.2)',
-                borderRadius: 12,
-                padding: 16,
-              }}
-            >
-              <Row gutter={[8, 12]}>
-                <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <BankOutlined /> Школа
-                  </Text>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>
-                    {credentialsModal.kindergartenName}
-                  </div>
-                </Col>
-
-                <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <UserOutlined /> Владелец
-                  </Text>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>
-                    {credentialsModal.ownerName}
-                  </div>
-                </Col>
-
-                <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <MailOutlined /> Email (логин)
-                  </Text>
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      background: '#fff',
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      border: '1px solid #e2e8f0',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span>{credentialsModal.email}</span>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<CopyOutlined />}
-                      onClick={() => {
-                        navigator.clipboard.writeText(credentialsModal.email)
-                        message.success('Скопировано')
-                      }}
-                    />
-                  </div>
-                </Col>
-
-                <Col span={24}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>
-                    <LockOutlined /> Пароль
-                  </Text>
-                  <div
-                    style={{
-                      fontFamily: 'monospace',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      background: '#fff',
-                      padding: '6px 10px',
-                      borderRadius: 8,
-                      border: '1px solid #e2e8f0',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <span>{credentialsModal.password}</span>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<CopyOutlined />}
-                      onClick={() => {
-                        navigator.clipboard.writeText(credentialsModal.password)
-                        message.success('Скопировано')
-                      }}
-                    />
-                  </div>
-                </Col>
-              </Row>
-            </div>
-          </div>
-        )}
-      </Modal>
+      <AccessResultModal
+        grant={access?.grant ?? null}
+        onRetry={access ? () => resendOwnerInvite(access.kindergartenId) : undefined}
+        onClose={() => setAccess(null)}
+      />
 
       <FeaturesModal school={featuresFor} onClose={() => setFeaturesFor(null)} />
     </div>

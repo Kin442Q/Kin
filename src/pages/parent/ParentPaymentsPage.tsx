@@ -1,3 +1,4 @@
+import { localizeCopy, uiLanguage, uiText } from '../../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   App as AntdApp,
@@ -26,18 +27,18 @@ import {
 
 const { Text } = Typography
 
-const MONTH_RU = [
+const MONTH_RU = localizeCopy([
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
-]
+])
 function monthLabel(m: string) {
   const [y, mo] = m.split('-').map(Number)
   return `${MONTH_RU[mo - 1]} ${y}`
 }
 function methodLabel(m: string | null) {
-  if (m === 'CASH') return 'Наличные'
-  if (m === 'CARD') return 'Карта'
-  if (m === 'TRANSFER') return 'Перевод'
+  if (m === 'CASH') return uiText("Наличные")
+  if (m === 'CARD') return uiText("Карта")
+  if (m === 'TRANSFER') return uiText("Перевод")
   return ''
 }
 
@@ -57,7 +58,7 @@ export default function ParentPaymentsPage() {
         else setLoading(false)
       })
       .catch((e) => {
-        message.error(e?.response?.data?.message || 'Ошибка')
+        message.error(e?.response?.data?.message || uiText("Ошибка"))
         setLoading(false)
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,7 +71,7 @@ export default function ParentPaymentsPage() {
       .payments(activeKidId)
       .then(setPayments)
       .catch((e) =>
-        message.error(e?.response?.data?.message || 'Ошибка'),
+        message.error(e?.response?.data?.message || uiText("Ошибка")),
       )
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -90,15 +91,15 @@ export default function ParentPaymentsPage() {
       }
     }
     return { paid, due, paidCount, dueCount: payments.length - paidCount }
-  }, [payments])
+  }, [payments, uiLanguage()])
 
   return (
     <div>
       <SproutPageHeader
-        title="Оплата"
+        title={uiText("Оплата")}
         icon={<Wallet size={22} strokeWidth={2} />}
         iconAccent="rose"
-        description="История платежей и текущий долг"
+        description={uiText("История платежей и текущий долг")}
       />
 
       <KidSwitcher kids={kids} value={activeKidId} onChange={setActiveKidId} />
@@ -112,7 +113,7 @@ export default function ParentPaymentsPage() {
           >
             <Space>
               <CheckCircleOutlined style={{ color: SP.primaryDeep, fontSize: 18 }} />
-              <Text style={{ color: SP.primaryDeep, fontWeight: 700 }}>Оплачено</Text>
+              <Text style={{ color: SP.primaryDeep, fontWeight: 700 }}>{uiText("Оплачено")}</Text>
             </Space>
             <div
               style={{
@@ -122,12 +123,11 @@ export default function ParentPaymentsPage() {
                 marginTop: 6,
               }}
             >
-              {Math.round(totals.paid).toLocaleString('ru-RU')}{' '}
-              <span style={{ fontSize: 14, opacity: 0.6 }}>с</span>
+              {Math.round(totals.paid).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')}{' '}
+              <span style={{ fontSize: 14, opacity: 0.6 }}>{uiText("сомони")}</span>
             </div>
             <Text style={{ color: SP.primaryDeep, fontSize: 12 }}>
-              {totals.paidCount} платежей
-            </Text>
+              {totals.paidCount} {" " + uiText("платежей") + " "}</Text>
           </Card>
         </Col>
         <Col xs={12}>
@@ -136,7 +136,7 @@ export default function ParentPaymentsPage() {
             bordered={false}
             bodyStyle={{
               padding: 16,
-              background: totals.due > 0 ? '#FCEAE5' : SP.surface,
+              background: totals.due > 0 ? 'var(--sp-rose-soft)' : SP.surface,
             }}
           >
             <Space>
@@ -152,8 +152,7 @@ export default function ParentPaymentsPage() {
                   fontWeight: 700,
                 }}
               >
-                К оплате
-              </Text>
+                {" " + uiText("К оплате") + " "}</Text>
             </Space>
             <div
               style={{
@@ -163,8 +162,8 @@ export default function ParentPaymentsPage() {
                 marginTop: 6,
               }}
             >
-              {Math.round(totals.due).toLocaleString('ru-RU')}{' '}
-              <span style={{ fontSize: 14, opacity: 0.6 }}>с</span>
+              {Math.round(totals.due).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')}{' '}
+              <span style={{ fontSize: 14, opacity: 0.6 }}>{uiText("сомони")}</span>
             </div>
             <Text
               style={{
@@ -172,8 +171,7 @@ export default function ParentPaymentsPage() {
                 fontSize: 12,
               }}
             >
-              {totals.dueCount} не оплачено
-            </Text>
+              {totals.dueCount} {" " + uiText("не оплачено") + " "}</Text>
           </Card>
         </Col>
       </Row>
@@ -184,7 +182,7 @@ export default function ParentPaymentsPage() {
         </Card>
       ) : payments.length === 0 ? (
         <Card className="glass" bordered={false}>
-          <Empty description="Платежей пока нет" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={uiText("Платежей пока нет")} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </Card>
       ) : (
         <motion.div
@@ -192,7 +190,7 @@ export default function ParentPaymentsPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
         >
-          <Card className="glass" bordered={false} title="История платежей">
+          <Card className="glass" bordered={false} title={uiText("История платежей")}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {payments.map((p) => (
                 <div
@@ -209,7 +207,7 @@ export default function ParentPaymentsPage() {
                 >
                   <Avatar
                     style={{
-                      background: p.paid ? SP.primarySoft : '#FCEAE5',
+                      background: p.paid ? SP.primarySoft : 'var(--sp-rose-soft)',
                       color: p.paid ? SP.primaryDeep : SP.danger,
                     }}
                     icon={<Wallet size={18} />}
@@ -220,12 +218,10 @@ export default function ParentPaymentsPage() {
                     </div>
                     <Text type="secondary" style={{ fontSize: 12 }}>
                       {p.paid
-                        ? `Оплачено${
-                            p.paidAt
+                        ? uiText("Оплачено{0}", p.paidAt
                               ? ' · ' + dayjs(p.paidAt).format('D MMM YYYY')
-                              : ''
-                          }`
-                        : 'Не оплачено'}
+                              : '')
+                        : uiText("Не оплачено")}
                       {p.method && ` · ${methodLabel(p.method)}`}
                     </Text>
                     {p.comment && (
@@ -248,9 +244,8 @@ export default function ParentPaymentsPage() {
                       color: p.paid ? SP.text : SP.danger,
                     }}
                   >
-                    {Math.round(Number(p.amount)).toLocaleString('ru-RU')} с
-                  </div>
-                  {!p.paid && <Tag color="red">долг</Tag>}
+                    {Math.round(Number(p.amount)).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')} {" " + uiText("сомони") + " "}</div>
+                  {!p.paid && <Tag color="red">{uiText("долг")}</Tag>}
                 </div>
               ))}
             </div>

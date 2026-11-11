@@ -1,63 +1,40 @@
-import { SP } from './tokens'
+import { uiText } from '../../i18n/uiText'
+import { useLangStore } from '../../i18n'
+import { useThemeStore } from '../../store/themeStore'
+
+interface MarkProps {
+  width?: number
+  animated?: boolean
+  page2?: string
+}
+
+/** Supplied book symbol, shared by compact navigation and the favicon. */
+export function BrandMark({ width = 44 }: MarkProps) {
+  return <img src={import.meta.env.BASE_URL + 'brand/icon.svg'} alt="" aria-hidden="true"
+    width={width} height={width * 153.81 / 160.32}
+    style={{ flexShrink: 0, display: 'block', objectFit: 'contain' }} />
+}
 
 interface Props {
   size?: number
   showSubtitle?: boolean
+  animated?: boolean
 }
 
-/**
- * Логотип «Maktab · school OS» с зелёным градиентным значком-листом.
- */
+const brands = {
+  ru: { get name() { return uiText("Моя школа") }, width: 265.64 },
+  en: { name: 'My School', width: 250.05 },
+  tg: { get name() { return uiText("Мактаби ман") }, width: 313.43 },
+}
+
+/** Original vector wordmark selected by the current interface language. */
 export default function SproutLogo({ size = 18, showSubtitle = true }: Props) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-      <div
-        style={{
-          width: size * 1.6,
-          height: size * 1.6,
-          borderRadius: 12,
-          background: `linear-gradient(135deg, ${SP.primary}, ${SP.primaryDeep})`,
-          display: 'grid',
-          placeItems: 'center',
-          boxShadow: '0 4px 12px -2px rgba(79,178,134,0.4)',
-          flexShrink: 0,
-        }}
-      >
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-          <path
-            d="M12 21V11M12 11C12 7 9 4 6 4C6 8 9 11 12 11ZM12 11C12 7 15 4 18 4C18 8 15 11 12 11Z"
-            stroke="white"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </div>
-      {showSubtitle && (
-        <div>
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: size,
-              letterSpacing: '-0.02em',
-              color: SP.text,
-              lineHeight: 1,
-            }}
-          >
-            Maktab
-          </div>
-          <div
-            style={{
-              fontSize: 9.5,
-              color: SP.muted,
-              fontWeight: 500,
-              marginTop: 2,
-            }}
-          >
-            school OS
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  const lang = useLangStore((s) => s.lang)
+  const mode = useThemeStore((s) => s.mode)
+  const brand = brands[lang]
+  if (!showSubtitle) return <BrandMark width={Math.round(size * 2.3)} />
+  const height = Math.round(size * 2.4)
+  return <img className="brand-logo" src={import.meta.env.BASE_URL + 'brand/logo-' + lang + (mode === 'dark' ? '-dark' : '') + '.svg'}
+    alt={brand.name} width={height * brand.width / 62.89} height={height}
+    style={{ display: 'block', maxWidth: '100%', height: 'auto', flexShrink: 1 }} />
 }

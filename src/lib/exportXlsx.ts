@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import * as XLSX from 'xlsx'
 
 /**
@@ -7,7 +8,7 @@ import * as XLSX from 'xlsx'
 export function exportRows(
   filename: string,
   rows: Array<Record<string, string | number>>,
-  sheetName = 'Лист1',
+  sheetName = uiText("Лист1"),
 ): void {
   const ws = XLSX.utils.json_to_sheet(rows)
   const wb = XLSX.utils.book_new()

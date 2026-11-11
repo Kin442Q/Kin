@@ -1,15 +1,14 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native'
+import { Text, TextInput } from '../components/Text'
+import { useRoute } from '@react-navigation/native'
 import { ExternalLink, Library, Paperclip } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
@@ -26,8 +25,15 @@ import {
   type LibraryType,
 } from '../api/learning'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
+
 /** Библиотека школы: поиск и фильтр по типу, ссылка открывается в браузере. */
 export default function StudentLibraryScreen() {
+  // С вкладки «Учёба»: «Библиотека» — книги (для класса ученика), «Материалы» — всё остальное: статьи, видео, аудио, ссылки
+  const route = useRoute<any>()
+  const kind: 'books' | 'materials' | undefined = route.params?.kind
+  const grade: number | undefined = route.params?.grade
   const [items, setItems] = useState<LibraryItem[]>([])
   const [type, setType] = useState<LibraryType | null>(null)
   const [query, setQuery] = useState('')
@@ -38,17 +44,17 @@ export default function StudentLibraryScreen() {
     try {
       setItems(
         await libraryApi.list({
-          type: type ?? undefined,
+          type: kind === 'books' ? 'BOOK' : (type ?? undefined),
           q: query.trim() || undefined,
         }),
       )
     } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить библиотеку')
+      notifyError(e, uiText("Не удалось загрузить библиотеку"))
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [type, query])
+  }, [type, query, kind])
 
   // Поиск с небольшой задержкой, чтобы не слать запрос на каждую букву.
   useEffect(() => {
@@ -58,19 +64,22 @@ export default function StudentLibraryScreen() {
 
   return (
     <Screen>
-      <StackHeader title="Библиотека" />
+      <StackHeader title={kind === 'materials' ? uiText("Материалы") : uiText("Библиотека")} />
 
       <View style={styles.tools}>
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Поиск по названию"
+          placeholder={uiText("Поиск по названию")}
           placeholderTextColor={colors.muted}
           style={styles.search}
           returnKeyType="search"
         />
         <View style={styles.chips}>
-          {[{ value: null, label: 'Все', emoji: '' }, ...LIBRARY_TYPES].map((t) => {
+          {(kind === 'books'
+            ? []
+            : [{ value: null, label: uiText("Все"), emoji: '' }, ...LIBRARY_TYPES.filter((t) => kind !== 'materials' || t.value !== 'BOOK')]
+          ).map((t) => {
             const on = t.value === type
             return (
               <Pressable
@@ -94,7 +103,11 @@ export default function StudentLibraryScreen() {
         </View>
       ) : (
         <FlatList
-          data={items}
+          data={items.filter(
+            (i) =>
+              (kind !== 'materials' || i.type !== 'BOOK') &&
+              (kind !== 'books' || grade == null || i.gradeNumber == null || i.gradeNumber === grade),
+          )}
           keyExtractor={(i) => i.id}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: 8 }} />}
@@ -111,8 +124,8 @@ export default function StudentLibraryScreen() {
           ListEmptyComponent={
             <EmptyState
               icon={<Library size={34} color={colors.muted} />}
-              title="Ничего не найдено"
-              hint="Учителя пока ничего не добавили или фильтр слишком узкий"
+              title={uiText("Ничего не найдено")}
+              hint={uiText("Учителя пока ничего не добавили или фильтр слишком узкий")}
             />
           }
           renderItem={({ item }) => {
@@ -139,7 +152,7 @@ export default function StudentLibraryScreen() {
                     <Text style={styles.meta}>
                       {info.label}
                       {item.subject ? ` · ${item.subject.name}` : ''}
-                      {item.gradeNumber ? ` · ${item.gradeNumber} класс` : ''}
+                      {item.gradeNumber ? uiText("· {0} класс", item.gradeNumber) : ''}
                       {item.file ? ` · ${formatSize(item.file.size)}` : ''}
                     </Text>
                   </View>
@@ -154,7 +167,7 @@ export default function StudentLibraryScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   tools: { paddingHorizontal: 16, gap: 10 },
   search: {
@@ -162,7 +175,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     paddingHorizontal: 14,
     fontSize: 14,
     color: colors.text,
@@ -176,4 +189,4 @@ const styles = StyleSheet.create({
   itemTitle: { fontSize: 15, fontWeight: '800', color: colors.text },
   desc: { fontSize: 13, color: colors.textMid, marginTop: 3, lineHeight: 18 },
   meta: { fontSize: 12, color: colors.muted, marginTop: 4 },
-})
+}))

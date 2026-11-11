@@ -72,7 +72,6 @@ npm run start:dev      # nest watch
 - `POST /auth/login` → `{ user, accessToken }` + cookie `refreshToken`
 - `POST /auth/refresh` → новая пара (по refresh-cookie)
 - `POST /auth/logout` → инвалидирует пару
-- `POST /auth/register` (только SUPER_ADMIN)
 
 **RBAC:** access-token несёт `role` и `groupId`. На бэке:
 - `RolesGuard` сравнивает с `@Roles(...)`

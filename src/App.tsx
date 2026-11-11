@@ -3,6 +3,8 @@ import { AnimatePresence } from "framer-motion";
 
 import AppLayout from "./components/layout/AppLayout";
 import LoginPage from "./pages/LoginPage";
+import SetPasswordPage from "./pages/SetPasswordPage";
+import StudentLinkPage from "./pages/StudentLinkPage";
 import LandingPage from "./pages/LandingPage";
 import RequireAuth from "./components/auth/RequireAuth";
 import RequireRole from "./components/auth/RequireRole";
@@ -18,7 +20,7 @@ import PaymentsPage from "./pages/PaymentsPage";
 import ExpensesPage from "./pages/ExpensesPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import StaffPage from "./pages/StaffPage";
-import TeachersPage from "./pages/TeachersPage";
+import TeacherAccessPage from "./pages/TeacherAccessPage";
 import SchoolsPage from "./pages/SchoolsPage";
 import HomeroomPage from "./pages/HomeroomPage";
 import StudentHomePage from "./pages/student/StudentHomePage";
@@ -41,6 +43,7 @@ import MenuPage from "./pages/MenuPage";
 import SettingsPage from "./pages/SettingsPage";
 import SubjectsPage from "./pages/SubjectsPage";
 import GradesPage from "./pages/GradesPage";
+import DirectorReportPage from "./pages/DirectorReportPage";
 import HomeworkPage from "./pages/HomeworkPage";
 import CheckInAuditPage from "./pages/CheckInAuditPage";
 import TermsPage from "./pages/TermsPage";
@@ -76,6 +79,10 @@ export default function App() {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<LoginPage />} />
+        {/* Ссылка из письма: задать пароль (приглашение / сброс). Публичная. */}
+        <Route path="/set-password" element={<SetPasswordPage />} />
+        {/* Личная ссылка ученика от классного руководителя: вход без логина и пароля. Публичная. */}
+        <Route path="/s/:token" element={<StudentLinkPage />} />
         <Route
           path="/"
           element={user ? <Navigate to={homePath} replace /> : <LandingPage />}
@@ -294,11 +301,13 @@ export default function App() {
                 </RequireRole>
               }
             />
+            {/* Учителей заводят в «Сотрудниках»: приглашение со ссылкой уходит на email. */}
+            <Route path="teachers" element={<Navigate to="/admin/staff" replace />} />
             <Route
-              path="teachers"
+              path="teacher-access"
               element={
                 <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="teachers">
-                  <TeachersPage />
+                  <TeacherAccessPage />
                 </RequireRole>
               }
             />
@@ -397,6 +406,14 @@ export default function App() {
               element={
                 <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="grades">
                   <GradesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="director-report"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin"]} feature="grades">
+                  <DirectorReportPage />
                 </RequireRole>
               }
             />

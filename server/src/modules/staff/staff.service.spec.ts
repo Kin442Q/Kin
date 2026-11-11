@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing'
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common'
@@ -8,6 +9,8 @@ import {
 import { StaffService } from './staff.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
+import { AccessService } from '../access/access.service'
+import { createAccessMock, AccessMock, SECRET_HASH } from '../../test-utils/access-mock'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
 const adminK1: AuthUser = {
@@ -29,13 +32,16 @@ const globalOwner: AuthUser = {
 describe('StaffService', () => {
   let service: StaffService
   let prisma: PrismaMock
+  let access: AccessMock
 
   beforeEach(async () => {
     prisma = createPrismaMock()
+    access = createAccessMock()
     const ref = await Test.createTestingModule({
       providers: [
         StaffService,
         { provide: PrismaService, useValue: prisma },
+        { provide: AccessService, useValue: access },
       ],
     }).compile()
     service = ref.get(StaffService)
@@ -127,6 +133,107 @@ describe('StaffService', () => {
           }),
         }),
       )
+    })
+  })
+
+  describe('create — вход в систему без пароля от админа', () => {
+    const dto = {
+      firstName: 'Иван',
+      lastName: 'Петров',
+      position: 'COOK' as const,
+      phone: '+992901112233',
+      salary: 3500,
+      hireDate: '2026-01-01',
+      canLogin: true,
+    }
+
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue(null)
+      prisma.user.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'u1', fullName: data.fullName, email: data.email }))
+      prisma.staff.create.mockResolvedValue({ id: 's1', firstName: 'Иван', lastName: 'Петров', position: 'COOK' })
+    })
+
+    it('учётка создаётся со случайным хешем, email в нижнем регистре, доступ уходит письмом', async () => {
+      const res = await service.create(adminK1, { ...dto, email: 'Ivan@School.TJ' })
+
+      const data = prisma.user.create.mock.calls[0][0].data
+      expect(data).toMatchObject({ email: 'ivan@school.tj', passwordHash: SECRET_HASH, role: 'TEACHER', kindergartenId: 'k1' })
+      expect(access.deliver).toHaveBeenCalledWith({ id: 'u1', fullName: 'Петров Иван', email: 'ivan@school.tj' })
+      expect(res.access).toEqual({ sent: true, email: 'ivan@school.tj' })
+      expect(prisma.staff.create.mock.calls[0][0].data.userId).toBe('u1')
+    })
+
+    it('без настоящей почты учётка не создаётся: пароль не выдаётся, служебных адресов нет', async () => {
+      await expect(service.create(adminK1, { ...dto, email: undefined })).rejects.toThrow(/Укажите email/)
+      await expect(service.create(adminK1, { ...dto, email: 'не-почта' })).rejects.toThrow(/Укажите email/)
+
+      expect(prisma.user.create).not.toHaveBeenCalled()
+      expect(prisma.staff.create).not.toHaveBeenCalled()
+      expect(access.deliver).not.toHaveBeenCalled()
+    })
+
+    it('email занят → 409, ни сотрудник, ни доступ не создаются', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'someone' })
+
+      await expect(service.create(adminK1, { ...dto, email: 'taken@school.tj' })).rejects.toThrow(ConflictException)
+      expect(prisma.staff.create).not.toHaveBeenCalled()
+      expect(access.deliver).not.toHaveBeenCalled()
+    })
+
+    it('без «может входить в систему»: аккаунта и доступа нет, access: null', async () => {
+      const res = await service.create(adminK1, { ...dto, canLogin: false })
+
+      expect(prisma.user.create).not.toHaveBeenCalled()
+      expect(access.newSecret).not.toHaveBeenCalled()
+      expect(res.access).toBeNull()
+    })
+  })
+
+  describe('update — включение входа в систему', () => {
+    const existing = {
+      id: 's1',
+      kindergartenId: 'k1',
+      firstName: 'Иван',
+      lastName: 'Петров',
+      phone: '+992901112233',
+      email: 'ivan@school.tj',
+      userId: null,
+      groupId: null,
+    }
+
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue(null)
+      prisma.user.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: 'u1', fullName: data.fullName, email: data.email }))
+      prisma.staff.update.mockResolvedValue({ id: 's1' })
+    })
+
+    it('учётка появляется без пароля от админа, письмо уходит на почту сотрудника', async () => {
+      prisma.staff.findUnique.mockResolvedValue(existing)
+
+      const res = await service.update(adminK1, 's1', { canLogin: true })
+
+      expect(prisma.user.create.mock.calls[0][0].data).toMatchObject({ email: 'ivan@school.tj', passwordHash: SECRET_HASH })
+      expect(res.access).toEqual({ sent: true, email: 'ivan@school.tj' })
+    })
+
+    it('обычное редактирование доступа не выдаёт: access: null', async () => {
+      prisma.staff.findUnique.mockResolvedValue({ ...existing, userId: 'u9' })
+      prisma.user.update.mockResolvedValue({})
+
+      const res = await service.update(adminK1, 's1', { phone: '+992900000000' })
+
+      expect(access.deliver).not.toHaveBeenCalled()
+      expect(res.access).toBeNull()
+    })
+
+    it('пароль в запросе на правку игнорируется — менять пароль админ не может', async () => {
+      prisma.staff.findUnique.mockResolvedValue({ ...existing, userId: 'u9' })
+      prisma.user.update.mockResolvedValue({})
+
+      await service.update(adminK1, 's1', { phone: '+992900000000', password: 'hack-12345' } as never)
+
+      const data = prisma.user.update.mock.calls[0][0].data
+      expect(data).not.toHaveProperty('passwordHash')
     })
   })
 

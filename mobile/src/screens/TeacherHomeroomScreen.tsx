@@ -1,3 +1,4 @@
+import { localizeCopy, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
@@ -5,10 +6,9 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { Check, MessageCircle, Users } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
@@ -27,12 +27,14 @@ import {
   type HomeroomRow,
 } from '../api/homeroom'
 
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 /** Быстрые заготовки — текст можно править перед отправкой. */
-const QUICK_TEXTS = [
+const QUICK_TEXTS = localizeCopy([
   'Здравствуйте! Ваш ребёнок в последнее время не выполняет домашние задания. Просим обратить внимание.',
   'Здравствуйте! Ваш ребёнок пропускает уроки. Просим сообщить причину и помочь наверстать материал.',
   'Здравствуйте! Просим вас зайти в школу — нужно обсудить успеваемость вашего ребёнка.',
-]
+])
 
 const PERIODS = [7, 14, 30]
 
@@ -70,7 +72,7 @@ export default function TeacherHomeroomScreen() {
       .catch((e) => {
         setClasses([])
         setLoading(false)
-        Alert.alert('Ошибка', errorText(e, 'Не удалось загрузить классы'))
+        notifyError(e, uiText("Не удалось загрузить классы"))
       })
   }, [])
 
@@ -80,7 +82,7 @@ export default function TeacherHomeroomScreen() {
       setData(await homeroomApi.overview(groupId, days))
       setSelected([])
     } catch (e) {
-      Alert.alert('Ошибка', errorText(e, 'Не удалось загрузить сводку'))
+      notifyError(e, uiText("Не удалось загрузить сводку"))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -109,15 +111,15 @@ export default function TeacherHomeroomScreen() {
       })
       const noParents = r.skipped.length
       Alert.alert(
-        'Отправлено',
-        `Сообщение получили родители ${r.notified} из ${targets.length} учеников` +
-          (noParents ? `. У ${noParents} нет родителей в системе.` : ''),
+        uiText("Отправлено"),
+        uiText("Сообщение получили родители {0} из {1} учеников", r.notified, targets.length) +
+          (noParents ? uiText(". У {0} нет родителей в системе.", noParents) : ''),
       )
       setWriteOpen(false)
       setText('')
       setSelected([])
     } catch (e) {
-      Alert.alert('Ошибка', errorText(e, 'Не удалось отправить'))
+      notifyError(e, uiText("Не удалось отправить"))
     } finally {
       setSending(false)
     }
@@ -127,7 +129,7 @@ export default function TeacherHomeroomScreen() {
 
   return (
     <Screen>
-      <StackHeader title="Мой класс" />
+      <StackHeader title={uiText("Мой класс")} />
 
       {loading ? (
         <View style={styles.loader}>
@@ -136,8 +138,8 @@ export default function TeacherHomeroomScreen() {
       ) : classes && classes.length === 0 ? (
         <EmptyState
           icon={<Users size={34} color={colors.muted} />}
-          title="Вы не классный руководитель"
-          hint="Администратор может назначить вас классным руководителем в разделе «Классы»"
+          title={uiText("Вы не классный руководитель")}
+          hint={uiText("Администратор может назначить вас классным руководителем в разделе «Классы»")}
         />
       ) : (
         <>
@@ -170,22 +172,21 @@ export default function TeacherHomeroomScreen() {
                     onPress={() => setDays(d)}
                     style={[styles.chip, { backgroundColor: on ? colors.blueDeep : colors.surfaceAlt }]}
                   >
-                    <Text style={[styles.chipText, { color: on ? '#fff' : colors.text }]}>{d} дн.</Text>
+                    <Text style={[styles.chipText, { color: on ? '#fff' : colors.text }]}>{d} {" " + uiText("дн.")}</Text>
                   </Pressable>
                 )
               })}
             </View>
             <View style={styles.actions}>
               <Btn size="sm" variant="secondary" onPress={selectProblem}>
-                Выбрать проблемных
-              </Btn>
+                {" " + uiText("Выбрать проблемных") + " "}</Btn>
               <Btn
                 size="sm"
                 disabled={selected.length === 0}
                 icon={<MessageCircle size={14} color="#fff" />}
                 onPress={() => setWriteOpen(true)}
               >
-                Родителям ({selected.length})
+                {" " + uiText("Родителям (")}{selected.length})
               </Btn>
             </View>
           </View>
@@ -206,7 +207,7 @@ export default function TeacherHomeroomScreen() {
                 tintColor={colors.primary}
               />
             }
-            ListEmptyComponent={<EmptyState title="В классе пока нет учеников" />}
+            ListEmptyComponent={<EmptyState title={uiText("В классе пока нет учеников")} />}
             renderItem={({ item: r }) => {
               const on = selected.includes(r.student.id)
               const hw = r.homework
@@ -224,13 +225,13 @@ export default function TeacherHomeroomScreen() {
                           {r.student.lastName} {r.student.firstName}
                         </Text>
                         <Text style={styles.meta}>
-                          {r.parentsCount > 0 ? `Родителей: ${r.parentsCount}` : 'Нет родителей в системе'}
+                          {r.parentsCount > 0 ? uiText("Родителей: {0}", r.parentsCount) : uiText("Нет родителей в системе")}
                         </Text>
                       </View>
                       {sections?.grades && r.grades?.average != null && (
                         <View style={styles.avg}>
                           <Text style={styles.avgValue}>{r.grades.average.toFixed(1)}</Text>
-                          <Text style={styles.avgLabel}>средний</Text>
+                          <Text style={styles.avgLabel}>{uiText("средний")}</Text>
                         </View>
                       )}
                     </View>
@@ -238,24 +239,24 @@ export default function TeacherHomeroomScreen() {
                       {sections?.homework && hw && (
                         <>
                           <Text style={[styles.pill, { backgroundColor: colors.primarySoft, color: colors.primaryDeep }]}>
-                            ДЗ ✓ {hw.done}
+                            {" " + uiText("ДЗ ✓") + " "}{hw.done}
                           </Text>
                           {hw.partial > 0 && (
                             <Text style={[styles.pill, { backgroundColor: colors.yellowSoft, color: colors.yellowDeep }]}>
-                              частично {hw.partial}
+                              {" " + uiText("частично") + " "}{hw.partial}
                             </Text>
                           )}
                           {hw.notDone > 0 && (
                             <Text style={[styles.pill, { backgroundColor: colors.roseSoft, color: colors.roseDeep }]}>
-                              не сделано {hw.notDone}
+                              {" " + uiText("не сделано") + " "}{hw.notDone}
                             </Text>
                           )}
                         </>
                       )}
                       {sections?.attendance && att && (att.absent > 0 || att.sick > 0) && (
                         <Text style={[styles.pill, { backgroundColor: colors.roseSoft, color: colors.roseDeep }]}>
-                          пропуски {att.absent}
-                          {att.sick > 0 ? ` · болел(а) ${att.sick}` : ''}
+                          {" " + uiText("пропуски") + " "}{att.absent}
+                          {att.sick > 0 ? uiText("· болел(а) {0}", att.sick) : ''}
                         </Text>
                       )}
                     </View>
@@ -270,7 +271,7 @@ export default function TeacherHomeroomScreen() {
       <BottomModal
         visible={writeOpen}
         onClose={() => setWriteOpen(false)}
-        title={`Родителям: ${targets.length} уч.`}
+        title={uiText("Родителям: {0} уч.", targets.length)}
       >
         <View style={{ gap: 8, marginBottom: 12 }}>
           {QUICK_TEXTS.map((q) => (
@@ -280,28 +281,26 @@ export default function TeacherHomeroomScreen() {
           ))}
         </View>
         <Field
-          label="Текст сообщения"
+          label={uiText("Текст сообщения")}
           value={text}
           onChangeText={setText}
-          placeholder="Напишите сообщение родителям…"
+          placeholder={uiText("Напишите сообщение родителям…")}
           maxLength={1000}
           multiline
           style={{ minHeight: 100, textAlignVertical: 'top' }}
         />
         {targets.some((t) => t.parentsCount === 0) && (
           <Text style={styles.warn}>
-            У некоторых выбранных учеников нет родителей в системе — им сообщение не уйдёт.
-          </Text>
+            {" " + uiText("У некоторых выбранных учеников нет родителей в системе — им сообщение не уйдёт.") + " "}</Text>
         )}
         <Btn block size="lg" loading={sending} disabled={!text.trim()} onPress={send}>
-          Отправить
-        </Btn>
+          {" " + uiText("Отправить") + " "}</Btn>
       </BottomModal>
     </Screen>
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   head: { paddingHorizontal: 16, gap: 10 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
@@ -337,4 +336,4 @@ const styles = StyleSheet.create({
   quick: { padding: 10, borderRadius: radius.sm, backgroundColor: colors.surfaceAlt },
   quickText: { fontSize: 12.5, color: colors.textMid, lineHeight: 17 },
   warn: { fontSize: 12.5, color: colors.yellowDeep, marginBottom: 12 },
-})
+}))

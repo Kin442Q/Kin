@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ActivityIndicator,
@@ -6,11 +7,9 @@ import {
   Platform,
   Pressable,
   RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
   View,
 } from 'react-native'
+import { Text, TextInput } from '../components/Text'
 import { useFocusEffect } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import { Send, ChevronLeft, MessageCircle } from 'lucide-react-native'
@@ -23,6 +22,7 @@ import { useAuthStore } from '../store/authStore'
 import { connectSocket } from '../lib/socket'
 import { chatApi, type ChatMessage, type StaffConversation } from '../api/chat'
 
+import { themedStyles } from '../theme/themedStyles'
 export default function TeacherChatScreen() {
   const user = useAuthStore((s) => s.user)
   const [conversations, setConversations] = useState<StaffConversation[]>([])
@@ -124,7 +124,7 @@ export default function TeacherChatScreen() {
           </Pressable>
           <View>
             <Text style={styles.threadName}>{active.parentName}</Text>
-            <Text style={styles.threadSub}>Класс «{active.groupName}»</Text>
+            <Text style={styles.threadSub}>{uiText("Класс «")}{active.groupName}»</Text>
           </View>
         </View>
 
@@ -159,7 +159,7 @@ export default function TeacherChatScreen() {
               }}
               ListEmptyComponent={
                 <View style={styles.empty}>
-                  <Text style={styles.emptyText}>Сообщений пока нет</Text>
+                  <Text style={styles.emptyText}>{uiText("Сообщений пока нет")}</Text>
                 </View>
               }
             />
@@ -169,7 +169,7 @@ export default function TeacherChatScreen() {
             <TextInput
               value={text}
               onChangeText={setText}
-              placeholder="Ответить..."
+              placeholder={uiText("Ответить...")}
               placeholderTextColor={colors.muted}
               style={styles.input}
               multiline
@@ -191,7 +191,7 @@ export default function TeacherChatScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={styles.title}>Чат с родителями</Text>
+        <Text style={styles.title}>{uiText("Чат с родителями")}</Text>
       </View>
       {loading ? (
         <View style={styles.loader}>
@@ -223,9 +223,9 @@ export default function TeacherChatScreen() {
                       </Text>
                     </View>
                     <Text style={styles.convLast} numberOfLines={1}>
-                      {item.lastText ?? 'Нет сообщений'}
+                      {item.lastText ?? uiText("Нет сообщений")}
                     </Text>
-                    <Text style={styles.convGroup}>Класс «{item.groupName}»</Text>
+                    <Text style={styles.convGroup}>{uiText("Класс «")}{item.groupName}»</Text>
                   </View>
                   {item.unread && <View style={styles.unreadDot} />}
                 </View>
@@ -236,8 +236,7 @@ export default function TeacherChatScreen() {
             <View style={styles.empty}>
               <MessageCircle size={36} color={colors.muted} />
               <Text style={styles.emptyText}>
-                Переписок пока нет. Они появятся когда родитель напишет.
-              </Text>
+                {" " + uiText("Переписок пока нет. Они появятся когда родитель напишет.") + " "}</Text>
             </View>
           }
         />
@@ -246,7 +245,7 @@ export default function TeacherChatScreen() {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   header: { paddingHorizontal: 20, paddingTop: 6, paddingBottom: 8 },
   title: { fontSize: 22, fontWeight: '800', color: colors.text, letterSpacing: -0.5 },
@@ -281,7 +280,7 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '80%', borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 8 },
   bubbleMine: { backgroundColor: colors.primary, borderBottomRightRadius: 4 },
   bubbleOther: {
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     borderWidth: 1,
     borderColor: colors.borderSoft,
     borderBottomLeftRadius: 4,
@@ -298,7 +297,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderTopWidth: 1,
     borderTopColor: colors.borderSoft,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
   },
   input: {
     flex: 1,
@@ -318,4 +317,4 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-})
+}))

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { SP, SproutLogo } from '../components/sprout'
@@ -78,8 +79,7 @@ export default function NotFoundPage() {
               letterSpacing: '-0.02em',
             }}
           >
-            Страница не найдена
-          </h2>
+            {" " + uiText("Страница не найдена") + " "}</h2>
           <p
             style={{
               color: SP.muted,
@@ -88,15 +88,13 @@ export default function NotFoundPage() {
               lineHeight: 1.5,
             }}
           >
-            Возможно, она переехала или ещё не выросла. Вернёмся на главную?
-          </p>
+            {" " + uiText("Возможно, она переехала или ещё не выросла. Вернёмся на главную?") + " "}</p>
           <button
             className="sp-btn-primary"
             style={{ padding: '12px 24px', fontSize: 14 }}
             onClick={() => navigate('/admin/dashboard')}
           >
-            🌿 На главную
-          </button>
+            {" " + uiText("🌿 На главную") + " "}</button>
         </div>
       </motion.div>
     </div>

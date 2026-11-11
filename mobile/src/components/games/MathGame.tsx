@@ -1,10 +1,16 @@
+import { uiText } from '../../i18n/uiText'
 import { useEffect, useRef, useState } from 'react'
-import { StyleSheet, Text, TextInput, View } from 'react-native'
+import {
+  
+  View,
+} from 'react-native'
+import { Text, TextInput } from '../Text'
 
 import { colors, radius } from '../../theme/colors'
 import { MAX_SCORE, makeProblem, parseAnswer } from '../../lib/games'
 import type { GameProps } from './types'
 
+import { themedStyles } from '../../theme/themedStyles'
 const DURATION = 60
 
 /** «Устный счёт»: 60 секунд, каждый верный ответ — очко. Сложность растёт сама. */
@@ -54,8 +60,8 @@ export default function MathGame({ onFinish }: GameProps) {
   return (
     <View style={{ alignItems: 'center' }}>
       <View style={styles.stats}>
-        <Text style={styles.stat}>Осталось: {Math.max(left, 0)} с</Text>
-        <Text style={styles.stat}>Верно: {correct}</Text>
+        <Text style={styles.stat}>{uiText("Осталось:") + " "}{Math.max(left, 0)} {" " + uiText("с")}</Text>
+        <Text style={styles.stat}>{uiText("Верно:") + " "}{correct}</Text>
       </View>
       <Text
         style={[
@@ -82,7 +88,7 @@ export default function MathGame({ onFinish }: GameProps) {
         blurOnSubmit={false}
         editable={left > 0}
         autoFocus
-        placeholder="Ответ"
+        placeholder={uiText("Ответ")}
         placeholderTextColor={colors.muted}
         style={styles.input}
       />
@@ -90,7 +96,7 @@ export default function MathGame({ onFinish }: GameProps) {
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   stats: { flexDirection: 'row', gap: 24 },
   stat: { color: colors.textMid, fontWeight: '700', fontSize: 14 },
   problem: { fontSize: 44, fontWeight: '800', marginVertical: 24 },
@@ -100,10 +106,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSolid,
     textAlign: 'center',
     fontSize: 24,
     fontWeight: '700',
     color: colors.text,
   },
-})
+}))

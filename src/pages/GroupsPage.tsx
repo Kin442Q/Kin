@@ -1,7 +1,9 @@
+import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Button,
   Col,
+  Collapse,
   Form,
   Grid,
   Input,
@@ -47,22 +49,25 @@ import { http } from '../api'
 import type { Group, GroupFinance } from '../types'
 import { calcGroupFinances } from '../lib/finance'
 import { formatMoney, formatMoneyCompact, formatPercent } from '../lib/format'
+import { useChartTheme } from '../theme/chartTheme'
+import { classLetterOf, groupByGrade, plural, type GradeGroup } from '../lib/classes'
 
 // Sprout-палитра для группы
 const GROUP_COLORS = [
-  '#4FB286', // mint
-  '#5BA9D1', // blue
-  '#E5B43A', // yellow
-  '#9B7BD4', // lilac
-  '#E48979', // rose
-  '#D88EAE', // pink
-  '#3FA8B3', // cyan
-  '#2F8862', // mint deep
+  '#0D7A7C', // mint
+  '#3B8FBF', // blue
+  '#FFB020', // yellow
+  '#8B7BD4', // lilac
+  '#FF8A65', // rose
+  '#D9709B', // pink
+  '#1BA6A0', // cyan
+  '#075B5D', // mint deep
 ]
 
 const { useBreakpoint } = Grid
 
 export default function GroupsPage() {
+  const chartTheme = useChartTheme()
   const navigate = useNavigate()
   const { message } = AntdApp.useApp()
   const screens = useBreakpoint()
@@ -75,7 +80,7 @@ export default function GroupsPage() {
   const showHomeroom = useFeature('homeroom')
   // Учителя школы — кандидаты в классные руководители
   const [teachers, setTeachers] = useState<Array<{ id: string; fullName: string }>>([])
-  const isSchool = L.group === 'класс'
+  const isSchool = L.isSchool
 
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
@@ -102,7 +107,7 @@ export default function GroupsPage() {
         attendance,
         month,
       }),
-    [groups, children, payments, expenses, extraIncome, attendance, month],
+    [groups, children, payments, expenses, extraIncome, attendance, month, uiLanguage()],
   )
 
   const total = useMemo(() => {
@@ -121,7 +126,7 @@ export default function GroupsPage() {
       count: finances.length,
       withDataCount: withData.length,
     }
-  }, [finances])
+  }, [finances, uiLanguage()])
 
   const incomeShare = finances
     .filter((g) => g.income > 0)
@@ -173,10 +178,10 @@ export default function GroupsPage() {
 
       if (editing) {
         await http.patch(`/v1/groups/${editing.id}`, body)
-        message.success(`${cap(L.group)} обновлён${L.group === 'группа' ? 'а' : ''}`)
+        message.success(uiText("{0} обновлён{1}", cap(L.group), !L.isSchool ? 'а' : ''))
       } else {
         await http.post('/v1/groups', body)
-        message.success(`${cap(L.group)} созда${L.group === 'группа' ? 'на' : 'н'}`)
+        message.success(uiText("{0} созда{1}", cap(L.group), !L.isSchool ? 'на' : uiText("н")))
       }
 
       setModalOpen(false)
@@ -186,7 +191,7 @@ export default function GroupsPage() {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        `Не удалось сохранить ${L.group}`
+        uiText("Не удалось сохранить {0}", L.group)
       message.error(msg)
     } finally {
       setSubmitting(false)
@@ -196,13 +201,13 @@ export default function GroupsPage() {
   const remove = async (g: Group) => {
     try {
       await http.delete(`/v1/groups/${g.id}`)
-      message.success(`«${g.name}» удалён${L.group === 'группа' ? 'а' : ''}`)
+      message.success(uiText("«{0}» удалён{1}", g.name, !L.isSchool ? 'а' : ''))
       refreshTenantData()
     } catch (err: any) {
       const msg =
         err?.response?.data?.message ||
         err?.message ||
-        `Не удалось удалить ${L.group}`
+        uiText("Не удалось удалить {0}", L.group)
       message.error(msg)
     }
   }
@@ -220,7 +225,7 @@ export default function GroupsPage() {
               fontWeight: 700,
             }}
           >
-            {row.group.name.slice(0, 1).toUpperCase()}
+            {classLetterOf(row.group.name).slice(0, 2)}
           </Avatar>
           <div>
             <div style={{ fontWeight: 600, color: SP.text }}>{row.group.name}</div>
@@ -228,7 +233,7 @@ export default function GroupsPage() {
               {[
                 row.group.ageRange,
                 showHomeroom && row.group.homeroomTeacher
-                  ? `Классный руководитель: ${row.group.homeroomTeacher.fullName}`
+                  ? uiText("Классный руководитель: {0}", row.group.homeroomTeacher.fullName)
                   : null,
               ]
                 .filter(Boolean)
@@ -240,7 +245,7 @@ export default function GroupsPage() {
       fixed: 'left' as const,
     },
     {
-      title: 'Учеников',
+      title: uiText("Учеников"),
       dataIndex: 'childrenCount',
       key: 'childrenCount',
       sorter: (a: GroupFinance, b: GroupFinance) => a.childrenCount - b.childrenCount,
@@ -251,11 +256,11 @@ export default function GroupsPage() {
       ),
     },
     {
-      title: 'Оплатили',
+      title: uiText("Оплатили"),
       dataIndex: 'paidCount',
       key: 'paidCount',
       render: (v: number, row: GroupFinance) => (
-        <Tooltip title={`${v} из ${row.childrenCount}`}>
+        <Tooltip title={uiText("{0} из {1}", v, row.childrenCount)}>
           <Tag style={{ background: SP.primaryGhost, color: SP.primaryDeep, border: 'none', fontWeight: 600 }}>
             {v}
           </Tag>
@@ -263,12 +268,12 @@ export default function GroupsPage() {
       ),
     },
     {
-      title: 'Должники',
+      title: uiText("Должники"),
       dataIndex: 'debtorsCount',
       key: 'debtorsCount',
       render: (v: number) =>
         v > 0 ? (
-          <Tag style={{ background: '#FCEAE5', color: SP.danger, border: 'none', fontWeight: 600 }}>
+          <Tag style={{ background: 'var(--sp-rose-soft)', color: SP.danger, border: 'none', fontWeight: 600 }}>
             {v}
           </Tag>
         ) : (
@@ -276,7 +281,7 @@ export default function GroupsPage() {
         ),
     },
     {
-      title: 'Доход',
+      title: uiText("Доход"),
       dataIndex: 'income',
       key: 'income',
       sorter: (a: GroupFinance, b: GroupFinance) => a.income - b.income,
@@ -287,7 +292,7 @@ export default function GroupsPage() {
       ),
     },
     {
-      title: 'Расход',
+      title: uiText("Расход"),
       dataIndex: 'expenses',
       key: 'expenses',
       sorter: (a: GroupFinance, b: GroupFinance) => a.expenses - b.expenses,
@@ -298,7 +303,7 @@ export default function GroupsPage() {
       ),
     },
     {
-      title: 'Прибыль',
+      title: uiText("Прибыль"),
       dataIndex: 'profit',
       key: 'profit',
       sorter: (a: GroupFinance, b: GroupFinance) => a.profit - b.profit,
@@ -306,7 +311,7 @@ export default function GroupsPage() {
       render: (v: number) => (
         <Tag
           style={{
-            background: v >= 0 ? SP.primaryGhost : '#FCEAE5',
+            background: v >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
             color: v >= 0 ? SP.primaryDeep : SP.danger,
             border: 'none',
             fontWeight: 700,
@@ -318,7 +323,7 @@ export default function GroupsPage() {
       ),
     },
     {
-      title: 'Маржа',
+      title: uiText("Маржа"),
       dataIndex: 'margin',
       key: 'margin',
       render: (v: number, row: GroupFinance) => (
@@ -339,7 +344,7 @@ export default function GroupsPage() {
       ),
     },
     {
-      title: 'Посещаемость',
+      title: uiText("Посещаемость"),
       dataIndex: 'attendanceRate',
       key: 'attendanceRate',
       render: (v: number) => (
@@ -359,7 +364,7 @@ export default function GroupsPage() {
       fixed: 'right' as const,
       render: (_: unknown, row: GroupFinance) => (
         <Space>
-          <Tooltip title="Открыть">
+          <Tooltip title={uiText("Открыть")}>
             <Button
               size="small"
               type="text"
@@ -367,7 +372,7 @@ export default function GroupsPage() {
               onClick={() => navigate(`/admin/groups/${row.group.id}`)}
             />
           </Tooltip>
-          <Tooltip title="Редактировать">
+          <Tooltip title={uiText("Редактировать")}>
             <Button
               size="small"
               type="text"
@@ -376,12 +381,12 @@ export default function GroupsPage() {
             />
           </Tooltip>
           <Popconfirm
-            title={`Удалить ${L.group}?`}
+            title={uiText("Удалить {0}?", L.group)}
             description={
-              'Ученики останутся, но будут без класса'
+              uiText("Ученики останутся, но будут без класса")
             }
-            okText="Удалить"
-            cancelText="Отмена"
+            okText={uiText("Удалить")}
+            cancelText={uiText("Отмена")}
             okButtonProps={{ danger: true }}
             onConfirm={() => remove(row.group)}
           >
@@ -399,6 +404,192 @@ export default function GroupsPage() {
   ])
   const visibleColumns = columns.filter((c) => !hiddenColumnKeys.has(c.key as string))
 
+  // Классы по параллелям: 1 класс → А, Б, В; вместо одной длинной таблицы.
+  const gradeGroups = useMemo(() => groupByGrade(finances, (r) => r.group.name), [finances, uiLanguage()])
+  const [openGrades, setOpenGrades] = useState<string[] | null>(null)
+  // Пока пользователь ничего не раскрывал: единственная параллель открыта сразу, остальные свёрнуты.
+  const activeGrades =
+    openGrades ?? (gradeGroups.length === 1 ? [String(gradeGroups[0].key)] : [])
+
+  const gradeHeader = (gr: GradeGroup<GroupFinance>) => {
+    const students = gr.items.reduce((sum, r) => sum + r.childrenCount, 0)
+    return (
+      <div className="sp-grade-head">
+        <span className="sp-grade-badge">{gr.grade ?? '•'}</span>
+        <div className="sp-grade-title">
+          <b>{gr.label}</b>
+          <span className="sp-grade-letters">
+            {gr.items.map((r) => (
+              <i key={r.group.id} style={{ background: r.group.color }}>
+                {classLetterOf(r.group.name).slice(0, 2)}
+              </i>
+            ))}
+          </span>
+        </div>
+        <span className="sp-grade-meta">
+          {gr.items.length} {plural(gr.items.length, [uiText("класс"), uiText("класса"), uiText("классов")])} · {students}{' '}
+          {plural(students, [uiText("ученик"), uiText("ученика"), uiText("учеников")])}
+        </span>
+      </div>
+    )
+  }
+
+  const renderRows = (rows: GroupFinance[]) =>
+    isMobile ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {rows.map((row) => {
+                const g = row.group
+                const margin = Math.max(0, Math.min(100, row.margin * 100))
+                return (
+                  <div key={g.id} className="sp-mcard">
+                    <div className="sp-mcard-header">
+                      <Avatar
+                        size={44}
+                        style={{
+                          background: g.color,
+                          color: 'white',
+                          fontWeight: 700,
+                          fontSize: 16,
+                        }}
+                      >
+                        {classLetterOf(g.name).slice(0, 2)}
+                      </Avatar>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="sp-mcard-title">{g.name}</div>
+                        <div className="sp-mcard-sub">{g.ageRange}</div>
+                      </div>
+                      {showFinance && (
+                      <Tag
+                        style={{
+                          background: row.profit >= 0 ? SP.primaryGhost : 'var(--sp-rose-soft)',
+                          color: row.profit >= 0 ? SP.primaryDeep : SP.danger,
+                          border: 'none',
+                          fontWeight: 700,
+                          margin: 0,
+                        }}
+                      >
+                        {row.profit >= 0 ? '+' : ''}
+                        {formatMoneyCompact(row.profit)}
+                      </Tag>
+                      )}
+                    </div>
+  
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: showPayments ? '1fr 1fr 1fr' : '1fr',
+                        gap: 8,
+                        padding: '6px 0',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontSize: 11, color: SP.muted }}>
+                          {uiText("Учеников")}
+                        </div>
+                        <div
+                          className="sp-num"
+                          style={{ fontWeight: 700, fontSize: 15, color: SP.text }}
+                        >
+                          {row.childrenCount}
+                        </div>
+                      </div>
+                      {showPayments && (
+                        <>
+                      <div>
+                        <div style={{ fontSize: 11, color: SP.muted }}>{uiText("Оплатили")}</div>
+                        <div
+                          className="sp-num"
+                          style={{
+                            fontWeight: 700,
+                            fontSize: 15,
+                            color: SP.primaryDeep,
+                          }}
+                        >
+                          {row.paidCount}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: SP.muted }}>{uiText("Должники")}</div>
+                        <div
+                          className="sp-num"
+                          style={{
+                            fontWeight: 700,
+                            fontSize: 15,
+                            color: row.debtorsCount > 0 ? SP.danger : SP.muted,
+                          }}
+                        >
+                          {row.debtorsCount}
+                        </div>
+                      </div>
+                        </>
+                      )}
+                    </div>
+  
+                    {showFinance && (
+                      <>
+                    <div className="sp-mcard-row">
+                      <span className="label">{uiText("Доход")}</span>
+                      <span className="value sp-num">{formatMoneyCompact(row.income)}</span>
+                    </div>
+                    <div className="sp-mcard-row">
+                      <span className="label">{uiText("Расход")}</span>
+                      <span className="value sp-num" style={{ color: SP.muted }}>
+                        {formatMoneyCompact(row.expenses)}
+                      </span>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: SP.muted, marginBottom: 4 }}>
+                        {" " + uiText("Маржа ·") + " "}{formatPercent(row.margin)}
+                      </div>
+                      <Progress
+                        percent={margin}
+                        size="small"
+                        strokeColor={row.profit >= 0 ? SP.primary : SP.danger}
+                        showInfo={false}
+                      />
+                    </div>
+                      </>
+                    )}
+  
+                    <div className="sp-mcard-actions">
+                      <Button
+                        size="small"
+                        icon={<EyeOutlined />}
+                        onClick={() => navigate(`/admin/groups/${g.id}`)}
+                      >
+                        {" " + uiText("Открыть") + " "}</Button>
+                      <Button
+                        size="small"
+                        icon={<EditOutlined />}
+                        onClick={() => openEdit(g)}
+                      >
+                        {" " + uiText("Изменить") + " "}</Button>
+                      <Popconfirm
+                        title={uiText("Удалить {0}?", L.group)}
+                        okText={uiText("Удалить")}
+                        cancelText={uiText("Отмена")}
+                        okButtonProps={{ danger: true }}
+                        onConfirm={() => remove(g)}
+                      >
+                        <Button size="small" danger icon={<DeleteOutlined />} />
+                      </Popconfirm>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+    ) : (
+      <Table
+              rowKey={(r) => r.group.id}
+              dataSource={rows}
+              columns={visibleColumns}
+              pagination={false}
+              scroll={{ x: showFinance ? 1100 : undefined }}
+              size="middle"
+              sticky
+            />
+    )
+
   return (
     <div>
       <SproutPageHeader
@@ -407,8 +598,8 @@ export default function GroupsPage() {
         iconAccent="yellow"
         description={
           !showFinance
-            ? 'Классы школы, учителя и состав'
-            : 'Классы школы и финансовая статистика по каждому'
+            ? uiText("Классы школы, учителя и состав")
+            : uiText("Классы школы и финансовая статистика по каждому")
         }
         actions={
           <Space>
@@ -419,7 +610,7 @@ export default function GroupsPage() {
               allowClear={false}
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              {'Новый класс'}
+              {uiText("Новый класс")}
             </Button>
           </Space>
         }
@@ -429,7 +620,7 @@ export default function GroupsPage() {
       <Row gutter={[16, 16]}>
         <Col xs={12} md={6}>
           <SproutKPI
-            label={`Всего классов`}
+            label={uiText("Всего классов")}
             value={String(total.count)}
             accent="mint"
             icon={<LayoutGrid size={18} strokeWidth={2} />}
@@ -440,7 +631,7 @@ export default function GroupsPage() {
           <>
         <Col xs={12} md={6}>
           <SproutKPI
-            label={`Доход всех классов`}
+            label={uiText("Доход всех классов")}
             value={formatMoneyCompact(total.income)}
             accent="mint"
             icon={<Wallet size={18} strokeWidth={2} />}
@@ -449,7 +640,7 @@ export default function GroupsPage() {
         </Col>
         <Col xs={12} md={6}>
           <SproutKPI
-            label={`Расходы всех классов`}
+            label={uiText("Расходы всех классов")}
             value={formatMoneyCompact(total.exp)}
             accent="yellow"
             icon={<TrendingUp size={18} strokeWidth={2} />}
@@ -458,13 +649,13 @@ export default function GroupsPage() {
         </Col>
         <Col xs={12} md={6}>
           <SproutKPI
-            label="Чистая прибыль"
+            label={uiText("Чистая прибыль")}
             value={`${total.profit >= 0 ? '+' : ''}${formatMoneyCompact(total.profit)}`}
             accent={total.profit >= 0 ? 'mint' : 'rose'}
             hint={
               total.withDataCount > 0
-                ? `Выгодных: ${total.profitable} / ${total.withDataCount}`
-                : 'Пока нет данных за месяц'
+                ? uiText("Выгодных: {0} / {1}", total.profitable, total.withDataCount)
+                : uiText("Пока нет данных за месяц")
             }
             icon={<TrendingUp size={18} strokeWidth={2} />}
             delay={0.15}
@@ -488,7 +679,7 @@ export default function GroupsPage() {
               }}
             >
               <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-                Прибыль по {'классам'}
+                {" " + uiText("Прибыль по") + " "}{uiText("классам")}
               </div>
               <Tag
                 style={{
@@ -498,17 +689,17 @@ export default function GroupsPage() {
                   fontWeight: 600,
                 }}
               >
-                выгодность
-              </Tag>
+                {" " + uiText("выгодность") + " "}</Tag>
             </div>
             {total.withDataCount > 0 ? (
               <Column
+                theme={chartTheme}
                 data={finances
                   .filter((g) => g.income > 0 || g.expenses > 0)
                   .map((g) => ({
                     group: g.group.name,
                     value: g.profit,
-                    type: g.profit >= 0 ? 'Прибыль' : 'Убыток',
+                    type: g.profit >= 0 ? uiText("Прибыль") : uiText("Убыток"),
                   }))}
                 xField="group"
                 yField="value"
@@ -516,7 +707,7 @@ export default function GroupsPage() {
                 color={({ type }: { type: string }) =>
                   // Стиль диаграмм из нового дизайна: вертикальный градиент в столбцах
                   type === 'Прибыль'
-                    ? 'l(270) 0:#7FD0AC 1:#2F8862'
+                    ? 'l(270) 0:#5FD0CB 1:#0D7A7C'
                     : 'l(270) 0:#E89B96 1:#C2453F'
                 }
                 columnStyle={{ radius: [10, 10, 0, 0] }}
@@ -530,8 +721,8 @@ export default function GroupsPage() {
               />
             ) : (
               <SproutEmpty
-                title="Пока нет финансовых данных"
-                description={`Прибыль по классам появится после первых оплат и расходов за месяц`}
+                title={uiText("Пока нет финансовых данных")}
+                description={uiText("Прибыль по классам появится после первых оплат и расходов за месяц")}
                 minHeight={240}
               />
             )}
@@ -541,10 +732,10 @@ export default function GroupsPage() {
         <Col xs={24} lg={8} style={{ display: 'flex' }}>
           <SproutCard style={{ width: '100%' }} delay={0.25}>
             <div style={{ fontSize: 15, fontWeight: 700, color: SP.text, marginBottom: 12 }}>
-              Доля {L.group}а в доходе
-            </div>
+              {" " + uiText("Доля") + " "}{L.group}{uiText("а в доходе") + " "}</div>
             {incomeShare.length > 0 ? (
               <Pie
+                theme={chartTheme}
                 data={incomeShare}
                 angleField="value"
                 colorField="type"
@@ -555,7 +746,7 @@ export default function GroupsPage() {
                 color={GROUP_COLORS}
               />
             ) : (
-              <SproutEmpty title="Нет оплат за месяц" minHeight={220} />
+              <SproutEmpty title={uiText("Нет оплат за месяц")} minHeight={220} />
             )}
           </SproutCard>
         </Col>
@@ -575,7 +766,7 @@ export default function GroupsPage() {
           }}
         >
           <div style={{ fontSize: 15, fontWeight: 700, color: SP.text }}>
-            Подробно по {'классам'}
+            {" " + uiText("Подробно по") + " "}{uiText("классам")}
           </div>
           <Tag style={{ background: SP.surfaceAlt, color: SP.textMid, border: 'none' }}>
             {dayjs(month + '-01').format('MMMM YYYY')}
@@ -595,177 +786,40 @@ export default function GroupsPage() {
               lineHeight: 1.5,
             }}
           >
-            ℹ️ За {dayjs(month + '-01').format('MMMM')} ещё нет оплат и расходов —
-            поэтому доход, прибыль и маржа показывают 0. Цифры появятся, как только
-            отметите оплаты на странице «Оплата».
-          </div>
+            {" " + uiText("ℹ️ За") + " "}{dayjs(month + '-01').format('MMMM')} {" " + uiText("ещё нет оплат и расходов — поэтому доход, прибыль и маржа показывают 0. Цифры появятся, как только отметите оплаты на странице «Оплата».") + " "}</div>
         )}
 
         {finances.length === 0 ? (
           <SproutEmpty
             icon={<LayoutGrid size={28} strokeWidth={1.8} />}
-            title={'Классов пока нет'}
+            title={uiText("Классов пока нет")}
             description={
-              'Создайте первый класс — 1А, 5Б или 11А'
+              uiText("Создайте первый класс — 1А, 5Б или 11А")
             }
             minHeight={220}
           />
-        ) : isMobile ? (
-          // === Мобильные карточки ===
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {finances.map((row) => {
-              const g = row.group
-              const margin = Math.max(0, Math.min(100, row.margin * 100))
-              return (
-                <div key={g.id} className="sp-mcard">
-                  <div className="sp-mcard-header">
-                    <Avatar
-                      size={44}
-                      style={{
-                        background: g.color,
-                        color: 'white',
-                        fontWeight: 700,
-                        fontSize: 16,
-                      }}
-                    >
-                      {g.name.slice(0, 1).toUpperCase()}
-                    </Avatar>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="sp-mcard-title">{g.name}</div>
-                      <div className="sp-mcard-sub">{g.ageRange}</div>
-                    </div>
-                    {showFinance && (
-                    <Tag
-                      style={{
-                        background: row.profit >= 0 ? SP.primaryGhost : '#FCEAE5',
-                        color: row.profit >= 0 ? SP.primaryDeep : SP.danger,
-                        border: 'none',
-                        fontWeight: 700,
-                        margin: 0,
-                      }}
-                    >
-                      {row.profit >= 0 ? '+' : ''}
-                      {formatMoneyCompact(row.profit)}
-                    </Tag>
-                    )}
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: showPayments ? '1fr 1fr 1fr' : '1fr',
-                      gap: 8,
-                      padding: '6px 0',
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontSize: 11, color: SP.muted }}>
-                        {'Учеников'}
-                      </div>
-                      <div
-                        className="sp-num"
-                        style={{ fontWeight: 700, fontSize: 15, color: SP.text }}
-                      >
-                        {row.childrenCount}
-                      </div>
-                    </div>
-                    {showPayments && (
-                      <>
-                    <div>
-                      <div style={{ fontSize: 11, color: SP.muted }}>Оплатили</div>
-                      <div
-                        className="sp-num"
-                        style={{
-                          fontWeight: 700,
-                          fontSize: 15,
-                          color: SP.primaryDeep,
-                        }}
-                      >
-                        {row.paidCount}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 11, color: SP.muted }}>Должники</div>
-                      <div
-                        className="sp-num"
-                        style={{
-                          fontWeight: 700,
-                          fontSize: 15,
-                          color: row.debtorsCount > 0 ? SP.danger : SP.muted,
-                        }}
-                      >
-                        {row.debtorsCount}
-                      </div>
-                    </div>
-                      </>
-                    )}
-                  </div>
-
-                  {showFinance && (
-                    <>
-                  <div className="sp-mcard-row">
-                    <span className="label">Доход</span>
-                    <span className="value sp-num">{formatMoneyCompact(row.income)}</span>
-                  </div>
-                  <div className="sp-mcard-row">
-                    <span className="label">Расход</span>
-                    <span className="value sp-num" style={{ color: SP.muted }}>
-                      {formatMoneyCompact(row.expenses)}
-                    </span>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: 11, color: SP.muted, marginBottom: 4 }}>
-                      Маржа · {formatPercent(row.margin)}
-                    </div>
-                    <Progress
-                      percent={margin}
-                      size="small"
-                      strokeColor={row.profit >= 0 ? SP.primary : SP.danger}
-                      showInfo={false}
-                    />
-                  </div>
-                    </>
-                  )}
-
-                  <div className="sp-mcard-actions">
-                    <Button
-                      size="small"
-                      icon={<EyeOutlined />}
-                      onClick={() => navigate(`/admin/groups/${g.id}`)}
-                    >
-                      Открыть
-                    </Button>
-                    <Button
-                      size="small"
-                      icon={<EditOutlined />}
-                      onClick={() => openEdit(g)}
-                    >
-                      Изменить
-                    </Button>
-                    <Popconfirm
-                      title={`Удалить ${L.group}?`}
-                      okText="Удалить"
-                      cancelText="Отмена"
-                      okButtonProps={{ danger: true }}
-                      onConfirm={() => remove(g)}
-                    >
-                      <Button size="small" danger icon={<DeleteOutlined />} />
-                    </Popconfirm>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
         ) : (
-          <Table
-            rowKey={(r) => r.group.id}
-            dataSource={finances}
-            columns={visibleColumns}
-            pagination={false}
-            scroll={{ x: showFinance ? 1100 : undefined }}
-            size="middle"
-            sticky
-          />
+          <>
+            {gradeGroups.length > 1 && (
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <Button size="small" onClick={() => setOpenGrades(gradeGroups.map((g) => String(g.key)))}>
+                  {" " + uiText("Развернуть все") + " "}</Button>
+                <Button size="small" onClick={() => setOpenGrades([])}>
+                  {" " + uiText("Свернуть все") + " "}</Button>
+              </div>
+            )}
+            <Collapse
+              ghost
+              className="sp-grade-collapse"
+              activeKey={activeGrades}
+              onChange={(k) => setOpenGrades(Array.isArray(k) ? (k as string[]) : [k as string])}
+              items={gradeGroups.map((gr) => ({
+                key: String(gr.key),
+                label: gradeHeader(gr),
+                children: renderRows(gr.items),
+              }))}
+            />
+          </>
         )}
       </SproutCard>
 
@@ -773,52 +827,52 @@ export default function GroupsPage() {
       <Modal
         title={
           editing
-            ? `Редактировать ${L.group}`
-            : 'Новый класс'
+            ? uiText("Редактировать {0}", L.group)
+            : uiText("Новый класс")
         }
         open={modalOpen}
         onOk={submit}
         onCancel={() => setModalOpen(false)}
-        okText={editing ? 'Сохранить' : 'Создать'}
-        cancelText="Отмена"
+        okText={editing ? uiText("Сохранить") : uiText("Создать")}
+        cancelText={uiText("Отмена")}
         confirmLoading={submitting}
         destroyOnClose
       >
         <Form layout="vertical" form={form}>
           <Form.Item
-            label={'Название класса'}
+            label={uiText("Название класса")}
             name="name"
-            rules={[{ required: true, message: 'Введите название' }]}
+            rules={[{ required: true, message: uiText("Введите название") }]}
           >
-            <Input placeholder={'Например, 5А'} />
+            <Input placeholder={uiText("Например, 5А")} />
           </Form.Item>
           <Form.Item
-            label={'Возрастная категория (опц.)'}
+            label={uiText("Возрастная категория (опц.)")}
             name="ageRange"
-            rules={isSchool ? [] : [{ required: true, message: 'Укажите возраст' }]}
+            rules={isSchool ? [] : [{ required: true, message: uiText("Укажите возраст") }]}
           >
-            <Input placeholder={'10–11 лет'} />
+            <Input placeholder={uiText("10–11 лет")} />
           </Form.Item>
           {(showPayments || showExpenses) && (
           <Row gutter={12}>
             {showPayments && (
             <Col span={showExpenses ? 12 : 24}>
               <Form.Item
-                label={`Ежемесячная плата за ${L.student}`}
+                label={uiText("Ежемесячная плата за {0}", L.student)}
                 name="monthlyFee"
               >
-                <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
+                <InputNumber min={0} style={{ width: '100%' }} addonAfter={uiText("сомони")} />
               </Form.Item>
             </Col>
             )}
             {showExpenses && (
             <Col span={showPayments ? 12 : 24}>
               <Form.Item
-                label="Фикс. месячные расходы"
+                label={uiText("Фикс. месячные расходы")}
                 name="fixedMonthlyExpense"
-                tooltip="Питание, материалы, доля от аренды"
+                tooltip={uiText("Питание, материалы, доля от аренды")}
               >
-                <InputNumber min={0} style={{ width: '100%' }} addonAfter="сомони" />
+                <InputNumber min={0} style={{ width: '100%' }} addonAfter={uiText("сомони")} />
               </Form.Item>
             </Col>
             )}
@@ -826,20 +880,20 @@ export default function GroupsPage() {
           )}
           {showHomeroom && (
             <Form.Item
-              label="Классный руководитель"
+              label={uiText("Классный руководитель")}
               name="homeroomTeacherId"
-              tooltip="Видит сводку по классу, пишет родителям и выдаёт ученикам доступ в кабинет"
+              tooltip={uiText("Видит сводку по классу, пишет родителям и выдаёт ученикам доступ в кабинет")}
             >
               <Select
                 allowClear
                 showSearch
                 optionFilterProp="label"
-                placeholder="Выберите учителя"
+                placeholder={uiText("Выберите учителя")}
                 options={teachers.map((t) => ({ value: t.id, label: t.fullName }))}
               />
             </Form.Item>
           )}
-          <Form.Item label="Цвет" name="color">
+          <Form.Item label={uiText("Цвет")} name="color">
             <Select
               options={GROUP_COLORS.map((c) => ({
                 value: c,

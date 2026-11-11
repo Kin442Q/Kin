@@ -1,13 +1,14 @@
+import { uiText } from '../i18n/uiText'
+import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
-  StyleSheet,
-  Text,
   View,
 } from 'react-native'
+import { Text } from '../components/Text'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import {
@@ -29,6 +30,8 @@ import Card from '../components/Card'
 import Btn from '../components/Btn'
 import Avatar from '../components/Avatar'
 import BottomModal from '../components/BottomModal'
+import ChangePasswordForm from '../components/ChangePasswordForm'
+import ThemeSwitch from '../components/ThemeSwitch'
 import { colors, radius } from '../theme/colors'
 import { http } from '../api/http'
 import { useAuthStore } from '../store/authStore'
@@ -36,6 +39,7 @@ import { hasFeature } from '../lib/features'
 import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
 
+import { themedStyles } from '../theme/themedStyles'
 interface NotificationDto {
   id: string
   title: string
@@ -73,36 +77,33 @@ export default function ProfileScreen() {
     }
   }
 
-  const openSecurity = () => {
-    Alert.alert(
-      'Безопасность',
-      'Вход защищён паролем. На приходе/уходе используется Face ID / Touch ID вашего телефона — биометрия не покидает устройство.\n\nЧтобы сменить пароль, обратитесь к администратору учреждения.',
-    )
-  }
+  // Свой пароль человек меняет сам: админ чужие пароли не вводит
+  const [securityModal, setSecurityModal] = useState(false)
+  const openSecurity = () => setSecurityModal(true)
 
   const openSettings = () => {
     const inst = user?.institution
     Alert.alert(
-      'Настройки',
-      `Учреждение: ${inst?.name ?? '—'}\n` +
-        `Тип: Школа\n` +
-        `Версия приложения: ${Constants.expoConfig?.version ?? '1.0.0'}\n\n` +
-        'Push-уведомления включаются при первом входе. Если не приходят — проверьте разрешения в настройках телефона.',
+      uiText("Настройки"),
+      uiText("Учреждение: {0}", inst?.name ?? '—') +
+        uiText("Тип: Школа") +
+        uiText("Версия приложения: {0}", Constants.expoConfig?.version ?? '1.0.0') +
+        uiText("Push-уведомления включаются при первом входе. Если не приходят — проверьте разрешения в настройках телефона."),
     )
   }
 
   const onLogout = () => {
-    Alert.alert('Выход', 'Точно выйти из системы?', [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Выйти', style: 'destructive', onPress: () => logout() },
+    Alert.alert(uiText("Выход"), uiText("Точно выйти из системы?"), [
+      { text: uiText("Отмена"), style: 'cancel' },
+      { text: uiText("Выйти"), style: 'destructive', onPress: () => logout() },
     ])
   }
 
   const roleLabel =
     r === 'SUPER_ADMIN'
-      ? 'Супер-админ'
+      ? uiText("Супер-админ")
       : r === 'ADMIN'
-        ? 'Администратор'
+        ? uiText("Администратор")
         : r === 'TEACHER'
           ? cap(L.teacher)
           : r === 'STUDENT'
@@ -112,6 +113,7 @@ export default function ProfileScreen() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={styles.container}>
+        <LanguageSwitcher />
         <Card padding={20} style={{ alignItems: 'center' }}>
           <Avatar name={user?.fullName ?? '?'} size={80} />
           <Text style={styles.name}>{user?.fullName}</Text>
@@ -122,7 +124,7 @@ export default function ProfileScreen() {
 
         {isAdmin && (
           <>
-            <Text style={styles.section}>Управление</Text>
+            <Text style={styles.section}>{uiText("Управление")}</Text>
             <View style={styles.list}>
               <ListRow
                 icon={<Baby size={18} color={colors.primaryDeep} />}
@@ -134,7 +136,7 @@ export default function ProfileScreen() {
                 <ListRow
                   icon={<Receipt size={18} color={colors.roseDeep} />}
                   bg={colors.roseSoft}
-                  title="Расходы"
+                  title={uiText("Расходы")}
                   onPress={() => navigation.navigate('AdminExpenses')}
                   last={!hasFeature(user, 'meetings')}
                 />
@@ -143,7 +145,7 @@ export default function ProfileScreen() {
                 <ListRow
                   icon={<CalendarHeart size={18} color={colors.lilacDeep} />}
                   bg={colors.lilacSoft}
-                  title="Собрания"
+                  title={uiText("Собрания")}
                   onPress={() => navigation.navigate('AdminMeetings')}
                   last
                 />
@@ -156,12 +158,12 @@ export default function ProfileScreen() {
           hasFeature(user, 'homeroom') &&
           (user?.homeroomGroups?.length ?? 0) > 0 && (
             <>
-              <Text style={styles.section}>Классное руководство</Text>
+              <Text style={styles.section}>{uiText("Классное руководство")}</Text>
               <View style={styles.list}>
                 <ListRow
                   icon={<Users size={18} color={colors.primaryDeep} />}
                   bg={colors.primarySoft}
-                  title={`Мой класс · ${user!.homeroomGroups!.map((g) => g.name).join(', ')}`}
+                  title={uiText("Мой класс · {0}", user!.homeroomGroups!.map((g) => g.name).join(', '))}
                   onPress={() => navigation.navigate('TeacherHomeroom')}
                   last
                 />
@@ -186,12 +188,12 @@ export default function ProfileScreen() {
 
         {(isParent || isTeacher) && (
           <>
-            <Text style={styles.section}>Общение</Text>
+            <Text style={styles.section}>{uiText("Общение")}</Text>
             <View style={styles.list}>
               <ListRow
                 icon={<MessageCircle size={18} color={colors.blueDeep} />}
                 bg={colors.blueSoft}
-                title={isParent ? 'Чат с учителем' : 'Чат с родителями'}
+                title={isParent ? uiText("Чат с учителем") : uiText("Чат с родителями")}
                 onPress={() =>
                   navigation.navigate(isParent ? 'ParentChat' : 'TeacherChat')
                 }
@@ -201,24 +203,27 @@ export default function ProfileScreen() {
           </>
         )}
 
-        <Text style={styles.section}>Аккаунт</Text>
+        <Text style={styles.section}>{uiText("Оформление")}</Text>
+        <ThemeSwitch />
+
+        <Text style={styles.section}>{uiText("Аккаунт")}</Text>
         <View style={styles.list}>
           <ListRow
             icon={<Bell size={18} color={colors.blueDeep} />}
             bg={colors.blueSoft}
-            title="Уведомления"
+            title={uiText("Уведомления")}
             onPress={openNotifications}
           />
           <ListRow
             icon={<Shield size={18} color={colors.primaryDeep} />}
             bg={colors.primaryGhost}
-            title="Безопасность"
+            title={uiText("Безопасность")}
             onPress={openSecurity}
           />
           <ListRow
             icon={<Settings size={18} color={colors.muted} />}
             bg={colors.surfaceAlt}
-            title="Настройки"
+            title={uiText("Настройки")}
             onPress={openSettings}
             last
           />
@@ -231,21 +236,25 @@ export default function ProfileScreen() {
           onPress={onLogout}
           style={{ marginTop: 24 }}
         >
-          <Text style={{ color: colors.danger, fontWeight: '700' }}>Выйти</Text>
+          <Text style={{ color: colors.danger, fontWeight: '700' }}>{uiText("Выйти")}</Text>
         </Btn>
       </ScrollView>
+
+      <BottomModal visible={securityModal} onClose={() => setSecurityModal(false)} title={uiText("Сменить пароль")}>
+        <ChangePasswordForm onDone={() => setSecurityModal(false)} />
+      </BottomModal>
 
       <BottomModal
         visible={notifModal}
         onClose={() => setNotifModal(false)}
-        title="Уведомления"
+        title={uiText("Уведомления")}
       >
         {notifLoading ? (
           <View style={{ paddingVertical: 30, alignItems: 'center' }}>
             <ActivityIndicator color={colors.primary} />
           </View>
         ) : notifs.length === 0 ? (
-          <Text style={styles.notifEmpty}>Уведомлений пока нет</Text>
+          <Text style={styles.notifEmpty}>{uiText("Уведомлений пока нет")}</Text>
         ) : (
           notifs.map((n) => (
             <View key={n.id} style={styles.notifRow}>
@@ -294,10 +303,10 @@ function ListRow({
   )
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: { padding: 20, gap: 12 },
   name: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
     color: colors.text,
     marginTop: 12,
@@ -312,20 +321,19 @@ const styles = StyleSheet.create({
   phone: { fontSize: 13, color: colors.textMid, marginTop: 8 },
   email: { fontSize: 12, color: colors.muted, marginTop: 2 },
   section: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '700',
+    fontSize: 16,
+    color: colors.text,
+    fontWeight: '800',
+    letterSpacing: -0.2,
     marginTop: 14,
-    marginBottom: 4,
+    marginBottom: 2,
     marginLeft: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
   },
   list: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: colors.borderSoft,
+    borderColor: colors.glassBorder,
     overflow: 'hidden',
   },
   row: {
@@ -337,13 +345,13 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderSoft,
   },
   rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowTitle: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+  rowTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
   notifEmpty: {
     fontSize: 13,
     color: colors.muted,
@@ -367,4 +375,4 @@ const styles = StyleSheet.create({
   notifTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
   notifBody: { fontSize: 13, color: colors.textMid, marginTop: 2, lineHeight: 18 },
   notifTime: { fontSize: 11, color: colors.muted, marginTop: 4 },
-})
+}))

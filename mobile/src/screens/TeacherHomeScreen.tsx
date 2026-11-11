@@ -1,194 +1,143 @@
+import { uiText } from '../i18n/uiText'
 import { useEffect, useState, useCallback } from 'react'
-import {
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
-import * as LocalAuthentication from 'expo-local-authentication'
-import * as Location from 'expo-location'
-import { Clock, LogIn, LogOut, Wallet, TrendingUp, MapPin } from 'lucide-react-native'
+import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
+import { Bell, CalendarCheck, Check, ClipboardList, Clock, MapPin, NotebookPen, Users } from 'lucide-react-native'
+import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
 
+import { Text } from '../components/Text'
 import Screen from '../components/Screen'
-import Card from '../components/Card'
-import Btn from '../components/Btn'
-import Avatar from '../components/Avatar'
-import { colors, radius, font, shadow } from '../theme/colors'
+import BottomModal from '../components/BottomModal'
+import GradientView from '../components/GradientView'
+import IconTile from '../components/IconTile'
+import { subjectIcon } from '../lib/subjectIcon'
+import { colors, shadow } from '../theme/colors'
+import { hasFeature } from '../lib/features'
 import { useAuthStore } from '../store/authStore'
-import { useLabels } from '../theme/useLabels'
-import { timeApi, type TimeMonthSummary } from '../api/time'
+import { scheduleApi, type ScheduleLesson } from '../api/schedule'
+import { notificationsApi, type NoticeDto } from '../api/notifications'
+import { adminApi, type GroupDto } from '../api/admin'
+import { attendanceApi } from '../api/attendance'
+import { schoolApi, type HomeworkDto } from '../api/school'
 
+import { themedStyles } from '../theme/themedStyles'
+const minutes = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number)
+  return h * 60 + (m || 0)
+}
+
+const greeting = () => {
+  const h = new Date().getHours()
+  if (h < 6) return uiText("Доброй ночи")
+  if (h < 12) return uiText("Доброе утро")
+  if (h < 18) return uiText("Добрый день")
+  return uiText("Добрый вечер")
+}
+
+const lessonsWord = (n: number) => (n % 10 === 1 && n % 100 !== 11 ? uiText("урок") : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? uiText("урока") : uiText("уроков"))
+
+/**
+ * Кабинет учителя — информационная главная: текущий урок, уроки и классы на сегодня,
+ * оповещения, мой класс. Учёта рабочего времени здесь нет.
+ */
 export default function TeacherHomeScreen() {
   const user = useAuthStore((s) => s.user)
+  const navigation = useNavigation<any>()
 
-  const [isWorking, setIsWorking] = useState(false)
-  const [activeCheckIn, setActiveCheckIn] = useState<string | null>(null)
-  const [summary, setSummary] = useState<TimeMonthSummary | null>(null)
+  const [lessons, setLessons] = useState<ScheduleLesson[]>([])
+  const [groups, setGroups] = useState<GroupDto[]>([])
+  const [notices, setNotices] = useState<NoticeDto[]>([])
+  const [classPresent, setClassPresent] = useState<{ here: number; total: number } | null>(null)
+  // Ближайшее ДЗ моего класса: сколько учеников его уже сдали
+  const [classHomework, setClassHomework] = useState<HomeworkDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(new Date())
-  const [geoStatus, setGeoStatus] = useState<
-    'idle' | 'inside' | 'outside' | 'denied' | 'unknown' | 'no-fence'
-  >('idle')
-  const [distanceM, setDistanceM] = useState<number | null>(null)
+  const [noticesOpen, setNoticesOpen] = useState(false)
 
-  const month = dayjs().format('YYYY-MM')
+  const homeroomId = user?.homeroomGroups?.[0]?.id ?? user?.groupId ?? null
 
   const reload = useCallback(async () => {
-    try {
-      const [status, summ] = await Promise.all([
-        timeApi.status(),
-        timeApi.myMonth(month),
-      ])
-      setIsWorking(status.isWorking)
-      setActiveCheckIn(status.activeEntry?.checkIn || null)
-      setSummary(summ)
-    } catch (e: any) {
-      Alert.alert('Ошибка загрузки', e?.response?.data?.message || String(e))
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }, [month])
+    const day = dayjs().format('YYYY-MM-DD')
+    const [sch, grp, nt, att, hw] = await Promise.all([
+      hasFeature(user, 'schedule') ? scheduleApi.list().catch(() => [] as ScheduleLesson[]) : Promise.resolve([] as ScheduleLesson[]),
+      adminApi.groups().catch(() => [] as GroupDto[]),
+      notificationsApi.list().catch(() => [] as NoticeDto[]),
+      homeroomId && hasFeature(user, 'attendance')
+        ? attendanceApi.listByDay(day, homeroomId).catch(() => null)
+        : Promise.resolve(null),
+      homeroomId && hasFeature(user, 'homework')
+        ? schoolApi.listHomework({ groupId: homeroomId, from: day }).catch(() => [] as HomeworkDto[])
+        : Promise.resolve([] as HomeworkDto[]),
+    ])
+    setLessons(sch)
+    setGroups(grp)
+    setNotices(Array.isArray(nt) ? nt.slice(0, 5) : [])
+    setClassPresent(att && att.length ? { here: att.filter((a) => a.status === 'PRESENT').length, total: att.length } : null)
+    // сервер отдаёт ДЗ по возрастанию срока: первое с данными о классе — ближайшее
+    setClassHomework(hw.find((h) => h.stats && h.stats.total > 0) ?? null)
+    setLoading(false)
+    setRefreshing(false)
+  }, [user, homeroomId])
 
   useEffect(() => {
     reload()
   }, [reload])
 
-  // Геофенс-индикатор: показываем «в саду / вне / расстояние»
+  // «Сейчас» для подсветки текущего урока
   useEffect(() => {
-    let cancelled = false
-    const inst = user?.institution
-    if (!inst || inst.latitude == null || inst.longitude == null) {
-      setGeoStatus('no-fence')
-      return () => {
-        cancelled = true
-      }
-    }
-    ;(async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync()
-      if (cancelled) return
-      if (status !== 'granted') {
-        setGeoStatus('denied')
-        return
-      }
-      try {
-        const pos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        })
-        if (cancelled) return
-        const d = haversineMeters(
-          pos.coords.latitude,
-          pos.coords.longitude,
-          inst.latitude!,
-          inst.longitude!,
-        )
-        setDistanceM(Math.round(d))
-        setGeoStatus(d <= inst.checkInRadiusMeters ? 'inside' : 'outside')
-      } catch {
-        if (!cancelled) setGeoStatus('unknown')
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [user?.institution])
-
-  // Тикающий таймер
-  useEffect(() => {
-    if (!isWorking) return
-    const id = setInterval(() => setNow(new Date()), 1000)
+    const id = setInterval(() => setNow(new Date()), 30000)
     return () => clearInterval(id)
-  }, [isWorking])
+  }, [])
 
-  const elapsed = (() => {
-    if (!isWorking || !activeCheckIn) return null
-    const sec = Math.max(
-      0,
-      Math.floor((now.getTime() - new Date(activeCheckIn).getTime()) / 1000),
-    )
-    return {
-      h: Math.floor(sec / 3600),
-      m: Math.floor((sec % 3600) / 60),
-      s: sec % 60,
-    }
-  })()
+  // Уроки на сегодня: если в расписании уроки закреплены за учителями — только мои, иначе все уроки моих классов.
+  const todayDow = dayjs().day() === 0 ? 7 : dayjs().day()
+  const groupName = (id: string) => groups.find((g) => g.id === id)?.name ?? ''
+  const assigned = lessons.some((l) => l.teacherId)
+  const todayLessons = lessons
+    .filter((l) => l.dayOfWeek === todayDow && (!assigned || l.teacherId === user?.id))
+    .sort((a, b) => a.startTime.localeCompare(b.startTime))
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const currentIdx = todayLessons.findIndex((l) => nowMin >= minutes(l.startTime) && nowMin < minutes(l.endTime))
+  const nextIdx = todayLessons.findIndex((l) => nowMin < minutes(l.startTime))
+  const focusIdx = currentIdx >= 0 ? currentIdx : nextIdx
+  const focus = focusIdx >= 0 ? todayLessons[focusIdx] : null
 
-  const handleCheck = async () => {
-    // Face ID / Touch ID для подтверждения
-    const hasHardware = await LocalAuthentication.hasHardwareAsync()
-    const isEnrolled = await LocalAuthentication.isEnrolledAsync()
+  // Классы сегодня и число уроков в каждом
+  const classCounts = new Map<string, number>()
+  for (const l of todayLessons) classCounts.set(l.groupId, (classCounts.get(l.groupId) ?? 0) + 1)
+  const classesToday = [...classCounts.entries()]
 
-    if (hasHardware && isEnrolled) {
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: isWorking
-          ? 'Подтвердите уход с работы'
-          : 'Подтвердите приход на работу',
-        cancelLabel: 'Отмена',
-        fallbackLabel: 'Использовать пароль',
-      })
-      if (!result.success) {
-        Alert.alert('Не подтверждено', 'Face/Touch ID не сработал')
-        return
-      }
-    }
+  const parts = (user?.fullName ?? '').split(' ').filter(Boolean)
+  const first = parts[1] ?? parts[0] ?? ''
+  const initials = parts
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase()
 
-    try {
-      if (isWorking) {
-        await timeApi.checkOut()
-        Alert.alert('Хорошего отдыха! 👋', '')
-      } else {
-        // Перед check-in пробуем взять свежие координаты для геофенс-валидации.
-        let coords: { lat: number; lon: number } | undefined
-        const inst = user?.institution
-        if (inst?.latitude != null && inst?.longitude != null) {
-          const { status } = await Location.requestForegroundPermissionsAsync()
-          if (status !== 'granted') {
-            Alert.alert(
-              'Нужна геолокация',
-              'Включите доступ к геолокации в настройках, чтобы отметить приход.',
-            )
-            return
-          }
-          try {
-            const pos = await Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.High,
-            })
-            coords = {
-              lat: pos.coords.latitude,
-              lon: pos.coords.longitude,
-            }
-          } catch {
-            Alert.alert(
-              'Геолокация',
-              'Не удалось получить координаты. Попробуйте ещё раз на открытом воздухе.',
-            )
-            return
-          }
-        }
-        await timeApi.checkIn('FACE', coords)
-        Alert.alert('Добро пожаловать! 🌿', '')
-      }
-      reload()
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || String(e))
-    }
+  // Пустые блоки не показываем: если нечего показать, остаётся одна спокойная плашка
+  const isQuiet =
+    !loading &&
+    !focus &&
+    todayLessons.length === 0 &&
+    classesToday.length === 0 &&
+    !classPresent &&
+    !classHomework &&
+    notices.length === 0
+
+  const markRead = () => {
+    notificationsApi
+      .markAllRead()
+      .then(() => setNotices((l) => l.map((n) => ({ ...n, read: true }))))
+      .catch(() => {})
   }
 
-  const initials = user?.fullName ?? '?'
-  const greeting = (() => {
-    const h = new Date().getHours()
-    if (h < 6) return 'Доброй ночи'
-    if (h < 12) return 'Доброе утро'
-    if (h < 18) return 'Добрый день'
-    return 'Добрый вечер'
-  })()
+  const unread = notices.some((n) => !n.read)
+  const hwGroup = classHomework ? (classHomework.group?.name ?? groupName(classHomework.groupId)) : ''
 
   return (
-    <Screen>
+    <Screen variant="home">
       <ScrollView
         contentContainerStyle={styles.container}
         refreshControl={
@@ -202,279 +151,272 @@ export default function TeacherHomeScreen() {
           />
         }
       >
-        {/* Geo indicator */}
-        {geoStatus !== 'idle' && geoStatus !== 'no-fence' && (
-          <View
-            style={[
-              styles.geoBadge,
-              {
-                backgroundColor:
-                  geoStatus === 'inside'
-                    ? colors.primarySoft
-                    : geoStatus === 'outside'
-                      ? colors.roseSoft
-                      : colors.surfaceAlt,
-              },
-            ]}
-          >
-            <MapPin
-              size={12}
-              color={
-                geoStatus === 'inside'
-                  ? colors.primaryDeep
-                  : geoStatus === 'outside'
-                    ? colors.roseDeep
-                    : colors.muted
-              }
-            />
-            <Text
-              style={[
-                styles.geoText,
-                {
-                  color:
-                    geoStatus === 'inside'
-                      ? colors.primaryDeep
-                      : geoStatus === 'outside'
-                        ? colors.roseDeep
-                        : colors.muted,
-                },
-              ]}
-            >
-              {geoStatus === 'inside'
-                ? `На территории${distanceM != null ? ' · ' + distanceM + ' м' : ''}`
-                : geoStatus === 'outside'
-                  ? `Вне территории${distanceM != null ? ' · ' + distanceM + ' м' : ''}`
-                  : geoStatus === 'denied'
-                    ? 'Геолокация выключена'
-                    : 'Не удалось определить позицию'}
+        <View style={styles.headRow}>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={styles.eyebrow}>{dayjs().format('dddd, D MMMM')}</Text>
+            <Text style={styles.title}>
+              {greeting()},{'\n'}
+              {first}
             </Text>
           </View>
-        )}
-
-        {/* Greeting */}
-        <Text style={styles.greeting}>{greeting},</Text>
-        <Text style={styles.name}>{user?.fullName}</Text>
-        <Text style={styles.date}>{dayjs().format('dddd, D MMMM')}</Text>
-
-        {/* Главная карточка check-in/out */}
-        <Card
-          padding={24}
-          style={[
-            styles.mainCard,
-            {
-              backgroundColor: isWorking ? colors.primarySoft : colors.surface,
-            },
-          ]}
-        >
-          <View style={{ alignItems: 'center' }}>
-            <Avatar name={initials} size={72} />
-
-            <View
-              style={[
-                styles.statusPill,
-                {
-                  backgroundColor: isWorking
-                    ? colors.primary
-                    : colors.surfaceAlt,
-                },
-              ]}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Pressable
+              onPress={() => setNoticesOpen(true)}
+              accessibilityRole="button"
+              accessibilityLabel={unread ? uiText("Оповещения: есть непрочитанные") : uiText("Оповещения")}
+              style={styles.bell}
             >
-              <Text
-                style={{
-                  color: isWorking ? '#fff' : colors.muted,
-                  fontSize: 12,
-                  fontWeight: '700',
-                }}
-              >
-                {isWorking ? '🟢 На работе' : '⚪ Не на работе'}
+              <Bell size={22} color={colors.text} />
+              {unread && <View style={styles.bellDot} />}
+            </Pressable>
+            <GradientView from="#0D7A7C" to="#2FB3AC" style={[styles.avatar, shadow.sm]}>
+              <Text style={styles.avatarText} accessibilityLabel={uiText("Профиль")}>
+                {initials}
               </Text>
-            </View>
-
-            {isWorking && elapsed && (
-              <>
-                <Text style={styles.timer}>
-                  {String(elapsed.h).padStart(2, '0')}:
-                  {String(elapsed.m).padStart(2, '0')}:
-                  {String(elapsed.s).padStart(2, '0')}
-                </Text>
-                <Text style={styles.timerHint}>
-                  Пришли в {dayjs(activeCheckIn).format('HH:mm')}
-                </Text>
-              </>
-            )}
-
-            <Btn
-              block
-              size="lg"
-              variant={isWorking ? 'danger' : 'primary'}
-              icon={
-                isWorking ? (
-                  <LogOut size={20} color="#fff" />
-                ) : (
-                  <LogIn size={20} color="#fff" />
-                )
-              }
-              onPress={handleCheck}
-              style={{ marginTop: 18 }}
-            >
-              {isWorking ? 'Я ухожу' : 'Я пришёл'}
-            </Btn>
+            </GradientView>
           </View>
-        </Card>
-
-        {/* KPI ряд */}
-        <View style={styles.kpiRow}>
-          <Card style={styles.kpiCard}>
-            <View style={[styles.kpiIcon, { backgroundColor: colors.primaryGhost }]}>
-              <Clock size={18} color={colors.primaryDeep} />
-            </View>
-            <Text style={styles.kpiLabel}>Часов</Text>
-            <Text style={styles.kpiValue}>
-              {summary?.totalHours ?? 0}
-              <Text style={{ fontSize: 13, color: colors.muted }}>
-                {' '}/ {summary?.workNorm ?? 176}ч
-              </Text>
-            </Text>
-          </Card>
-          <Card style={styles.kpiCard}>
-            <View style={[styles.kpiIcon, { backgroundColor: colors.yellowSoft }]}>
-              <Wallet size={18} color={colors.yellowDeep} />
-            </View>
-            <Text style={styles.kpiLabel}>К выплате</Text>
-            <Text style={styles.kpiValue}>
-              {Math.round(summary?.estimatedSalary ?? 0).toLocaleString('ru-RU')}
-              <Text style={{ fontSize: 13, color: colors.muted }}> с</Text>
-            </Text>
-          </Card>
         </View>
 
-        {/* Mode */}
-        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={[styles.kpiIcon, { backgroundColor: colors.blueSoft }]}>
-            <TrendingUp size={18} color={colors.blueDeep} />
-          </View>
-          <View>
-            <Text style={{ fontSize: 11, color: colors.muted }}>
-              Режим оплаты
-            </Text>
-            <Text style={{ fontSize: 14, fontWeight: '700', color: colors.text }}>
-              {summary?.salaryMode === 'HOURLY'
-                ? `Почасовая · ${summary.hourlyRate} сом/ч`
-                : `Фикс. оклад · ${summary?.fixedSalary ?? 0} сом`}
-            </Text>
-          </View>
-        </Card>
+        {focus && (
+          <GradientView from="#12898A" via="#0D7A7C" viaAt={0.45} to="#075B5D" style={[styles.nowCard, shadow.lg]}>
+            <View style={styles.nowCircle} />
+            <View style={styles.nowHead}>
+              <IconTile icon={subjectIcon(focus.subject?.name ?? focus.activity)} bg="rgba(255,255,255,0.16)" fg="#FFFFFF" size={48} />
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.nowEyebrow}>
+                  {currentIdx >= 0 ? uiText("СЕЙЧАС · {0}-Й УРОК", currentIdx + 1) : uiText("ДАЛЬШЕ · {0}-Й УРОК", nextIdx + 1)}
+                </Text>
+                <Text style={styles.nowTitle} numberOfLines={2}>
+                  {focus.subject?.name ?? focus.activity}
+                  {groupName(focus.groupId) ? ` · ${groupName(focus.groupId)}` : ''}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.nowMeta}>
+              {focus.room ? (
+                <View style={styles.nowMetaItem}>
+                  <MapPin size={15} color="#DDF1F0" />
+                  <Text style={styles.nowMetaText}>{uiText("Кабинет") + " "}{focus.room}</Text>
+                </View>
+              ) : null}
+              <View style={styles.nowMetaItem}>
+                <Clock size={15} color="#DDF1F0" />
+                <Text style={styles.nowMetaText}>{currentIdx >= 0 ? uiText("до {0}", focus.endTime) : uiText("с {0}", focus.startTime)}</Text>
+              </View>
+            </View>
+            <View style={styles.nowActions}>
+              {hasFeature(user, 'attendance') && (
+                <Pressable
+                  onPress={() => navigation.navigate('TeacherAttendance')}
+                  accessibilityRole="button"
+                  style={[styles.nowBtn, { backgroundColor: '#FFFFFF' }]}
+                >
+                  <CalendarCheck size={18} color="#075B5D" />
+                  <Text style={[styles.nowBtnText, { color: '#075B5D' }]}>{uiText("Отметить")}</Text>
+                </Pressable>
+              )}
+              {hasFeature(user, 'grades') && (
+                <Pressable
+                  onPress={() => navigation.navigate('TeacherGrades')}
+                  accessibilityRole="button"
+                  style={[styles.nowBtn, { backgroundColor: 'rgba(255,255,255,0.16)' }]}
+                >
+                  <NotebookPen size={18} color="#FFFFFF" />
+                  <Text style={[styles.nowBtnText, { color: '#FFFFFF' }]}>{uiText("Оценки")}</Text>
+                </Pressable>
+              )}
+            </View>
+          </GradientView>
+        )}
 
-        {!loading && (summary?.entries.length ?? 0) === 0 && (
-          <Text style={styles.empty}>
-            Записей пока нет. Нажмите «Я пришёл» чтобы начать.
-          </Text>
+        {hasFeature(user, 'schedule') && todayLessons.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHead}>
+              <Text style={styles.cardTitle}>{uiText("Уроки сегодня")}</Text>
+              <Text style={styles.cardCount}>
+                {todayLessons.length} {lessonsWord(todayLessons.length)}
+              </Text>
+            </View>
+            {todayLessons.map((l, i) => {
+              const done = nowMin >= minutes(l.endTime)
+              const cur = i === currentIdx
+              const name = (l.subject?.name ?? l.activity) + (groupName(l.groupId) ? ` · ${groupName(l.groupId)}` : '')
+              return (
+                <View key={l.id} style={[styles.lessonRow, cur && styles.lessonRowNow, done && { opacity: 0.5 }]}>
+                  <Text style={[styles.lessonTime, cur && { color: colors.primary }]}>{l.startTime}</Text>
+                  <IconTile icon={subjectIcon(l.subject?.name ?? l.activity)} bg="rgba(13,122,124,0.13)" fg={colors.primary} size={34} />
+                  <Text style={[styles.lessonName, cur && { fontWeight: '800' }]} numberOfLines={1}>
+                    {name}
+                  </Text>
+                  {cur ? (
+                    <View style={styles.nowBadge}>
+                      <Text style={styles.nowBadgeText}>{uiText("сейчас")}</Text>
+                    </View>
+                  ) : done ? (
+                    <Check size={18} color={colors.primary} />
+                  ) : l.room ? (
+                    <Text style={styles.lessonHint}>{uiText("каб.") + " "}{l.room}</Text>
+                  ) : null}
+                </View>
+              )
+            })}
+          </View>
+        )}
+
+        {(classPresent || classHomework) && (
+          <View style={styles.tiles}>
+            {classPresent && (
+              <View style={[styles.tile, { flex: 1 }]}>
+                <View style={styles.tileHead}>
+                  <IconTile icon={Users} bg="rgba(13,122,124,0.13)" fg={colors.primary} size={32} />
+                  <Text style={styles.tileLabel} numberOfLines={1}>
+                    {" " + uiText("Мой класс")}{groupName(homeroomId ?? '') ? ' ' + groupName(homeroomId ?? '') : ''}
+                  </Text>
+                </View>
+                <View style={{ gap: 2 }}>
+                  <Text style={styles.tileValue}>
+                    {classPresent.here} / {classPresent.total}
+                  </Text>
+                  <Text style={[styles.tileHint, { color: colors.primary }]}>{uiText("в школе сегодня")}</Text>
+                </View>
+              </View>
+            )}
+            {classHomework?.stats && (
+              <Pressable
+                style={{ flex: 1 }}
+                onPress={() => navigation.navigate('TeacherHomework')}
+                accessibilityRole="button"
+                accessibilityLabel={uiText("Домашние задания: {0} из {1} сдали", classHomework.stats.submitted, classHomework.stats.total)}
+              >
+                <View style={styles.tile}>
+                  <View style={styles.tileHead}>
+                    <IconTile icon={ClipboardList} bg="rgba(255,138,101,0.2)" fg={colors.roseDeep} size={32} />
+                    <Text style={styles.tileLabel} numberOfLines={1}>
+                      {" " + uiText("ДЗ ·") + " "}{hwGroup}
+                    </Text>
+                  </View>
+                  <View style={{ gap: 2 }}>
+                    <Text style={styles.tileValue}>
+                      {classHomework.stats.submitted} / {classHomework.stats.total}
+                    </Text>
+                    <Text style={[styles.tileHint, { color: colors.roseDeep }]}>{uiText("сдали к сроку")}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            )}
+          </View>
+        )}
+
+        {isQuiet && (
+          <View style={[styles.card, { alignItems: 'center', gap: 6 }]}>
+            <Text style={styles.quietTitle}>{uiText("Сегодня спокойно")}</Text>
+            <Text style={styles.muted}>{uiText("Ни уроков, ни новых оповещений. Всё важное появится здесь.")}</Text>
+          </View>
         )}
       </ScrollView>
+
+      <BottomModal visible={noticesOpen} onClose={() => setNoticesOpen(false)} title={uiText("Оповещения")}>
+        {notices.length === 0 ? (
+          <Text style={styles.muted}>{uiText("Новых оповещений нет")}</Text>
+        ) : (
+          <View style={{ gap: 12 }}>
+            {notices.map((n) => (
+              <View key={n.id} style={styles.noticeRow}>
+                <View style={[styles.dot, { backgroundColor: n.read ? colors.borderSoft : colors.coral }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.noticeTitle, !n.read && { fontWeight: '700' }]}>{n.title}</Text>
+                  {n.description ? <Text style={styles.noticeText}>{n.description}</Text> : null}
+                  <Text style={styles.noticeTime}>{dayjs(n.createdAt).format('DD.MM HH:mm')}</Text>
+                </View>
+              </View>
+            ))}
+            {unread && (
+              <Pressable onPress={markRead} accessibilityRole="button">
+                <Text style={styles.link}>{uiText("Прочитать все")}</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+      </BottomModal>
     </Screen>
   )
 }
 
-function haversineMeters(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number,
-): number {
-  const R = 6371000
-  const toRad = (d: number) => (d * Math.PI) / 180
-  const dLat = toRad(lat2 - lat1)
-  const dLon = toRad(lon2 - lon1)
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2
-  return 2 * R * Math.asin(Math.sqrt(a))
-}
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    gap: 14,
-  },
-  geoBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-  },
-  geoText: { fontSize: 11, fontWeight: '700' },
-  greeting: {
-    fontSize: 14,
-    color: colors.muted,
-    fontWeight: '500',
-  },
-  name: {
-    fontSize: 24,
-    fontWeight: '800',
-    color: colors.text,
-    letterSpacing: -0.5,
-  },
-  date: {
-    fontSize: 13,
-    color: colors.textMid,
-    marginBottom: 8,
-  },
-  mainCard: {
-    ...shadow.md,
-  },
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-    marginTop: 12,
-  },
-  timer: {
-    fontSize: 44,
-    fontWeight: '800',
-    color: colors.primaryDeep,
-    marginTop: 14,
-    letterSpacing: -1,
-    fontVariant: ['tabular-nums'],
-  },
-  timerHint: {
-    fontSize: 12,
-    color: colors.muted,
-    marginTop: 4,
-  },
-  kpiRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  kpiCard: {
-    flex: 1,
-  },
-  kpiIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
+const styles = themedStyles(() => ({
+  container: { padding: 16, gap: 12 },
+  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+  eyebrow: { fontSize: 13, fontWeight: '600', color: colors.muted },
+  title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.8, lineHeight: 29, color: colors.text },
+  bell: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
   },
-  kpiLabel: {
-    fontSize: 12,
-    color: colors.muted,
-    fontWeight: '600',
+  bellDot: { position: 'absolute', right: 9, top: 9, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF8A65' },
+  avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
+  nowCard: { padding: 18, borderRadius: 26, gap: 14 },
+  nowCircle: {
+    position: 'absolute',
+    right: -30,
+    top: -30,
+    width: 130,
+    height: 130,
+    borderRadius: 65,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  kpiValue: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.text,
-    marginTop: 2,
-    letterSpacing: -0.5,
+  nowHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  nowEyebrow: { fontSize: 12, fontWeight: '700', letterSpacing: 0.5, color: '#BDEBE8' },
+  nowTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.4, color: '#FFFFFF' },
+  nowMeta: { flexDirection: 'row', gap: 14 },
+  nowMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  nowMetaText: { fontSize: 13, fontWeight: '600', color: '#DDF1F0' },
+  nowActions: { flexDirection: 'row', gap: 8 },
+  nowBtn: { flex: 1, height: 46, borderRadius: 15, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  nowBtnText: { fontSize: 14, fontWeight: '800' },
+  card: {
+    padding: 16,
+    borderRadius: 24,
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
   },
-  empty: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    marginTop: 12,
+  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardTitle: { fontSize: 16, fontWeight: '800', letterSpacing: -0.2, color: colors.text },
+  cardCount: { fontSize: 13, fontWeight: '700', color: colors.primary },
+  lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  lessonRowNow: { marginHorizontal: -8, padding: 8, borderRadius: 16, backgroundColor: 'rgba(13,122,124,0.09)' },
+  lessonTime: { width: 44, fontSize: 13, fontWeight: '800', color: colors.text },
+  lessonName: { flex: 1, fontSize: 14, fontWeight: '600', color: colors.text },
+  lessonHint: { fontSize: 12, fontWeight: '600', color: colors.muted },
+  nowBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#FF8A65' },
+  nowBadgeText: { fontSize: 12, fontWeight: '700', color: '#10282A' },
+  tiles: { flexDirection: 'row', gap: 10 },
+  tile: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 22,
+    gap: 8,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
   },
-})
+  tileHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  tileLabel: { flex: 1, fontSize: 12, fontWeight: '700', color: colors.muted },
+  tileValue: { fontSize: 24, fontWeight: '800', letterSpacing: -0.7, color: colors.text },
+  tileHint: { fontSize: 12, fontWeight: '700' },
+  muted: { fontSize: 14, color: colors.textMid, textAlign: 'center' },
+  quietTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
+  noticeRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
+  noticeTitle: { fontSize: 14, color: colors.text },
+  noticeText: { fontSize: 13, color: colors.textMid, lineHeight: 18 },
+  noticeTime: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  link: { fontSize: 13, fontWeight: '700', color: colors.primaryDeep, paddingVertical: 4 },
+}))
