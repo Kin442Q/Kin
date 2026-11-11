@@ -9,6 +9,8 @@ import { SproutPageHeader } from '../../components/sprout'
 import { exportRows } from '../../lib/exportXlsx'
 import { ministryApi, type DistrictRow } from '../../api/ministryApi'
 import { HeatCell, MinistryFilterBar, num, placeName, useMinistryQuery } from './shared'
+import { TableTitle, helpColumns } from '../../components/TableHelp'
+import { ministryHelp, ministryTables } from './help'
 
 /** Сравнение районов и городов: одна строка на район, значения подсвечены от слабых к сильным. */
 export default function MinistryDistrictsPage() {
@@ -70,11 +72,11 @@ export default function MinistryDistrictsPage() {
       {districts.isLoading ? (
         <Skeleton active paragraph={{ rows: 8 }} />
       ) : (
-        <Card styles={{ body: { padding: 0 } }}>
+        <Card title={<TableTitle title={uiText('Районы и города')} {...ministryTables().districts} />} styles={{ body: { padding: 0 } }}>
           <Table<DistrictRow>
             size="middle"
             rowKey={(r) => r.district?.id ?? 'none'}
-            columns={columns}
+            columns={helpColumns(columns, { rowLabel: (r) => [placeName(r.district), placeName(r.region)].join(' · '), help: ministryHelp<DistrictRow>() })}
             dataSource={rows}
             pagination={{ pageSize: 25, hideOnSinglePage: true, showSizeChanger: false }}
             scroll={{ x: 'max-content' }}

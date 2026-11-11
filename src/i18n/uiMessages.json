@@ -9938,5 +9938,305 @@
   "Оценки выше шкалы школы: проверьте шкалу": {
     "en": "Grades are above the school scale: check the scale",
     "tg": "Баҳоҳо аз шкалаи мактаб болотаранд: шкаларо санҷед"
+  },
+  "По {0} оценкам за период": {
+    "en": "Based on {0} grades for the period",
+    "tg": "Аз рӯи {0} баҳо дар давра"
+  },
+  "Нет данных: за период не было оценок": {
+    "en": "No data: there were no grades in the period",
+    "tg": "Маълумот нест: дар давра баҳо набуд"
+  },
+  "По {0} отметкам посещаемости за период": {
+    "en": "Based on {0} attendance marks for the period",
+    "tg": "Аз рӯи {0} аломати ҳузур дар давра"
+  },
+  "Нет данных: за период не было отметок посещаемости": {
+    "en": "No data: there were no attendance marks in the period",
+    "tg": "Маълумот нест: дар давра аломати ҳузур набуд"
+  },
+  "Место в рейтинге по среднему баллу среди школ этой выборки. Школы без оценок места не получают.": {
+    "en": "Place in the ranking by average grade among the schools of this selection. Schools without grades get no place.",
+    "tg": "Ҷой дар рейтинг аз рӯи баҳои миёна дар байни мактабҳои ин интихоб. Мактабҳои бе баҳо ҷой намегиранд."
+  },
+  "Название школы так, как её завёл владелец платформы.": {
+    "en": "The school name as entered by the platform owner.",
+    "tg": "Номи мактаб, чунон ки соҳиби платформа ворид кардааст."
+  },
+  "Область, к которой школа привязана в справочнике регионов.": {
+    "en": "The region the school is linked to in the regions directory.",
+    "tg": "Вилояте, ки мактаб дар феҳристи минтақаҳо ба он васл шудааст."
+  },
+  "Район или город, к которому школа привязана в справочнике регионов. «Не указан» — школе ещё не назначен район.": {
+    "en": "The district or city the school is linked to in the regions directory. \"Not specified\" means no district has been assigned to the school yet.",
+    "tg": "Ноҳия ё шаҳре, ки мактаб дар феҳристи минтақаҳо ба он васл шудааст. «Нишон дода нашудааст» маънои онро дорад, ки ба мактаб ҳанӯз ноҳия таъин нашудааст."
+  },
+  "Сколько действующих школ входит в эту строку. Демонстрационные школы не считаются.": {
+    "en": "How many active schools are in this row. Demo schools are not counted.",
+    "tg": "Дар ин сатр чанд мактаби фаъол ҳаст. Мактабҳои намоишӣ ҳисоб карда намешаванд."
+  },
+  "Ученики со статусом «учится» на сегодняшний день: архивные и временно не посещающие не входят.": {
+    "en": "Students with the \"studying\" status as of today: archived and temporarily absent students are not included.",
+    "tg": "Хонандагони дорои мақоми «таҳсил мекунад» то имрӯз: бойгонишуда ва муваққатан наомадагон дохил намешаванд."
+  },
+  "Действующие учителя, заведённые в системе. Если школа не внесла учителей, здесь будет 0 и нагрузку посчитать нельзя.": {
+    "en": "Active teachers entered in the system. If the school has not entered its teachers, this is 0 and the workload cannot be calculated.",
+    "tg": "Омӯзгорони фаъоле, ки дар система ворид шудаанд. Агар мактаб омӯзгоронро ворид накарда бошад, ин ҷо 0 мешавад ва сарбориро ҳисоб кардан мумкин нест."
+  },
+  "Число учеников, делённое на число учителей. Чем выше, тем больше нагрузка на одного учителя. Если учителей в системе нет, стоит прочерк.": {
+    "en": "The number of students divided by the number of teachers. The higher it is, the heavier the load on one teacher. A dash means there are no teachers in the system.",
+    "tg": "Шумораи хонандагон тақсим ба шумораи омӯзгорон. Ҳар қадар баландтар бошад, сарбории як омӯзгор зиёдтар аст. Хат маънои онро дорад, ки дар система омӯзгор нест."
+  },
+  "Учеников: {0}, учителей: {1}": {
+    "en": "Students: {0}, teachers: {1}",
+    "tg": "Хонандагон: {0}, омӯзгорон: {1}"
+  },
+  "Средняя оценка за период в процентах от максимума шкалы школы (5 или 10 баллов): 100 % — все оценки наивысшие. Так школы с разными шкалами можно сравнивать. Считается по всем оценкам, поставленным за выбранный период.": {
+    "en": "The average grade for the period as a percentage of the maximum of the school scale (5 or 10 points): 100 % means all grades are the highest. This makes schools with different scales comparable. Calculated from all grades given in the selected period.",
+    "tg": "Баҳои миёна дар давра ба фоизи ҳадди аксари шкалаи мактаб (5 ё 10 бал): 100 % — ҳама баҳоҳо баландтаринанд. Бо ин усул мактабҳои дорои шкалаҳои гуногунро муқоиса кардан мумкин аст. Аз рӯи ҳамаи баҳоҳои дар давраи интихобшуда гузошташуда ҳисоб карда мешавад."
+  },
+  "Доля оценок «хорошо» и «отлично» среди всех оценок за период: 4 и 5 по пятибалльной шкале, 7 и выше по десятибалльной.": {
+    "en": "The share of \"good\" and \"excellent\" grades among all grades for the period: 4 and 5 on the five-point scale, 7 and above on the ten-point scale.",
+    "tg": "Ҳиссаи баҳоҳои «хуб» ва «аъло» дар байни ҳамаи баҳоҳои давра: 4 ва 5 дар шкалаи панҷбалла, 7 ва болотар дар шкалаи даҳбалла."
+  },
+  "Доля оценок не ниже «удовлетворительно» среди всех оценок за период: 3 и выше по пятибалльной шкале, 4 и выше по десятибалльной.": {
+    "en": "The share of grades at or above \"satisfactory\" among all grades for the period: 3 and above on the five-point scale, 4 and above on the ten-point scale.",
+    "tg": "Ҳиссаи баҳоҳои на пасттар аз «қаноатбахш» дар байни ҳамаи баҳоҳои давра: 3 ва болотар дар шкалаи панҷбалла, 4 ва болотар дар шкалаи даҳбалла."
+  },
+  "Доля отметок «присутствовал» среди всех отметок посещаемости за период. Каникулы и отпуска в расчёт не входят.": {
+    "en": "The share of \"present\" marks among all attendance marks for the period. Holidays and leave are not counted.",
+    "tg": "Ҳиссаи аломатҳои «ҳозир» дар байни ҳамаи аломатҳои ҳузур дар давра. Таътилҳо ва рухсатӣ ҳисоб карда намешаванд."
+  },
+  "Доля отметок «болеет» среди всех отметок посещаемости за период (присутствовал, отсутствовал, болеет). Чем меньше, тем лучше.": {
+    "en": "The share of \"sick\" marks among all attendance marks for the period (present, absent, sick). The lower, the better.",
+    "tg": "Ҳиссаи аломатҳои «бемор» дар байни ҳамаи аломатҳои ҳузур дар давра (ҳозир, ғоиб, бемор). Ҳар қадар камтар, ҳамон қадар беҳтар."
+  },
+  "Заполнила ли школа оценки, посещаемость и учителей за период. «Неполные» значит, что чего-то нет: такая школа не попадает в средние показатели.": {
+    "en": "Whether the school has entered grades, attendance and teachers for the period. \"Incomplete\" means something is missing: such a school is left out of the averages.",
+    "tg": "Оё мактаб баҳо, ҳузур ва омӯзгоронро барои давра ворид кардааст. «Нопурра» маънои онро дорад, ки чизе намерасад: чунин мактаб ба нишондиҳандаҳои миёна дохил намешавад."
+  },
+  "Итоги по каждой области вашего охвата за выбранный период.": {
+    "en": "Totals for each region in your scope for the selected period.",
+    "tg": "Натиҷаҳо барои ҳар вилояти доираи шумо дар давраи интихобшуда."
+  },
+  "Строка области складывается из всех её школ: числа суммируются, а проценты считаются по общему числу оценок и отметок, а не как среднее из средних. Поэтому большая школа влияет на область сильнее маленькой. Школы, у которых за период нет оценок или посещаемости, в эти проценты не входят.": {
+    "en": "A region row is made up of all its schools: numbers are added up, and percentages are calculated from the total number of grades and marks, not as an average of averages. So a large school affects the region more than a small one. Schools with no grades or attendance in the period are left out of these percentages.",
+    "tg": "Сатри вилоят аз ҳамаи мактабҳои он ҷамъ мешавад: рақамҳо ҷамъ карда мешаванд, фоизҳо аз рӯи шумораи умумии баҳоҳо ва аломатҳо ҳисоб мешаванд, на ҳамчун миёнаи миёнаҳо. Аз ин рӯ мактаби калон ба вилоят беш аз мактаби хурд таъсир мерасонад. Мактабҳое, ки дар давра баҳо ё ҳузур надоранд, ба ин фоизҳо дохил намешаванд."
+  },
+  "Сравнение районов и городов выбранного охвата: одна строка на район или город.": {
+    "en": "Comparison of the districts and cities in the selected scope: one row per district or city.",
+    "tg": "Муқоисаи ноҳияҳо ва шаҳрҳои доираи интихобшуда: як сатр барои як ноҳия ё шаҳр."
+  },
+  "Правила те же, что и для областей: суммы по школам района, а проценты считаются по общему числу оценок и отметок. Цвет ячейки показывает место значения между слабым (красный) и сильным (зелёный); для нагрузки на учителя и доли болеющих наоборот: чем меньше, тем лучше.": {
+    "en": "The same rules as for regions: sums over the district schools, and percentages are calculated from the total number of grades and marks. The cell colour shows where the value sits between weak (red) and strong (green); for teacher load and the share of sick students it is the other way round: the lower, the better.",
+    "tg": "Қоидаҳо ҳамон ки барои вилоятҳо: ҷамъи мактабҳои ноҳия, фоизҳо аз рӯи шумораи умумии баҳоҳо ва аломатҳо ҳисоб мешаванд. Ранги ҳуҷайра мавқеи қиматро байни суст (сурх) ва қавӣ (сабз) нишон медиҳад; барои сарбории омӯзгор ва ҳиссаи бемор баръакс: ҳар қадар камтар, ҳамон қадар беҳтар."
+  },
+  "Все школы выбранного охвата с рейтингом по среднему баллу.": {
+    "en": "All schools in the selected scope with a ranking by average grade.",
+    "tg": "Ҳамаи мактабҳои доираи интихобшуда бо рейтинг аз рӯи баҳои миёна."
+  },
+  "Место определяется по среднему баллу в процентах от шкалы школы, при равенстве по качеству знаний. Школы без оценок за период места не получают. Колонка «Данные» показывает, чего школа не заполнила.": {
+    "en": "The place is determined by the average grade as a percentage of the school scale, and by knowledge quality when tied. Schools without grades in the period get no place. The \"Data\" column shows what the school has not filled in.",
+    "tg": "Ҷой аз рӯи баҳои миёна ба фоизи шкалаи мактаб муайян карда мешавад, дар ҳолати баробарӣ аз рӯи сифати дониш. Мактабҳои бе баҳо дар давра ҷой намегиранд. Сутуни «Маълумот» нишон медиҳад, ки мактаб чиро пур накардааст."
+  },
+  "Пять школ с самым низким средним баллом за период.": {
+    "en": "The five schools with the lowest average grade for the period.",
+    "tg": "Панҷ мактаб бо пасттарин баҳои миёна дар давра."
+  },
+  "Показываются только школы, у которых есть оценки: школа без оценок не считается слабой, она просто не заполнила журнал. Средний балл считается так же, как в таблицах: в процентах от шкалы школы.": {
+    "en": "Only schools that have grades are shown: a school without grades is not considered weak, it simply has not filled in its register. The average grade is calculated the same way as in the tables: as a percentage of the school scale.",
+    "tg": "Танҳо мактабҳое нишон дода мешаванд, ки баҳо доранд: мактаби бе баҳо заиф ҳисоб намешавад, он танҳо журналро пур накардааст. Баҳои миёна мисли ҷадвалҳо ҳисоб мешавад: ба фоизи шкалаи мактаб."
+  },
+  "Сравнение классов школы за выбранный период: контингент, отметки и охват оцениванием по каждому классу.": {
+    "en": "Comparison of the school classes for the selected period: enrolment, marks and assessment coverage for each class.",
+    "tg": "Муқоисаи синфҳои мактаб дар давраи интихобшуда: таркиби хонандагон, баҳоҳо ва фарогирии баҳогузорӣ барои ҳар синф."
+  },
+  "Показатели считаются по текущим отметкам журнала за период, по шкале и порогам из фильтров. Ученик с несколькими низкими отметками учитывается один раз. Классы без отметок идут последними и в средний балл не входят.": {
+    "en": "Figures are calculated from current register marks for the period, using the scale and thresholds from the filters. A student with several low marks is counted once. Classes without marks come last and are not included in the average grade.",
+    "tg": "Нишондиҳандаҳо аз рӯи баҳоҳои ҷории журнал дар давра, бо шкала ва ҳадҳо аз филтрҳо ҳисоб мешаванд. Хонандае, ки якчанд баҳои паст дорад, як маротиба ҳисоб карда мешавад. Синфҳои бе баҳо охир меоянд ва ба баҳои миёна дохил намешаванд."
+  },
+  "Карта, где видно, по каким предметам каких классов отметок мало или совсем нет.": {
+    "en": "A map showing which subjects of which classes have few marks or none at all.",
+    "tg": "Харита, ки нишон медиҳад, дар кадом фанҳои кадом синфҳо баҳо кам аст ё умуман нест."
+  },
+  "В ячейке доля учеников класса, у которых по предмету есть хотя бы одна отметка за период. Серый цвет: предмета нет в расписании класса, основания для расчёта нет. Красный: отметки есть меньше чем у половины учеников.": {
+    "en": "The cell shows the share of students in the class who have at least one mark in the subject during the period. Grey means the subject is not in the class schedule, so there is nothing to calculate. Red means fewer than half of the students have marks.",
+    "tg": "Дар ҳуҷайра ҳиссаи хонандагони синф нишон дода мешавад, ки дар фан дар давра ақаллан як баҳо доранд. Хокистарӣ: фан дар ҷадвали синф нест, асос барои ҳисоб вуҷуд надорад. Сурх: баҳо камтар аз нисфи хонандагон дорад."
+  },
+  "Контрольные и экзаменационные отметки по предметам за период.": {
+    "en": "Control and exam marks by subject for the period.",
+    "tg": "Баҳоҳои назоратӣ ва имтиҳонӣ аз рӯи фанҳо дар давра."
+  },
+  "Берутся только записи типов «контрольная» и «экзамен». Это текущие отметки журнала, а не государственная аттестация. Средний балл — среднее арифметическое этих отметок.": {
+    "en": "Only records of the \"control\" and \"exam\" types are taken. These are current register marks, not state certification. The average grade is the arithmetic mean of these marks.",
+    "tg": "Танҳо сабтҳои навъи «назоратӣ» ва «имтиҳон» гирифта мешаванд. Инҳо баҳоҳои ҷории журналанд, на аттестатсияи давлатӣ. Баҳои миёна — миёнаи арифметикии ин баҳоҳост."
+  },
+  "Ученики, которым может понадобиться помощь, и по каким предметам.": {
+    "en": "Students who may need help, and in which subjects.",
+    "tg": "Хонандагоне, ки шояд ба кӯмак ниёз дошта бошанд, ва дар кадом фанҳо."
+  },
+  "В список попадает ученик, у которого есть хотя бы одно основание: низкая текущая отметка, нет ни одной отметки по предмету из расписания или минимум 3 дня отсутствия без уточнения причины. Сначала идут ученики с большим числом низких отметок.": {
+    "en": "A student is listed if at least one of these applies: a low current mark, no mark at all in a subject from the schedule, or at least 3 days of absence without a stated reason. Students with more low marks come first.",
+    "tg": "Хонанда ба рӯйхат меафтад, агар ақаллан яке аз асосҳо бошад: баҳои ҷории паст, набудани ягон баҳо дар фани ҷадвал ё ақаллан 3 рӯзи ғоиб бе нишон додани сабаб. Аввал хонандагон бо шумораи бештари баҳои паст меоянд."
+  },
+  "Посещаемость по дням: сколько учеников отмечено присутствующими, отсутствующими, больными и в отпуске.": {
+    "en": "Attendance by day: how many students are marked present, absent, sick or on leave.",
+    "tg": "Ҳузур аз рӯи рӯзҳо: чанд хонанда ҳозир, ғоиб, бемор ё дар рухсатӣ қайд шудааст."
+  },
+  "Считаются записи посещаемости за каждый день периода: одна запись на ученика в день. Дни без записей в таблицу не попадают. Это зарегистрированная посещаемость: если класс не отмечен, дня здесь нет.": {
+    "en": "Attendance records for each day of the period are counted: one record per student per day. Days without records do not appear in the table. This is registered attendance: if a class is not marked, the day is not here.",
+    "tg": "Сабтҳои ҳузур барои ҳар рӯзи давра ҳисоб карда мешаванд: як сабт барои як хонанда дар як рӯз. Рӯзҳои бе сабт ба ҷадвал намеафтанд. Ин ҳузури сабтшуда аст: агар синф қайд нашуда бошад, рӯз дар ин ҷо нест."
+  },
+  "Охват оцениванием по каждой паре «класс — предмет» из текущего расписания.": {
+    "en": "Assessment coverage for each \"class — subject\" pair from the current schedule.",
+    "tg": "Фарогирии баҳогузорӣ барои ҳар ҷуфти «синф — фан» аз ҷадвали ҷорӣ."
+  },
+  "Из всех пар «ученик — предмет» по расписанию берутся те, где за период есть хотя бы одна отметка. Охват — их доля. Он не показывает, проведены ли уроки и заполнен ли журнал полностью.": {
+    "en": "From all \"student — subject\" pairs in the schedule, those with at least one mark in the period are taken. Coverage is their share. It does not show whether lessons were held or whether the register is completely filled in.",
+    "tg": "Аз ҳамаи ҷуфтҳои «хонанда — фан» аз рӯи ҷадвал онҳое гирифта мешаванд, ки дар давра ақаллан як баҳо доранд. Фарогирӣ — ҳиссаи онҳост. Он нишон намедиҳад, ки дарсҳо гузаштаанд ё не ва журнал пурра пур шудааст ё не."
+  },
+  "Недельная нагрузка учителей по текущему расписанию и сколько оценок и заданий они внесли.": {
+    "en": "Weekly teacher workload from the current schedule, and how many grades and assignments they entered.",
+    "tg": "Сарбории ҳафтаинаи омӯзгорон аз рӯи ҷадвали ҷорӣ ва чанд баҳо ва вазифа ворид кардаанд."
+  },
+  "Уроки и минуты берутся из недельного расписания (записи с неверным временем не считаются). Оценки и домашние задания — записи в системе за период: это не фактические часы и не оценка качества работы учителя.": {
+    "en": "Lessons and minutes come from the weekly schedule (records with an invalid time are not counted). Grades and homework are records in the system for the period: these are not actual hours and not an assessment of a teacher's work.",
+    "tg": "Дарсҳо ва дақиқаҳо аз ҷадвали ҳафтаина гирифта мешаванд (сабтҳои бо вақти нодуруст ҳисоб карда намешаванд). Баҳоҳо ва вазифаҳои хонагӣ — сабтҳо дар система барои давра: инҳо соатҳои воқеӣ нестанд ва баҳогузории сифати кори омӯзгор низ нест."
+  },
+  "Какие официальные отчёты платформа не формирует и почему.": {
+    "en": "Which official reports the platform does not produce, and why.",
+    "tg": "Кадом ҳисоботҳои расмиро платформа ташкил намекунад ва чаро."
+  },
+  "Для этих отчётов в системе нет источника данных, поэтому их показатели не выдумываются и не подменяются средними текущих отметок.": {
+    "en": "There is no data source in the system for these reports, so their figures are not made up and are not replaced with averages of current marks.",
+    "tg": "Барои ин ҳисоботҳо дар система манбаи маълумот нест, бинобар ин нишондиҳандаҳои онҳо тарроҳӣ намешаванд ва бо миёнаи баҳоҳои ҷорӣ иваз карда намешаванд."
+  },
+  "Пар «ученик — предмет» с отметкой: {0} из {1}": {
+    "en": "Pairs \"student — subject\" with a mark: {0} of {1}",
+    "tg": "Ҷуфтҳои «хонанда — фан» бо баҳо: {0} аз {1}"
+  },
+  "Сколько отметок поставлено в журнал за выбранный период. Это записи журнала, а не итоговые оценки.": {
+    "en": "How many marks were entered in the register for the selected period. These are register records, not final grades.",
+    "tg": "Дар давраи интихобшуда чанд баҳо ба журнал гузошта шудааст. Инҳо сабтҳои журналанд, на баҳоҳои хотимавӣ."
+  },
+  "Среднее арифметическое текущих отметок за период. Считается по выбранной шкале анализа; пока шкала не выбрана, средний балл не показывается.": {
+    "en": "The arithmetic mean of current marks for the period. Calculated on the selected analysis scale; until a scale is chosen, the average grade is not shown.",
+    "tg": "Миёнаи арифметикии баҳоҳои ҷорӣ дар давра. Аз рӯи шкалаи таҳлили интихобшуда ҳисоб мешавад; то интихоби шкала баҳои миёна нишон дода намешавад."
+  },
+  "По {0} отметкам": {
+    "en": "Based on {0} marks",
+    "tg": "Аз рӯи {0} баҳо"
+  },
+  "Отметки ниже порога положительной оценки из фильтров отчёта. Шкала и пороги задаются явно.": {
+    "en": "Marks below the pass threshold from the report filters. The scale and thresholds are set explicitly.",
+    "tg": "Баҳоҳои аз ҳади баҳои мусбат аз филтрҳои ҳисобот паст. Шкала ва ҳадҳо ошкоро муайян карда мешаванд."
+  },
+  "Доля пар «ученик — предмет» из текущего расписания, по которым за период есть хотя бы одна отметка. Это не заполненность журнала и не доказательство проведённых уроков.": {
+    "en": "The share of \"student — subject\" pairs from the current schedule that have at least one mark in the period. It is not how completely the register is filled in, and not proof that lessons took place.",
+    "tg": "Ҳиссаи ҷуфтҳои «хонанда — фан» аз ҷадвали ҷорӣ, ки дар давра ақаллан як баҳо доранд. Ин пурраии журнал нест ва далели гузаштани дарсҳо низ нест."
+  },
+  "Сколько учеников сейчас числится в классе.": {
+    "en": "How many students are currently enrolled in the class.",
+    "tg": "Ҳоло дар синф чанд хонанда номнавис шудааст."
+  },
+  "Сколько учеников класса получили хотя бы одну отметку за период. Показывается, когда выбрана шкала анализа.": {
+    "en": "How many students in the class received at least one mark in the period. Shown when an analysis scale is selected.",
+    "tg": "Чанд хонандаи синф дар давра ақаллан як баҳо гирифтааст. Вақте нишон дода мешавад, ки шкалаи таҳлил интихоб шуда бошад."
+  },
+  "Сколько учеников имеют хотя бы одну низкую отметку. Ученик с несколькими низкими отметками учитывается один раз.": {
+    "en": "How many students have at least one low mark. A student with several low marks is counted once.",
+    "tg": "Чанд хонанда ақаллан як баҳои паст дорад. Хонандае, ки якчанд баҳои паст дорад, як маротиба ҳисоб карда мешавад."
+  },
+  "Ученики с низкими отметками, делённые на оценённых учеников класса, в процентах.": {
+    "en": "Students with low marks divided by the assessed students of the class, in percent.",
+    "tg": "Хонандагони дорои баҳои паст тақсим ба хонандагони баҳогузоришудаи синф, ба фоиз."
+  },
+  "Среднее арифметическое контрольных и экзаменационных отметок по предмету за период.": {
+    "en": "The arithmetic mean of control and exam marks in the subject for the period.",
+    "tg": "Миёнаи арифметикии баҳоҳои назоратӣ ва имтиҳонӣ аз фан дар давра."
+  },
+  "Количество отметок не ниже порога качества знаний из фильтров отчёта.": {
+    "en": "The number of marks at or above the knowledge quality threshold from the report filters.",
+    "tg": "Шумораи баҳоҳои на пасттар аз ҳади сифати дониш аз филтрҳои ҳисобот."
+  },
+  "Классный руководитель класса, в котором учится ученик.": {
+    "en": "The homeroom teacher of the class the student attends.",
+    "tg": "Роҳбари синфи хонанда."
+  },
+  "По каким предметам нужна помощь: средний балл по предмету и даты низких отметок.": {
+    "en": "Which subjects need help: the average mark in the subject and the dates of low marks.",
+    "tg": "Дар кадом фанҳо кӯмак лозим аст: баҳои миёна дар фан ва санаҳои баҳоҳои паст."
+  },
+  "Предметы, по которым у ученика есть низкие отметки за период.": {
+    "en": "Subjects in which the student has low marks during the period.",
+    "tg": "Фанҳое, ки хонанда дар давра баҳои паст дорад."
+  },
+  "Предметы текущего расписания, по которым у ученика нет ни одной отметки за период.": {
+    "en": "Subjects from the current schedule in which the student has no marks at all during the period.",
+    "tg": "Фанҳои ҷадвали ҷорӣ, ки хонанда дар давра ягон баҳо надорад."
+  },
+  "Сколько дней ученик отмечен «отсутствует» без причины (не болезнь и не отпуск). От трёх дней — основание для внимания.": {
+    "en": "How many days the student is marked \"absent\" without a reason (not illness and not leave). Three days or more is a reason to pay attention.",
+    "tg": "Чанд рӯз хонанда бе сабаб «ғоиб» қайд шудааст (на бемор ва на рухсатӣ). Аз се рӯз сар карда — асос барои диққат."
+  },
+  "Дата последней отметки ученика за период.": {
+    "en": "The date of the student's last mark in the period.",
+    "tg": "Санаи охирин баҳои хонанда дар давра."
+  },
+  "Сколько учеников отмечено «присутствует» в этот день.": {
+    "en": "How many students are marked \"present\" on this day.",
+    "tg": "Чанд хонанда дар ин рӯз «ҳозир» қайд шудааст."
+  },
+  "Сколько учеников отмечено «отсутствует» без указания причины.": {
+    "en": "How many students are marked \"absent\" with no reason given.",
+    "tg": "Чанд хонанда бе нишон додани сабаб «ғоиб» қайд шудааст."
+  },
+  "Сколько учеников отмечено «болеет».": {
+    "en": "How many students are marked \"sick\".",
+    "tg": "Чанд хонанда «бемор» қайд шудааст."
+  },
+  "Сколько учеников отмечено «отпуск» или «каникулы».": {
+    "en": "How many students are marked \"leave\" or \"holiday\".",
+    "tg": "Чанд хонанда «рухсатӣ» ё «таътил» қайд шудааст."
+  },
+  "Всего отметок посещаемости за день: от них считаются проценты.": {
+    "en": "The total attendance marks for the day: percentages are calculated from them.",
+    "tg": "Ҳамаи аломатҳои ҳузур дар рӯз: фоизҳо аз онҳо ҳисоб мешаванд."
+  },
+  "Сколько пар «ученик — предмет» имеют хотя бы одну отметку за период.": {
+    "en": "How many \"student — subject\" pairs have at least one mark in the period.",
+    "tg": "Чанд ҷуфти «хонанда — фан» дар давра ақаллан як баҳо дорад."
+  },
+  "Сколько пар «ученик — предмет» должно быть по текущему расписанию: учеников класса, умноженных на предметы в расписании.": {
+    "en": "How many \"student — subject\" pairs there should be according to the current schedule: the students of the class multiplied by the subjects in the schedule.",
+    "tg": "Чанд ҷуфти «хонанда — фан» аз рӯи ҷадвали ҷорӣ бояд бошад: хонандагони синф зарби фанҳои ҷадвал."
+  },
+  "Сколько уроков стоит у учителя в недельном расписании. Записи с неверным временем не считаются.": {
+    "en": "How many lessons the teacher has in the weekly schedule. Records with an invalid time are not counted.",
+    "tg": "Омӯзгор дар ҷадвали ҳафтаина чанд дарс дорад. Сабтҳои бо вақти нодуруст ҳисоб карда намешаванд."
+  },
+  "Суммарная длительность этих уроков за неделю. Это плановая нагрузка, а не фактически проведённые часы.": {
+    "en": "The total length of these lessons per week. This is the planned load, not the hours actually taught.",
+    "tg": "Давомнокии умумии ин дарсҳо дар як ҳафта. Ин сарбории банақшагирифташуда аст, на соатҳои воқеан гузашта."
+  },
+  "В скольких разных классах у учителя есть уроки по расписанию.": {
+    "en": "In how many different classes the teacher has lessons in the schedule.",
+    "tg": "Омӯзгор дар чанд синфи гуногун дар ҷадвал дарс дорад."
+  },
+  "Сколько оценок внёс учитель за выбранный период.": {
+    "en": "How many grades the teacher entered in the selected period.",
+    "tg": "Омӯзгор дар давраи интихобшуда чанд баҳо ворид кардааст."
+  },
+  "В скольких разных днях выбранного периода учитель вносил оценки.": {
+    "en": "On how many different days of the selected period the teacher entered grades.",
+    "tg": "Омӯзгор дар чанд рӯзи гуногуни давраи интихобшуда баҳо ворид кардааст."
+  },
+  "Сколько домашних заданий создал учитель со сроком сдачи в выбранном периоде.": {
+    "en": "How many homework assignments the teacher created with a due date in the selected period.",
+    "tg": "Омӯзгор чанд вазифаи хонагиро бо мӯҳлати супориш дар давраи интихобшуда сохтааст."
+  },
+  "Как считается": {
+    "en": "How it is calculated",
+    "tg": "Чӣ тавр ҳисоб мешавад"
   }
 }
