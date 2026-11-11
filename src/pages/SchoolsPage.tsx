@@ -1,16 +1,18 @@
 import { uiText } from '../i18n/uiText'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   App as AntdApp,
   Avatar,
   Button,
   Card,
+  Cascader,
   Drawer,
   Form,
   Grid,
   Input,
   Popconfirm,
+  Select,
   Space,
   Table,
   Tag,
@@ -39,6 +41,8 @@ import FeaturesModal from '../components/FeaturesModal'
 import AccessResultModal from '../components/AccessResultModal'
 import AlertsCheckButton from '../components/AlertsCheckButton'
 import type { AccessGrant } from '../api/accessApi'
+import { regionsApi, geoName, type AreaValue, type RegionNode } from '../api/regionsApi'
+import { useLangStore } from '../i18n'
 
 const { Text } = Typography
 const { useBreakpoint } = Grid
@@ -57,6 +61,12 @@ interface KindergartenApi {
   phone: string | null
   isActive: boolean
   createdAt: string
+  /** FIVE — пятибалльная, TEN — десятибалльная. */
+  gradeScale: 'FIVE' | 'TEN'
+  /** null — район не указан (школа создана до появления справочника). */
+  districtId: string | null
+  district: { id: string; nameRu: string; nameTg: string; nameEn: string } | null
+  region: { id: string; nameRu: string; nameTg: string; nameEn: string } | null
   stats: {
     usersCount: number
     groupsCount: number
@@ -79,6 +89,22 @@ export default function SchoolsPage() {
   const [editing, setEditing] = useState<KindergartenApi | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [form] = Form.useForm()
+  const lang = useLangStore((s) => s.lang)
+
+  // Справочник областей и районов для каскада «область → район».
+  const [regions, setRegions] = useState<RegionNode[]>([])
+  useEffect(() => {
+    regionsApi.tree().then(setRegions).catch(() => setRegions([]))
+  }, [])
+  const areaOptions = useMemo(
+    () =>
+      regions.map((r) => ({
+        value: r.id,
+        label: geoName(r, lang),
+        children: r.districts.map((d) => ({ value: d.id, label: geoName(d, lang) })),
+      })),
+    [regions, lang],
+  )
 
   // Итог приглашения директору: письмо ушло или не ушло (тогда можно отправить ещё раз)
   const [access, setAccess] = useState<{ grant: AccessGrant; kindergartenId: string } | null>(null)
@@ -109,7 +135,7 @@ export default function SchoolsPage() {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ phone: '+992 ' })
+    form.setFieldsValue({ phone: '+992 ', gradeScale: 'FIVE' })
     setDrawerOpen(true)
   }
 
@@ -119,6 +145,8 @@ export default function SchoolsPage() {
       name: k.name,
       address: k.address,
       phone: k.phone,
+      area: k.region && k.district ? [k.region.id, k.district.id] : undefined,
+      gradeScale: k.gradeScale ?? 'FIVE',
     })
     setDrawerOpen(true)
   }
@@ -133,6 +161,9 @@ export default function SchoolsPage() {
           name: v.name,
           address: v.address || undefined,
           phone: v.phone || undefined,
+          // район не выбран при правке — оставляем как есть
+          districtId: (v.area as AreaValue | undefined)?.[1],
+          gradeScale: v.gradeScale,
         })
         message.success(uiText("Школа обновлена"))
       } else {
@@ -141,6 +172,8 @@ export default function SchoolsPage() {
           name: v.name,
           address: v.address || undefined,
           phone: v.phone || undefined,
+          districtId: (v.area as AreaValue)[1],
+          gradeScale: v.gradeScale,
           // Пароль не задаётся: директору уйдёт письмо со ссылкой, и он придумает его сам.
           owner: { fullName: v.ownerFullName, email: ownerEmail },
         })
@@ -245,6 +278,21 @@ export default function SchoolsPage() {
                     </div>
                   </Space>
                 ),
+              },
+              {
+                title: uiText("Район"),
+                key: 'district',
+                render: (_, k) =>
+                  k.district && k.region ? (
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{geoName(k.district, lang)}</div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>
+                        {geoName(k.region, lang)}
+                      </Text>
+                    </div>
+                  ) : (
+                    <Tag>{uiText("Не указан")}</Tag>
+                  ),
               },
               {
                 title: uiText("Адрес"),
@@ -385,8 +433,49 @@ export default function SchoolsPage() {
             />
           </Form.Item>
 
+          <Form.Item
+            name="area"
+            label={uiText("Область и район")}
+            // при создании район обязателен; у старых школ без района при правке можно не выбирать
+            rules={editing ? [] : [{ required: true, message: uiText("Выберите область и район") }]}
+            extra={
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {uiText("Нужно для региональной статистики министерства и районных отделов.")}
+              </Text>
+            }
+          >
+            <Cascader
+              options={areaOptions}
+              expandTrigger="click"
+              showSearch={{
+                filter: (input, path) =>
+                  path.some((o) => String(o.label).toLowerCase().includes(input.trim().toLowerCase())),
+              }}
+              placeholder={uiText("Выберите область, затем район")}
+              allowClear={!!editing}
+              style={{ width: '100%' }}
+            />
+          </Form.Item>
+
           <Form.Item name="address" label={uiText("Адрес")}>
             <Input prefix={<EnvironmentOutlined />} placeholder={uiText("Город, улица")} />
+          </Form.Item>
+
+          <Form.Item
+            name="gradeScale"
+            label={uiText("Шкала оценок школы")}
+            extra={
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {uiText("Нужна, чтобы сравнивать школы с разной системой оценок.")}
+              </Text>
+            }
+          >
+            <Select
+              options={[
+                { value: 'FIVE', label: uiText("Пятибалльная (1–5)") },
+                { value: 'TEN', label: uiText("Десятибалльная (1–10)") },
+              ]}
+            />
           </Form.Item>
 
           <Form.Item name="phone" label={uiText("Телефон")}>

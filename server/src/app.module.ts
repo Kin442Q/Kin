@@ -47,10 +47,13 @@ import { LibraryModule } from './modules/library/library.module'
 import { QuizzesModule } from './modules/quizzes/quizzes.module'
 import { ExamPrepModule } from './modules/exam-prep/exam-prep.module'
 import { GamesModule } from './modules/games/games.module'
+import { RegionsModule } from './modules/regions/regions.module'
+import { MinistryModule } from './modules/ministry/ministry.module'
 import { FeatureGuard } from './modules/features/feature.guard'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
 import { DemoReadOnlyGuard } from './common/guards/demo-readonly.guard'
+import { ViewerDenyGuard } from './common/guards/viewer-deny.guard'
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
 
 @Module({
@@ -120,6 +123,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     QuizzesModule,
     ExamPrepModule,
     GamesModule,
+    RegionsModule,
+    MinistryModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.
@@ -127,6 +132,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     // Разделы платформы: ручки с @Feature('x') закрыты, если раздел
     // выключен для учреждения. Идёт после JWT — нужен req.user.
     { provide: APP_GUARD, useClass: FeatureGuard },
+    // Наблюдатель (министерство, районные отделы): закрыто всё, кроме ручек с @AllowViewer().
+    { provide: APP_GUARD, useClass: ViewerDenyGuard },
     // Демо read-only: после JWT блокирует мутации для демо-пользователей.
     { provide: APP_GUARD, useClass: DemoReadOnlyGuard },
     // Глобальный rate-limiting.

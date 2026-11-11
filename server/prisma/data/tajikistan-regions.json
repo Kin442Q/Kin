@@ -1,0 +1,123 @@
+{
+  "version": "2026-11-10",
+  "note": "Справочник административного деления Таджикистана для привязки школ: область → район/город. Собран по ru/tg/en статьям Википедии (структура 2022 года). Источник правки — этот файл; миграция создаёт записи с теми же кодами. Спорные места помечены в README справочника и в отчёте разработчика: Гиссар/Вахдат/Рогун/Турсунзаде (и город, и одноимённый район), написание Мастчоҳ, Нурек (ru) = Норак (tg), форма «район Деваштич».",
+  "regions": [
+    {
+      "code": "DUSHANBE",
+      "nameRu": "город Душанбе",
+      "nameTg": "шаҳри Душанбе",
+      "nameEn": "Dushanbe city",
+      "centerRu": "Душанбе",
+      "districts": [
+        { "slug": "ISMOILI-SOMONI", "kind": "CITY_DISTRICT", "nameRu": "район Исмоили Сомони", "nameTg": "ноҳияи Исмоили Сомонӣ", "nameEn": "Ismoili Somoni district" },
+        { "slug": "SINO", "kind": "CITY_DISTRICT", "nameRu": "район Сино", "nameTg": "ноҳияи Сино", "nameEn": "Sino (Ibn Sina) district" },
+        { "slug": "FIRDAVSI", "kind": "CITY_DISTRICT", "nameRu": "район Фирдавси", "nameTg": "ноҳияи Фирдавсӣ", "nameEn": "Firdavsi district" },
+        { "slug": "SHOHMANSUR", "kind": "CITY_DISTRICT", "nameRu": "район Шохмансур", "nameTg": "ноҳияи Шоҳмансур", "nameEn": "Shohmansur district" }
+      ]
+    },
+    {
+      "code": "GBAO",
+      "nameRu": "Горно-Бадахшанская автономная область",
+      "nameTg": "Вилояти Мухтори Кӯҳистони Бадахшон",
+      "nameEn": "Gorno-Badakhshan Autonomous Region (GBAO)",
+      "centerRu": "Хорог",
+      "districts": [
+        { "slug": "KHOROG-CITY", "kind": "CITY", "nameRu": "город Хорог", "nameTg": "шаҳри Хоруғ", "nameEn": "Khorugh city" },
+        { "slug": "VANJ", "kind": "DISTRICT", "nameRu": "Ванчский район", "nameTg": "ноҳияи Ванҷ", "nameEn": "Vanj district" },
+        { "slug": "DARVOZ", "kind": "DISTRICT", "nameRu": "Дарвазский район", "nameTg": "ноҳияи Дарвоз", "nameEn": "Darvoz district" },
+        { "slug": "ISHKOSHIM", "kind": "DISTRICT", "nameRu": "Ишкашимский район", "nameTg": "ноҳияи Ишкошим", "nameEn": "Ishkoshim district" },
+        { "slug": "MURGHOB", "kind": "DISTRICT", "nameRu": "Мургабский район", "nameTg": "ноҳияи Мурғоб", "nameEn": "Murghob district" },
+        { "slug": "ROSHTQALA", "kind": "DISTRICT", "nameRu": "Рошткалинский район", "nameTg": "ноҳияи Роштқалъа", "nameEn": "Roshtqal'a district" },
+        { "slug": "RUSHON", "kind": "DISTRICT", "nameRu": "Рушанский район", "nameTg": "ноҳияи Рӯшон", "nameEn": "Rushon district" },
+        { "slug": "SHUGHNON", "kind": "DISTRICT", "nameRu": "Шугнанский район", "nameTg": "ноҳияи Шуғнон", "nameEn": "Shughnon district" }
+      ]
+    },
+    {
+      "code": "SUGHD",
+      "nameRu": "Согдийская область",
+      "nameTg": "Вилояти Суғд",
+      "nameEn": "Sughd Region",
+      "centerRu": "Худжанд",
+      "districts": [
+        { "slug": "KHUJAND-CITY", "kind": "CITY", "nameRu": "город Худжанд", "nameTg": "шаҳри Хуҷанд", "nameEn": "Khujand city" },
+        { "slug": "BUSTON-CITY", "kind": "CITY", "nameRu": "город Бустон", "nameTg": "шаҳри Бӯстон", "nameEn": "Buston city" },
+        { "slug": "GULISTON-CITY", "kind": "CITY", "nameRu": "город Гулистон", "nameTg": "шаҳри Гулистон", "nameEn": "Guliston city" },
+        { "slug": "ISFARA-CITY", "kind": "CITY", "nameRu": "город Исфара", "nameTg": "шаҳри Исфара", "nameEn": "Isfara city" },
+        { "slug": "ISTARAVSHAN-CITY", "kind": "CITY", "nameRu": "город Истаравшан", "nameTg": "шаҳри Истаравшан", "nameEn": "Istaravshan city" },
+        { "slug": "ISTIQLOL-CITY", "kind": "CITY", "nameRu": "город Истиклол", "nameTg": "шаҳри Истиқлол", "nameEn": "Istiqlol city" },
+        { "slug": "KONIBODOM-CITY", "kind": "CITY", "nameRu": "город Канибадам", "nameTg": "шаҳри Конибодом", "nameEn": "Konibodom city" },
+        { "slug": "PANJAKENT-CITY", "kind": "CITY", "nameRu": "город Пенджикент", "nameTg": "шаҳри Панҷакент", "nameEn": "Panjakent city" },
+        { "slug": "AYNI", "kind": "DISTRICT", "nameRu": "Айнинский район", "nameTg": "ноҳияи Айнӣ", "nameEn": "Ayni district" },
+        { "slug": "ASHT", "kind": "DISTRICT", "nameRu": "Аштский район", "nameTg": "ноҳияи Ашт", "nameEn": "Asht district" },
+        { "slug": "GHAFUROV", "kind": "DISTRICT", "nameRu": "Гафуровский район", "nameTg": "ноҳияи Ғафуров", "nameEn": "Ghafurov district" },
+        { "slug": "KUHISTONI-MASTCHOH", "kind": "DISTRICT", "nameRu": "Горно-Матчинский район", "nameTg": "ноҳияи Кӯҳистони Мастчоҳ", "nameEn": "Kuhistoni Mastchoh district" },
+        { "slug": "DEVASHTICH", "kind": "DISTRICT", "nameRu": "район Деваштич", "nameTg": "ноҳияи Деваштич", "nameEn": "Devashtich district" },
+        { "slug": "JABBOR-RASULOV", "kind": "DISTRICT", "nameRu": "Джаббар-Расуловский район", "nameTg": "ноҳияи Ҷаббор Расулов", "nameEn": "Jabbor Rasulov district" },
+        { "slug": "ZAFAROBOD", "kind": "DISTRICT", "nameRu": "Зафарабадский район", "nameTg": "ноҳияи Зафаробод", "nameEn": "Zafarobod district" },
+        { "slug": "MASTCHOH", "kind": "DISTRICT", "nameRu": "Матчинский район", "nameTg": "ноҳияи Мастчоҳ", "nameEn": "Mastchoh district" },
+        { "slug": "SPITAMEN", "kind": "DISTRICT", "nameRu": "Спитаменский район", "nameTg": "ноҳияи Спитамен", "nameEn": "Spitamen district" },
+        { "slug": "SHAHRISTON", "kind": "DISTRICT", "nameRu": "Шахристанский район", "nameTg": "ноҳияи Шаҳристон", "nameEn": "Shahriston district" }
+      ]
+    },
+    {
+      "code": "KHATLON",
+      "nameRu": "Хатлонская область",
+      "nameTg": "Вилояти Хатлон",
+      "nameEn": "Khatlon Region",
+      "centerRu": "Бохтар",
+      "districts": [
+        { "slug": "BOKHTAR-CITY", "kind": "CITY", "nameRu": "город Бохтар", "nameTg": "шаҳри Бохтар", "nameEn": "Bokhtar city" },
+        { "slug": "KULOB-CITY", "kind": "CITY", "nameRu": "город Куляб", "nameTg": "шаҳри Кӯлоб", "nameEn": "Kulob city" },
+        { "slug": "LEVAKANT-CITY", "kind": "CITY", "nameRu": "город Левакант", "nameTg": "шаҳри Левакант", "nameEn": "Levakant city" },
+        { "slug": "NOREK-CITY", "kind": "CITY", "nameRu": "город Нурек", "nameTg": "шаҳри Норак", "nameEn": "Norak (Nurek) city" },
+        { "slug": "JOMI", "kind": "DISTRICT", "nameRu": "район Абдурахмони Джоми", "nameTg": "ноҳияи Абдураҳмони Ҷомӣ", "nameEn": "Abdurahmoni Jomi district" },
+        { "slug": "BALJUVON", "kind": "DISTRICT", "nameRu": "Бальджуванский район", "nameTg": "ноҳияи Балҷувон", "nameEn": "Baljuvon district" },
+        { "slug": "VAKHSH", "kind": "DISTRICT", "nameRu": "Вахшский район", "nameTg": "ноҳияи Вахш", "nameEn": "Vakhsh district" },
+        { "slug": "VOSE", "kind": "DISTRICT", "nameRu": "Восейский район", "nameTg": "ноҳияи Восеъ", "nameEn": "Vose' district" },
+        { "slug": "DANGHARA", "kind": "DISTRICT", "nameRu": "Дангаринский район", "nameTg": "ноҳияи Данғара", "nameEn": "Danghara district" },
+        { "slug": "JAYHUN", "kind": "DISTRICT", "nameRu": "район Джайхун", "nameTg": "ноҳияи Ҷайҳун", "nameEn": "Jayhun district" },
+        { "slug": "JALOLIDDIN-BALKHI", "kind": "DISTRICT", "nameRu": "район Джалолиддина Балхи", "nameTg": "ноҳияи Ҷалолиддин Балхӣ", "nameEn": "Jaloliddin Balkhi district" },
+        { "slug": "DUSTI", "kind": "DISTRICT", "nameRu": "район Дусти", "nameTg": "ноҳияи Дӯстӣ", "nameEn": "Dusti district" },
+        { "slug": "QUBODIYON", "kind": "DISTRICT", "nameRu": "Кубодиёнский район", "nameTg": "ноҳияи Қубодиён", "nameEn": "Qubodiyon district" },
+        { "slug": "KUSHONIYON", "kind": "DISTRICT", "nameRu": "район Кушониён", "nameTg": "ноҳияи Кӯшониён", "nameEn": "Kushoniyon district" },
+        { "slug": "MUMINOBOD", "kind": "DISTRICT", "nameRu": "Муминабадский район", "nameTg": "ноҳияи Мӯъминобод", "nameEn": "Mu'minobod district" },
+        { "slug": "NOSIRI-KHUSRAV", "kind": "DISTRICT", "nameRu": "Носири-Хусравский район", "nameTg": "ноҳияи Носири Хусрав", "nameEn": "Nosiri Khusrav district" },
+        { "slug": "PANJ", "kind": "DISTRICT", "nameRu": "Пянджский район", "nameTg": "ноҳияи Панҷ", "nameEn": "Panj district" },
+        { "slug": "TEMURMALIK", "kind": "DISTRICT", "nameRu": "Темурмаликский район", "nameTg": "ноҳияи Темурмалик", "nameEn": "Temurmalik district" },
+        { "slug": "FARKHOR", "kind": "DISTRICT", "nameRu": "Фархорский район", "nameTg": "ноҳияи Фархор", "nameEn": "Farkhor district" },
+        { "slug": "HAMADONI", "kind": "DISTRICT", "nameRu": "район Хамадони", "nameTg": "ноҳияи Ҳамадонӣ", "nameEn": "Hamadoni district" },
+        { "slug": "KHOVALING", "kind": "DISTRICT", "nameRu": "Ховалингский район", "nameTg": "ноҳияи Ховалинг", "nameEn": "Khovaling district" },
+        { "slug": "KHUROSON", "kind": "DISTRICT", "nameRu": "Хуросонский район", "nameTg": "ноҳияи Хуросон", "nameEn": "Khuroson district" },
+        { "slug": "SHAHRITUS", "kind": "DISTRICT", "nameRu": "Шахритусский район", "nameTg": "ноҳияи Шаҳритӯс", "nameEn": "Shahritus district" },
+        { "slug": "SHAMSIDDIN-SHOHIN", "kind": "DISTRICT", "nameRu": "район Шамсиддина Шохина", "nameTg": "ноҳияи Шамсиддин Шоҳин", "nameEn": "Shamsiddin Shohin district" },
+        { "slug": "YOVON", "kind": "DISTRICT", "nameRu": "Яванский район", "nameTg": "ноҳияи Ёвон", "nameEn": "Yovon district" }
+      ]
+    },
+    {
+      "code": "DRS",
+      "nameRu": "Районы республиканского подчинения",
+      "nameTg": "Ноҳияҳои тобеи ҷумҳурӣ",
+      "nameEn": "Districts of Republican Subordination (DRS)",
+      "centerRu": "Душанбе",
+      "districts": [
+        { "slug": "VAHDAT-CITY", "kind": "CITY", "nameRu": "город Вахдат", "nameTg": "шаҳри Ваҳдат", "nameEn": "Vahdat city" },
+        { "slug": "HISOR-CITY", "kind": "CITY", "nameRu": "город Гиссар", "nameTg": "шаҳри Ҳисор", "nameEn": "Hisor city" },
+        { "slug": "ROGHUN-CITY", "kind": "CITY", "nameRu": "город Рогун", "nameTg": "шаҳри Роғун", "nameEn": "Roghun city" },
+        { "slug": "TURSUNZODA-CITY", "kind": "CITY", "nameRu": "город Турсунзаде", "nameTg": "шаҳри Турсунзода", "nameEn": "Tursunzoda city" },
+        { "slug": "VARZOB", "kind": "DISTRICT", "nameRu": "Варзобский район", "nameTg": "ноҳияи Варзоб", "nameEn": "Varzob district" },
+        { "slug": "VAHDAT", "kind": "DISTRICT", "nameRu": "Вахдатский район", "nameTg": "ноҳияи Ваҳдат", "nameEn": "Vahdat district" },
+        { "slug": "HISOR", "kind": "DISTRICT", "nameRu": "Гиссарский район", "nameTg": "ноҳияи Ҳисор", "nameEn": "Hisor district" },
+        { "slug": "LAKHSH", "kind": "DISTRICT", "nameRu": "Лахшский район", "nameTg": "ноҳияи Лахш", "nameEn": "Lakhsh district" },
+        { "slug": "NUROBOD", "kind": "DISTRICT", "nameRu": "Нурабадский район", "nameTg": "ноҳияи Нуробод", "nameEn": "Nurobod district" },
+        { "slug": "RASHT", "kind": "DISTRICT", "nameRu": "Раштский район", "nameTg": "ноҳияи Рашт", "nameEn": "Rasht district" },
+        { "slug": "ROGHUN", "kind": "DISTRICT", "nameRu": "Рогунский район", "nameTg": "ноҳияи Роғун", "nameEn": "Roghun district" },
+        { "slug": "RUDAKI", "kind": "DISTRICT", "nameRu": "район Рудаки", "nameTg": "ноҳияи Рӯдакӣ", "nameEn": "Rudaki district" },
+        { "slug": "SANGVOR", "kind": "DISTRICT", "nameRu": "район Сангвор", "nameTg": "ноҳияи Сангвор", "nameEn": "Sangvor district" },
+        { "slug": "TOJIKOBOD", "kind": "DISTRICT", "nameRu": "Таджикабадский район", "nameTg": "ноҳияи Тоҷикобод", "nameEn": "Tojikobod district" },
+        { "slug": "TURSUNZODA", "kind": "DISTRICT", "nameRu": "Турсунзадевский район", "nameTg": "ноҳияи Турсунзода", "nameEn": "Tursunzoda district" },
+        { "slug": "FAYZOBOD", "kind": "DISTRICT", "nameRu": "Файзабадский район", "nameTg": "ноҳияи Файзобод", "nameEn": "Fayzobod district" },
+        { "slug": "SHAHRINAV", "kind": "DISTRICT", "nameRu": "Шахринавский район", "nameTg": "ноҳияи Шаҳринав", "nameEn": "Shahrinav district" }
+      ]
+    }
+  ]
+}

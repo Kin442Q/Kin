@@ -14,6 +14,8 @@ export type Role =
   | 'PARENT'
   | 'parent'
   | 'STUDENT'
+  /** Наблюдатель: министерство образования или районный отдел — только сводная статистика школ охвата. */
+  | 'VIEWER'
 
 export type InstitutionType = 'KINDERGARTEN' | 'SCHOOL'
 

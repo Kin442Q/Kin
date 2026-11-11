@@ -25,7 +25,9 @@ export default function RequireRole({ roles, feature, children }: Props) {
 
   const isTeacher = user.role === 'TEACHER' || user.role === 'teacher'
   const home =
-    user.role === 'STUDENT'
+    user.role === 'VIEWER'
+      ? '/ministry/overview'
+      : user.role === 'STUDENT'
       ? '/student/home'
       : user.role === 'PARENT'
         ? '/parent/home'
