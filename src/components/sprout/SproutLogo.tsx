@@ -1,6 +1,7 @@
 import { uiText } from '../../i18n/uiText'
 import { useLangStore } from '../../i18n'
 import { useThemeStore } from '../../store/themeStore'
+import { useBrandLogo } from '../../lib/brandLogo'
 
 interface MarkProps {
   width?: number
@@ -32,9 +33,10 @@ export default function SproutLogo({ size = 18, showSubtitle = true }: Props) {
   const lang = useLangStore((s) => s.lang)
   const mode = useThemeStore((s) => s.mode)
   const brand = brands[lang]
+  const logo = useBrandLogo(lang, mode === 'dark')
   if (!showSubtitle) return <BrandMark width={Math.round(size * 2.3)} />
   const height = Math.round(size * 2.4)
-  return <img className="brand-logo" src={import.meta.env.BASE_URL + 'brand/logo-' + lang + (mode === 'dark' ? '-dark' : '') + '.svg'}
+  return <img className="brand-logo" src={logo.src} onError={logo.onError}
     alt={brand.name} width={height * brand.width / 62.89} height={height}
     style={{ display: 'block', maxWidth: '100%', height: 'auto', flexShrink: 1 }} />
 }

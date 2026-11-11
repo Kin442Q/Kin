@@ -9,7 +9,7 @@ import { useLangStore } from '../i18n'
 
 /**
  * Публичный лендинг (роут «/»). Сам маркетинг лежит статикой в
- * public/landing/index.html и встраивается через iframe (полная изоляция
+ * landing/index.html и встраивается через iframe (полная изоляция
  * стилей от приложения). Кнопки лендинга шлют postMessage:
  *   { type: 'redi', action: 'demo' }  → вход в живое демо (read-only)
  *   { type: 'redi', action: 'login' } → страница входа

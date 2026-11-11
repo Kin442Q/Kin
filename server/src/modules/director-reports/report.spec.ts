@@ -9,6 +9,20 @@ function input(patch: Partial<ReportInput> = {}): ReportInput {
 const grade=(value:number,patch:Partial<ReportInput['grades'][number]>={})=>({studentId:'a',subjectId:'math',authorId:'t1',date:'2026-11-03',type:'CLASSWORK',value,...patch})
 
 describe('education report methodology',()=>{
+  it('provides the assigned class teacher and dated subject support evidence',()=>{
+    const report=buildEducationReport(input({scale:'five',groups:[{id:'g1',name:'5А',homeroomTeacher:'Teacher A',students:[{id:'a',name:'Ali'}]}],grades:[grade(2),grade(4)]}))
+    expect(report.support[0]).toMatchObject({groupName:'5А',homeroomTeacher:'Teacher A',subjectSupport:[{subjectId:'math',subjectName:'Math',average:3,lowMarks:[{value:2,date:'2026-11-03'}]}]})
+    expect(buildEducationReport(input({scale:'five',grades:[grade(2)]})).support[0].homeroomTeacher).toBeNull()
+  })
+  it('counts pupils with low marks once and uses only assessed pupils as the denominator',()=>{
+    const report=buildEducationReport(input({scale:'five',grades:[grade(2),grade(1),grade(9)]}))
+    expect(report.groups[0]).toMatchObject({students:2,assessedStudents:1,studentsWithPoor:1,poorStudentShare:100})
+    const empty=buildEducationReport(input({scale:'five'})).groups[0]
+    expect(empty).toMatchObject({average:null,assessedStudents:0,studentsWithPoor:0,poorStudentShare:null})
+    expect(buildEducationReport(input({grades:[grade(2)]})).groups[0]).toMatchObject({assessedStudents:null,studentsWithPoor:null,poorStudentShare:null})
+    const both=buildEducationReport(input({scale:'five',grades:[grade(2),grade(4,{studentId:'b'})]})).groups[0]
+    expect(both.poorStudentShare).toBe(50)
+  })
   it('never infers a scale from grades and never substitutes current marks for final results',()=>{
     const report=buildEducationReport(input({grades:[grade(10)]}))
     expect(report.methodology.scale).toBe('unset')

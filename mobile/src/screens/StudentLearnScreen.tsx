@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native'
 import {
   ChevronRight,
   CircleHelp,
+  FileText,
   FolderOpen,
   Library,
   ListChecks,
@@ -91,6 +92,15 @@ export default function StudentLearnScreen() {
       bg: 'rgba(246,196,106,0.3)',
       fg: colors.yellowDeep,
       onPress: () => navigation.navigate('StudentLibrary', { kind: 'materials' }),
+    },
+    hasFeature(user, 'lesson_materials') && {
+      key: 'lesson-materials',
+      title: uiText("Материалы класса"),
+      sub: uiText("Файлы и ссылки к урокам"),
+      icon: FileText,
+      bg: colors.lilacSoft,
+      fg: colors.lilacDeep,
+      onPress: () => navigation.navigate('StudentMaterials'),
     },
     quizOn && {
       key: 'quizzes',

@@ -8,6 +8,7 @@ import {
 
 import { KindergartensService } from './kindergartens.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
+import { FilesService } from '../files/files.service'
 import { MailService } from '../mail/mail.service'
 import { PasswordTokensService } from '../password-tokens/password-tokens.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
@@ -34,11 +35,15 @@ const tenantAdmin: AuthUser = {
 describe('KindergartensService', () => {
   let service: KindergartensService
   let prisma: PrismaMock
+  let files: { removeSchoolFiles: jest.Mock }
   let mail: { send: jest.Mock }
   let tokens: { issue: jest.Mock }
 
   beforeEach(async () => {
     prisma = createPrismaMock()
+    // район из справочника существует (в отдельных тестах переопределяется)
+    prisma.district.findUnique.mockResolvedValue({ id: 'ds_sughd_asht' })
+    files = { removeSchoolFiles: jest.fn().mockResolvedValue(undefined) }
     mail = { send: jest.fn().mockResolvedValue({ sent: true }) }
     tokens = {
       issue: jest.fn().mockResolvedValue({ token: 'tok', link: 'https://tahlilgar.cyou/set-password?token=tok', hours: 48 }),
@@ -47,6 +52,7 @@ describe('KindergartensService', () => {
       providers: [
         KindergartensService,
         { provide: PrismaService, useValue: prisma },
+        { provide: FilesService, useValue: files },
         { provide: MailService, useValue: mail },
         { provide: PasswordTokensService, useValue: tokens },
       ],
@@ -77,6 +83,7 @@ describe('KindergartensService', () => {
   describe('create', () => {
     const validDto = {
       name: 'Радуга',
+      districtId: 'ds_sughd_asht',
       owner: {
         fullName: 'Иван Иванов',
         email: 'ivan@kg.tj',
@@ -180,7 +187,7 @@ describe('KindergartensService', () => {
   })
 
   describe('create — приглашение директора письмом', () => {
-    const dto = { name: 'Радуга', owner: { fullName: 'Иван Иванов', email: 'Ivan@KG.tj' } }
+    const dto = { name: 'Радуга', districtId: 'ds_sughd_asht', owner: { fullName: 'Иван Иванов', email: 'Ivan@KG.tj' } }
 
     beforeEach(() => {
       prisma.user.findUnique.mockResolvedValue(null)
@@ -252,6 +259,83 @@ describe('KindergartensService', () => {
     })
   })
 
+  describe('область → район и шкала оценок школы', () => {
+    const base = { name: 'Радуга', owner: { fullName: 'Иван Иванов', email: 'ivan@kg.tj' } }
+
+    beforeEach(() => {
+      prisma.user.findUnique.mockResolvedValue(null)
+      prisma.kindergarten.findUnique.mockResolvedValue(null)
+      prisma.kindergarten.create.mockResolvedValue({ id: 'newK', name: 'Радуга', slug: 'raduga' })
+      prisma.user.create.mockResolvedValue({ id: 'o1', email: 'ivan@kg.tj', fullName: 'Иван Иванов', role: 'SUPER_ADMIN' })
+    })
+
+    it('без района школу не создать: 400, ничего не записывается', async () => {
+      await expect(service.create(globalOwner, { ...base } as never)).rejects.toThrow('Выберите область и район')
+      await expect(service.create(globalOwner, { ...base, districtId: '' })).rejects.toThrow(BadRequestException)
+      expect(prisma.kindergarten.create).not.toHaveBeenCalled()
+      expect(prisma.user.create).not.toHaveBeenCalled()
+    })
+
+    it('района нет в справочнике — 400', async () => {
+      prisma.district.findUnique.mockResolvedValue(null)
+      await expect(service.create(globalOwner, { ...base, districtId: 'ds_nowhere' })).rejects.toThrow('нет в справочнике')
+      expect(prisma.kindergarten.create).not.toHaveBeenCalled()
+    })
+
+    it('район сохраняется, шкала по умолчанию пятибалльная', async () => {
+      await service.create(globalOwner, { ...base, districtId: 'ds_sughd_asht' })
+      expect(prisma.district.findUnique).toHaveBeenCalledWith({ where: { id: 'ds_sughd_asht' }, select: { id: true } })
+      expect(prisma.kindergarten.create.mock.calls[0][0].data).toMatchObject({ districtId: 'ds_sughd_asht', gradeScale: 'FIVE' })
+    })
+
+    it('десятибалльная шкала принимается, неизвестная — 400', async () => {
+      await service.create(globalOwner, { ...base, districtId: 'ds_sughd_asht', gradeScale: 'TEN' })
+      expect(prisma.kindergarten.create.mock.calls[0][0].data.gradeScale).toBe('TEN')
+      await expect(
+        service.create(globalOwner, { ...base, districtId: 'ds_sughd_asht', gradeScale: 'TWELVE' as never }),
+      ).rejects.toThrow('Шкала оценок')
+    })
+
+    it('список школ отдаёт район и область, у старой школы без района — null', async () => {
+      const region = { id: 'rg_sughd', code: 'SUGHD', nameRu: 'Согдийская область', nameTg: 'Вилояти Суғд', nameEn: 'Sughd Region' }
+      const district = { id: 'ds_sughd_asht', kind: 'DISTRICT', nameRu: 'Аштский район', nameTg: 'ноҳияи Ашт', nameEn: 'Asht district', region }
+      const common = { slug: 's', address: null, phone: null, isActive: true, type: 'SCHOOL', gradeScale: 'FIVE', latitude: null, longitude: null, checkInRadiusMeters: 150, createdAt: new Date(), _count: { users: 1, groups: 2, students: 3 } }
+      prisma.kindergarten.findMany.mockResolvedValue([
+        { ...common, id: 'a', name: 'Школа 1', districtId: 'ds_sughd_asht', district },
+        { ...common, id: 'b', name: 'Старая', districtId: null, district: null },
+      ])
+      const list = await service.list(globalOwner)
+      expect(list[0]).toMatchObject({ districtId: 'ds_sughd_asht', region: { code: 'SUGHD', nameRu: 'Согдийская область' }, district: { nameRu: 'Аштский район' } })
+      expect(list[0].district).not.toHaveProperty('region')
+      expect(list[1]).toMatchObject({ districtId: null, district: null, region: null })
+    })
+
+    it('владелец платформы меняет и снимает район, неизвестный район — 400', async () => {
+      prisma.kindergarten.findUnique.mockResolvedValue({ id: 'k1' })
+      prisma.kindergarten.update.mockResolvedValue({})
+
+      await service.update(globalOwner, 'k1', { districtId: 'ds_khatlon_vakhsh', gradeScale: 'TEN' })
+      expect(prisma.kindergarten.update.mock.calls[0][0].data).toEqual({ districtId: 'ds_khatlon_vakhsh', gradeScale: 'TEN' })
+
+      await service.update(globalOwner, 'k1', { districtId: null })
+      expect(prisma.kindergarten.update.mock.calls[1][0].data).toEqual({ districtId: null })
+
+      prisma.district.findUnique.mockResolvedValue(null)
+      await expect(service.update(globalOwner, 'k1', { districtId: 'ds_nowhere' })).rejects.toThrow(BadRequestException)
+      expect(prisma.kindergarten.update).toHaveBeenCalledTimes(2)
+    })
+
+    it('директор школы район не меняет (даже если пришлёт), шкалу оценок — может', async () => {
+      prisma.kindergarten.findUnique.mockResolvedValue({ id: 'k1' })
+      prisma.kindergarten.update.mockResolvedValue({})
+
+      await service.updateMine(tenantAdmin, { districtId: 'ds_khatlon_vakhsh', gradeScale: 'TEN', name: 'Новое' } as never)
+
+      expect(prisma.kindergarten.update.mock.calls[0][0].data).toEqual({ name: 'Новое', gradeScale: 'TEN' })
+      expect(prisma.district.findUnique).not.toHaveBeenCalled()
+    })
+  })
+
   describe('resendOwnerInvite — повторное письмо директору', () => {
     const owner = { id: 'o1', email: 'ivan@kg.tj', fullName: 'Иван Иванов', role: 'SUPER_ADMIN', kindergartenId: 'k1', lastLoginAt: null }
 
@@ -308,6 +392,8 @@ describe('KindergartensService', () => {
       prisma.kindergarten.delete.mockResolvedValue({})
       const res = await service.remove(globalOwner, 'k1')
       expect(res.success).toBe(true)
+      // файлы школы лежат вне базы — их убирают из хранилища
+      expect(files.removeSchoolFiles).toHaveBeenCalledWith('k1')
     })
 
     it('remove: сначала убирает данные без каскада (ДЗ, оценки, дневник, сообщения), потом школу', async () => {
@@ -337,6 +423,7 @@ describe('KindergartensService', () => {
       prisma.kindergarten.findUnique.mockResolvedValue(null)
       await expect(service.remove(globalOwner, 'nope')).rejects.toThrow(NotFoundException)
       expect(prisma.$transaction).not.toHaveBeenCalled()
+      expect(files.removeSchoolFiles).not.toHaveBeenCalled()
     })
   })
 })

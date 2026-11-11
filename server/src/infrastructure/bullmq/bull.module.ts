@@ -11,6 +11,7 @@ export const QUEUE_TELEGRAM = 'telegram'
 export const QUEUE_PAYMENT_REMINDER = 'payment-reminder'
 export const QUEUE_MONTHLY_REPORT = 'monthly-report'
 export const QUEUE_AUDIT_LOG = 'audit-log'
+export const QUEUE_FILES_CLEANUP = 'files-cleanup'
 
 @Global()
 @Module({
@@ -36,6 +37,7 @@ export const QUEUE_AUDIT_LOG = 'audit-log'
       { name: QUEUE_PAYMENT_REMINDER },
       { name: QUEUE_MONTHLY_REPORT },
       { name: QUEUE_AUDIT_LOG },
+      { name: QUEUE_FILES_CLEANUP },
     ),
   ],
   exports: [BullModule],

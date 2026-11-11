@@ -27,6 +27,23 @@ enum Role {
   PARENT
   /// Ученик школы со своим входом (кабинет ученика). Привязан к Student через User.studentId.
   STUDENT
+  /// Представитель ведомства (министерство образования, областной или районный отдел): видит сводную
+  /// статистику школ своего охвата (ViewerScope), только чтение. К школе не привязан (kindergartenId = null).
+  VIEWER
+}
+
+/// Шкала оценок школы: нужна, чтобы сравнивать школы с пятибалльной и десятибалльной системами.
+enum GradeScale {
+  FIVE
+  TEN
+}
+
+/// Вид единицы справочника под областью: район, город (областного/республиканского подчинения)
+/// или район города Душанбе.
+enum DistrictKind {
+  DISTRICT
+  CITY
+  CITY_DISTRICT
 }
 
 enum Gender {
@@ -179,9 +196,16 @@ model Kindergarten {
   /// Допустимый радиус check-in в метрах (по умолчанию 150 м).
   checkInRadiusMeters   Int     @default(150)
 
+  /// Район или город, где находится школа (справочник области → район/город).
+  /// null — не указан (школы, созданные до появления справочника).
+  districtId    String?
+  /// Шкала оценок школы (5 или 10 баллов) — для сопоставимых средних в ведомственной статистике.
+  gradeScale    GradeScale @default(FIVE)
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  district      District? @relation(fields: [districtId], references: [id], onDelete: SetNull)
   users         User[]
   groups        Group[]
   students      Student[]
@@ -195,8 +219,63 @@ model Kindergarten {
   libraryItems  LibraryItem[]
   examTracks    ExamTrack[]
   quizzes       Quiz[]
+  storedFiles     StoredFile[]
+  lessonMaterials LessonMaterial[]
 
   @@index([isActive])
+  @@index([districtId])
+}
+
+/// Область (верхний уровень справочника): Согдийская, Хатлонская, ГБАО, город Душанбе,
+/// районы республиканского подчинения. Записи создаёт миграция из server/prisma/data/tajikistan-regions.json.
+model Region {
+  id        String   @id
+  /// Стабильный код: SUGHD, KHATLON, GBAO, DUSHANBE, DRS.
+  code      String   @unique
+  nameRu    String
+  nameTg    String
+  nameEn    String
+  /// Административный центр (по-русски).
+  centerRu  String?
+  sortOrder Int      @default(0)
+
+  districts    District[]
+  viewerScopes ViewerScope[]
+}
+
+/// Район или город под областью. Школа привязывается к ним (Kindergarten.districtId).
+model District {
+  id        String       @id
+  regionId  String
+  /// Стабильный код: <код области>-<метка>, например SUGHD-ASHT. У городов метка заканчивается на -CITY.
+  code      String       @unique
+  kind      DistrictKind @default(DISTRICT)
+  nameRu    String
+  nameTg    String
+  nameEn    String
+  sortOrder Int          @default(0)
+
+  region       Region        @relation(fields: [regionId], references: [id], onDelete: Restrict)
+  schools      Kindergarten[]
+  viewerScopes ViewerScope[]
+
+  @@index([regionId])
+}
+
+/// Охват пользователя с ролью VIEWER: все школы страны (министерство) либо выбранные области и районы.
+model ViewerScope {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  /// Название организации для интерфейса: «Министерство образования», «Отдел образования района …».
+  organization String
+  /// true — видит все школы; иначе только школы выбранных областей и районов.
+  allSchools   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  regions   Region[]
+  districts District[]
 }
 
 /// Переопределение раздела (feature) для конкретного учреждения.
@@ -307,6 +386,8 @@ model User {
   teachingGroups Group[]  @relation("TeacherClasses")
   /// Предметы, которые админ открыл учителю в журнале и ДЗ (M:N).
   teachingSubjects Subject[] @relation("TeacherSubjects")
+  /// Для VIEWER — охват (какие школы он видит).
+  viewerScope   ViewerScope?
 
   /// Для PARENT — id ребёнка.
   childId       String?
@@ -333,6 +414,9 @@ model User {
   libraryItems  LibraryItem[] @relation("LibraryAuthor")
   quizzesAuthored Quiz[]      @relation("QuizAuthor")
   examTracksAuthored ExamTrack[] @relation("ExamTrackAuthor")
+  /// Загруженные файлы и материалы к уроку (при удалении учителя остаются, authorId → null).
+  uploadedFiles   StoredFile[]    @relation("FileUploader")
+  lessonMaterialsAuthored LessonMaterial[] @relation("LessonMaterialAuthor")
 
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
@@ -515,6 +599,7 @@ model Group {
   diary                DiaryEntry[]
   homework             Homework[]
   conversations        Conversation[]
+  lessonMaterials      LessonMaterial[]
 
   @@index([isActive])
   @@index([kindergartenId])
@@ -908,6 +993,7 @@ model Subject {
   homework        Homework[]
   libraryItems    LibraryItem[]
   quizzes         Quiz[]
+  lessonMaterials LessonMaterial[]
   /// Учителя, которым открыт этот предмет.
   teachers        User[]   @relation("TeacherSubjects")
 
@@ -1086,7 +1172,10 @@ model LibraryItem {
   title          String
   description    String?
   type           LibraryItemType @default(LINK)
-  url            String
+  /// Ссылка на материал. null — материал хранится файлом (fileId).
+  url            String?
+  /// Загруженный файл (хранится вне базы, см. StoredFile). Либо url, либо fileId.
+  fileId         String?
   subjectId      String?
   /// Параллель (5, 6…), если материал для конкретных классов; null — для всех.
   gradeNumber    Int?
@@ -1098,9 +1187,64 @@ model LibraryItem {
   kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
   subject        Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   author         User?        @relation("LibraryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  file           StoredFile?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@index([kindergartenId, createdAt])
   @@index([subjectId])
+  @@index([fileId])
+}
+
+/// Загруженный файл. Сам файл лежит в хранилище (диск / S3), в базе только запись:
+/// так база остаётся лёгкой. Загрузка без привязки к материалу (attached = false)
+/// удаляется ночной чисткой через сутки.
+model StoredFile {
+  id             String   @id @default(cuid())
+  kindergartenId String
+  /// Ключ в хранилище: schools/<kindergartenId>/<id>.
+  key            String   @unique
+  /// Исходное имя файла (для скачивания).
+  name           String
+  /// MIME по расширению (определяем сами, клиентскому не верим).
+  mime           String
+  /// Размер, байт.
+  size           Int
+  uploaderId     String?
+  attached       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  kindergarten    Kindergarten     @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+  uploader        User?            @relation("FileUploader", fields: [uploaderId], references: [id], onDelete: SetNull)
+  libraryItems    LibraryItem[]
+  lessonMaterials LessonMaterial[]
+
+  @@index([kindergartenId])
+  @@index([attached, createdAt])
+}
+
+/// Материал к уроку: учитель выкладывает файл / ссылку / текст для своего класса.
+/// Живёт 30 дней (expiresAt), затем ночная чистка удаляет запись и файл.
+model LessonMaterial {
+  id             String   @id @default(cuid())
+  kindergartenId String
+  groupId        String
+  subjectId      String?
+  title          String
+  description    String?
+  url            String?
+  fileId         String?
+  authorId       String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  kindergarten Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+  group        Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subject      Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  file         StoredFile?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  author       User?        @relation("LessonMaterialAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, expiresAt])
+  @@index([expiresAt])
+  @@index([kindergartenId])
 }
 
 /// Направление подготовки к экзамену. Название задаёт школа («ЕГЭ», «Вступительные»…).

@@ -23,10 +23,13 @@ import { ChangePasswordDto } from './dto/change-password.dto'
 import { ChangeEmailDto } from './dto/change-email.dto'
 import { PasswordTokensService } from '../password-tokens/password-tokens.service'
 import { Public } from '../../common/decorators/public.decorator'
+import { AllowViewer } from '../../common/decorators/allow-viewer.decorator'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
 @ApiTags('auth')
+// Наблюдатель (министерство) входит, выходит и меняет пароль тут же, как все; остальное ему закрыто.
+@AllowViewer({ write: true })
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
   constructor(

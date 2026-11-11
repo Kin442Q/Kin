@@ -131,7 +131,9 @@ export default function LoginPage() {
       const isTeacher = user.role === 'TEACHER' || user.role === 'teacher'
       const isParent = user.role === 'PARENT'
       const isStudent = user.role === 'STUDENT'
-      const path = isStudent
+      const path = user.role === 'VIEWER'
+        ? '/ministry/overview'
+        : isStudent
         ? '/student/home'
         : isParent
           ? '/parent/home'

@@ -9,16 +9,24 @@ import type { Kindergarten, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { FilesService } from '../files/files.service'
 import { randomPassword } from '../../common/random-password'
 import { assertNoPassword, requireInviteEmail } from '../access/access.service'
 import { MailService, type MailResult } from '../mail/mail.service'
 import { inviteEmail, resetEmail } from '../mail/mail-templates'
 import { PasswordTokensService } from '../password-tokens/password-tokens.service'
 
+export const GRADE_SCALES = ['FIVE', 'TEN'] as const
+export type GradeScaleValue = (typeof GRADE_SCALES)[number]
+
 export interface CreateKindergartenDto {
   name: string
   address?: string
   phone?: string
+  /** Район или город из справочника (область выбирается в форме, на сервер уходит конечная единица). */
+  districtId: string
+  /** Шкала оценок школы; по умолчанию пятибалльная. */
+  gradeScale?: GradeScaleValue
   owner: {
     fullName: string
     /** На этот адрес уходит приглашение со ссылкой, где директор сам задаёт пароль. */
@@ -40,6 +48,9 @@ interface UpdateKindergartenDto {
   name?: string
   address?: string
   phone?: string
+  /** null — снять привязку к району. */
+  districtId?: string | null
+  gradeScale?: GradeScaleValue
   isActive?: boolean
   latitude?: number | null
   longitude?: number | null
@@ -58,6 +69,7 @@ export interface CreateKindergartenResult {
 export class KindergartensService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly files: FilesService,
     private readonly mail: MailService,
     private readonly passwordTokens: PasswordTokensService,
   ) {}
@@ -83,6 +95,7 @@ export class KindergartensService {
     const kindergartens = await this.prisma.kindergarten.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
+        district: { include: { region: true } },
         _count: {
           select: {
             users: true,
@@ -101,6 +114,14 @@ export class KindergartensService {
       phone: k.phone,
       isActive: k.isActive,
       type: k.type,
+      gradeScale: k.gradeScale,
+      districtId: k.districtId,
+      district: k.district
+        ? { id: k.district.id, kind: k.district.kind, nameRu: k.district.nameRu, nameTg: k.district.nameTg, nameEn: k.district.nameEn }
+        : null,
+      region: k.district?.region
+        ? { id: k.district.region.id, code: k.district.region.code, nameRu: k.district.region.nameRu, nameTg: k.district.region.nameTg, nameEn: k.district.region.nameEn }
+        : null,
       latitude: k.latitude,
       longitude: k.longitude,
       checkInRadiusMeters: k.checkInRadiusMeters,
@@ -131,6 +152,11 @@ export class KindergartensService {
 
     const ownerEmail = requireInviteEmail(dto.owner.email)
 
+    // Район обязателен: по нему школа попадает в областную и районную статистику.
+    if (!dto.districtId) throw new BadRequestException('Выберите область и район школы')
+    await this.assertDistrictExists(dto.districtId)
+    const gradeScale = this.parseGradeScale(dto.gradeScale) ?? 'FIVE'
+
     // Проверяем что email свободен
     const existing = await this.prisma.user.findUnique({
       where: { email: ownerEmail },
@@ -156,6 +182,8 @@ export class KindergartensService {
           isActive: true,
           // Платформа только для школ — тип не выбирается.
           type: 'SCHOOL',
+          districtId: dto.districtId,
+          gradeScale,
         },
       })
 
@@ -184,6 +212,20 @@ export class KindergartensService {
     // и отправляет приглашение ещё раз (пароль никому не показывается).
     const invite = await this.sendOwnerInvite(result.owner, 'INVITE')
     return { ...result, invite }
+  }
+
+  private async assertDistrictExists(districtId: string) {
+    const district = await this.prisma.district.findUnique({ where: { id: districtId }, select: { id: true } })
+    if (!district) throw new BadRequestException('Такого района нет в справочнике. Выберите область и район из списка')
+  }
+
+  /** undefined — не передана; неверное значение — 400. */
+  private parseGradeScale(value: unknown): GradeScaleValue | undefined {
+    if (value === undefined || value === null) return undefined
+    if (!(GRADE_SCALES as readonly unknown[]).includes(value)) {
+      throw new BadRequestException('Шкала оценок: пятибалльная (FIVE) или десятибалльная (TEN)')
+    }
+    return value as GradeScaleValue
   }
 
   /** Письмо директору со ссылкой для пароля; результат — для окна «Приглашение отправлено». */
@@ -235,7 +277,9 @@ export class KindergartensService {
     if (user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
       throw new ForbiddenException('Доступ только для администратора')
     }
-    return this.applyUpdate(user.kindergartenId, dto)
+    // Район школы назначает владелец платформы; директор правит остальное (и шкалу оценок).
+    const { districtId: _ignored, ...own } = dto
+    return this.applyUpdate(user.kindergartenId, own)
   }
 
   private async applyUpdate(id: string, dto: UpdateKindergartenDto) {
@@ -247,6 +291,12 @@ export class KindergartensService {
     if (dto.address !== undefined) data.address = dto.address?.trim() || null
     if (dto.phone !== undefined) data.phone = dto.phone?.trim() || null
     if (dto.isActive !== undefined) data.isActive = dto.isActive
+    if (dto.districtId !== undefined) {
+      if (dto.districtId !== null) await this.assertDistrictExists(dto.districtId)
+      data.districtId = dto.districtId
+    }
+    const gradeScale = this.parseGradeScale(dto.gradeScale)
+    if (gradeScale) data.gradeScale = gradeScale
     if (dto.latitude !== undefined) data.latitude = dto.latitude
     if (dto.longitude !== undefined) data.longitude = dto.longitude
     if (dto.checkInRadiusMeters !== undefined) {
@@ -281,6 +331,8 @@ export class KindergartensService {
       this.prisma.kidNote.deleteMany({ where: { student: { kindergartenId: id } } }),
       this.prisma.kindergarten.delete({ where: { id } }),
     ])
+    // записи о файлах ушли каскадом, сами файлы лежат вне базы — убираем и их
+    await this.files.removeSchoolFiles(id)
     return { success: true }
   }
 

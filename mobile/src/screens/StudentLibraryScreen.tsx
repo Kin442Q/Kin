@@ -2,22 +2,21 @@ import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Linking,
   Pressable,
   RefreshControl,
   View,
 } from 'react-native'
 import { Text, TextInput } from '../components/Text'
 import { useRoute } from '@react-navigation/native'
-import { ExternalLink, Library } from 'lucide-react-native'
+import { ExternalLink, Library, Paperclip } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import StackHeader from '../components/StackHeader'
 import EmptyState from '../components/EmptyState'
 import { colors, radius } from '../theme/colors'
+import { formatSize, openExternalUrl, openFileLink } from '../api/files'
 import {
   LIBRARY_TYPES,
   libraryApi,
@@ -28,18 +27,6 @@ import {
 
 import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
-/** Открываем только http(s): ссылку вводит учитель, но схему всё равно проверяем. */
-async function openLink(url: string) {
-  if (!/^https?:\/\//i.test(url)) {
-    Alert.alert(uiText("Ссылка не открывается"), uiText("Адрес должен начинаться с http:// или https://"))
-    return
-  }
-  try {
-    await Linking.openURL(url)
-  } catch {
-    Alert.alert(uiText("Не удалось открыть"), url)
-  }
-}
 
 /** Библиотека школы: поиск и фильтр по типу, ссылка открывается в браузере. */
 export default function StudentLibraryScreen() {
@@ -144,7 +131,15 @@ export default function StudentLibraryScreen() {
           renderItem={({ item }) => {
             const info = libraryTypeInfo(item.type)
             return (
-              <Pressable onPress={() => openLink(item.url)}>
+              <Pressable
+                onPress={() =>
+                  item.file
+                    ? openFileLink(() => libraryApi.fileLink(item.id))
+                    : item.url
+                      ? openExternalUrl(item.url)
+                      : undefined
+                }
+              >
                 <Card padding={14} style={styles.row}>
                   <Text style={styles.emoji}>{info.emoji}</Text>
                   <View style={{ flex: 1 }}>
@@ -158,9 +153,10 @@ export default function StudentLibraryScreen() {
                       {info.label}
                       {item.subject ? ` · ${item.subject.name}` : ''}
                       {item.gradeNumber ? uiText("· {0} класс", item.gradeNumber) : ''}
+                      {item.file ? ` · ${formatSize(item.file.size)}` : ''}
                     </Text>
                   </View>
-                  <ExternalLink size={18} color={colors.muted} />
+                  {item.file ? <Paperclip size={18} color={colors.muted} /> : <ExternalLink size={18} color={colors.muted} />}
                 </Card>
               </Pressable>
             )

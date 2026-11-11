@@ -61,7 +61,7 @@ export class DirectorReportsService {
     const effectiveTo=[query.to,schoolDay(generatedAt)].sort()[0]
     const groupWhere={kindergartenId:kg,isActive:true,...(query.groupId?{id:query.groupId}:{})}
     const groups=await this.prisma.group.findMany({where:groupWhere,orderBy:[{gradeNumber:'asc'},{name:'asc'}],
-      select:{id:true,name:true,gradeLabel:true,students:{where:{status:'ACTIVE'},select:{id:true,firstName:true,lastName:true}}}})
+      select:{id:true,name:true,gradeLabel:true,homeroomTeacher:{select:{fullName:true}},students:{where:{status:'ACTIVE'},select:{id:true,firstName:true,lastName:true}}}})
     const groupIds=groups.map(group=>group.id)
     const date={gte:new Date(query.from),lte:new Date(effectiveTo)}
     // Every query is restricted to the authenticated school; no client tenant ID is accepted.
@@ -75,7 +75,7 @@ export class DirectorReportsService {
       this.prisma.student.findMany({where:{kindergartenId:kg,...(query.groupId?{groupId:query.groupId}:{})},select:{enrolledAt:true,archivedAt:true}}),
     ])
     return buildEducationReport({from:query.from,to:query.to,effectiveTo,generatedAt:generatedAt.toISOString(),scale:query.scale,thresholds,
-      groups:groups.map(group=>({id:group.id,name:group.gradeLabel?.trim()||group.name,students:group.students.map(student=>({id:student.id,name:`${student.lastName} ${student.firstName}`.trim()}))})),
+      groups:groups.map(group=>({id:group.id,name:group.gradeLabel?.trim()||group.name,homeroomTeacher:group.homeroomTeacher?.fullName??null,students:group.students.map(student=>({id:student.id,name:`${student.lastName} ${student.firstName}`.trim()}))})),
       subjects,grades:grades.map(row=>({...row,date:dateOnly(row.date)})),attendance:attendance.map(row=>({...row,date:dateOnly(row.date)})),schedule,
       teachers:teachers.filter(row=>!query.groupId||schedule.some(lesson=>lesson.teacherId===row.id)).map(row=>({id:row.id,name:row.fullName,active:row.isActive})),homework:homework.map(row=>({...row,dueDate:dateOnly(row.dueDate)})),
       movements:movements.map(row=>({enrolledAt:schoolDay(row.enrolledAt),archivedAt:row.archivedAt?schoolDay(row.archivedAt):null})),
