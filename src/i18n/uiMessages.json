@@ -9199,6 +9199,14 @@
     "en": "Could not prepare the report export",
     "tg": "Омода кардани содироти ҳисобот муяссар нашуд"
   },
+  "Журнал открыт только для просмотра": {
+    "en": "The journal is view-only",
+    "tg": "Журнал танҳо барои дидан кушода аст"
+  },
+  "Оценки ставит и удаляет учитель предмета.": {
+    "en": "Grades are entered and deleted by the subject teacher.",
+    "tg": "Баҳоро муаллими фан мегузорад ва нест мекунад."
+  },
   "Область и район": {
     "en": "Region and district",
     "tg": "Вилоят ва ноҳия"

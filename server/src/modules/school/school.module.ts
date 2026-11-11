@@ -216,8 +216,9 @@ export class SchoolService {
   }
 
   async upsertGrade(user: AuthUser, dto: UpsertGradeDto) {
-    if (user.role !== 'TEACHER' && user.role !== 'ADMIN' && user.role !== 'SUPER_ADMIN') {
-      throw new ForbiddenException('Доступно учителю/админу')
+    // Оценки ставит только учитель. Директор и администратор школы журнал видят, но не пишут в него.
+    if (user.role !== 'TEACHER') {
+      throw new ForbiddenException('Оценки ставит только учитель')
     }
 
     // Доступ к ученику и предмету
@@ -275,6 +276,9 @@ export class SchoolService {
   }
 
   async deleteGrade(user: AuthUser, id: string) {
+    if (user.role !== 'TEACHER') {
+      throw new ForbiddenException('Оценки удаляет только учитель')
+    }
     const g = await this.prisma.grade.findUnique({
       where: { id },
       include: { student: true },
@@ -684,12 +688,14 @@ class GradesController {
   }
 
   @Post()
-  @ApiOperation({ summary: 'Поставить оценку' })
+  @Roles('TEACHER')
+  @ApiOperation({ summary: 'Поставить оценку (только учитель)' })
   create(@CurrentUser() user: AuthUser, @Body() dto: UpsertGradeDto) {
     return this.service.upsertGrade(user, dto)
   }
 
   @Delete(':id')
+  @Roles('TEACHER')
   @HttpCode(204)
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.service.deleteGrade(user, id)

@@ -1,6 +1,7 @@
 import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
+  Alert,
   App as AntdApp,
   Avatar,
   Button,
@@ -26,6 +27,7 @@ import dayjs from 'dayjs'
 
 import { SP, SproutPageHeader, SproutCard, SproutEmpty } from '../components/sprout'
 import { useDataStore } from '../store/dataStore'
+import { useAuthStore } from '../store/authStore'
 import { termsApi, type TermDto } from '../api/termsApi'
 import { http } from '../api'
 
@@ -93,6 +95,8 @@ function gradeColor(v: number): string {
 
 export default function GradesPage() {
   const { message } = AntdApp.useApp()
+  // Оценки ставит и удаляет только учитель; директор и администратор школы журнал только смотрят.
+  const canGrade = useAuthStore((s) => s.user?.role === 'TEACHER')
   const groups = useDataStore((s) => s.groups)
   const children = useDataStore((s) => s.children)
 
@@ -366,6 +370,7 @@ export default function GradesPage() {
   }, [dateColumns.length, activeSubjectId, activeGroupId, activeTermId])
 
   const openAdd = (studentId: string, studentName: string, date?: string) => {
+    if (!canGrade) return
     setEditing({ studentId, studentName, date })
     form.resetFields()
     form.setFieldsValue({
@@ -420,6 +425,16 @@ export default function GradesPage() {
         iconAccent="mint"
         description={uiText("Все уроки четверти по предмету · средний балл и оценка за четверть")}
       />
+
+      {!canGrade && (
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 12 }}
+          message={uiText("Журнал открыт только для просмотра")}
+          description={uiText("Оценки ставит и удаляет учитель предмета.")}
+        />
+      )}
 
       {subjects.length === 0 ? (
         <SproutCard>
@@ -716,9 +731,10 @@ export default function GradesPage() {
                                       <td
                                         key={d}
                                         className="gj-cell"
+                                        style={canGrade ? undefined : { cursor: 'default' }}
                                         onClick={() => openAdd(c.id, fullName)}
                                       >
-                                        <span className="gj-add">+</span>
+                                        {canGrade && <span className="gj-add">+</span>}
                                       </td>
                                     )
                                   }
@@ -732,7 +748,7 @@ export default function GradesPage() {
                                     <td
                                       key={d}
                                       className="gj-cell"
-                                      style={mark ? { cursor: 'not-allowed' } : undefined}
+                                      style={mark ? { cursor: 'not-allowed' } : canGrade ? undefined : { cursor: 'default' }}
                                       onClick={() => {
                                         if (mark) return
                                         openAdd(c.id, fullName, d)
@@ -746,6 +762,7 @@ export default function GradesPage() {
                                               onClick={(e) => e.stopPropagation()}
                                             >
                                               <Popconfirm
+                                                disabled={!canGrade}
                                                 title={uiText("Удалить оценку {0}?", g.value)}
                                                 description={
                                                   <div style={{ fontSize: 12 }}>
@@ -780,9 +797,9 @@ export default function GradesPage() {
                                         >
                                           {mark.ch}
                                         </span>
-                                      ) : (
+                                      ) : canGrade ? (
                                         <span className="gj-add">+</span>
-                                      )}
+                                      ) : null}
                                     </td>
                                   )
                                 })}
