@@ -2195,3 +2195,23 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
 
 /* Mont Black accents; everyday interface text uses Inter. */
 h1, h2, h1.ant-typography, h2.ant-typography, .sp-display { font-family: 'Mont Black', Inter, sans-serif; }
+
+/* Кабинет министерства: таблицы крупнее. Их читают на большом экране и на совещаниях,
+   а общие таблицы платформы рассчитаны на плотные рабочие списки. */
+.ministry-table.ant-table-wrapper .ant-table {
+  font-size: 15px;
+}
+.ministry-table.ant-table-wrapper .ant-table .ant-table-thead > tr > th {
+  font-size: 13px;
+  padding: 16px 18px;
+  white-space: nowrap;
+}
+.ministry-table.ant-table-wrapper .ant-table .ant-table-tbody > tr > td {
+  font-size: inherit;
+  padding: 16px 18px;
+}
+@media (min-width: 1500px) {
+  .ministry-table.ant-table-wrapper .ant-table {
+    font-size: 16px;
+  }
+}

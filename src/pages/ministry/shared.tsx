@@ -147,7 +147,7 @@ export function heat(value: number | null | undefined, low: number, high: number
 /** Ячейка таблицы с подсветкой значения. */
 export function HeatCell({ value, low, high, invert, text }: { value: number | null | undefined; low: number; high: number; invert?: boolean; text?: string }) {
   return (
-    <div style={{ background: heat(value, low, high, invert), padding: '4px 8px', borderRadius: 8, textAlign: 'right', minWidth: 64, fontVariantNumeric: 'tabular-nums' }}>
+    <div style={{ background: heat(value, low, high, invert), padding: '6px 12px', borderRadius: 10, textAlign: 'right', minWidth: 76, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
       {text ?? pct(value)}
     </div>
   )

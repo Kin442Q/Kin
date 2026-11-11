@@ -103,6 +103,12 @@ export interface SchoolRow extends Metrics {
   studentsPerTeacher: number | null
   /** Место в рейтинге по средней оценке среди школ выборки; null — оценок за период нет. */
   rank: number | null
+  /**
+   * Сколько оценок не учтено, потому что у школы неверная шкала (есть оценки выше её максимума).
+   * Такие оценки не входят ни в показатели школы, ни в итоги по району, области и стране: иначе
+   * средний балл выходит больше 100 %. 0 — всё учтено.
+   */
+  excludedGrades: number
   /** Чего не хватает в данных школы за период — чтобы пустое не читалось как плохое. */
   flags: {
     noGrades: boolean
@@ -307,7 +313,7 @@ export class MinistryService {
       teachers,
       classes: rows.reduce((n, r) => n + r.classes, 0),
       studentsPerTeacher: teachers ? round1(students / teachers) : null,
-      schoolsWithGrades: rows.filter((r) => !r.flags.noGrades).length,
+      schoolsWithGrades: rows.filter((r) => r.gradesCount > 0).length,
       schoolsWithAttendance: rows.filter((r) => !r.flags.noAttendance).length,
       ...metricsOf(acc),
     }
@@ -415,11 +421,13 @@ export class MinistryService {
     const rows: SchoolRow[] = schools.map((s) => {
       const g = gradesBy.get(s.id)
       const a = attendanceBy.get(s.id)
+      // Неверная шкала: оценки школы нельзя сопоставить с остальными, поэтому в показатели они не идут.
+      const scaleMismatch = (g?.overScale ?? 0) > 0
       const acc: Acc = {
-        grades: g?.grades ?? 0,
-        gradeShare: g?.gradeShare ?? 0,
-        good: g?.good ?? 0,
-        passed: g?.passed ?? 0,
+        grades: scaleMismatch ? 0 : (g?.grades ?? 0),
+        gradeShare: scaleMismatch ? 0 : (g?.gradeShare ?? 0),
+        good: scaleMismatch ? 0 : (g?.good ?? 0),
+        passed: scaleMismatch ? 0 : (g?.passed ?? 0),
         present: a?.present ?? 0,
         absent: a?.absent ?? 0,
         sick: a?.sick ?? 0,
@@ -442,12 +450,14 @@ export class MinistryService {
         classes: classesBy.get(s.id) ?? 0,
         studentsPerTeacher: teachersN ? round1(studentsN / teachersN) : null,
         rank: null,
+        excludedGrades: scaleMismatch ? (g?.grades ?? 0) : 0,
         flags: {
-          noGrades: m.gradesCount === 0,
+          // «нет оценок» — это когда журнал пуст; школа с неверной шкалой помечена отдельно
+          noGrades: m.gradesCount === 0 && !scaleMismatch,
           noAttendance: m.attendanceMarks === 0,
           noTeachers: teachersN === 0,
           noLocation: s.latitude == null || s.longitude == null,
-          scaleMismatch: (g?.overScale ?? 0) > 0,
+          scaleMismatch,
         },
         ...m,
       }

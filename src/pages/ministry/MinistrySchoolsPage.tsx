@@ -52,6 +52,13 @@ export default function MinistrySchoolsPage() {
       title: uiText('Данные'),
       key: 'flags',
       render: (_, r) => {
+        if (r.flags.scaleMismatch) {
+          return (
+            <Tooltip title={uiText('Оценок выше максимума шкалы: {0}. В средние показатели они не входят, пока шкалу школы не исправят.', r.excludedGrades)}>
+              <Tag color="purple">{uiText('Проверить шкалу')}</Tag>
+            </Tooltip>
+          )
+        }
         const missing = [
           r.flags.noGrades && uiText('нет оценок'),
           r.flags.noAttendance && uiText('нет посещаемости'),
@@ -137,7 +144,7 @@ export default function MinistrySchoolsPage() {
       ) : (
         <Card title={<TableTitle title={uiText('Школы')} {...ministryTables().schools} />} styles={{ body: { padding: 0 } }}>
           <Table<SchoolRow>
-            size="middle"
+            className="ministry-table"
             rowKey="id"
             columns={helpColumns(columns, { rowLabel: (r) => r.name, help: ministryHelp<SchoolRow>() })}
             dataSource={rows}

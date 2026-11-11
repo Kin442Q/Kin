@@ -145,7 +145,7 @@ export default function MinistryOverviewPage() {
               style={{ marginBottom: 16 }}
               message={uiText('Проверьте шкалу оценок у школ: {0}', data.noData.scaleMismatch)}
               description={uiText(
-                'В этих школах есть оценки выше максимума шкалы (например, 8 при пятибалльной), поэтому средний балл может быть выше 100 %. Скорее всего, у школы выбрана пятибалльная шкала вместо десятибалльной. Шкалу меняет владелец платформы в настройках школы.',
+                'В этих школах есть оценки выше максимума шкалы (например, 8 при пятибалльной). Эти оценки не входят в средние показатели, пока не исправят шкалу школы: владелец платформы меняет её в настройках школы (раздел «Школы»).',
               )}
             />
           )}
@@ -193,7 +193,7 @@ export default function MinistryOverviewPage() {
 
           <Card title={<TableTitle title={uiText('По областям')} {...ministryTables().regions} />} style={{ marginBottom: 16 }} styles={{ body: { padding: 0 } }}>
             <Table<RegionRow>
-              size="middle"
+              className="ministry-table"
               rowKey={(r) => r.region?.id ?? 'none'}
               columns={helpColumns(columns, { rowLabel: (r) => placeName(r.region), help: ministryHelp<RegionRow>() })}
               dataSource={data?.regions ?? []}

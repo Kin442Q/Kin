@@ -9895,10 +9895,6 @@
     "en": "Check the grading scale in {0} schools",
     "tg": "Шкалаи баҳогузорӣ дар {0} мактаб санҷида шавад"
   },
-  "В этих школах есть оценки выше максимума шкалы (например, 8 при пятибалльной), поэтому средний балл может быть выше 100 %. Скорее всего, у школы выбрана пятибалльная шкала вместо десятибалльной. Шкалу меняет владелец платформы в настройках школы.": {
-    "en": "These schools have grades above the maximum of their scale (for example, 8 on a five-point scale), so the average may be above 100 %. Most likely the school has a five-point scale set instead of a ten-point one. The platform owner changes the scale in the school settings.",
-    "tg": "Дар ин мактабҳо баҳоҳо аз ҳадди аксари шкала зиёданд (масалан, 8 дар шкалаи панҷбалла), барои ҳамин баҳои миёна метавонад аз 100 % зиёд бошад. Эҳтимол, дар мактаб ба ҷои шкалаи даҳбалла шкалаи панҷбалла интихоб шудааст. Шкаларо соҳиби платформа дар танзимоти мактаб иваз мекунад."
-  },
   "Динамика по неделям": {
     "en": "Weekly trend",
     "tg": "Динамикаи ҳафтаина"
@@ -10238,5 +10234,17 @@
   "Как считается": {
     "en": "How it is calculated",
     "tg": "Чӣ тавр ҳисоб мешавад"
+  },
+  "В этих школах есть оценки выше максимума шкалы (например, 8 при пятибалльной). Эти оценки не входят в средние показатели, пока не исправят шкалу школы: владелец платформы меняет её в настройках школы (раздел «Школы»).": {
+    "en": "These schools have grades above the maximum of their scale (for example, 8 on a five-point scale). Those grades are left out of the averages until the school scale is corrected: the platform owner changes it in the school settings (the \"Schools\" section).",
+    "tg": "Дар ин мактабҳо баҳоҳо аз ҳадди аксари шкала зиёданд (масалан, 8 дар шкалаи панҷбалла). То ислоҳи шкалаи мактаб ин баҳоҳо ба нишондиҳандаҳои миёна дохил намешаванд: соҳиби платформа онро дар танзимоти мактаб (бахши «Мактабҳо») иваз мекунад."
+  },
+  "Оценок выше максимума шкалы: {0}. В средние показатели они не входят, пока шкалу школы не исправят.": {
+    "en": "Grades above the scale maximum: {0}. They are left out of the averages until the school scale is corrected.",
+    "tg": "Баҳоҳои аз ҳадди аксари шкала зиёд: {0}. То ислоҳи шкалаи мактаб онҳо ба нишондиҳандаҳои миёна дохил намешаванд."
+  },
+  "Оценки не учтены: они выше максимума шкалы школы ({0})": {
+    "en": "Grades not counted: they are above the school scale maximum ({0})",
+    "tg": "Баҳоҳо ҳисоб нашудаанд: онҳо аз ҳадди аксари шкалаи мактаб зиёданд ({0})"
   }
 }

@@ -8,12 +8,16 @@ import type { Metrics } from '../../api/ministryApi'
    (server/src/modules/ministry/ministry.service.ts): меняя расчёт, правьте и их.
    ============================================================ */
 
-type Row = Metrics & { students?: number; teachers?: number }
+type Row = Metrics & { students?: number; teachers?: number; excludedGrades?: number }
 
 const n = (value: number) => value.toLocaleString('ru-RU')
 
 const gradesBasis = (r: Row) =>
-  r.gradesCount > 0 ? uiText('По {0} оценкам за период', n(r.gradesCount)) : uiText('Нет данных: за период не было оценок')
+  r.gradesCount > 0
+    ? uiText('По {0} оценкам за период', n(r.gradesCount))
+    : r.excludedGrades
+      ? uiText('Оценки не учтены: они выше максимума шкалы школы ({0})', n(r.excludedGrades))
+      : uiText('Нет данных: за период не было оценок')
 
 const attendanceBasis = (r: Row) =>
   r.attendanceMarks > 0

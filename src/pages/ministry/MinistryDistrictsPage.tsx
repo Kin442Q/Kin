@@ -74,7 +74,7 @@ export default function MinistryDistrictsPage() {
       ) : (
         <Card title={<TableTitle title={uiText('Районы и города')} {...ministryTables().districts} />} styles={{ body: { padding: 0 } }}>
           <Table<DistrictRow>
-            size="middle"
+            className="ministry-table"
             rowKey={(r) => r.district?.id ?? 'none'}
             columns={helpColumns(columns, { rowLabel: (r) => [placeName(r.district), placeName(r.region)].join(' · '), help: ministryHelp<DistrictRow>() })}
             dataSource={rows}
