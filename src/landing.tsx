@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { useBrandLogo } from './lib/brandLogo';
 import { ConfigProvider } from 'antd';
 import { ArrowRight, BookOpen, CalendarDays, Check, CheckCheck, ChevronRight, ClipboardList, FileText, Landmark, Library, Mail, MessageCircle, Phone, UserRound, UserRoundPlus, Users } from 'lucide-react';
 import LanguageSwitcher from './components/LanguageSwitcher';
@@ -24,7 +25,7 @@ function Mountains({ small = false }: {
 }) { return <svg className={small ? 'mountains small' : 'mountains'} viewBox="0 0 1440 280" preserveAspectRatio="none" aria-hidden="true"><path fill="#B8E3DC" d="M0 180 150 95 230 140 390 26 520 138 660 74 800 158 1030 12 1150 128 1270 65 1440 165V280H0Z"/><path fill="#73C6BF" d="m0 205 190-80 90 70 210-103 160 118 180-80 160 45 150-103 130 114 170-60v154H0Z"/><path fill="#309F9D" d="m0 222 180-50 140 76 180-70 170 50 230-106 170 95 150-48 220 65v46H0Z"/><path fill="#0D7A7C" d="m0 238 185 42 250-70 220 65 270-42 220 47 295-68v68H0Z"/></svg>; }
 function Brand({ dark = false }: {
     dark?: boolean;
-}) { const lang = useLangStore(s => s.lang); return <img className="brand-logo" src={'/brand/logo-' + lang + (dark ? '-dark' : '') + '.svg'} alt={t('Моя школа')}/>; }
+}) { const lang = useLangStore(s => s.lang); const logo = useBrandLogo(lang, dark); return <img className="brand-logo" src={logo.src} onError={logo.onError} alt={t('Моя школа')}/>; }
 function Journal() { return <div className="mini-panel"><div className="mini-head"><strong>7A · {t('Журнал')}</strong><span>{t('Математика')}</span></div><table><thead><tr><th>{t('Ученик')}</th>{['10', '12', '14', '16'].map(n => <th key={n}>{n}</th>)}</tr></thead><tbody>{['a', 'b', 'c'].map((n, i) => <tr key={n}><td><span className="pupil-avatar">{['A','M','D'][i]}</span>{t('Ученик')} {i + 1}</td>{[4, 5, 4, 5].map((v, j) => <td key={j}><span className="mark">{v - (i === 1 && j === 2 ? 1 : 0)}</span></td>)}</tr>)}</tbody></table></div>; }
 function Schedule() { return <div className="mini-panel"><div className="mini-head"><strong>7A · {t('Расписание')}</strong><CalendarDays size={15}/></div>{['Математика', 'Русский язык', 'Физика'].map((s, i) => <div className="lesson" key={s}><b>{i + 1}</b><div><strong>{t(s)}</strong><small>{['08:00 — 08:45', '08:55 — 09:40', '09:50 — 10:35'][i]}</small></div></div>)}</div>; }
 function Chat() { return <div className="mini-panel chat"><div className="mini-head"><strong>7A · {t('Чат класса')}</strong><MessageCircle size={15}/></div><small>{t('Классный руководитель')}</small><p className="bubble">{t('Завтра родительское собрание в 16:00.')}</p><p className="bubble reply">{t('Спасибо! Будем.')} <CheckCheck size={12}/></p></div>; }
