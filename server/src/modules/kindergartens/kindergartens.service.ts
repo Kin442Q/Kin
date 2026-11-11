@@ -9,6 +9,7 @@ import type { Kindergarten, Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { FilesService } from '../files/files.service'
 import { randomPassword } from '../../common/random-password'
 import { assertNoPassword, requireInviteEmail } from '../access/access.service'
 import { MailService, type MailResult } from '../mail/mail.service'
@@ -68,6 +69,7 @@ export interface CreateKindergartenResult {
 export class KindergartensService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly files: FilesService,
     private readonly mail: MailService,
     private readonly passwordTokens: PasswordTokensService,
   ) {}
@@ -329,6 +331,8 @@ export class KindergartensService {
       this.prisma.kidNote.deleteMany({ where: { student: { kindergartenId: id } } }),
       this.prisma.kindergarten.delete({ where: { id } }),
     ])
+    // записи о файлах ушли каскадом, сами файлы лежат вне базы — убираем и их
+    await this.files.removeSchoolFiles(id)
     return { success: true }
   }
 

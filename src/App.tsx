@@ -32,6 +32,8 @@ import StudentQuizPlayPage from "./pages/student/StudentQuizPlayPage";
 import StudentExamPage from "./pages/student/StudentExamPage";
 import StudentGamesPage from "./pages/student/StudentGamesPage";
 import LibraryPage from "./pages/LibraryPage";
+import LessonMaterialsPage from "./pages/LessonMaterialsPage";
+import StudentMaterialsPage from "./pages/student/StudentMaterialsPage";
 import QuizzesPage from "./pages/QuizzesPage";
 import SchedulePage from "./pages/SchedulePage";
 import MeetingsPage from "./pages/MeetingsPage";
@@ -182,6 +184,14 @@ export default function App() {
               element={
                 <RequireRole roles={["STUDENT"]} feature="library">
                   <StudentLibraryPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="materials"
+              element={
+                <RequireRole roles={["STUDENT"]} feature="lesson_materials">
+                  <StudentMaterialsPage />
                 </RequireRole>
               }
             />
@@ -378,6 +388,14 @@ export default function App() {
               element={
                 <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="library">
                   <LibraryPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="materials"
+              element={
+                <RequireRole roles={["SUPER_ADMIN", "admin", "TEACHER"]} feature="lesson_materials">
+                  <LessonMaterialsPage />
                 </RequireRole>
               }
             />

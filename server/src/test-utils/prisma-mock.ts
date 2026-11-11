@@ -86,6 +86,8 @@ export function createPrismaMock() {
     region: model(),
     district: model(),
     viewerScope: model(),
+    storedFile: model(),
+    lessonMaterial: model(),
     examTrack: model(),
     quiz: model(),
     quizQuestion: model(),

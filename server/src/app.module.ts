@@ -49,6 +49,8 @@ import { ExamPrepModule } from './modules/exam-prep/exam-prep.module'
 import { GamesModule } from './modules/games/games.module'
 import { RegionsModule } from './modules/regions/regions.module'
 import { MinistryModule } from './modules/ministry/ministry.module'
+import { FilesModule } from './modules/files/files.module'
+import { LessonMaterialsModule } from './modules/lesson-materials/lesson-materials.module'
 import { FeatureGuard } from './modules/features/feature.guard'
 
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard'
@@ -125,6 +127,8 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     GamesModule,
     RegionsModule,
     MinistryModule,
+    FilesModule,
+    LessonMaterialsModule,
   ],
   providers: [
     // Глобальный JWT-guard. Эндпоинты с @Public() пропускают его.

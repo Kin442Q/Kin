@@ -219,6 +219,8 @@ model Kindergarten {
   libraryItems  LibraryItem[]
   examTracks    ExamTrack[]
   quizzes       Quiz[]
+  storedFiles     StoredFile[]
+  lessonMaterials LessonMaterial[]
 
   @@index([isActive])
   @@index([districtId])
@@ -412,6 +414,9 @@ model User {
   libraryItems  LibraryItem[] @relation("LibraryAuthor")
   quizzesAuthored Quiz[]      @relation("QuizAuthor")
   examTracksAuthored ExamTrack[] @relation("ExamTrackAuthor")
+  /// Загруженные файлы и материалы к уроку (при удалении учителя остаются, authorId → null).
+  uploadedFiles   StoredFile[]    @relation("FileUploader")
+  lessonMaterialsAuthored LessonMaterial[] @relation("LessonMaterialAuthor")
 
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
@@ -594,6 +599,7 @@ model Group {
   diary                DiaryEntry[]
   homework             Homework[]
   conversations        Conversation[]
+  lessonMaterials      LessonMaterial[]
 
   @@index([isActive])
   @@index([kindergartenId])
@@ -987,6 +993,7 @@ model Subject {
   homework        Homework[]
   libraryItems    LibraryItem[]
   quizzes         Quiz[]
+  lessonMaterials LessonMaterial[]
   /// Учителя, которым открыт этот предмет.
   teachers        User[]   @relation("TeacherSubjects")
 
@@ -1165,7 +1172,10 @@ model LibraryItem {
   title          String
   description    String?
   type           LibraryItemType @default(LINK)
-  url            String
+  /// Ссылка на материал. null — материал хранится файлом (fileId).
+  url            String?
+  /// Загруженный файл (хранится вне базы, см. StoredFile). Либо url, либо fileId.
+  fileId         String?
   subjectId      String?
   /// Параллель (5, 6…), если материал для конкретных классов; null — для всех.
   gradeNumber    Int?
@@ -1177,9 +1187,64 @@ model LibraryItem {
   kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
   subject        Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
   author         User?        @relation("LibraryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  file           StoredFile?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   @@index([kindergartenId, createdAt])
   @@index([subjectId])
+  @@index([fileId])
+}
+
+/// Загруженный файл. Сам файл лежит в хранилище (диск / S3), в базе только запись:
+/// так база остаётся лёгкой. Загрузка без привязки к материалу (attached = false)
+/// удаляется ночной чисткой через сутки.
+model StoredFile {
+  id             String   @id @default(cuid())
+  kindergartenId String
+  /// Ключ в хранилище: schools/<kindergartenId>/<id>.
+  key            String   @unique
+  /// Исходное имя файла (для скачивания).
+  name           String
+  /// MIME по расширению (определяем сами, клиентскому не верим).
+  mime           String
+  /// Размер, байт.
+  size           Int
+  uploaderId     String?
+  attached       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  kindergarten    Kindergarten     @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+  uploader        User?            @relation("FileUploader", fields: [uploaderId], references: [id], onDelete: SetNull)
+  libraryItems    LibraryItem[]
+  lessonMaterials LessonMaterial[]
+
+  @@index([kindergartenId])
+  @@index([attached, createdAt])
+}
+
+/// Материал к уроку: учитель выкладывает файл / ссылку / текст для своего класса.
+/// Живёт 30 дней (expiresAt), затем ночная чистка удаляет запись и файл.
+model LessonMaterial {
+  id             String   @id @default(cuid())
+  kindergartenId String
+  groupId        String
+  subjectId      String?
+  title          String
+  description    String?
+  url            String?
+  fileId         String?
+  authorId       String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+
+  kindergarten Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+  group        Group        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  subject      Subject?     @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+  file         StoredFile?  @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  author       User?        @relation("LessonMaterialAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([groupId, expiresAt])
+  @@index([expiresAt])
+  @@index([kindergartenId])
 }
 
 /// Направление подготовки к экзамену. Название задаёт школа («ЕГЭ», «Вступительные»…).

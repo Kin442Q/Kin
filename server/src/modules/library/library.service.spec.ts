@@ -1,8 +1,9 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { plainToInstance } from 'class-transformer'
 import { validate } from 'class-validator'
 
 import { LibraryService } from './library.service'
+import type { FilesService } from '../files/files.service'
 import { CreateLibraryItemDto } from './library.dto'
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
@@ -17,11 +18,17 @@ const owner: AuthUser = { ...base, sub: 'o', role: 'SUPER_ADMIN', kindergartenId
 
 describe('LibraryService', () => {
   let prisma: PrismaMock
+  let files: { claim: jest.Mock; removeFile: jest.Mock; createLink: jest.Mock }
   let service: LibraryService
 
   beforeEach(() => {
     prisma = createPrismaMock()
-    service = new LibraryService(prisma as unknown as PrismaService)
+    files = {
+      claim: jest.fn().mockResolvedValue({ id: 'f1' }),
+      removeFile: jest.fn().mockResolvedValue(undefined),
+      createLink: jest.fn().mockResolvedValue({ id: 'f1', path: '/api/v1/files/dl/tok' }),
+    }
+    service = new LibraryService(prisma as unknown as PrismaService, files as unknown as FilesService)
   })
 
   describe('list', () => {
@@ -77,6 +84,30 @@ describe('LibraryService', () => {
     })
   })
 
+  describe('create — файл вместо ссылки', () => {
+    beforeEach(() => prisma.libraryItem.create.mockResolvedValue({ id: 'i1' }))
+
+    it('с fileId: файл привязывается, ссылка пустая', async () => {
+      await service.create(teacher, { title: 'Учебник', type: 'BOOK', fileId: 'f1' })
+      expect(files.claim).toHaveBeenCalledWith(teacher, 'f1')
+      expect(prisma.libraryItem.create.mock.calls[0][0].data).toMatchObject({ url: null, fileId: 'f1' })
+    })
+
+    it('ни ссылки, ни файла — 400, файл не трогаем', async () => {
+      await expect(service.create(teacher, { title: 'Пусто', type: 'BOOK' })).rejects.toThrow(BadRequestException)
+      await expect(service.create(teacher, { title: 'Пусто', type: 'BOOK', url: '  ' })).rejects.toThrow(BadRequestException)
+      expect(files.claim).not.toHaveBeenCalled()
+      expect(prisma.libraryItem.create).not.toHaveBeenCalled()
+    })
+
+    it('запись не создалась — файл отпускается, чтобы его убрала чистка', async () => {
+      prisma.libraryItem.create.mockRejectedValue(new Error('db down'))
+      prisma.storedFile.update.mockResolvedValue({})
+      await expect(service.create(teacher, { title: 'x', type: 'BOOK', fileId: 'f1' })).rejects.toThrow('db down')
+      expect(prisma.storedFile.update).toHaveBeenCalledWith({ where: { id: 'f1' }, data: { attached: false } })
+    })
+  })
+
   describe('update / remove', () => {
     beforeEach(() => {
       prisma.libraryItem.findUnique.mockResolvedValue({ id: 'i1', kindergartenId: 'k1', authorId: 't1' })
@@ -99,6 +130,42 @@ describe('LibraryService', () => {
       prisma.libraryItem.findUnique.mockResolvedValue(null)
       await expect(service.remove(admin, 'nope')).rejects.toThrow(NotFoundException)
     })
+
+    it('удаление материала удаляет и его файл', async () => {
+      prisma.libraryItem.findUnique.mockResolvedValue({ id: 'i1', kindergartenId: 'k1', authorId: 't1', fileId: 'f9' })
+      await service.remove(teacher, 'i1')
+      expect(files.removeFile).toHaveBeenCalledWith('f9')
+    })
+
+    it('замена файла: новый привязан, старый удалён', async () => {
+      prisma.libraryItem.findUnique.mockResolvedValue({ id: 'i1', kindergartenId: 'k1', authorId: 't1', fileId: 'old', url: null })
+      await service.update(teacher, 'i1', { fileId: 'f1' })
+      expect(prisma.libraryItem.update.mock.calls[0][0].data).toEqual({ fileId: 'f1' })
+      expect(files.removeFile).toHaveBeenCalledWith('old')
+    })
+
+    it('нельзя остаться и без ссылки, и без файла', async () => {
+      prisma.libraryItem.findUnique.mockResolvedValue({ id: 'i1', kindergartenId: 'k1', authorId: 't1', fileId: 'f1', url: null })
+      await expect(service.update(teacher, 'i1', { fileId: null })).rejects.toThrow(BadRequestException)
+      expect(prisma.libraryItem.update).not.toHaveBeenCalled()
+      expect(files.removeFile).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('fileLink', () => {
+    it('ученик своей школы получает ссылку', async () => {
+      prisma.libraryItem.findUnique.mockResolvedValue({ id: 'i1', kindergartenId: 'k1', fileId: 'f1' })
+      prisma.storedFile.findUnique.mockResolvedValue({ id: 'f1', name: 'a.pdf', size: 10, mime: 'application/pdf' })
+      expect(await service.fileLink(student, 'i1')).toMatchObject({ path: '/api/v1/files/dl/tok' })
+    })
+
+    it('материал другой школы — 403, материал без файла — 404, родитель — 403', async () => {
+      prisma.libraryItem.findUnique.mockResolvedValue({ id: 'i1', kindergartenId: 'k2', fileId: 'f1' })
+      await expect(service.fileLink(student, 'i1')).rejects.toThrow(ForbiddenException)
+      prisma.libraryItem.findUnique.mockResolvedValue({ id: 'i1', kindergartenId: 'k1', fileId: null })
+      await expect(service.fileLink(student, 'i1')).rejects.toThrow(NotFoundException)
+      await expect(service.fileLink({ ...base, sub: 'p', role: 'PARENT' }, 'i1')).rejects.toThrow(ForbiddenException)
+    })
   })
 })
 
@@ -113,7 +180,7 @@ describe('CreateLibraryItemDto — ссылка', () => {
   })
 
   it('отклоняет опасные и неполные ссылки', async () => {
-    for (const bad of ['javascript:alert(1)', 'ftp://x.org/a', 'example.org', 'data:text/html,<b>x</b>', '']) {
+    for (const bad of ['javascript:alert(1)', 'ftp://x.org/a', 'example.org', 'data:text/html,<b>x</b>']) {
       expect((await check(bad)).length).toBeGreaterThan(0)
     }
   })

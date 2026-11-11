@@ -8,6 +8,7 @@ import {
 
 import { KindergartensService } from './kindergartens.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
+import { FilesService } from '../files/files.service'
 import { MailService } from '../mail/mail.service'
 import { PasswordTokensService } from '../password-tokens/password-tokens.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
@@ -34,6 +35,7 @@ const tenantAdmin: AuthUser = {
 describe('KindergartensService', () => {
   let service: KindergartensService
   let prisma: PrismaMock
+  let files: { removeSchoolFiles: jest.Mock }
   let mail: { send: jest.Mock }
   let tokens: { issue: jest.Mock }
 
@@ -41,6 +43,7 @@ describe('KindergartensService', () => {
     prisma = createPrismaMock()
     // район из справочника существует (в отдельных тестах переопределяется)
     prisma.district.findUnique.mockResolvedValue({ id: 'ds_sughd_asht' })
+    files = { removeSchoolFiles: jest.fn().mockResolvedValue(undefined) }
     mail = { send: jest.fn().mockResolvedValue({ sent: true }) }
     tokens = {
       issue: jest.fn().mockResolvedValue({ token: 'tok', link: 'https://tahlilgar.cyou/set-password?token=tok', hours: 48 }),
@@ -49,6 +52,7 @@ describe('KindergartensService', () => {
       providers: [
         KindergartensService,
         { provide: PrismaService, useValue: prisma },
+        { provide: FilesService, useValue: files },
         { provide: MailService, useValue: mail },
         { provide: PasswordTokensService, useValue: tokens },
       ],
@@ -388,6 +392,8 @@ describe('KindergartensService', () => {
       prisma.kindergarten.delete.mockResolvedValue({})
       const res = await service.remove(globalOwner, 'k1')
       expect(res.success).toBe(true)
+      // файлы школы лежат вне базы — их убирают из хранилища
+      expect(files.removeSchoolFiles).toHaveBeenCalledWith('k1')
     })
 
     it('remove: сначала убирает данные без каскада (ДЗ, оценки, дневник, сообщения), потом школу', async () => {
@@ -417,6 +423,7 @@ describe('KindergartensService', () => {
       prisma.kindergarten.findUnique.mockResolvedValue(null)
       await expect(service.remove(globalOwner, 'nope')).rejects.toThrow(NotFoundException)
       expect(prisma.$transaction).not.toHaveBeenCalled()
+      expect(files.removeSchoolFiles).not.toHaveBeenCalled()
     })
   })
 })

@@ -1,13 +1,29 @@
+import { useState, type ReactNode } from 'react'
+import { App as AntdApp, Button, Tag } from 'antd'
 import { uiText } from '../i18n/uiText'
-import type { ReactNode } from 'react'
-import { Button, Tag } from 'antd'
 
 import { SP, SproutCard } from './sprout'
-import { libraryTypeInfo, type LibraryItem } from '../api/learningApi'
+import { libraryApi, libraryTypeInfo, type LibraryItem } from '../api/learningApi'
+import { formatSize, openFileLink } from '../api/filesApi'
 
 /** Карточка материала: тип, предмет, описание и кнопка «Открыть» (в новой вкладке). */
 export default function LibraryCard({ item, actions }: { item: LibraryItem; actions?: ReactNode }) {
+  const { message } = AntdApp.useApp()
+  const [opening, setOpening] = useState(false)
   const t = libraryTypeInfo(item.type)
+
+  // Файл открывается по короткой ссылке, которую выдаёт сервер после проверки прав.
+  const openFile = async () => {
+    setOpening(true)
+    try {
+      await openFileLink(() => libraryApi.fileLink(item.id))
+    } catch (e) {
+      message.error((e as any)?.response?.data?.message || uiText('Не удалось открыть файл'))
+    } finally {
+      setOpening(false)
+    }
+  }
+
   return (
     <SproutCard padding={16}>
       <div style={{ display: 'flex', gap: 12 }}>
@@ -42,8 +58,20 @@ export default function LibraryCard({ item, actions }: { item: LibraryItem; acti
           )}
           {item.author && <div style={{ fontSize: 11, color: SP.muted, marginTop: 6 }}>{uiText("Добавил(а):") + " "}{item.author.fullName}</div>}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10 }}>
-            <Button type="primary" size="small" href={item.url} target="_blank" rel="noopener noreferrer">
-              {" " + uiText("Открыть") + " "}</Button>
+            {item.file ? (
+              <Button type="primary" size="small" loading={opening} onClick={openFile}>
+                {uiText("Открыть")}
+              </Button>
+            ) : (
+              <Button type="primary" size="small" href={item.url ?? undefined} target="_blank" rel="noopener noreferrer">
+                {uiText("Открыть")}
+              </Button>
+            )}
+            {item.file && (
+              <span style={{ fontSize: 11, color: SP.muted }}>
+                {item.file.name} · {formatSize(item.file.size)}
+              </span>
+            )}
             {actions}
           </div>
         </div>

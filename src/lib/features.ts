@@ -20,6 +20,7 @@ export type FeatureKey =
   | 'diary'
   | 'portal'
   | 'library'
+  | 'lesson_materials'
   | 'quiz'
   | 'exam_prep'
   | 'games'
