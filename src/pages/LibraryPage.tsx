@@ -16,6 +16,8 @@ import { Library } from 'lucide-react'
 
 import { SproutCard, SproutEmpty, SproutPageHeader } from '../components/sprout'
 import LibraryCard from '../components/LibraryCard'
+import FileUploadField from '../components/FileUploadField'
+import type { StoredFileView } from '../api/filesApi'
 import { useAuthStore } from '../store/authStore'
 import { http } from '../api'
 import {
@@ -26,13 +28,16 @@ import {
   type LibraryType,
 } from '../api/learningApi'
 
+/** Поля формы: источник материала — ссылка или загруженный файл. */
+type LibraryFormValues = Omit<LibraryInput, 'url' | 'fileId'> & { url?: string; file?: StoredFileView | null }
+
 interface SubjectDto {
   id: string
   name: string
   color: string
 }
 
-/** Библиотека школы для учителей и админа: добавлять и править материалы (ссылки). */
+/** Библиотека школы для учителей и админа: добавлять и править материалы (ссылка или загруженный файл). */
 export default function LibraryPage() {
   const { message } = AntdApp.useApp()
   const user = useAuthStore((s) => s.user)
@@ -48,7 +53,8 @@ export default function LibraryPage() {
   const [editing, setEditing] = useState<LibraryItem | null>(null)
   const [open, setOpen] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form] = Form.useForm<LibraryInput>()
+  const [source, setSource] = useState<'link' | 'file'>('link')
+  const [form] = Form.useForm<LibraryFormValues>()
 
   const errorText = (e: any, fallback: string) => {
     const m = e?.response?.data?.message
@@ -86,6 +92,7 @@ export default function LibraryPage() {
     setEditing(null)
     form.resetFields()
     form.setFieldsValue({ type: 'LINK' })
+    setSource('link')
     setOpen(true)
   }
 
@@ -95,24 +102,36 @@ export default function LibraryPage() {
       title: i.title,
       description: i.description ?? undefined,
       type: i.type,
-      url: i.url,
+      url: i.url ?? undefined,
+      file: i.file ?? null,
       subjectId: i.subjectId ?? undefined,
       gradeNumber: i.gradeNumber ?? undefined,
     })
+    setSource(i.file ? 'file' : 'link')
     setOpen(true)
   }
 
   const save = async () => {
-    const v = await form.validateFields()
+    // неверная форма: antd уже подсветил поля, дальше не идём (и не оставляем необработанный reject)
+    const v = await form.validateFields().catch(() => null)
+    if (!v) return
     setSaving(true)
     try {
+      // Источник материала: ссылка или файл. Файл, который не меняли при правке,
+      // повторно не отправляем (сервер считает его уже привязанным).
+      let sourcePart: Partial<LibraryInput>
+      if (source === 'file') {
+        sourcePart = editing?.fileId && v.file?.id === editing.fileId ? {} : { fileId: v.file!.id, url: null }
+      } else {
+        sourcePart = { url: v.url!.trim(), fileId: null }
+      }
       const body: LibraryInput = {
         title: v.title.trim(),
         description: v.description?.trim() || null,
         type: v.type,
-        url: v.url.trim(),
         subjectId: v.subjectId || null,
         gradeNumber: v.gradeNumber ?? null,
+        ...sourcePart,
       }
       if (editing) await libraryApi.update(editing.id, body)
       else await libraryApi.create(body)
@@ -142,7 +161,7 @@ export default function LibraryPage() {
         title="Библиотека"
         icon={<Library size={22} strokeWidth={2} />}
         iconAccent="blue"
-        description="Материалы для учеников: книги, статьи, видео и ссылки"
+        description="Материалы для учеников: книги, статьи, видео — ссылкой или файлом"
         actions={
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             Добавить материал
@@ -171,7 +190,7 @@ export default function LibraryPage() {
             <SproutEmpty
               icon={<Library size={32} strokeWidth={1.8} />}
               title="Материалов нет"
-              description="Нажмите «Добавить материал» и вставьте ссылку на книгу, статью или видео"
+              description="Нажмите «Добавить материал»: вставьте ссылку или загрузите файл с книгой, статьёй, видео"
               minHeight={200}
             />
           </SproutCard>
@@ -217,17 +236,33 @@ export default function LibraryPage() {
           <Form.Item name="title" label="Название" rules={[{ required: true, message: 'Введите название' }]}>
             <Input maxLength={200} />
           </Form.Item>
-          <Form.Item
-            name="url"
-            label="Ссылка на материал"
-            rules={[
-              { required: true, message: 'Вставьте ссылку' },
-              { pattern: /^https?:\/\/\S+$/i, message: 'Ссылка должна начинаться с http:// или https://' },
-            ]}
-            extra="Файлы не загружаются — укажите ссылку (Google Drive, YouTube, сайт школы…)"
-          >
-            <Input placeholder="https://…" />
+          <Form.Item label="Материал">
+            <Segmented
+              value={source}
+              onChange={(v) => setSource(v as 'link' | 'file')}
+              options={[
+                { value: 'link', label: '🔗 Ссылка' },
+                { value: 'file', label: '📎 Файл' },
+              ]}
+            />
           </Form.Item>
+          {source === 'link' ? (
+            <Form.Item
+              name="url"
+              label="Ссылка на материал"
+              rules={[
+                { required: true, message: 'Вставьте ссылку' },
+                { pattern: /^https?:\/\/\S+$/i, message: 'Ссылка должна начинаться с http:// или https://' },
+              ]}
+              extra="Google Drive, YouTube, сайт школы…"
+            >
+              <Input placeholder="https://…" />
+            </Form.Item>
+          ) : (
+            <Form.Item name="file" label="Файл" rules={[{ required: true, message: 'Загрузите файл' }]}>
+              <FileUploadField upload={libraryApi.upload} />
+            </Form.Item>
+          )}
           <Form.Item name="type" label="Тип" rules={[{ required: true }]}>
             <Select options={LIBRARY_TYPES.map((t) => ({ value: t.value, label: `${t.emoji} ${t.label}` }))} />
           </Form.Item>

@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useNavigation } from '@react-navigation/native'
 import {
   ChevronRight,
+  FileText,
   Gamepad2,
   Library,
   ListChecks,
@@ -27,6 +28,7 @@ interface Section {
 
 const SECTIONS: Section[] = [
   { route: 'StudentLibrary', title: 'Библиотека', text: 'Книги, статьи, видео и ссылки от учителей', icon: Library, bg: colors.blueSoft, fg: colors.blueDeep, feature: 'library' },
+  { route: 'StudentMaterials', title: 'Материалы к урокам', text: 'Файлы, ссылки и тексты от учителей твоего класса', icon: FileText, bg: colors.yellowSoft, fg: colors.yellowDeep, feature: 'lesson_materials' },
   { route: 'StudentQuizzes', title: 'Квизы', text: 'Тесты с мгновенной проверкой и разбором ответов', icon: ListChecks, bg: colors.primarySoft, fg: colors.primaryDeep, feature: 'quiz' },
   { route: 'StudentExam', title: 'Подготовка к экзаменам', text: 'Направления подготовки и твой прогресс', icon: Target, bg: colors.yellowSoft, fg: colors.yellowDeep, feature: 'exam_prep' },
   { route: 'StudentGames', title: 'Игры для мозга', text: 'Память, счёт и внимание. Рейтинг класса', icon: Gamepad2, bg: colors.lilacSoft, fg: colors.lilacDeep, feature: 'games' },

@@ -27,4 +27,8 @@ export const envValidationSchema = Joi.object({
 
   TELEGRAM_BOT_TOKEN: Joi.string().optional().allow(''),
   TELEGRAM_CHAT_ID: Joi.string().optional().allow(''),
+
+  STORAGE_DRIVER: Joi.string().valid('local').default('local'),
+  STORAGE_DIR: Joi.string().optional().allow(''),
+  STORAGE_QUOTA_MB: Joi.number().integer().min(1).default(2048),
 })

@@ -11,6 +11,8 @@ dist-ssr
 # Backend
 server/dist
 server/node_modules
+# Загруженные файлы (локальное хранилище разработки)
+server/storage
 server/.env
 
 # Prisma generated client

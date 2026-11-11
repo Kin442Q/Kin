@@ -52,4 +52,13 @@ export const configuration = () => ({
     botToken: process.env.TELEGRAM_BOT_TOKEN,
     chatId: process.env.TELEGRAM_CHAT_ID,
   },
+
+  // Хранилище загруженных файлов (материалы урока, библиотека).
+  storage: {
+    driver: process.env.STORAGE_DRIVER ?? 'local',
+    /** Корень локального хранилища. В проде — смонтированный том (иначе загрузка отключена). */
+    dir: process.env.STORAGE_DIR || undefined,
+    /** Сколько МБ файлов можно хранить на одну школу. */
+    quotaMb: parseInt(process.env.STORAGE_QUOTA_MB ?? '2048', 10),
+  },
 })

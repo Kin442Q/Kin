@@ -8,6 +8,7 @@ import {
 
 import { KindergartensService } from './kindergartens.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
+import { FilesService } from '../files/files.service'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
@@ -32,13 +33,16 @@ const tenantAdmin: AuthUser = {
 describe('KindergartensService', () => {
   let service: KindergartensService
   let prisma: PrismaMock
+  let files: { removeSchoolFiles: jest.Mock }
 
   beforeEach(async () => {
     prisma = createPrismaMock()
+    files = { removeSchoolFiles: jest.fn().mockResolvedValue(undefined) }
     const ref = await Test.createTestingModule({
       providers: [
         KindergartensService,
         { provide: PrismaService, useValue: prisma },
+        { provide: FilesService, useValue: files },
       ],
     }).compile()
     service = ref.get(KindergartensService)
@@ -185,6 +189,8 @@ describe('KindergartensService', () => {
       prisma.kindergarten.delete.mockResolvedValue({})
       const res = await service.remove(globalOwner, 'k1')
       expect(res.success).toBe(true)
+      // файлы школы лежат вне базы — их убирают из хранилища
+      expect(files.removeSchoolFiles).toHaveBeenCalledWith('k1')
     })
 
     it('remove: сначала убирает данные без каскада (ДЗ, оценки, дневник, сообщения), потом школу', async () => {
@@ -214,6 +220,7 @@ describe('KindergartensService', () => {
       prisma.kindergarten.findUnique.mockResolvedValue(null)
       await expect(service.remove(globalOwner, 'nope')).rejects.toThrow(NotFoundException)
       expect(prisma.$transaction).not.toHaveBeenCalled()
+      expect(files.removeSchoolFiles).not.toHaveBeenCalled()
     })
   })
 })

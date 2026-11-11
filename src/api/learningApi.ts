@@ -1,4 +1,5 @@
 import { http } from './http'
+import { uploadFile, type FileLink, type StoredFileView } from './filesApi'
 
 /* ============================================================
    Библиотека, квизы, подготовка к экзаменам, игры (этап 3).
@@ -25,20 +26,25 @@ export interface LibraryItem {
   title: string
   description: string | null
   type: LibraryType
-  url: string
+  /** Ссылка на материал; null — материал хранится файлом (file). */
+  url: string | null
+  fileId: string | null
   subjectId: string | null
   gradeNumber: number | null
   authorId: string | null
   createdAt: string
   subject?: { id: string; name: string; color: string } | null
   author?: { id: string; fullName: string } | null
+  file?: StoredFileView | null
 }
 
 export interface LibraryInput {
   title: string
   description?: string | null
   type: LibraryType
-  url: string
+  /** Нужна ссылка или файл (fileId). */
+  url?: string | null
+  fileId?: string | null
   subjectId?: string | null
   gradeNumber?: number | null
 }
@@ -50,6 +56,8 @@ export const libraryApi = {
   update: (id: string, body: Partial<LibraryInput>) =>
     http.patch<LibraryItem>(`/v1/library/${id}`, body).then((r) => r.data),
   remove: (id: string) => http.delete(`/v1/library/${id}`),
+  upload: (file: File, onProgress?: (percent: number) => void) => uploadFile('/v1/library/upload', file, onProgress),
+  fileLink: (id: string) => http.get<FileLink>(`/v1/library/${id}/file-link`).then((r) => r.data),
 }
 
 // ─── Квизы ────────────────────────────────────────────────────

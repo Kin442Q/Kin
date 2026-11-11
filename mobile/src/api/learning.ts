@@ -1,4 +1,5 @@
 import { http } from './http'
+import type { FileLink, StoredFileView } from './files'
 
 /* ============================================================
    Библиотека, квизы, подготовка к экзаменам и игры (сторона ученика).
@@ -29,16 +30,19 @@ export interface LibraryItem {
   title: string
   description: string | null
   type: LibraryType
-  url: string
+  /** Ссылка на материал; null — материал хранится файлом (file). */
+  url: string | null
   subjectId: string | null
   gradeNumber: number | null
   subject?: { id: string; name: string; color: string } | null
   author?: { id: string; fullName: string } | null
+  file?: StoredFileView | null
 }
 
 export const libraryApi = {
   list: (params?: { type?: LibraryType; q?: string }) =>
     http.get<LibraryItem[]>('/v1/library', { params }).then((r) => r.data),
+  fileLink: (id: string) => http.get<FileLink>(`/v1/library/${id}/file-link`).then((r) => r.data),
 }
 
 // ─── Квизы ────────────────────────────────────────────────────

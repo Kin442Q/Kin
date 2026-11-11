@@ -1,5 +1,5 @@
 import { PartialType } from '@nestjs/swagger'
-import { IsIn, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength } from 'class-validator'
+import { IsIn, IsInt, IsOptional, IsString, IsUrl, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator'
 
 export const LIBRARY_TYPES = ['BOOK', 'ARTICLE', 'VIDEO', 'AUDIO', 'LINK'] as const
 export type LibraryType = (typeof LIBRARY_TYPES)[number]
@@ -18,10 +18,20 @@ export class CreateLibraryItemDto {
   @IsIn([...LIBRARY_TYPES])
   type!: LibraryType
 
-  /** Ссылка на материал (файлы не храним). Только http/https; внутришкольные адреса без домена допустимы. */
+  /**
+   * Ссылка на материал. Только http/https; внутришкольные адреса без домена допустимы.
+   * Нужна либо ссылка, либо загруженный файл (fileId).
+   */
+  @IsOptional()
+  @ValidateIf((o) => o.url !== undefined && o.url !== null && o.url !== '')
   @IsUrl({ protocols: ['http', 'https'], require_protocol: true, require_tld: false })
   @MaxLength(2000)
-  url!: string
+  url?: string | null
+
+  /** id файла, загруженного через POST /library/upload. */
+  @IsOptional()
+  @IsString()
+  fileId?: string | null
 
   @IsOptional()
   @IsString()

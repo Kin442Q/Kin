@@ -21,6 +21,7 @@ import {
   ChevronRight,
   MessageCircle,
   Users,
+  FileText,
 } from 'lucide-react-native'
 import Constants from 'expo-constants'
 import Screen from '../components/Screen'
@@ -167,6 +168,21 @@ export default function ProfileScreen() {
               </View>
             </>
           )}
+
+        {isTeacher && hasFeature(user, 'lesson_materials') && (
+          <>
+            <Text style={styles.section}>Уроки</Text>
+            <View style={styles.list}>
+              <ListRow
+                icon={<FileText size={18} color={colors.yellowDeep} />}
+                bg={colors.yellowSoft}
+                title="Материалы к уроку"
+                onPress={() => navigation.navigate('TeacherMaterials')}
+                last
+              />
+            </View>
+          </>
+        )}
 
         {(isParent || isTeacher) && (
           <>

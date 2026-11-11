@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
 import {
   BookOpen,
+  FileText,
   Gamepad2,
   GraduationCap,
   Library,
@@ -45,6 +46,7 @@ interface Shortcut {
 
 const SHORTCUTS: Shortcut[] = [
   { route: 'StudentLibrary', label: 'Библиотека', icon: Library, bg: colors.blueSoft, fg: colors.blueDeep, feature: 'library' },
+  { route: 'StudentMaterials', label: 'Материалы', icon: FileText, bg: colors.yellowSoft, fg: colors.yellowDeep, feature: 'lesson_materials' },
   { route: 'StudentQuizzes', label: 'Квизы', icon: ListChecks, bg: colors.primarySoft, fg: colors.primaryDeep, feature: 'quiz' },
   { route: 'StudentExam', label: 'К экзаменам', icon: Target, bg: colors.yellowSoft, fg: colors.yellowDeep, feature: 'exam_prep' },
   { route: 'StudentGames', label: 'Игры', icon: Gamepad2, bg: colors.lilacSoft, fg: colors.lilacDeep, feature: 'games' },
