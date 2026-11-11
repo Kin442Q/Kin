@@ -155,7 +155,7 @@ describe('MinistryService: сводки по школам охвата', () => {
     const byId = Object.fromEntries(schools.map((s) => [s.id, s]))
     expect([byId.s3.rank, byId.s1.rank, byId.s2.rank, byId.s4.rank]).toEqual([1, 2, 3, null])
     expect(byId.s1).toMatchObject({ avgPercent: 80, quality: 70, success: 95, attendanceRate: 90, illnessRate: 5, studentsPerTeacher: 15, students: 300, teachers: 20, classes: 11 })
-    expect(byId.s4.flags).toEqual({ noGrades: true, noAttendance: true, noTeachers: true, noLocation: false })
+    expect(byId.s4.flags).toEqual({ noGrades: true, noAttendance: true, noTeachers: true, noLocation: false, scaleMismatch: false })
     expect(byId.s4.studentsPerTeacher).toBeNull()
     expect(byId.s2.flags.noAttendance).toBe(true)
   })
@@ -194,7 +194,7 @@ describe('MinistryService: сводки по школам охвата', () => {
     expect(sughdRow).toMatchObject({ schools: 2, students: 400, avgPercent: 73.3 })
     expect(res.regions.find((r) => r.region === null)).toMatchObject({ schools: 1 })
     expect(res.attention.map((a) => a.name)).toEqual(['Школа №2', 'Школа №1', 'Школа №3'])
-    expect(res.noData).toEqual({ grades: 1, attendance: 2, teachers: 1 })
+    expect(res.noData).toEqual({ grades: 1, attendance: 2, teachers: 1, scaleMismatch: 0 })
   })
 
   it('сравнение районов: лучший район первым, район без данных — в конце', async () => {
@@ -232,5 +232,116 @@ describe('MinistryService: сводки по школам охвата', () => {
     expect(f.organization).toBe('Отдел Ашт')
     expect(f.regions.map((r) => r.id)).toEqual(['rg_sughd'])
     expect(f.regions[0].districts.map((d) => d.id)).toEqual(['ds_asht'])
+  })
+})
+
+describe('MinistryService: оценки выше шкалы школы', () => {
+  let prisma: PrismaMock
+  let service: MinistryService
+
+  beforeEach(() => {
+    prisma = createPrismaMock()
+    service = new MinistryService(prisma as unknown as PrismaService, new MinistryScopeService(prisma as unknown as PrismaService))
+    prisma.user.findUnique.mockResolvedValue({
+      isActive: true, role: 'VIEWER', viewerScope: { organization: 'Министерство образования', allSchools: true, regions: [], districts: [] },
+    })
+    prisma.kindergarten.findMany.mockResolvedValue([school('s1', 'Школа №1', asht), school('s2', 'Школа №2', asht, 'TEN')])
+    prisma.student.groupBy.mockResolvedValue([])
+    prisma.user.groupBy.mockResolvedValue([])
+    prisma.group.groupBy.mockResolvedValue([])
+  })
+
+  it('школа с оценками выше максимума шкалы получает флаг и попадает в счётчик на главном экране', async () => {
+    // у s1 пятибалльная шкала, а оценки доходят до 10: 12 оценок выше максимума
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        { schoolId: 's1', grades: 100, gradeShare: 170, good: 90, passed: 100, overScale: 12 },
+        { schoolId: 's2', grades: 50, gradeShare: 30, good: 20, passed: 45, overScale: 0 },
+      ])
+      .mockResolvedValueOnce([])
+    const { schools } = await service.schools(viewer, {})
+    const byId = Object.fromEntries(schools.map((r) => [r.id, r]))
+    expect(byId.s1.flags.scaleMismatch).toBe(true)
+    expect(byId.s2.flags.scaleMismatch).toBe(false)
+
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ schoolId: 's1', grades: 100, gradeShare: 170, good: 90, passed: 100, overScale: 12 }])
+      .mockResolvedValueOnce([])
+    const overview = await service.overview(viewer, {})
+    expect(overview.noData.scaleMismatch).toBe(1)
+  })
+
+  it('без признака overScale в ответе базы флаг не ставится', async () => {
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ schoolId: 's1', grades: 10, gradeShare: 8, good: 7, passed: 9 }])
+      .mockResolvedValueOnce([])
+    const { schools } = await service.schools(viewer, {})
+    expect(schools.every((r) => r.flags.scaleMismatch === false)).toBe(true)
+  })
+})
+
+describe('MinistryService: динамика по неделям', () => {
+  let prisma: PrismaMock
+  let service: MinistryService
+
+  beforeEach(() => {
+    prisma = createPrismaMock()
+    service = new MinistryService(prisma as unknown as PrismaService, new MinistryScopeService(prisma as unknown as PrismaService))
+    prisma.user.findUnique.mockResolvedValue({
+      isActive: true, role: 'VIEWER', viewerScope: { organization: 'Министерство образования', allSchools: true, regions: [], districts: [] },
+    })
+    prisma.kindergarten.findMany.mockResolvedValue([{ id: 's1' }, { id: 's2' }])
+  })
+
+  it('собирает недели из оценок и посещаемости, по порядку; нет данных — null, а не ноль', async () => {
+    prisma.$queryRaw
+      .mockResolvedValueOnce([
+        { week: '2026-10-19', grades: 50, gradeShare: 30, good: 20 }, // 60 %, качество 40 %
+        { week: '2026-10-12', grades: 100, gradeShare: 80, good: 70 }, // 80 %, качество 70 %
+      ])
+      .mockResolvedValueOnce([
+        { week: '2026-10-12', present: 90, absent: 5, sick: 5 }, // 90 %
+        { week: '2026-10-26', present: 50, absent: 50, sick: 0 }, // 50 %, оценок нет
+      ])
+    const res = await service.trend(viewer, { from: '2026-10-12', to: '2026-10-30' })
+
+    expect(res.period).toEqual({ from: '2026-10-12', to: '2026-10-30' })
+    expect(res.weeks.map((w) => w.weekStart)).toEqual(['2026-10-12', '2026-10-19', '2026-10-26'])
+    expect(res.weeks[0]).toEqual({ weekStart: '2026-10-12', gradesCount: 100, avgPercent: 80, quality: 70, attendanceMarks: 100, attendanceRate: 90 })
+    expect(res.weeks[1]).toMatchObject({ avgPercent: 60, quality: 40, attendanceMarks: 0, attendanceRate: null })
+    expect(res.weeks[2]).toMatchObject({ gradesCount: 0, avgPercent: null, quality: null, attendanceRate: 50 })
+  })
+
+  it('считает только школы охвата и сужается фильтром области, как и остальные экраны', async () => {
+    prisma.$queryRaw.mockResolvedValue([])
+    await service.trend(viewer, { regionId: 'rg_sughd' })
+    expect(prisma.kindergarten.findMany.mock.calls[0][0].where).toEqual({
+      AND: [{ isActive: true, isDemo: false, type: 'SCHOOL' }, { district: { regionId: 'rg_sughd' } }],
+    })
+  })
+
+  it('нет школ в выборке — пустой ответ без запросов к оценкам и посещаемости', async () => {
+    prisma.kindergarten.findMany.mockResolvedValue([])
+    const res = await service.trend(viewer, {})
+    expect(res.weeks).toEqual([])
+    expect(prisma.$queryRaw).not.toHaveBeenCalled()
+  })
+
+  it('учитель, директор школы и прочие роли динамику не видят', async () => {
+    await expect(service.trend(director, {})).rejects.toThrow(ForbiddenException)
+    await expect(service.trend({ ...director, role: 'TEACHER' }, {})).rejects.toThrow(ForbiddenException)
+    expect(prisma.$queryRaw).not.toHaveBeenCalled()
+  })
+
+  it('кривой период — 400, а не пустой график', async () => {
+    await expect(service.trend(viewer, { from: '2026-11-12', to: '2026-11-11' })).rejects.toThrow(BadRequestException)
+  })
+
+  it('в ответе только суммы по неделям', async () => {
+    prisma.$queryRaw
+      .mockResolvedValueOnce([{ week: '2026-10-12', grades: 10, gradeShare: 8, good: 7 }])
+      .mockResolvedValueOnce([{ week: '2026-10-12', present: 9, absent: 1, sick: 0 }])
+    const json = JSON.stringify(await service.trend(viewer, {}))
+    for (const forbidden of ['firstName', 'lastName', 'motherName', 'studentId', 'name']) expect(json).not.toContain(forbidden)
   })
 })
