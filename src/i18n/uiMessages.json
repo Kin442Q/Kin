@@ -10298,5 +10298,25 @@
   "Это не QR-код ученика. Возьмите карточку, которую выдал классный руководитель.": {
     "en": "This is not a student's QR code. Use the card issued by your homeroom teacher.",
     "tg": "Ин рамзи QR-и хонанда нест. Корти аз роҳбари синф гирифтаатонро истифода баред."
+  },
+  "Наведите камеру на QR-код с карточки": {
+    "en": "Point the camera at the QR code on your card",
+    "tg": "Камераро ба рамзи QR-и корт равона кунед"
+  },
+  "Камера недоступна. Закройте окно и войдите по логину и паролю или по личной ссылке.": {
+    "en": "The camera is not available. Close this window and sign in with your username and password or your personal link.",
+    "tg": "Камера дастнорас аст. Тирезаро пӯшед ва бо логин ва парол ё бо истиноди шахсӣ ворид шавед."
+  },
+  "Разрешите доступ к камере, чтобы прочитать QR-код с карточки. Видео никуда не отправляется.": {
+    "en": "Allow camera access to read the QR code on your card. The video is not sent anywhere.",
+    "tg": "Барои хондани рамзи QR-и корт ба камера иҷозат диҳед. Видео ба ҷое фиристода намешавад."
+  },
+  "Разрешить камеру": {
+    "en": "Allow camera",
+    "tg": "Иҷозати камера"
+  },
+  "Открыть настройки": {
+    "en": "Open settings",
+    "tg": "Кушодани танзимот"
   }
 }

@@ -9,10 +9,11 @@ import {
   ScrollView,
   View,
 } from 'react-native'
-import { ArrowRight, BookOpen, Eye, EyeOff, GraduationCap, Link2, Lock, User, Users } from 'lucide-react-native'
+import { ArrowRight, BookOpen, Eye, EyeOff, GraduationCap, Link2, Lock, QrCode, User, Users } from 'lucide-react-native'
 import { Text, TextInput } from '../components/Text'
 import Screen from '../components/Screen'
 import Logo from '../components/Logo'
+import QrScannerModal from '../components/QrScannerModal'
 import { colors, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { extractStudentToken } from '../lib/studentLink'
@@ -50,6 +51,8 @@ export default function LoginScreen() {
   // «Забыли пароль»: ссылка для нового пароля приходит на почту
   const [forgotMode, setForgotMode] = useState(false)
   const [forgotLoading, setForgotLoading] = useState(false)
+  // Вход по QR-коду с карточки: камера читает код, дальше работает та же личная ссылка
+  const [qrOpen, setQrOpen] = useState(false)
 
   const onSubmit = async () => {
     if (!emailOrPhone.trim() || !password) {
@@ -94,15 +97,8 @@ export default function LoginScreen() {
     }
   }
 
-  const onSubmitLink = async () => {
-    const token = extractStudentToken(linkText)
-    if (!token) {
-      Alert.alert(
-        uiText("Это не ссылка ученика"),
-        uiText("Вставьте ссылку целиком — она начинается с https:// и содержит /s/. Её выдаёт классный руководитель."),
-      )
-      return
-    }
+  /** Вход по токену личной ссылки: общий для вставленной ссылки и для QR-кода. */
+  const signInWithToken = async (token: string) => {
     try {
       await loginWithLink(token)
     } catch (e: any) {
@@ -114,6 +110,37 @@ export default function LoginScreen() {
         )
     }
   }
+
+  const onSubmitLink = async () => {
+    const token = extractStudentToken(linkText)
+    if (!token) {
+      Alert.alert(
+        uiText("Это не ссылка ученика"),
+        uiText("Вставьте ссылку целиком — она начинается с https:// и содержит /s/. Её выдаёт классный руководитель."),
+      )
+      return
+    }
+    await signInWithToken(token)
+  }
+
+  const onQrToken = (token: string) => {
+    setQrOpen(false)
+    void signInWithToken(token)
+  }
+
+  /** Кнопка «Сканировать QR-код с карточки»: только на вкладке ученика. */
+  const qrButton =
+    role === 'student' ? (
+      <Pressable
+        onPress={() => setQrOpen(true)}
+        disabled={loading}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.qrBtn, pressed && { opacity: 0.85 }]}
+      >
+        <QrCode size={20} color="#0D7A7C" />
+        <Text style={styles.qrBtnText}>{uiText("Сканировать QR-код с карточки")}</Text>
+      </Pressable>
+    ) : null
 
   /** Большая бирюзовая кнопка макета: высота 56, скругление 18, стрелка справа от надписи. */
   const SubmitButton = ({ label, onPress, busy }: { label: string; onPress: () => void; busy: boolean }) => (
@@ -231,6 +258,8 @@ export default function LoginScreen() {
 
                     <SubmitButton label={uiText("Войти")} onPress={onSubmitLink} busy={loading} />
 
+                    {qrButton}
+
                     <Pressable onPress={() => setLinkMode(false)} accessibilityRole="button">
                       <Text style={styles.link}>{uiText("Войти по логину и паролю")}</Text>
                     </Pressable>
@@ -282,6 +311,8 @@ export default function LoginScreen() {
 
                     <SubmitButton label={uiText("Войти")} onPress={onSubmit} busy={loading} />
 
+                    {qrButton}
+
                     {role === 'student' ? (
                       <Pressable onPress={() => setLinkMode(true)} accessibilityRole="button">
                         <Text style={styles.link}>{uiText("Войти по личной ссылке")}</Text>
@@ -298,6 +329,8 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <QrScannerModal visible={qrOpen} onClose={() => setQrOpen(false)} onToken={onQrToken} />
     </Screen>
   )
 }
@@ -360,6 +393,18 @@ const styles = themedStyles(() => ({
   },
   submitText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
   link: { textAlign: 'center', fontSize: 14, fontWeight: '700', color: '#0D7A7C', paddingVertical: 4 },
+  qrBtn: {
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: 'rgba(13,122,124,0.35)',
+    backgroundColor: 'rgba(13,122,124,0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  qrBtnText: { fontSize: 15, fontWeight: '800', color: '#0D7A7C' },
   sectionTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
   sectionSub: { fontSize: 14, lineHeight: 20, color: colors.muted, marginTop: -8 },
 }))
