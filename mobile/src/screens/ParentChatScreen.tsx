@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   View,
 } from 'react-native'
 import { Text, TextInput } from '../components/Text'
@@ -17,7 +18,13 @@ import Screen from '../components/Screen'
 import { colors, radius } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { connectSocket } from '../lib/socket'
-import { chatApi, type ChatMessage, type ChatScope } from '../api/chat'
+import {
+  chatApi,
+  pickTeacherId,
+  type ChatMessage,
+  type ChatScope,
+  type ChatTeacher,
+} from '../api/chat'
 
 import { themedStyles } from '../theme/themedStyles'
 export default function ParentChatScreen() {
@@ -31,12 +38,42 @@ export default function ParentChatScreen() {
   const [sending, setSending] = useState(false)
   const listRef = useRef<FlatList<ChatMessage>>(null)
 
+  // Личная переписка у родителя с каждым учителем класса своя
+  const [teachers, setTeachers] = useState<ChatTeacher[]>([])
+  const [teacherId, setTeacherId] = useState<string | null>(null)
+  const [teacherName, setTeacherName] = useState<string | null>(null)
+  const [noTeachers, setNoTeachers] = useState(false)
+  // ref, чтобы load не пересоздавался при выборе учителя (иначе useEffect/useFocusEffect зациклятся)
+  const teacherIdRef = useRef<string | null>(null)
+
   const load = useCallback(
-    async (s: ChatScope = scope) => {
+    async (s: ChatScope = scope, preferredTeacherId: string | null = teacherIdRef.current) => {
       try {
-        const r = await chatApi.my(s)
+        let teacherForScope: string | undefined
+        if (s === 'GENERAL') {
+          const list = await chatApi.teachers()
+          setTeachers(list.teachers)
+          setGroupName(list.groupName ?? undefined)
+          const id = pickTeacherId(list, preferredTeacherId)
+          if (!id) {
+            // У класса нет учителей: пустой чат, писать некому
+            teacherIdRef.current = null
+            setTeacherId(null)
+            setTeacherName(null)
+            setNoTeachers(true)
+            setMessages([])
+            setConvId(null)
+            return
+          }
+          teacherIdRef.current = id
+          setTeacherId(id)
+          teacherForScope = id
+        }
+        setNoTeachers(false)
+        const r = await chatApi.my(s, teacherForScope)
         setMessages(r.messages)
         setGroupName(r.conversation.groupName)
+        setTeacherName(s === 'GENERAL' ? r.conversation.teacherName ?? null : null)
         setConvId(r.conversation.id)
       } catch {
         // нет ребёнка / ошибка — оставляем пусто
@@ -86,7 +123,11 @@ export default function ParentChatScreen() {
     setSending(true)
     setText('')
     try {
-      const msg = await chatApi.parentSend(t, scope)
+      const msg = await chatApi.parentSend(
+        t,
+        scope,
+        scope === 'GENERAL' ? teacherIdRef.current ?? undefined : undefined,
+      )
       // Дедуп: socket эхо-возвращает сообщение отправителю — не дублируем.
       setMessages((prev) =>
         prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
@@ -115,7 +156,13 @@ export default function ParentChatScreen() {
         <Text style={styles.title}>
           {scope === 'ADMIN' ? uiText("Чат с администрацией") : uiText("Чат с учителем")}
         </Text>
-        {groupName && <Text style={styles.sub}>{uiText("Класс «")}{groupName}»</Text>}
+        {(groupName || (scope === 'GENERAL' && teacherName)) && (
+          <Text style={styles.sub}>
+            {scope === 'GENERAL' && teacherName ? teacherName : ''}
+            {scope === 'GENERAL' && teacherName && groupName ? ' · ' : ''}
+            {groupName ? `${uiText("Класс «")}${groupName}»` : ''}
+          </Text>
+        )}
         <View style={styles.switcher}>
           {(['GENERAL', 'ADMIN'] as ChatScope[]).map((s) => {
             const active = scope === s
@@ -139,6 +186,37 @@ export default function ParentChatScreen() {
             )
           })}
         </View>
+        {/* Личная переписка с каждым учителем класса — своя */}
+        {scope === 'GENERAL' && teachers.length > 1 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.teacherRow}
+          >
+            {teachers.map((t) => {
+              const active = t.id === teacherId
+              return (
+                <Pressable
+                  key={t.id}
+                  onPress={() => {
+                    if (active) return
+                    setLoading(true)
+                    load('GENERAL', t.id)
+                  }}
+                  style={[styles.teacherChip, active && styles.teacherChipActive]}
+                >
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.teacherChipText, active && styles.teacherChipTextActive]}
+                  >
+                    {t.fullName}
+                  </Text>
+                  {t.unread && !active && <View style={styles.teacherDot} />}
+                </Pressable>
+              )
+            })}
+          </ScrollView>
+        )}
       </View>
 
       <KeyboardAvoidingView
@@ -203,6 +281,8 @@ export default function ParentChatScreen() {
               <Text style={styles.emptyText}>
                 {scope === 'ADMIN'
                   ? uiText("Здесь администрация присылает напоминания об оплате. Можно написать первым 👇")
+                  : noTeachers
+                  ? uiText("У класса пока нет учителей — писать некому")
                   : uiText("Здесь можно написать учителю. Напишите первое сообщение 👇")}
               </Text>
             </View>
@@ -217,13 +297,17 @@ export default function ParentChatScreen() {
             placeholderTextColor={colors.muted}
             style={styles.input}
             multiline
+            editable={!(scope === 'GENERAL' && noTeachers)}
           />
           <Pressable
             onPress={send}
-            disabled={!text.trim() || sending}
+            disabled={!text.trim() || sending || (scope === 'GENERAL' && noTeachers)}
             style={[
               styles.sendBtn,
-              { opacity: !text.trim() || sending ? 0.5 : 1 },
+              {
+                opacity:
+                  !text.trim() || sending || (scope === 'GENERAL' && noTeachers) ? 0.5 : 1,
+              },
             ]}
           >
             <Send size={20} color="#fff" />
@@ -256,6 +340,28 @@ const styles = themedStyles(() => ({
   switchBtnActive: { backgroundColor: colors.primary },
   switchText: { fontSize: 13, fontWeight: '600', color: colors.muted },
   switchTextActive: { color: '#fff' },
+  teacherRow: { gap: 8, paddingTop: 10 },
+  teacherChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    maxWidth: 220,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.borderSoft,
+  },
+  teacherChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  teacherChipText: { fontSize: 13, fontWeight: '600', color: colors.text },
+  teacherChipTextActive: { color: '#fff' },
+  teacherDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 6,
+    backgroundColor: colors.primary,
+  },
   payCard: {
     alignSelf: 'center',
     maxWidth: '90%',

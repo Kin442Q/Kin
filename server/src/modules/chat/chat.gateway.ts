@@ -13,6 +13,7 @@ import {
 import { Server, Socket } from 'socket.io'
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
+import { canAccessConversation } from './chat-access'
 
 interface AuthedSocket extends Socket {
   userId?: string
@@ -26,8 +27,9 @@ interface AuthedSocket extends Socket {
  *
  * Подключение: клиент передаёт JWT в handshake.auth.token.
  * Комнаты:
- *   conv:<conversationId> — конкретная переписка (кто в ней сейчас)
- *   user:<userId>         — личная комната (для бейджей/списка)
+ *   conv:<conversationId> — конкретная переписка (кто в ней сейчас). Войти можно
+ *                           только по правилу доступа из chat-access.ts
+ *   user:<userId>         — личная комната (для бейджей/списка), только сам пользователь
  *
  * События ОТ сервера:
  *   message      — новое сообщение { conversationId, ...message }
@@ -88,13 +90,16 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       where: { id: data.conversationId },
     })
     if (!conv) return
-    // доступ: родитель-владелец, учитель группы, админ учреждения
-    const ok =
-      conv.parentId === client.userId ||
-      (client.role === 'TEACHER' && conv.groupId === client.groupId) ||
-      ((client.role === 'ADMIN' || client.role === 'SUPER_ADMIN') &&
-        (!client.kindergartenId ||
-          conv.kindergartenId === client.kindergartenId))
+    // Доступ — по тому же правилу, что и в REST (chat-access.ts): родитель-владелец,
+    // учитель-собеседник (GENERAL), администрация школы (только канал ADMIN).
+    const ok = canAccessConversation(
+      {
+        id: client.userId,
+        role: client.role ?? '',
+        kindergartenId: client.kindergartenId,
+      },
+      conv,
+    )
     if (ok) {
       client.join(`conv:${data.conversationId}`)
     }

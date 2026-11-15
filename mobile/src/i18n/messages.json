@@ -4195,6 +4195,10 @@
     "en": "Select a teacher",
     "tg": "Омӯзгорро интихоб кунед"
   },
+  "У класса пока нет учителей — писать некому": {
+    "en": "This class has no teachers yet, so there is nobody to write to",
+    "tg": "Дар синф ҳоло омӯзгор нест, барои навиштан касе нест"
+  },
   "Цвет": {
     "en": "Color",
     "tg": "Ранг"
