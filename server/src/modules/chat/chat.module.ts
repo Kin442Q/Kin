@@ -15,21 +15,46 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { JwtModule } from '@nestjs/jwt'
 import { ConfigModule, ConfigService } from '@nestjs/config'
-import { IsString, MaxLength, MinLength } from 'class-validator'
+import { IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
 
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { PushService } from '../push/push.module'
 import { TelegramModule } from '../telegram/telegram.module'
 import { TelegramLinkService } from '../telegram/telegram-link.service'
 import { ChatGateway } from './chat.gateway'
+import { chatDenyReason, type ChatDenyReason } from './chat-access'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
 import { Feature } from '../../common/decorators/feature.decorator'
 
+type Scope = 'GENERAL' | 'ADMIN'
+
 class SendMessageDto {
   @IsString() @MinLength(1) @MaxLength(2000) text!: string
+}
+
+class ParentSendDto extends SendMessageDto {
+  @IsOptional() @IsIn(['GENERAL', 'ADMIN']) scope?: Scope
+  /** Кому из учителей класса пишет родитель (канал GENERAL). */
+  @IsOptional() @IsString() teacherId?: string
+}
+
+/** Учитель класса, которому родитель может написать. */
+interface ClassTeacher {
+  id: string
+  fullName: string
+  isHomeroom: boolean
+  subjects: string[]
+}
+
+const DENY_TEXT: Record<ChatDenyReason, string> = {
+  FINANCE_FOR_TEACHER: 'Финансовый канал доступен только администрации',
+  PRIVATE_FOR_ADMIN: 'Личная переписка учителя с родителем администрации недоступна',
+  NOT_PARTICIPANT: 'Это не ваша переписка',
+  OTHER_SCHOOL: 'Из другого учреждения',
+  ROLE: 'Нет доступа к переписке',
 }
 
 @Injectable()
@@ -41,34 +66,79 @@ export class ChatService {
     private readonly telegram: TelegramLinkService,
   ) {}
 
-  /** Все классы, которые ведёт учитель: основная группа + M:N teachingGroups. */
-  private async teacherGroupIds(user: AuthUser): Promise<string[]> {
-    const me = await this.prisma.user.findUnique({
-      where: { id: user.sub },
-      select: { groupId: true, teachingGroups: { select: { id: true } } },
-    })
-    return Array.from(
-      new Set(
-        [me?.groupId, ...(me?.teachingGroups.map((g) => g.id) ?? [])].filter(
-          (x): x is string => !!x,
-        ),
-      ),
+  // ─── Общие помощники ────────────────────────────────────────────────
+
+  /**
+   * Найти переписку или создать. Ключ: (класс, родитель, канал, учитель).
+   * Для канала ADMIN teacherId = null — единственность держит частичный индекс,
+   * для GENERAL — обычный уникальный. Гонку двух запросов разрешаем повторным поиском.
+   */
+  private async findOrCreateConversation(key: {
+    groupId: string
+    parentId: string
+    scope: Scope
+    teacherId: string | null
+    kindergartenId: string | null
+  }) {
+    const where = {
+      groupId: key.groupId,
+      parentId: key.parentId,
+      scope: key.scope,
+      teacherId: key.teacherId,
+    }
+    const found = await this.prisma.conversation.findFirst({ where })
+    if (found) return found
+    try {
+      return await this.prisma.conversation.create({
+        data: { ...where, kindergartenId: key.kindergartenId },
+      })
+    } catch (e) {
+      if ((e as { code?: string })?.code === 'P2002') {
+        const again = await this.prisma.conversation.findFirst({ where })
+        if (again) return again
+      }
+      throw e
+    }
+  }
+
+  /** Условие выборки переписок для сотрудника. null — этой роли список не положен. */
+  private staffWhere(user: AuthUser): Record<string, unknown> | null {
+    const school = user.kindergartenId ? { kindergartenId: user.kindergartenId } : {}
+    if (user.role === 'TEACHER') {
+      // Личные переписки: только те, где собеседник — сам учитель. Не «класс», а «пара».
+      return { scope: 'GENERAL', teacherId: user.sub, ...school }
+    }
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+      // Администрация видит ТОЛЬКО финансовый канал.
+      // Личные переписки учитель↔родитель (GENERAL) ей недоступны.
+      return { scope: 'ADMIN', ...school }
+    }
+    return null
+  }
+
+  private unreadForStaff(
+    user: AuthUser,
+    c: { staffReadAt: Date | null; messages: Array<{ senderId: string; createdAt: Date }> },
+  ) {
+    const last = c.messages[0]
+    return !!(
+      last &&
+      last.senderId !== user.sub &&
+      (!c.staffReadAt || c.staffReadAt < last.createdAt)
     )
   }
 
   // ─── Родитель ───────────────────────────────────────────────────────
 
   /**
-   * Получить (или создать) переписку родителя в заданном канале.
-   *   GENERAL — с учителем; ADMIN — с администрацией (финансы).
+   * Ребёнок родителя и его класс. Доступ к ребёнку как в ParentService.ensureKidAccess —
+   * БЕЗ строгого фильтра status, иначе чат 404-ит на детях, которых остальной кабинет
+   * родителя (today/payments/...) показывает. Активных предпочитаем.
    */
-  async myConversation(user: AuthUser, scope: 'GENERAL' | 'ADMIN' = 'GENERAL') {
+  private async parentKid(user: AuthUser) {
     if (user.role !== 'PARENT') {
       throw new ForbiddenException('Только для родителя')
     }
-    // Доступ к ребёнку как в ParentService.ensureKidAccess — БЕЗ строгого
-    // фильтра status, иначе чат 404-ит на детях, которых остальной кабинет
-    // родителя (today/payments/...) показывает. Активных предпочитаем.
     const kid = await this.prisma.student.findFirst({
       where: {
         OR: [
@@ -77,29 +147,171 @@ export class ChatService {
         ],
       },
       orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-      select: { id: true, groupId: true, kindergartenId: true, group: { select: { name: true } } },
+      select: {
+        id: true,
+        groupId: true,
+        kindergartenId: true,
+        group: { select: { name: true, homeroomTeacherId: true } },
+      },
     })
     if (!kid) throw new NotFoundException('Нет привязанного ребёнка')
     if (!kid.groupId) {
       throw new BadRequestException('Ребёнок не закреплён за группой — чат недоступен')
     }
+    return { ...kid, groupId: kid.groupId }
+  }
 
-    const conv = await this.prisma.conversation.upsert({
+  /**
+   * Учителя, которым родитель может написать: активные учителя школы, которые ведут класс
+   * ребёнка (основная группа, M:N «ведёт классы» или классный руководитель).
+   * Классный руководитель — первым, остальные по алфавиту.
+   */
+  private async classTeachers(kid: {
+    groupId: string
+    kindergartenId: string | null
+    group: { homeroomTeacherId: string | null } | null
+  }): Promise<ClassTeacher[]> {
+    const rows = await this.prisma.user.findMany({
       where: {
-        groupId_parentId_scope: {
-          groupId: kid.groupId,
-          parentId: user.sub,
-          scope,
+        role: 'TEACHER',
+        isActive: true,
+        ...(kid.kindergartenId ? { kindergartenId: kid.kindergartenId } : {}),
+        OR: [
+          { groupId: kid.groupId },
+          { teachingGroups: { some: { id: kid.groupId } } },
+          { homeroomGroups: { some: { id: kid.groupId } } },
+        ],
+      },
+      select: {
+        id: true,
+        fullName: true,
+        teachingSubjects: { select: { name: true } },
+      },
+      orderBy: { fullName: 'asc' },
+    })
+    const homeroomId = kid.group?.homeroomTeacherId ?? null
+    const teachers = rows.map((t) => ({
+      id: t.id,
+      fullName: t.fullName,
+      isHomeroom: t.id === homeroomId,
+      subjects: (t.teachingSubjects ?? []).map((s) => s.name),
+    }))
+    return [...teachers.filter((t) => t.isHomeroom), ...teachers.filter((t) => !t.isHomeroom)]
+  }
+
+  /**
+   * С кем родитель пишет по умолчанию (старые клиенты не передают teacherId):
+   * с тем, с кем переписка активнее всего шла, иначе классный руководитель, иначе первый.
+   */
+  private defaultTeacherId(
+    teachers: ClassTeacher[],
+    convs: Array<{ teacherId: string | null; lastMessageAt: Date; messages: unknown[] }>,
+  ): string | null {
+    const ids = new Set(teachers.map((t) => t.id))
+    const recent = convs
+      .filter((c) => c.teacherId && ids.has(c.teacherId) && c.messages.length > 0)
+      .sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime())[0]
+    return recent?.teacherId ?? teachers[0]?.id ?? null
+  }
+
+  /** Переписки родителя с учителями этого класса (+ последнее сообщение) — для выбора и бейджей. */
+  private async parentTeacherConversations(
+    parentId: string,
+    groupId: string,
+    teacherIds: string[],
+  ) {
+    if (teacherIds.length === 0) return []
+    return this.prisma.conversation.findMany({
+      where: { parentId, groupId, scope: 'GENERAL', teacherId: { in: teacherIds } },
+      select: {
+        teacherId: true,
+        lastMessageAt: true,
+        parentReadAt: true,
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { senderId: true, createdAt: true },
         },
       },
-      create: {
-        groupId: kid.groupId,
-        parentId: user.sub,
-        scope,
-        kindergartenId: kid.kindergartenId,
-      },
-      update: {},
     })
+  }
+
+  /** Учителя класса ребёнка для выбора в чате родителя. */
+  async myTeachers(user: AuthUser) {
+    const kid = await this.parentKid(user)
+    const teachers = await this.classTeachers(kid)
+    const convs = await this.parentTeacherConversations(
+      user.sub,
+      kid.groupId,
+      teachers.map((t) => t.id),
+    )
+    const byTeacher = new Map(convs.map((c) => [c.teacherId, c]))
+    return {
+      groupName: kid.group?.name ?? null,
+      defaultTeacherId: this.defaultTeacherId(teachers, convs),
+      teachers: teachers.map((t) => {
+        const c = byTeacher.get(t.id)
+        const last = c?.messages[0]
+        return {
+          ...t,
+          lastMessageAt: last ? c!.lastMessageAt : null,
+          unread: !!(
+            last &&
+            last.senderId !== user.sub &&
+            (!c!.parentReadAt || c!.parentReadAt < last.createdAt)
+          ),
+        }
+      }),
+    }
+  }
+
+  /** Находит (создаёт) переписку родителя: с администрацией или с выбранным учителем. */
+  private async parentConversation(user: AuthUser, scope: Scope, teacherId?: string) {
+    const kid = await this.parentKid(user)
+    const base = {
+      groupId: kid.groupId,
+      parentId: user.sub,
+      kindergartenId: kid.kindergartenId,
+    }
+
+    if (scope === 'ADMIN') {
+      const conv = await this.findOrCreateConversation({ ...base, scope, teacherId: null })
+      return { conv, kid, teacher: null as ClassTeacher | null }
+    }
+
+    const teachers = await this.classTeachers(kid)
+    if (teachers.length === 0) {
+      throw new BadRequestException('У класса нет учителей — чат недоступен')
+    }
+    let teacher: ClassTeacher | undefined
+    if (teacherId) {
+      teacher = teachers.find((t) => t.id === teacherId)
+      // Писать можно только учителю своего класса — не любому учителю школы.
+      if (!teacher) throw new ForbiddenException('Этот учитель не ведёт класс вашего ребёнка')
+    } else {
+      const convs = await this.parentTeacherConversations(
+        user.sub,
+        kid.groupId,
+        teachers.map((t) => t.id),
+      )
+      const id = this.defaultTeacherId(teachers, convs)
+      teacher = teachers.find((t) => t.id === id)
+    }
+    const conv = await this.findOrCreateConversation({
+      ...base,
+      scope,
+      teacherId: teacher!.id,
+    })
+    return { conv, kid, teacher: teacher! }
+  }
+
+  /**
+   * Получить (или создать) переписку родителя в заданном канале.
+   *   GENERAL — личная, с одним учителем класса (teacherId; без него — по умолчанию);
+   *   ADMIN   — с администрацией (финансы).
+   */
+  async myConversation(user: AuthUser, scope: Scope = 'GENERAL', teacherId?: string) {
+    const { conv, kid, teacher } = await this.parentConversation(user, scope, teacherId)
 
     const messages = await this.prisma.message.findMany({
       where: { conversationId: conv.id },
@@ -112,31 +324,29 @@ export class ChatService {
       data: { parentReadAt: new Date() },
     })
 
-    return { conversation: { ...conv, groupName: kid.group?.name }, messages }
+    return {
+      conversation: {
+        ...conv,
+        groupName: kid.group?.name,
+        teacherName: teacher?.fullName ?? null,
+      },
+      messages,
+    }
   }
 
   // ─── Учитель / админ ────────────────────────────────────────────────
 
   /**
    * Список переписок.
-   *   TEACHER — только GENERAL своей группы (финансы не видит).
-   *   ADMIN — все переписки учреждения (оба канала).
+   *   TEACHER — только свои личные переписки с родителями (где он собеседник), и только
+   *             начатые (хотя бы одно сообщение). Переписки коллег по классу не видит.
+   *   ADMIN — только финансовый канал своей школы.
    */
   async listConversations(user: AuthUser) {
     if (user.role === 'PARENT') throw new ForbiddenException()
-
-    const where: Record<string, unknown> = {}
-    if (user.role === 'TEACHER') {
-      const allowed = await this.teacherGroupIds(user)
-      if (allowed.length === 0) return []
-      where.groupId = { in: allowed } // все классы, которые ведёт учитель
-      where.scope = 'GENERAL' // учитель НЕ видит финансовый канал
-    } else {
-      // ADMIN/SUPER_ADMIN видит ТОЛЬКО финансовый канал (ADMIN).
-      // Личные переписки учитель↔родитель (GENERAL) администрации недоступны.
-      where.scope = 'ADMIN'
-      if (user.kindergartenId) where.kindergartenId = user.kindergartenId
-    }
+    const where = this.staffWhere(user)
+    if (!where) return []
+    if (user.role === 'TEACHER') where.messages = { some: {} }
 
     const convs = await this.prisma.conversation.findMany({
       where,
@@ -153,11 +363,6 @@ export class ChatService {
 
     return convs.map((c) => {
       const last = c.messages[0]
-      const unread = !!(
-        last &&
-        last.senderId !== user.sub &&
-        (!c.staffReadAt || c.staffReadAt < last.createdAt)
-      )
       return {
         id: c.id,
         parentId: c.parentId,
@@ -167,7 +372,7 @@ export class ChatService {
         scope: c.scope,
         lastMessageAt: c.lastMessageAt,
         lastText: last?.text ?? null,
-        unread,
+        unread: this.unreadForStaff(user, c),
       }
     })
   }
@@ -190,9 +395,9 @@ export class ChatService {
   // ─── Отправка ───────────────────────────────────────────────────────
 
   /** Родитель пишет в свою переписку (канал по умолчанию — учитель). */
-  async parentSend(user: AuthUser, text: string, scope: 'GENERAL' | 'ADMIN' = 'GENERAL') {
-    const { conversation } = await this.myConversation(user, scope)
-    return this.send(user, conversation.id, text)
+  async parentSend(user: AuthUser, text: string, scope: Scope = 'GENERAL', teacherId?: string) {
+    const { conv } = await this.parentConversation(user, scope, teacherId)
+    return this.send(user, conv.id, text)
   }
 
   /** Сотрудник пишет в переписку. */
@@ -245,21 +450,12 @@ export class ChatService {
 
     let sent = 0
     for (const parentId of parentIds) {
-      const conv = await this.prisma.conversation.upsert({
-        where: {
-          groupId_parentId_scope: {
-            groupId: student.groupId,
-            parentId,
-            scope: 'ADMIN',
-          },
-        },
-        create: {
-          groupId: student.groupId,
-          parentId,
-          scope: 'ADMIN',
-          kindergartenId: student.kindergartenId,
-        },
-        update: {},
+      const conv = await this.findOrCreateConversation({
+        groupId: student.groupId,
+        parentId,
+        scope: 'ADMIN',
+        teacherId: null,
+        kindergartenId: student.kindergartenId,
       })
       await this.send(user, conv.id, text, 'PAYMENT')
       sent++
@@ -268,10 +464,12 @@ export class ChatService {
   }
 
   /**
-   * Сотрудник пишет всем активным родителям одного ученика в общий канал
-   * (GENERAL): каждому создаётся или переиспользуется его переписка с классом,
-   * сообщение уходит с пушем и в Telegram, как обычное. Доступ сотрудника к
-   * ученику проверяет вызывающий (ClassAccessService).
+   * Сотрудник пишет всем активным родителям одного ученика, сообщение уходит с пушем
+   * и в Telegram, как обычное. Доступ сотрудника к ученику проверяет вызывающий
+   * (ClassAccessService).
+   *   Учитель — в свою личную переписку с каждым родителем (видит только он и родитель);
+   *   администрация — в канал «Администрация», который она сама видит и где родитель
+   *   может ответить.
    */
   async sendToStudentParents(
     user: AuthUser,
@@ -296,18 +494,14 @@ export class ChatService {
       new Set([...student.parents.map((p) => p.id), ...legacy.map((l) => l.id)]),
     )
 
+    const asTeacher = user.role === 'TEACHER'
     for (const parentId of parentIds) {
-      const conv = await this.prisma.conversation.upsert({
-        where: {
-          groupId_parentId_scope: { groupId: student.groupId, parentId, scope: 'GENERAL' },
-        },
-        create: {
-          groupId: student.groupId,
-          parentId,
-          scope: 'GENERAL',
-          kindergartenId: student.kindergartenId,
-        },
-        update: {},
+      const conv = await this.findOrCreateConversation({
+        groupId: student.groupId,
+        parentId,
+        scope: asTeacher ? 'GENERAL' : 'ADMIN',
+        teacherId: asTeacher ? user.sub : null,
+        kindergartenId: student.kindergartenId,
       })
       await this.send(user, conv.id, text)
     }
@@ -339,18 +533,21 @@ export class ChatService {
     })
 
     // Realtime: рассылаем сообщение всем в комнате переписки
+    // (в комнату пускает только правило chat-access: участники и никто больше)
     this.gateway.emitMessage(conversationId, msg)
-    // и обновление списка другой стороне (бейдж/последнее сообщение)
-    this.gateway.emitConversationUpdate(conv.parentId, {
+    // и обновление списка собеседникам (бейдж/последнее сообщение): родителю и,
+    // для личной переписки, её учителю — больше никому
+    const update = {
       conversationId,
       lastText: t,
       lastMessageAt: conv.lastMessageAt,
-    })
+    }
+    this.gateway.emitConversationUpdate(conv.parentId, update)
+    if (conv.teacherId) this.gateway.emitConversationUpdate(conv.teacherId, update)
 
     // Push другой стороне
     if (user.role === 'PARENT') {
-      // В ADMIN-канале уведомляем только админов (учителя финансы не видят).
-      this.notifyStaff(conv.groupId, conv.kindergartenId, user.sub, t, conv.scope).catch(() => {})
+      this.notifyStaff(conv, user.sub, t).catch(() => {})
     } else {
       // Сотрудник → родитель: пуш в приложение + мгновенное уведомление в Telegram
       // (как напоминания об оплате), чтобы родитель увидел сразу, даже без приложения.
@@ -398,28 +595,36 @@ export class ChatService {
     ].filter((p): p is string => !!p)
   }
 
+  /**
+   * Пуш сотрудникам о сообщении родителя. Текст сообщения уходит в уведомление,
+   * поэтому адресат строго тот, кто вправе читать переписку:
+   *   GENERAL — только учитель-собеседник (ни другие учителя класса, ни администрация);
+   *   ADMIN   — администраторы школы.
+   */
   private async notifyStaff(
-    groupId: string,
-    kindergartenId: string | null,
+    conv: {
+      scope: Scope
+      groupId: string
+      teacherId: string | null
+      kindergartenId: string | null
+    },
     senderId: string,
     text: string,
-    scope: 'GENERAL' | 'ADMIN',
   ) {
-    const staff = await this.prisma.user.findMany({
-      where: {
-        isActive: true,
-        expoPushToken: { not: null },
+    let audience: Record<string, unknown>
+    if (conv.scope === 'GENERAL') {
+      if (!conv.teacherId) return
+      audience = { id: conv.teacherId, role: 'TEACHER' }
+    } else {
+      if (!conv.kindergartenId) return
+      audience = {
         id: { not: senderId },
-        OR: [
-          // Учителя получают уведомления только в общем канале
-          ...(scope === 'GENERAL'
-            ? [{ role: 'TEACHER' as const, groupId }]
-            : []),
-          ...(kindergartenId
-            ? [{ role: 'ADMIN' as const, kindergartenId }]
-            : []),
-        ],
-      },
+        role: 'ADMIN',
+        kindergartenId: conv.kindergartenId,
+      }
+    }
+    const staff = await this.prisma.user.findMany({
+      where: { isActive: true, expoPushToken: { not: null }, ...audience },
       select: { id: true },
     })
     await this.push.sendToUsers(
@@ -427,7 +632,7 @@ export class ChatService {
       {
         title: 'Новое сообщение от родителя',
         body: text.slice(0, 120),
-        data: { kind: 'chat', groupId },
+        data: { kind: 'chat', groupId: conv.groupId },
       },
     )
   }
@@ -457,16 +662,9 @@ export class ChatService {
       return { count }
     }
 
-    const where: Record<string, unknown> = {}
-    if (user.role === 'TEACHER') {
-      const allowed = await this.teacherGroupIds(user)
-      if (allowed.length === 0) return { count: 0 }
-      where.groupId = { in: allowed }
-      where.scope = 'GENERAL'
-    } else {
-      where.scope = 'ADMIN' // админ считает непрочитанные только в финансовом канале
-      if (user.kindergartenId) where.kindergartenId = user.kindergartenId
-    }
+    // Те же переписки, что и в списке: свои у учителя, финансовый канал у администрации.
+    const where = this.staffWhere(user)
+    if (!where) return { count: 0 }
 
     const convs = await this.prisma.conversation.findMany({
       where,
@@ -479,15 +677,7 @@ export class ChatService {
         },
       },
     })
-    const count = convs.filter((c) => {
-      const last = c.messages[0]
-      return (
-        last &&
-        last.senderId !== user.sub &&
-        (!c.staffReadAt || c.staffReadAt < last.createdAt)
-      )
-    }).length
-    return { count }
+    return { count: convs.filter((c) => this.unreadForStaff(user, c)).length }
   }
 
   private async assertStaffAccess(user: AuthUser, conversationId: string) {
@@ -499,27 +689,13 @@ export class ChatService {
       },
     })
     if (!conv) throw new NotFoundException('Переписка не найдена')
-    // Учитель не имеет доступа к финансовому (ADMIN) каналу
-    if (user.role === 'TEACHER' && conv.scope === 'ADMIN') {
-      throw new ForbiddenException('Финансовый канал доступен только администрации')
-    }
-    if (
-      user.role === 'TEACHER' &&
-      !(await this.teacherGroupIds(user)).includes(conv.groupId)
-    ) {
-      throw new ForbiddenException('Не ваш класс')
-    }
-    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
-      // Админ работает только в финансовом канале; личный чат учитель↔родитель не его
-      if (conv.scope !== 'ADMIN') {
-        throw new ForbiddenException(
-          'Личная переписка учителя с родителем администрации недоступна',
-        )
-      }
-      if (user.kindergartenId && conv.kindergartenId !== user.kindergartenId) {
-        throw new ForbiddenException('Из другого учреждения')
-      }
-    }
+    // Родитель ходит по своим маршрутам (my), эти — только для сотрудников.
+    if (user.role === 'PARENT') throw new ForbiddenException(DENY_TEXT.ROLE)
+    const denied = chatDenyReason(
+      { id: user.sub, role: user.role, kindergartenId: user.kindergartenId },
+      conv,
+    )
+    if (denied) throw new ForbiddenException(DENY_TEXT[denied])
     return conv
   }
 }
@@ -539,31 +715,40 @@ class ChatController {
     return this.service.unreadCount(user)
   }
 
+  @Get('teachers')
+  @Roles('PARENT')
+  @ApiOperation({
+    summary: 'Учителя класса ребёнка — кому родитель может написать (с бейджем непрочитанного)',
+  })
+  teachers(@CurrentUser() user: AuthUser) {
+    return this.service.myTeachers(user)
+  }
+
   @Get('my')
   @ApiOperation({
     summary:
-      'Переписка родителя. scope=GENERAL (учитель) | ADMIN (администрация/оплата)',
+      'Переписка родителя. scope=GENERAL (личная с учителем, teacherId — с каким) | ADMIN (администрация/оплата)',
   })
   my(
     @CurrentUser() user: AuthUser,
-    @Query('scope') scope?: 'GENERAL' | 'ADMIN',
+    @Query('scope') scope?: Scope,
+    @Query('teacherId') teacherId?: string,
   ) {
     return this.service.myConversation(
       user,
       scope === 'ADMIN' ? 'ADMIN' : 'GENERAL',
+      teacherId || undefined,
     )
   }
 
   @Post('my/messages')
   @Roles('PARENT')
-  parentSend(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: SendMessageDto & { scope?: 'GENERAL' | 'ADMIN' },
-  ) {
+  parentSend(@CurrentUser() user: AuthUser, @Body() dto: ParentSendDto) {
     return this.service.parentSend(
       user,
       dto.text,
       dto.scope === 'ADMIN' ? 'ADMIN' : 'GENERAL',
+      dto.teacherId || undefined,
     )
   }
 

@@ -17,7 +17,28 @@ export interface ChatConversationInfo {
   groupId: string
   parentId: string
   scope: ChatScope
+  /** GENERAL — личная переписка с этим учителем; ADMIN — всегда null. */
+  teacherId?: string | null
+  teacherName?: string | null
   groupName?: string
+}
+
+/** Учитель класса ребёнка, которому родитель может написать. */
+export interface ChatTeacher {
+  id: string
+  fullName: string
+  isHomeroom: boolean
+  subjects: string[]
+  lastMessageAt: string | null
+  /** Учитель ответил, а родитель ещё не открыл эту переписку. */
+  unread: boolean
+}
+
+export interface ChatTeachers {
+  groupName: string | null
+  /** С кем открыть чат, если родитель ещё никого не выбирал. null — у класса нет учителей. */
+  defaultTeacherId: string | null
+  teachers: ChatTeacher[]
 }
 
 export interface StaffConversation {
@@ -34,16 +55,22 @@ export interface StaffConversation {
 
 export const chatApi = {
   // Родитель
-  my: (scope: ChatScope = 'GENERAL') =>
+  /** teacherId — с каким учителем личная переписка (только для GENERAL). */
+  my: (scope: ChatScope = 'GENERAL', teacherId?: string) =>
     http
       .get<{ conversation: ChatConversationInfo; messages: ChatMessage[] }>(
         '/v1/chat/my',
-        { params: { scope } },
+        { params: teacherId ? { scope, teacherId } : { scope } },
       )
       .then((r) => r.data),
-  parentSend: (text: string, scope: ChatScope = 'GENERAL') =>
+  teachers: () =>
+    http.get<ChatTeachers>('/v1/chat/teachers').then((r) => r.data),
+  parentSend: (text: string, scope: ChatScope = 'GENERAL', teacherId?: string) =>
     http
-      .post<ChatMessage>('/v1/chat/my/messages', { text, scope })
+      .post<ChatMessage>(
+        '/v1/chat/my/messages',
+        teacherId ? { text, scope, teacherId } : { text, scope },
+      )
       .then((r) => r.data),
   paymentReminder: (studentId: string, month: string, amount: number) =>
     http

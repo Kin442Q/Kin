@@ -10,6 +10,7 @@ import {
   Grid,
   Input,
   Segmented,
+  Select,
   Spin,
   Tag,
   Typography,
@@ -25,8 +26,10 @@ import {
   chatApi,
   type ChatMessage,
   type ChatScope,
+  type ChatTeacher,
   type StaffConversation,
 } from '../api/chatApi'
+import { pickTeacherId, teacherOptionText } from './chatTeachers'
 
 const { Text } = Typography
 
@@ -60,19 +63,49 @@ export default function ChatPage() {
 
   // Родитель: канал переписки (учитель / администрация-финансы)
   const [parentScope, setParentScope] = useState<ChatScope>('GENERAL')
+  // Родитель: учителя класса ребёнка; личная переписка у него с каждым своя
+  const [teachers, setTeachers] = useState<ChatTeacher[]>([])
+  const [teacherId, setTeacherId] = useState<string | null>(null)
+  const [noTeachers, setNoTeachers] = useState(false)
 
   const scrollDown = () =>
     setTimeout(() => endRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
 
-  // ─── Родитель: одна переписка ──────────────────────────────────────
-  const loadParent = async (scope: ChatScope = parentScope) => {
+  // ─── Родитель: переписка с выбранным учителем или с администрацией ──
+  const loadParent = async (
+    scope: ChatScope = parentScope,
+    preferredTeacherId: string | null = teacherId,
+  ) => {
     setLoading(true)
     try {
-      const r = await chatApi.my(scope)
+      let teacherForScope: string | undefined
+      if (scope === 'GENERAL') {
+        const list = await chatApi.teachers()
+        setTeachers(list.teachers)
+        const id = pickTeacherId(list, preferredTeacherId)
+        if (!id) {
+          // У класса нет учителей: показываем пустой чат, писать некому
+          setNoTeachers(true)
+          setTeacherId(null)
+          setMessages([])
+          setConvId(null)
+          setActiveMeta({ name: uiText("Учитель"), group: list.groupName ?? '' })
+          return
+        }
+        setNoTeachers(false)
+        setTeacherId(id)
+        teacherForScope = id
+      } else {
+        setNoTeachers(false)
+      }
+      const r = await chatApi.my(scope, teacherForScope)
       setMessages(r.messages)
       setConvId(r.conversation.id)
       setActiveMeta({
-        name: scope === 'ADMIN' ? uiText("Администрация") : uiText("Учитель"),
+        name:
+          scope === 'ADMIN'
+            ? uiText("Администрация")
+            : r.conversation.teacherName || uiText("Учитель"),
         group: r.conversation.groupName ?? '',
       })
       scrollDown()
@@ -134,9 +167,16 @@ export default function ChatPage() {
     }
     socket.on('message', onMessage)
 
-    // обновление списка переписок у сотрудника
+    // обновление списка переписок у сотрудника; у родителя — бейджи учителей
     const onConversation = () => {
-      if (!isParent) loadStaffList()
+      if (!isParent) {
+        loadStaffList()
+      } else if (parentScope === 'GENERAL') {
+        chatApi
+          .teachers()
+          .then((l) => setTeachers(l.teachers))
+          .catch(() => {})
+      }
     }
     socket.on('conversation', onConversation)
 
@@ -155,7 +195,11 @@ export default function ChatPage() {
     setText('')
     try {
       const msg = isParent
-        ? await chatApi.parentSend(t, parentScope)
+        ? await chatApi.parentSend(
+            t,
+            parentScope,
+            parentScope === 'GENERAL' ? teacherId ?? undefined : undefined,
+          )
         : await chatApi.staffSend(activeId!, t)
       // Дедуп: socket возвращает это же сообщение отправителю (он в комнате).
       setMessages((prev) =>
@@ -207,8 +251,12 @@ export default function ChatPage() {
         {messages.length === 0 ? (
           <Empty
             description={
-              isParent
-                ? uiText("Напишите учителю первое сообщение")
+              isParent && noTeachers
+                ? uiText("У класса пока нет учителей — писать некому")
+                : isParent
+                ? parentScope === 'GENERAL'
+                  ? uiText("Напишите учителю первое сообщение")
+                  : uiText("Здесь администрация присылает напоминания об оплате. Можно написать первым 👇")
                 : uiText("Сообщений пока нет")
             }
             image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -327,14 +375,14 @@ export default function ChatPage() {
               send()
             }
           }}
-          disabled={!isParent && !activeId}
+          disabled={(!isParent && !activeId) || (isParent && noTeachers)}
         />
         <Button
           type="primary"
           icon={<SendOutlined />}
           onClick={send}
           loading={sending}
-          disabled={!text.trim() || (!isParent && !activeId)}
+          disabled={!text.trim() || (!isParent && !activeId) || (isParent && noTeachers)}
         />
       </div>
     </Card>
@@ -420,19 +468,43 @@ export default function ChatPage() {
       />
 
       {isParent && (
-        <Segmented
-          value={parentScope}
-          onChange={(v) => {
-            const s = v as ChatScope
-            setParentScope(s)
-            loadParent(s)
-          }}
-          options={[
-            { label: uiText("Учитель"), value: 'GENERAL' },
-            { label: uiText("Администрация"), value: 'ADMIN' },
-          ]}
-          style={{ marginBottom: 12 }}
-        />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+          <Segmented
+            value={parentScope}
+            onChange={(v) => {
+              const s = v as ChatScope
+              setParentScope(s)
+              loadParent(s)
+            }}
+            options={[
+              { label: uiText("Учитель"), value: 'GENERAL' },
+              { label: uiText("Администрация"), value: 'ADMIN' },
+            ]}
+          />
+          {/* Личная переписка у родителя с каждым учителем класса своя */}
+          {parentScope === 'GENERAL' && teachers.length > 1 && (
+            <Select
+              value={teacherId ?? undefined}
+              placeholder={uiText("Выберите учителя")}
+              style={{ minWidth: 260, maxWidth: '100%' }}
+              onChange={(id: string) => {
+                setTeacherId(id)
+                loadParent('GENERAL', id)
+              }}
+              options={teachers.map((t) => ({
+                value: t.id,
+                label: (
+                  <span>
+                    {teacherOptionText(t, uiText("Классный руководитель"))}
+                    {t.unread && t.id !== teacherId && (
+                      <Badge color={SP.primary} style={{ marginLeft: 8 }} />
+                    )}
+                  </span>
+                ),
+              }))}
+            />
+          )}
+        </div>
       )}
 
       {loading ? (

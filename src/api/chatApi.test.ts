@@ -40,6 +40,22 @@ describe('chatApi.my (родитель)', () => {
     const r = await chatApi.my()
     expect(r.conversation.id).toBe('c1')
   })
+
+  it('передаёт teacherId — личная переписка с конкретным учителем', async () => {
+    await chatApi.my('GENERAL', 'tB')
+    expect(get).toHaveBeenCalledWith('/v1/chat/my', {
+      params: { scope: 'GENERAL', teacherId: 'tB' },
+    })
+  })
+})
+
+describe('chatApi.teachers (родитель)', () => {
+  it('просит учителей класса ребёнка', async () => {
+    get.mockResolvedValue({ data: { groupName: '5А', defaultTeacherId: 'tA', teachers: [] } })
+    const r = await chatApi.teachers()
+    expect(get).toHaveBeenCalledWith('/v1/chat/teachers')
+    expect(r.defaultTeacherId).toBe('tA')
+  })
 })
 
 describe('chatApi.parentSend', () => {
@@ -48,6 +64,15 @@ describe('chatApi.parentSend', () => {
     expect(post).toHaveBeenCalledWith('/v1/chat/my/messages', {
       text: 'привет',
       scope: 'GENERAL',
+    })
+  })
+
+  it('шлёт teacherId, когда выбран учитель', async () => {
+    await chatApi.parentSend('вопрос', 'GENERAL', 'tB')
+    expect(post).toHaveBeenCalledWith('/v1/chat/my/messages', {
+      text: 'вопрос',
+      scope: 'GENERAL',
+      teacherId: 'tB',
     })
   })
 
