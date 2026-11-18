@@ -31,6 +31,7 @@ export type FeatureKey =
   | 'timesheet'
   | 'meetings'
   | 'chat'
+  | 'parent_verdict'
 
 /**
  * Доступен ли раздел. Владельцу платформы (нет учреждения) и сессии, где
