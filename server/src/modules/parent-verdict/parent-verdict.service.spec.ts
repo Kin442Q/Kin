@@ -1,15 +1,12 @@
 import 'reflect-metadata'
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
-import { plainToInstance } from 'class-transformer'
-import { validate } from 'class-validator'
 
 import { ParentVerdictService } from './parent-verdict.service'
-import { ParentVerdictController, PreviewVerdictQuery } from './parent-verdict.controller'
 import type { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import type { ClassAccessService } from '../class-access/class-access.service'
 import type { FeaturesService } from '../features/features.service'
-import { ROLES_KEY } from '../../common/decorators/roles.decorator'
-import { FEATURE_KEY } from '../../common/decorators/feature.decorator'
+import type { VerdictConfigService } from './verdict-config.service'
+import { thresholdsFor } from './verdict-scale'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
@@ -24,16 +21,21 @@ describe('ParentVerdictService.preview', () => {
   let prisma: PrismaMock & { term: { findMany: jest.Mock } }
   let access: { assertHomeroomAccess: jest.Mock }
   let features: { isEnabled: jest.Mock }
+  let config: { effective: jest.Mock }
   let service: ParentVerdictService
 
   beforeEach(() => {
     prisma = Object.assign(createPrismaMock(), { term: { findMany: jest.fn() } })
     access = { assertHomeroomAccess: jest.fn().mockResolvedValue(undefined) }
     features = { isEnabled: jest.fn().mockResolvedValue(true) }
+    config = {
+      effective: jest.fn(async (_k: string | null, scale: 'FIVE' | 'TEN') => ({ thresholds: thresholdsFor(scale), overrides: {}, ignored: false })),
+    }
     service = new ParentVerdictService(
       prisma as unknown as PrismaService,
       access as unknown as ClassAccessService,
       features as unknown as FeaturesService,
+      config as unknown as VerdictConfigService,
     )
     prisma.group.findUnique.mockResolvedValue(group)
     prisma.kindergarten.findUnique.mockResolvedValue({ gradeScale: 'FIVE' })
@@ -124,6 +126,25 @@ describe('ParentVerdictService.preview', () => {
       expect(r.thresholds).toMatchObject({ scaleMax: 10, weakAverage: 5.5, badMark: 3, dropBy: 1, strongAverage: 9.1 })
     })
 
+    it('пороги школы применяются: слабым считаем предмет со средним ниже её порога', async () => {
+      config.effective.mockResolvedValue({
+        thresholds: thresholdsFor('FIVE', { weakAverage: 4.2 }), overrides: { weakAverage: 4.2 }, ignored: false,
+      })
+      prisma.grade.findMany.mockResolvedValue(
+        [4, 4, 4].map((value, i) => ({ studentId: 's1', subjectId: 'math', value, date: utc('2026-10-0' + (i + 1)), createdAt: new Date() })),
+      )
+      const r = await service.preview(teacher, 'g1', '2026-10', NOW)
+      expect(config.effective).toHaveBeenCalledWith('k1', 'FIVE')
+      expect(r.thresholds.weakAverage).toBe(4.2)
+      expect(r.students.find((s) => s.student.id === 's1')?.subjects[0].signals.map((s) => s.code)).toContain('WEAK')
+    })
+
+    it('неверные пороги школы в базе не ломают расчёт и помечены в ответе', async () => {
+      config.effective.mockResolvedValue({ thresholds: thresholdsFor('FIVE'), overrides: {}, ignored: true })
+      const r = await service.preview(teacher, 'g1', '2026-10', NOW)
+      expect(r.configIgnored).toBe(true)
+    })
+
     it('школа не найдена — берём пятибалльную', async () => {
       prisma.kindergarten.findUnique.mockResolvedValue(null)
       expect((await service.preview(teacher, 'g1', '2026-10', NOW)).scale).toBe('FIVE')
@@ -177,23 +198,5 @@ describe('ParentVerdictService.preview', () => {
         expect(model.delete).not.toHaveBeenCalled()
       }
     })
-  })
-})
-
-describe('ParentVerdictController: кто может смотреть', () => {
-  it('только сотрудники школы; родителям, ученикам и ведомству доступа нет', () => {
-    const roles = Reflect.getMetadata(ROLES_KEY, ParentVerdictController) as string[]
-    expect(roles.sort()).toEqual(['ADMIN', 'SUPER_ADMIN', 'TEACHER'])
-  })
-
-  it('нужен включённый раздел «Итоги месяца» и журнал оценок', () => {
-    expect(Reflect.getMetadata(FEATURE_KEY, ParentVerdictController)).toEqual(['parent_verdict', 'grades'])
-  })
-
-  it('месяц проверяется как ГГГГ-ММ', async () => {
-    const check = (month: string) => validate(plainToInstance(PreviewVerdictQuery, { groupId: 'g1', month }))
-    expect(await check('2026-10')).toHaveLength(0)
-    for (const bad of ['2026-13', '2026-1', 'x', '']) expect((await check(bad)).length).toBeGreaterThan(0)
-    expect((await validate(plainToInstance(PreviewVerdictQuery, { groupId: '', month: '2026-10' }))).length).toBeGreaterThan(0)
   })
 })

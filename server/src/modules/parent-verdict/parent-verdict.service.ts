@@ -6,7 +6,8 @@ import { FeaturesService } from '../features/features.service'
 import type { AuthUser } from '../../common/types/jwt-payload'
 import { addDays, isMonth, monthEnd, monthStart, previousMonth, schoolToday } from './verdict-dates'
 import { computeVerdictSignals, type AttendanceStatusValue } from './verdict-rules'
-import { thresholdsFor, type VerdictScale } from './verdict-scale'
+import { VerdictConfigService } from './verdict-config.service'
+import type { VerdictScale } from './verdict-scale'
 
 const dateOnly = (date: Date) => date.toISOString().slice(0, 10)
 /** Даты в базе (@db.Date) — UTC-полночь календарного дня. */
@@ -23,6 +24,7 @@ export class ParentVerdictService {
     private readonly prisma: PrismaService,
     private readonly access: ClassAccessService,
     private readonly features: FeaturesService,
+    private readonly config: VerdictConfigService,
   ) {}
 
   async preview(user: AuthUser, groupId: string, month: string, now: Date = new Date()) {
@@ -42,7 +44,7 @@ export class ParentVerdictService {
       ? await this.prisma.kindergarten.findUnique({ where: { id: group.kindergartenId }, select: { gradeScale: true } })
       : null
     const scale: VerdictScale = school?.gradeScale ?? 'FIVE'
-    const thresholds = thresholdsFor(scale)
+    const { thresholds, ignored: configIgnored } = await this.config.effective(group.kindergartenId, scale)
 
     const [withAttendance, withSchedule, withHomework] = await Promise.all([
       this.features.isEnabled(group.kindergartenId, 'attendance'),
@@ -135,11 +137,13 @@ export class ParentVerdictService {
 
     const studentById = new Map(students.map((s) => [s.id, s]))
     return {
-      group: { id: group.id, name: group.name },
+      group: { id: group.id, name: group.name, kindergartenId: group.kindergartenId },
       month,
       asOf,
       scale,
       thresholds,
+      /** true — пороги школы в базе неверны и не применены (считали по умолчанию). */
+      configIgnored,
       sections,
       window: result.window,
       journalSilent: result.journalSilent,
