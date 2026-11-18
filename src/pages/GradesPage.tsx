@@ -30,6 +30,15 @@ import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { termsApi, type TermDto } from '../api/termsApi'
 import { http } from '../api'
+import {
+  extendToInclude,
+  filterColumnsByRange,
+  isNarrowed,
+  resolveRange,
+  storeRange,
+  type DateRange,
+  type StoredRange,
+} from '../lib/gradeJournalRange'
 
 const { Text } = Typography
 
@@ -124,6 +133,10 @@ export default function GradesPage() {
   // Колонки-даты, добавленные вручную кнопкой «+ урок».
   const [extraDates, setExtraDates] = useState<string[]>([])
 
+  // Диапазон дат, выбранный вручную («от какого числа показать журнал»).
+  // null — показываем всю четверть.
+  const [storedRange, setStoredRange] = useState<StoredRange | null>(null)
+
   // Modal
   const [editing, setEditing] = useState<{
     studentId: string
@@ -201,6 +214,19 @@ export default function GradesPage() {
     [range, uiLanguage()],
   )
 
+  // Границы выбранной четверти и диапазон дат, который показываем в журнале.
+  const bounds = useMemo<DateRange>(
+    () => ({ start: gradeRange.from, end: gradeRange.to }),
+    [gradeRange],
+  )
+  const visibleRange = useMemo(() => resolveRange(storedRange, bounds), [storedRange, bounds])
+  const narrowed = isNarrowed(visibleRange, bounds)
+
+  // Смена четверти (или месяца без четвертей) сбрасывает даты на всю четверть.
+  useEffect(() => {
+    setStoredRange(null)
+  }, [bounds.start, bounds.end])
+
   // Дни недели (1..7), когда идёт выбранный предмет — по расписанию класса.
   const subjectWeekdays = useMemo(() => {
     const set = new Set<number>()
@@ -265,14 +291,14 @@ export default function GradesPage() {
     return map
   }, [gradesByStudent, uiLanguage()])
 
-  // Колонки журнала = ВСЕ уроки выбранной четверти по предмету:
+  // Все уроки выбранной четверти по предмету:
   //  • даты по расписанию (дни недели предмета) в пределах четверти;
   //  • плюс даты, где уже есть оценки;
   //  • плюс вручную добавленные уроки.
   const inRange = (d: dayjs.Dayjs) =>
     !d.isBefore(range.start, 'day') && !d.isAfter(range.end, 'day')
 
-  const dateColumns = useMemo(() => {
+  const termColumns = useMemo(() => {
     const set = new Set<string>()
     if (subjectWeekdays.size) {
       let d = range.start
@@ -293,6 +319,13 @@ export default function GradesPage() {
     return Array.from(set).sort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [subjectWeekdays, grades, extraDates, range, uiLanguage()])
+
+  // Колонки журнала = уроки четверти внутри выбранного диапазона дат. Средний
+  // балл и оценка за четверть считаются по `grades` (вся четверть), а не по ним.
+  const dateColumns = useMemo(
+    () => filterColumnsByRange(termColumns, visibleRange),
+    [termColumns, visibleRange],
+  )
 
   // Группировка колонок-дат по месяцам — для верхней строки шапки.
   const monthGroups = useMemo(() => {
@@ -359,15 +392,28 @@ export default function GradesPage() {
 
   const addLessonDate = (d: string) => {
     setExtraDates((prev) => (prev.includes(d) ? prev : [...prev, d]))
+    // Урок вне показанных дат — расширяем диапазон, чтобы колонка не пропала молча.
+    setStoredRange((prev) =>
+      storeRange(extendToInclude(resolveRange(prev, bounds), bounds, d), bounds),
+    )
   }
 
-  // Авто-прокрутка журнала к последним урокам (вправо).
+  // Авто-прокрутка журнала: к последним урокам (вправо); если выбраны даты —
+  // к их началу, чтобы журнал открывался «от нужного числа».
   useLayoutEffect(() => {
     const el = journalRef.current
     if (el && dateColumns.length > 0) {
-      el.scrollLeft = el.scrollWidth
+      el.scrollLeft = narrowed ? 0 : el.scrollWidth
     }
-  }, [dateColumns.length, activeSubjectId, activeGroupId, activeTermId])
+  }, [
+    dateColumns.length,
+    activeSubjectId,
+    activeGroupId,
+    activeTermId,
+    narrowed,
+    visibleRange.start,
+    visibleRange.end,
+  ])
 
   const openAdd = (studentId: string, studentName: string, date?: string) => {
     if (!canGrade) return
@@ -447,7 +493,7 @@ export default function GradesPage() {
         </SproutCard>
       ) : (
         <>
-          {/* Фильтры: класс · предмет · четверть · поиск */}
+          {/* Фильтры: класс · предмет · четверть · поиск · даты уроков */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -526,6 +572,38 @@ export default function GradesPage() {
                     disabled={!ready}
                   />
                 </Col>
+                <Col xs={24} lg={12}>
+                  <div style={{ fontSize: 11, color: SP.muted, fontWeight: 700, marginBottom: 4 }}>
+                    {" " + uiText("ДАТЫ УРОКОВ") + " "}</div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <DatePicker.RangePicker
+                      style={{ flex: 1, minWidth: 0 }}
+                      format="DD.MM.YYYY"
+                      allowClear={false}
+                      placeholder={[uiText("С даты"), uiText("По дату")]}
+                      disabled={!ready}
+                      value={[dayjs(visibleRange.start), dayjs(visibleRange.end)]}
+                      disabledDate={(d) =>
+                        d.isBefore(dayjs(bounds.start), 'day') ||
+                        d.isAfter(dayjs(bounds.end), 'day')
+                      }
+                      onChange={(v) => {
+                        const [from, to] = v ?? []
+                        setStoredRange(
+                          from && to
+                            ? storeRange(
+                                { start: from.format('YYYY-MM-DD'), end: to.format('YYYY-MM-DD') },
+                                bounds,
+                              )
+                            : null,
+                        )
+                      }}
+                    />
+                    <Button onClick={() => setStoredRange(null)} disabled={!ready || !narrowed}>
+                      {uiText("Сбросить")}
+                    </Button>
+                  </div>
+                </Col>
               </Row>
             </Card>
           </motion.div>
@@ -596,6 +674,15 @@ export default function GradesPage() {
                       }
                     />
                   </div>
+
+                  {narrowed && (
+                    <Text
+                      type="secondary"
+                      style={{ display: 'block', fontSize: 12, marginBottom: 10 }}
+                    >
+                      {uiText("Показаны уроки только за выбранные даты. Средний балл и оценка за четверть считаются по всей четверти.")}
+                    </Text>
+                  )}
 
                   {visibleChildren.length === 0 ? (
                     <Empty
