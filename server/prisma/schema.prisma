@@ -221,6 +221,8 @@ model Kindergarten {
   quizzes       Quiz[]
   storedFiles     StoredFile[]
   lessonMaterials LessonMaterial[]
+  parentVerdicts  ParentVerdict[]
+  verdictConfig   VerdictConfig?
 
   @@index([isActive])
   @@index([districtId])
@@ -457,6 +459,8 @@ model User {
   /// Для TEACHER — личные переписки с родителями (видны только ему и родителю).
   teacherConversations Conversation[] @relation("TeacherConversations")
   sentMessages  Message[]       @relation("SentMessages")
+  /// Для сотрудника — вердикты родителям, которые он проверил (одобрил или пропустил).
+  verdictsReviewed ParentVerdict[] @relation("VerdictReviewer")
 
   @@index([role])
   @@index([groupId])
@@ -602,6 +606,7 @@ model Group {
   homework             Homework[]
   conversations        Conversation[]
   lessonMaterials      LessonMaterial[]
+  parentVerdicts       ParentVerdict[]
 
   @@index([isActive])
   @@index([kindergartenId])
@@ -657,6 +662,7 @@ model Student {
   homeworkSubmissions HomeworkSubmission[]
   quizAttempts  QuizAttempt[]
   gameScores    GameScore[]
+  parentVerdicts ParentVerdict[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -1356,4 +1362,81 @@ model GameScore {
 
   @@index([gameKey, score])
   @@index([studentId, gameKey])
+}
+
+// ---------------------------------------------------------------------------
+// ЕЖЕМЕСЯЧНЫЙ ВЕРДИКТ РОДИТЕЛЮ ПО ПРЕДМЕТАМ
+// ---------------------------------------------------------------------------
+
+/// Состояние вердикта. Родителю уходит только то, что человек (классный руководитель или директор)
+/// одобрил: из DRAFT в APPROVED, а затем в SENT, система не переводит сама.
+enum VerdictStatus {
+  DRAFT     // черновик: посчитан системой, учитель ещё не одобрил
+  APPROVED  // одобрен классным руководителем, родителю ещё не опубликован
+  SENT      // опубликован родителю (публикация — следующий этап)
+  SKIPPED   // классный руководитель решил не отправлять за этот месяц
+}
+
+/// Вердикт по одному ученику за один месяц. Сигналы считают правила (server/src/modules/parent-verdict),
+/// текст — готовые фразы (позже — ИИ только как переписчик цифр). Хранится снимок расчёта, чтобы можно было
+/// показать, ПОЧЕМУ родитель получил именно такой вывод, даже если журнал потом исправили.
+model ParentVerdict {
+  id             String        @id @default(cuid())
+  kindergartenId String
+  groupId        String
+  studentId      String
+  /// Месяц, за который вердикт: "YYYY-MM".
+  month          String
+  /// Последний учтённый день, "YYYY-MM-DD": конец месяца или день расчёта, если месяц ещё идёт.
+  asOf           String
+  status         VerdictStatus @default(DRAFT)
+
+  /// Шкала школы и пороги, по которым считали (снимок: пороги школы потом могут поменяться).
+  scale          GradeScale
+  thresholds     Json
+  /// Снимок расчёта по ученику: средние по предметам и сигналы с цифрами.
+  signals        Json
+  /// Предмет-акцент месяца (null — проблемных сигналов нет).
+  focusSubjectId String?
+
+  /// Тексты для родителя. draft* — как написала система, text* — то, что уйдёт родителю (учитель правит их).
+  draftRu        String
+  draftTg        String
+  textRu         String
+  textTg         String
+  /// Чем написан черновик: 'template' (готовые фразы) или название модели ИИ.
+  generatedBy    String        @default("template")
+  generatedAt    DateTime      @default(now())
+
+  /// Кто и когда одобрил или пропустил. Сбрасывается, если вердикт возвращён в черновик.
+  reviewedById   String?
+  reviewedAt     DateTime?
+  skipReason     String?
+  /// Когда опубликован родителю.
+  sentAt         DateTime?
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  kindergarten   Kindergarten  @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
+  group          Group         @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  reviewedBy     User?         @relation("VerdictReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, month])
+  @@index([groupId, month])
+  @@index([kindergartenId, month])
+}
+
+/// Пороги вердикта школы. Нет записи — значения по умолчанию для шкалы школы (verdict-scale.ts).
+/// В overrides лежат только изменённые числа; ключи и диапазоны проверяются при записи.
+model VerdictConfig {
+  id             String   @id @default(cuid())
+  kindergartenId String   @unique
+  overrides      Json
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  kindergarten   Kindergarten @relation(fields: [kindergartenId], references: [id], onDelete: Cascade)
 }

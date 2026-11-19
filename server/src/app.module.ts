@@ -43,6 +43,7 @@ import { FeaturesModule } from './modules/features/features.module'
 import { HomeworkStatusModule } from './modules/homework-status/homework-status.module'
 import { StudentPortalModule } from './modules/student-portal/student-portal.module'
 import { HomeroomModule } from './modules/homeroom/homeroom.module'
+import { ParentVerdictModule } from './modules/parent-verdict/parent-verdict.module'
 import { LibraryModule } from './modules/library/library.module'
 import { QuizzesModule } from './modules/quizzes/quizzes.module'
 import { ExamPrepModule } from './modules/exam-prep/exam-prep.module'
@@ -121,6 +122,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     HomeworkStatusModule,
     StudentPortalModule,
     HomeroomModule,
+    ParentVerdictModule,
     LibraryModule,
     QuizzesModule,
     ExamPrepModule,

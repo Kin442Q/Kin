@@ -44,6 +44,7 @@ export type FeatureKey =
   // Общение
   | 'meetings'
   | 'chat'
+  | 'parent_verdict'
 
 export type FeatureGroup =
   | 'composition'
@@ -222,6 +223,13 @@ export const FEATURES: Record<FeatureKey, FeatureDef> = {
     description: 'Переписка родителей с учителями и администрацией',
     group: 'communication',
     defaultEnabled: true,
+  },
+  parent_verdict: {
+    label: 'Итоги месяца для родителей',
+    description:
+      'Ежемесячный вердикт родителю по предметам: сигналы по журналу, посещаемости и домашним заданиям, проверка классным руководителем',
+    group: 'communication',
+    defaultEnabled: false,
   },
 }
 
