@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "cyou.tahlilgar.maktabiman"
+      "bundleIdentifier": "cyou.tahlilgar.maktabiman",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +27,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "cyou.tahlilgar.maktabiman"
+      "package": "cyou.tahlilgar.maktabiman",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

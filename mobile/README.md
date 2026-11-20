@@ -147,9 +147,21 @@ npx tsc --noEmit
 ## Известные ограничения
 
 - **Web-режим (`npm run web`)** — Face ID и native-stack работают частично. Для разработки UI ок, но для отладки auth-флоу — лучше Expo Go на телефоне.
-- **EAS build** — пока не настроен. Для публикации в App Store / Play Store потребуется `eas.json` и Apple/Google аккаунты.
-- **Push-уведомления** — пока не подключены, в плане через `expo-notifications`.
+- **EAS build** — настроен: профиль `preview` (APK для проверки на телефоне) и `production` (AAB для Google Play и сборка для App Store), см. «Публикация в магазины» ниже.
+- **Push-уведомления** — подключены через `expo-notifications`; для сборок из магазинов нужны ключи FCM (Android) и APNs (iOS), см. ниже.
 - **Тёмная тема** — пока нет, цвета жёстко light.
+
+---
+
+## Публикация в магазины
+
+Нужны аккаунты Apple Developer Program и Google Play Console, а также вход в EAS (`npx eas-cli login`).
+
+1. **Номер сборки.** Перед КАЖДОЙ загрузкой новой сборки увеличьте `ios.buildNumber` (строка: "2", "3"…) и `android.versionCode` (число) в `app.json`: магазины не принимают повторный номер. `version` (1.0.0) меняйте только при заметных для пользователей обновлениях.
+2. **Сборка.** `npx eas-cli build --platform android --profile production` даёт AAB для Google Play, `--platform ios --profile production` — сборку для App Store (сертификаты EAS создаст сам после входа в Apple-аккаунт). Профиль `production` явно задаёт боевой адрес сервера. Профиль `preview` по-прежнему собирает APK для внутренних проверок.
+3. **Загрузка.** `npx eas-cli submit --platform android --latest` и `--platform ios --latest`, либо вручную через Play Console и App Store Connect (Transporter).
+4. **Push в магазинных сборках.** Android: ключ FCM v1 загрузить в EAS (`eas credentials`). iOS: ключ APNs EAS создаёт при сборке.
+5. **Политика конфиденциальности** лежит в `public/privacy/index.html` веб-приложения (адрес `/privacy/`). Её адрес нужен в карточках обоих магазинов; перед отправкой её нужно заполнить (оператор, почта) и показать юристу.
 
 ---
 
