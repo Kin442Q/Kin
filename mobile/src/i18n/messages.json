@@ -10274,5 +10274,69 @@
   "Показаны уроки только за выбранные даты. Средний балл и оценка за четверть считаются по всей четверти.": {
     "en": "Only lessons in the selected dates are shown. The average and the term grade are calculated for the whole term.",
     "tg": "Танҳо дарсҳои санаҳои интихобшуда нишон дода мешаванд. Баҳои миёна ва баҳои чоряк барои тамоми чоряк ҳисоб карда мешаванд."
+  },
+  "Сканировать QR-код с карточки": {
+    "en": "Scan the QR code from your card",
+    "tg": "Рамзи QR-и кортро скан кунед"
+  },
+  "Этот браузер не умеет открывать камеру на странице. Наведите камеру телефона на код: откроется ваша личная ссылка.": {
+    "en": "This browser cannot open the camera on the page. Point your phone's camera at the code: your personal link will open.",
+    "tg": "Ин браузер камераро дар саҳифа кушода наметавонад. Камераи телефонро ба рамз равона кунед: истиноди шахсии шумо кушода мешавад."
+  },
+  "Нет доступа к камере. Разрешите её для сайта в настройках браузера или наведите камеру телефона на код.": {
+    "en": "No access to the camera. Allow it for this site in your browser settings, or point your phone's camera at the code.",
+    "tg": "Дастрасӣ ба камера нест. Онро барои сайт дар танзимоти браузер иҷозат диҳед ё камераи телефонро ба рамз равона кунед."
+  },
+  "Камера не найдена. Наведите камеру телефона на код или войдите по логину и паролю.": {
+    "en": "No camera found. Point your phone's camera at the code or sign in with your username and password.",
+    "tg": "Камера ёфт нашуд. Камераи телефонро ба рамз равона кунед ё бо логин ва парол ворид шавед."
+  },
+  "Не удалось включить камеру. Попробуйте ещё раз или наведите камеру телефона на код.": {
+    "en": "Could not turn on the camera. Try again or point your phone's camera at the code.",
+    "tg": "Камераро фаъол кардан муяссар нашуд. Бори дигар кӯшиш кунед ё камераи телефонро ба рамз равона кунед."
+  },
+  "Вход по QR-коду": {
+    "en": "Sign in with a QR code",
+    "tg": "Воридшавӣ бо рамзи QR"
+  },
+  "Поднесите QR-код с вашей карточки к камере. Код читается в самом браузере, видео никуда не отправляется.": {
+    "en": "Hold the QR code from your card up to the camera. The code is read in the browser itself; the video is not sent anywhere.",
+    "tg": "Рамзи QR-и корти худро ба камера наздик кунед. Рамз дар худи браузер хонда мешавад, видео ба ҷое фиристода намешавад."
+  },
+  "Попробовать ещё раз": {
+    "en": "Try again",
+    "tg": "Бори дигар кӯшиш кардан"
+  },
+  "Камера для чтения QR-кода": {
+    "en": "Camera for reading the QR code",
+    "tg": "Камера барои хондани рамзи QR"
+  },
+  "Включаем камеру…": {
+    "en": "Turning on the camera…",
+    "tg": "Камера фаъол карда мешавад…"
+  },
+  "Это не QR-код ученика. Возьмите карточку, которую выдал классный руководитель.": {
+    "en": "This is not a student's QR code. Use the card issued by your homeroom teacher.",
+    "tg": "Ин рамзи QR-и хонанда нест. Корти аз роҳбари синф гирифтаатонро истифода баред."
+  },
+  "Наведите камеру на QR-код с карточки": {
+    "en": "Point the camera at the QR code on your card",
+    "tg": "Камераро ба рамзи QR-и корт равона кунед"
+  },
+  "Камера недоступна. Закройте окно и войдите по логину и паролю или по личной ссылке.": {
+    "en": "The camera is not available. Close this window and sign in with your username and password or your personal link.",
+    "tg": "Камера дастнорас аст. Тирезаро пӯшед ва бо логин ва парол ё бо истиноди шахсӣ ворид шавед."
+  },
+  "Разрешите доступ к камере, чтобы прочитать QR-код с карточки. Видео никуда не отправляется.": {
+    "en": "Allow camera access to read the QR code on your card. The video is not sent anywhere.",
+    "tg": "Барои хондани рамзи QR-и корт ба камера иҷозат диҳед. Видео ба ҷое фиристода намешавад."
+  },
+  "Разрешить камеру": {
+    "en": "Allow camera",
+    "tg": "Иҷозати камера"
+  },
+  "Открыть настройки": {
+    "en": "Open settings",
+    "tg": "Кушодани танзимот"
   }
 }
