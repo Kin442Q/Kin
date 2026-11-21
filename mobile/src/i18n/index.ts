@@ -5,6 +5,10 @@ import 'dayjs/locale/ru'
 import 'dayjs/locale/en'
 import 'dayjs/locale/tg'
 
+// Язык по умолчанию русский (lang: 'ru' ниже). Без этого даты вроде «Saturday, 21 November» остаются
+// по-английски, пока человек сам не выберет язык: dayjs.locale() вызывался только после выбора.
+dayjs.locale('ru')
+
 export type Lang = 'ru' | 'en' | 'tg'
 const valid = (value: unknown): value is Lang => value === 'ru' || value === 'en' || value === 'tg'
 export const useLangStore = create<{

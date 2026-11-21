@@ -59,6 +59,16 @@ describe('LoginPage', () => {
     }
   })
 
+  it('вход по QR-коду с карточки: кнопка открывает окно камеры, а не ломает страницу', async () => {
+    // в jsdom камеры нет: окно должно объяснить это, а не упасть
+    renderLogin()
+    fireEvent.click(screen.getByRole('button', { name: /Сканировать QR-код с карточки/ }))
+    expect(await screen.findByText('Вход по QR-коду')).toBeInTheDocument()
+    expect(await screen.findByText(/не умеет открывать камеру/)).toBeInTheDocument()
+    // обычная форма на месте
+    expect(screen.getByPlaceholderText('email, телефон или логин')).toBeInTheDocument()
+  })
+
   it('одно поле «Email, телефон или логин» и пароль', () => {
     renderLogin()
     expect(screen.getByPlaceholderText('email, телефон или логин')).toBeInTheDocument()

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Form, Input, App as AntdApp, Spin, Modal } from 'antd'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
@@ -9,6 +9,7 @@ import {
   Lock,
   MessageCircle,
   Moon,
+  QrCode,
   Smartphone,
   Sun,
   User,
@@ -19,6 +20,8 @@ import { http } from '../api'
 import { SP, SproutLogo } from '../components/sprout'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useT } from '../i18n'
+import { uiText } from '../i18n/uiText'
+import QrLoginModal from '../components/QrLoginModal'
 
 interface LoginValues {
   /** Email или телефон — тип определяем по наличию «@». */
@@ -45,6 +48,16 @@ export default function LoginPage() {
   const t = useT()
   const [loading, setLoading] = useState(false)
   const [form] = Form.useForm()
+
+  // Вход ученика по QR-коду с карточки: камера читает код, дальше работает обычная личная ссылка /s/<токен>.
+  const [qrOpen, setQrOpen] = useState(false)
+  const onQrToken = useCallback(
+    (token: string) => {
+      setQrOpen(false)
+      navigate('/s/' + token)
+    },
+    [navigate],
+  )
 
   // «Забыли пароль?» — если у аккаунта есть email, сервер шлёт на него ссылку для
   // смены пароля; иначе запрос уходит администратору (in-app уведомление), и он
@@ -279,12 +292,19 @@ export default function LoginPage() {
           </Form>
         </Spin>
 
+        <button type="button" className="login-qr" onClick={() => setQrOpen(true)}>
+          <QrCode size={18} />
+          {uiText('Сканировать QR-код с карточки')}
+        </button>
+
         <div className="login-hint">
           <Info size={20} style={{ flex: 'none' }} />
           <span>{t('login.hint')}</span>
         </div>
 
         <p style={{ color: SP.muted, fontSize: 12.5, margin: 0, textAlign: 'center' }}>{t('login.studentHint')}</p>
+
+        <QrLoginModal open={qrOpen} onClose={() => setQrOpen(false)} onToken={onQrToken} />
 
         <Modal
           open={forgotOpen}
@@ -405,6 +425,17 @@ export default function LoginPage() {
           display: flex; align-items: center; justify-content: center; gap: 10px;
           padding: 16px; font-size: 17px; border-radius: 16px; margin-top: 6px;
         }
+        .login-qr {
+          width: 100%;
+          display: flex; align-items: center; justify-content: center; gap: 10px;
+          padding: 13px; font-size: 15px; font-weight: 600; border-radius: 16px;
+          border: 1.5px solid var(--sp-border);
+          background: var(--sp-surface-alt);
+          color: var(--sp-primary-deep);
+          cursor: pointer; font-family: inherit;
+          transition: background-color 0.18s ease, border-color 0.18s ease;
+        }
+        .login-qr:hover { border-color: var(--sp-primary); background: var(--sp-primary-ghost); }
         .login-theme-btn {
           width: 44px; height: 44px; border-radius: 14px;
           border: 1px solid var(--sp-border);
