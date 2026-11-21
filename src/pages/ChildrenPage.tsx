@@ -2,8 +2,10 @@ import { uiLanguage, uiText } from '../i18n/uiText'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Avatar,
+  Alert,
   Button,
   Card,
+  Checkbox,
   Col,
   DatePicker,
   Drawer,
@@ -22,7 +24,7 @@ import {
   App as AntdApp,
   Tooltip,
 } from 'antd'
-import type { UploadFile } from 'antd'
+import type { CheckboxProps, UploadFile } from 'antd'
 import {
   PlusOutlined,
   EditOutlined,
@@ -42,6 +44,7 @@ import ChildParentsModal from '../components/ChildParentsModal'
 import StudentAccountModal from '../components/StudentAccountModal'
 import ClassLinksModal from '../components/ClassLinksModal'
 import ImportStudentsModal from '../components/ImportStudentsModal'
+import BulkDeleteStudentsModal from '../components/BulkDeleteStudentsModal'
 import ClassFilter, {
   EMPTY_SELECTION,
   defaultSelection,
@@ -61,6 +64,7 @@ import { calcAge, formatDate, formatMoney } from '../lib/format'
 import { exportRows } from '../lib/exportXlsx'
 import { plural } from '../lib/classes'
 import { refreshTenantData } from '../hooks/useTenantSync'
+import { useRowPick } from '../hooks/useRowPick'
 import { http } from '../api'
 import type { Child, Gender } from '../types'
 
@@ -162,6 +166,12 @@ export default function ChildrenPage() {
     }
     return res
   }, [scopedChildren, hasFilter, selectedIds, query, uiLanguage()])
+
+  // Галочки и пакетное удаление — только тем, кому сервер разрешает удалять (админ и директор школы).
+  // Выделение живёт среди найденных: при смене поиска или класса оно сбрасывается.
+  const canBulk = isAdmin
+  const pick = useRowPick(visibleChildren, `${query}|${selectedIds.join(',')}`, canBulk)
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   const resetFilters = () => {
     selTouched.current = true
@@ -538,6 +548,37 @@ export default function ChildrenPage() {
             <ClassFilter groups={groups} value={sel} onChange={changeSel} allowAllLetters counts={counts} />
           </div>
 
+          {canBulk && hasFilter && visibleChildren.length > 0 && (pick.picked.length > 0 || isMobile) && (
+            <div className="mb-3">
+              {pick.picked.length > 0 ? (
+                <Alert
+                  type="warning"
+                  message={
+                    <div className="flex flex-wrap items-center gap-2" role="region" aria-label={uiText("Выбранные ученики")}>
+                      <Text strong>{uiText("Выбрано: {0} из {1}", pick.picked.length, visibleChildren.length)}</Text>
+                      {!pick.allPicked && (
+                        <Button size="small" type="link" onClick={pick.selectAll}>
+                          {uiText("Выбрать всех найденных: {0}", visibleChildren.length)}
+                        </Button>
+                      )}
+                      <span className="flex-1" />
+                      <Button size="small" onClick={pick.clear}>
+                        {uiText("Снять выделение")}
+                      </Button>
+                      <Button size="small" type="primary" danger icon={<DeleteOutlined />} onClick={() => setBulkOpen(true)}>
+                        {uiText("Удалить выбранных")}
+                      </Button>
+                    </div>
+                  }
+                />
+              ) : (
+                <Checkbox onChange={(e) => pick.toggleAll(e.target.checked)}>
+                  {uiText("Выбрать всех найденных: {0}", visibleChildren.length)}
+                </Checkbox>
+              )}
+            </div>
+          )}
+
           {!hasFilter ? (
             <SproutEmpty
               icon={<Baby size={28} strokeWidth={1.8} />}
@@ -575,6 +616,13 @@ export default function ChildrenPage() {
                     styles={{ body: { padding: 12 } }}
                   >
                     <div className="flex items-center gap-3 mb-2">
+                      {canBulk && (
+                        <Checkbox
+                          checked={pick.pickedIds.includes(c.id)}
+                          onChange={(e) => pick.toggle(c.id, e.target.checked)}
+                          aria-label={uiText("Выбрать: {0}", `${c.lastName} ${c.firstName}`)}
+                        />
+                      )}
                       {c.photoUrl ? (
                         <Avatar src={c.photoUrl} size={44} />
                       ) : (
@@ -738,6 +786,28 @@ export default function ChildrenPage() {
             pagination={{ pageSize: 10, showSizeChanger: false }}
             size="middle"
             sticky
+            rowSelection={
+              canBulk
+                ? {
+                    columnWidth: 48,
+                    selectedRowKeys: pick.pickedIds,
+                    onSelect: (c: Child, on: boolean) => pick.toggle(c.id, on),
+                    // «Выбрать всех» берёт всех найденных по фильтру, а не только строки текущей страницы
+                    columnTitle: (
+                      <Tooltip title={uiText("Выбрать всех найденных: {0}", visibleChildren.length)}>
+                        <Checkbox
+                          checked={pick.allPicked}
+                          indeterminate={pick.somePicked}
+                          onChange={(e) => pick.toggleAll(e.target.checked)}
+                          aria-label={uiText("Выбрать всех найденных")}
+                        />
+                      </Tooltip>
+                    ),
+                    getCheckboxProps: (c: Child) =>
+                      ({ 'aria-label': uiText("Выбрать: {0}", `${c.lastName} ${c.firstName}`) }) as CheckboxProps,
+                  }
+                : undefined
+            }
             expandable={{
               expandedRowRender: (c) => (
                 <div className="text-sm space-y-1">
@@ -915,6 +985,18 @@ export default function ChildrenPage() {
             : ''
         }
       />
+
+      {canBulk && (
+        <BulkDeleteStudentsModal
+          open={bulkOpen}
+          students={pick.picked}
+          onClose={() => setBulkOpen(false)}
+          onDeleted={() => {
+            pick.clear()
+            refreshTenantData()
+          }}
+        />
+      )}
 
       <ImportStudentsModal
         open={importOpen}

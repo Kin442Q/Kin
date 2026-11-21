@@ -5,6 +5,7 @@ import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger'
 import { StudentStatus } from '@prisma/client'
 
 import { StudentsService } from './students.service'
+import { StudentsBulkDeleteService } from './students-bulk-delete.service'
 import { CreateStudentDto, UpdateStudentDto } from './dto/student.dto'
 import { Roles } from '../../common/decorators/roles.decorator'
 import { RolesGuard } from '../../common/guards/roles.guard'
@@ -19,7 +20,10 @@ import { Feature } from '../../common/decorators/feature.decorator'
 @UseGuards(RolesGuard)
 @Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER')
 export class StudentsController {
-  constructor(private readonly service: StudentsService) {}
+  constructor(
+    private readonly service: StudentsService,
+    private readonly bulkDelete: StudentsBulkDeleteService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Список учеников (TEACHER видит только свою группу)' })
@@ -82,6 +86,17 @@ export class StudentsController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.service.bulkCreate(user, dto?.items ?? [])
+  }
+
+  @Post('bulk-delete')
+  @HttpCode(200)
+  @Roles('SUPER_ADMIN', 'ADMIN')
+  @ApiOperation({
+    summary:
+      'Удалить сразу несколько учеников (до 1000). Необратимо, как DELETE /students/:id. Чужие и несуществующие id не удаляются, а попадают в failed[].',
+  })
+  bulkDeleteStudents(@Body() dto: { ids?: string[] }, @CurrentUser() user: AuthUser) {
+    return this.bulkDelete.bulkDelete(user, dto?.ids)
   }
 
   @Post('scan')

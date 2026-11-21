@@ -222,6 +222,40 @@ export const studentAccountApi = {
     http.post<ClassLinks>('/v1/students/links/issue', { groupId }).then((r) => r.data),
 }
 
+export interface BulkDeleteStudentsResult {
+  deleted: number
+  /** Кого не удалось удалить и почему (чужой или уже удалённый ученик, сбой). */
+  failed: Array<{ id: string; reason: string }>
+}
+
+/** Столько id сервер принимает за один запрос. */
+export const BULK_DELETE_LIMIT = 1000
+
+/**
+ * Пакетное удаление учеников (только администратор школы). Необратимо.
+ * Сервер берёт до 1000 за запрос, поэтому больший список уходит несколькими запросами подряд;
+ * если очередной запрос упал, всё, что в нём не удалено, попадает в `failed`, а уже удалённое не теряется.
+ */
+export const studentsBulkApi = {
+  remove: async (ids: string[]): Promise<BulkDeleteStudentsResult> => {
+    const total: BulkDeleteStudentsResult = { deleted: 0, failed: [] }
+    for (let i = 0; i < ids.length; i += BULK_DELETE_LIMIT) {
+      const part = ids.slice(i, i + BULK_DELETE_LIMIT)
+      try {
+        const r = await http.post<BulkDeleteStudentsResult>('/v1/students/bulk-delete', { ids: part })
+        total.deleted += r.data.deleted
+        total.failed.push(...r.data.failed)
+      } catch (e: any) {
+        if (i === 0) throw e
+        const reason = e?.response?.data?.message || e?.message || 'Не удалось удалить'
+        total.failed.push(...ids.slice(i).map((id) => ({ id, reason: String(reason) })))
+        break
+      }
+    }
+    return total
+  },
+}
+
 // ─── Классный руководитель ────────────────────────────────────
 
 export interface HomeroomClass {
