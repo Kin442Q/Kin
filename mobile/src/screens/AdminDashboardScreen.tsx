@@ -1,7 +1,6 @@
 import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,6 +13,8 @@ import { Baby, CalendarHeart, ChevronRight, Receipt } from 'lucide-react-native'
 import { Text } from '../components/Text'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
+import NoticeBell from '../components/NoticeBell'
+import { HomeSkeleton } from '../components/Skeleton'
 import { CardTitle, ScreenHeading, Tile } from '../components/ui'
 import { colors } from '../theme/colors'
 import { gradeKeyOf } from '../lib/classes'
@@ -88,9 +89,7 @@ export default function AdminDashboardScreen() {
   if (loading) {
     return (
       <Screen variant="home">
-        <View style={styles.loader}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <HomeSkeleton hero={false} />
       </Screen>
     )
   }
@@ -139,7 +138,11 @@ export default function AdminDashboardScreen() {
           />
         }
       >
-        <ScreenHeading eyebrow={`${school} · ${dayjs().format('dddd, D MMMM')}`} title={uiText("Сводка школы")} />
+        <ScreenHeading
+          eyebrow={`${school} · ${dayjs().format('dddd, D MMMM')}`}
+          title={uiText("Сводка школы")}
+          right={<NoticeBell />}
+        />
 
         <View style={styles.grid}>
           <Tile label={uiText("Учеников")} value={students.length} style={styles.cell} />
@@ -239,7 +242,7 @@ const styles = themedStyles(() => ({
   barCol: { flex: 1, height: '100%', alignItems: 'center', gap: 6 },
   barTrack: { flex: 1, width: '100%', justifyContent: 'flex-end' },
   bar: { width: '100%', borderRadius: 8 },
-  barLabel: { fontSize: 11, color: colors.textMid },
+  barLabel: { fontSize: 12, color: colors.textMid },
   attHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   attTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
   badge: { paddingHorizontal: 9, paddingVertical: 2, borderRadius: 999, backgroundColor: colors.coral },

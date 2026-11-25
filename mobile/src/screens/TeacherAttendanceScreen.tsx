@@ -18,7 +18,7 @@ import BottomModal from '../components/BottomModal'
 import ClassPicker from '../components/ClassPicker'
 import EmptyState from '../components/EmptyState'
 import { Field, Select } from '../components/Field'
-import { colors } from '../theme/colors'
+import { colors, getScheme } from '../theme/colors'
 import { useLabels } from '../theme/useLabels'
 import { diaryApi, type Mood, type NapQuality, type KidNoteDto } from '../api/diary'
 import { studentsApi, type StudentDto } from '../api/students'
@@ -31,6 +31,7 @@ import {
 import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
 import { useMyClasses } from '../lib/useMyClasses'
+import { useTabBarSpace } from '../lib/useTabBarSpace'
 interface Row {
   student: StudentDto
   status: AttendanceStatus | null
@@ -56,6 +57,7 @@ const AVATAR_GRADIENTS = ['#9EDDD9', '#FFD3C2', '#FBE3A9']
 export default function TeacherAttendanceScreen() {
   const L = useLabels()
   const navigation = useNavigation<any>()
+  const tabSpace = useTabBarSpace()
   const today = useMemo(() => dayjs().format('YYYY-MM-DD'), [uiLanguage()])
 
   const { classes, loading: classesLoading, reload: reloadClasses } = useMyClasses()
@@ -236,10 +238,10 @@ export default function TeacherAttendanceScreen() {
                   <Text style={[styles.counterText, { color: colors.text }]}>{uiText("Нет") + " "}{counts.absent}</Text>
                 </View>
                 <View style={[styles.counter, { backgroundColor: 'rgba(255,138,101,0.25)' }]}>
-                  <Text style={[styles.counterText, { color: '#B23E1A' }]}>{uiText("Болеет") + " "}{counts.sick}</Text>
+                  <Text style={[styles.counterText, { color: colors.roseDeep }]}>{uiText("Болеет") + " "}{counts.sick}</Text>
                 </View>
                 <View style={[styles.counter, { backgroundColor: 'rgba(246,196,106,0.35)' }]}>
-                  <Text style={[styles.counterText, { color: '#7A5208' }]}>{uiText("Отпуск") + " "}{counts.vacation}</Text>
+                  <Text style={[styles.counterText, { color: colors.yellowDeep }]}>{uiText("Отпуск") + " "}{counts.vacation}</Text>
                 </View>
               </View>
             )}
@@ -281,7 +283,7 @@ export default function TeacherAttendanceScreen() {
       />
 
       {!!groupId && students.length > 0 && (
-        <View style={styles.saveBar}>
+        <View style={[styles.saveBar, { bottom: tabSpace + 12 }]}>
           <Pressable
             onPress={() => navigation.navigate('TeacherHome')}
             disabled={savingId !== null}
@@ -388,6 +390,12 @@ function StudentRow({ index, student, status, saving, hasNote, onChange, onOpenN
         {STATUSES.map((st) => {
           const active = status === st.key
           const Icon = st.icon
+          // «Нет» — чёрная плашка; в тёмной теме чёрное на тёмном не видно, поэтому там она светлая
+          const dark = getScheme() === 'dark'
+          const invert = dark && st.key === 'ABSENT'
+          const solid = invert ? '#E9F3F2' : st.solid
+          const onSolid = invert ? '#10282A' : st.onSolid
+          const idle = invert ? colors.muted : st.idle
           return (
             <Pressable
               key={st.key}
@@ -396,9 +404,9 @@ function StudentRow({ index, student, status, saving, hasNote, onChange, onOpenN
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
               accessibilityLabel={st.label}
-              style={[styles.segBtn, { backgroundColor: active ? st.solid : 'rgba(16,40,42,0.05)', opacity: saving ? 0.6 : 1 }]}
+              style={[styles.segBtn, { backgroundColor: active ? solid : colors.surfaceAlt, opacity: saving ? 0.6 : 1 }]}
             >
-              <Icon size={20} color={active ? st.onSolid : st.idle} strokeWidth={2.4} />
+              <Icon size={20} color={active ? onSolid : idle} strokeWidth={2.4} />
             </Pressable>
           )
         })}

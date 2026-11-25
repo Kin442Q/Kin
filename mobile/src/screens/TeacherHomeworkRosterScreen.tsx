@@ -295,7 +295,7 @@ const styles = themedStyles(() => ({
   meta: { fontSize: 12, color: colors.muted },
   summary: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 },
   pill: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     paddingHorizontal: 8,
     paddingVertical: 3,

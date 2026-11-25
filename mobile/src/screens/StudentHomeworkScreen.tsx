@@ -17,6 +17,7 @@ import IconTile from '../components/IconTile'
 import { subjectIcon, tint } from '../lib/subjectIcon'
 import { dueLabel } from '../lib/homework'
 import EmptyState from '../components/EmptyState'
+import SegmentedTabs from '../components/SegmentedTabs'
 import { colors, radius } from '../theme/colors'
 import {
   STATUS_LABEL,
@@ -126,24 +127,11 @@ export default function StudentHomeworkScreen() {
           <Text style={styles.eyebrow}>{dayjs().format('dddd, D MMMM')}</Text>
           <Text style={styles.title}>{uiText("Домашние задания")}</Text>
         </View>
-        <View style={styles.filters} accessibilityRole="tablist">
-          {FILTERS.map((f) => {
-            const on = f.key === filter
-            return (
-              <Pressable
-                key={f.key}
-                onPress={() => setFilter(f.key)}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: on }}
-                style={[styles.chip, on && styles.chipOn]}
-              >
-                <Text style={[styles.chipText, on && styles.chipTextOn]} numberOfLines={1}>
-                  {f.label}
-                </Text>
-              </Pressable>
-            )
-          })}
-        </View>
+        <SegmentedTabs
+          tabs={FILTERS.map((f) => ({ key: f.key, label: f.label }))}
+          value={filter}
+          onChange={setFilter}
+        />
       </View>
 
       <FlatList
@@ -246,26 +234,6 @@ const styles = themedStyles(() => ({
   header: { paddingHorizontal: 16, paddingTop: 12, gap: 12 },
   eyebrow: { fontSize: 13, fontWeight: '600', color: colors.muted },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.8, color: colors.text },
-  filters: {
-    flexDirection: 'row',
-    gap: 4,
-    padding: 4,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  chip: { flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  chipOn: {
-    backgroundColor: colors.surfaceSolid,
-    shadowColor: '#10282A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  chipText: { fontSize: 13, fontWeight: '700', color: colors.muted },
-  chipTextOn: { color: colors.text, fontWeight: '800' },
   card: {
     padding: 14,
     borderRadius: 22,
@@ -291,7 +259,7 @@ const styles = themedStyles(() => ({
   desc: { fontSize: 13, color: colors.textMid, marginTop: 4, lineHeight: 18 },
   footer: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
   badge: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     paddingHorizontal: 8,
     paddingVertical: 3,

@@ -10,7 +10,7 @@ import type { AuthUser } from '../../common/types/jwt-payload'
 @ApiBearerAuth()
 @Controller({ path: 'notifications', version: '1' })
 @UseGuards(RolesGuard)
-@Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT')
+@Roles('SUPER_ADMIN', 'ADMIN', 'TEACHER', 'PARENT', 'STUDENT')
 export class NotificationsController {
   constructor(private readonly service: NotificationsService) {}
 

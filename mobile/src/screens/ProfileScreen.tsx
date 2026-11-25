@@ -2,7 +2,6 @@ import { uiText } from '../i18n/uiText'
 import LanguageSwitcher from '../components/LanguageSwitcher'
 import { useState } from 'react'
 import {
-  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -10,10 +9,9 @@ import {
 } from 'react-native'
 import { Text } from '../components/Text'
 import { useNavigation } from '@react-navigation/native'
-import dayjs from 'dayjs'
 import {
   LogOut,
-  Settings,
+  Info,
   Shield,
   Bell,
   Baby,
@@ -31,23 +29,16 @@ import Btn from '../components/Btn'
 import Avatar from '../components/Avatar'
 import BottomModal from '../components/BottomModal'
 import ChangePasswordForm from '../components/ChangePasswordForm'
+import NoticesSheet from '../components/NoticesSheet'
 import ThemeSwitch from '../components/ThemeSwitch'
 import { colors, radius } from '../theme/colors'
-import { http } from '../api/http'
+import { useNotices } from '../lib/useNotices'
 import { useAuthStore } from '../store/authStore'
 import { hasFeature } from '../lib/features'
 import { useLabels } from '../theme/useLabels'
 import { cap } from '../theme/labels'
 
 import { themedStyles } from '../theme/themedStyles'
-interface NotificationDto {
-  id: string
-  title: string
-  body: string
-  createdAt: string
-  read: boolean
-}
-
 export default function ProfileScreen() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
@@ -59,22 +50,17 @@ export default function ProfileScreen() {
   const isParent = r === 'PARENT'
   const isTeacher = r === 'TEACHER'
 
+  // Окно «Уведомления»: список оповещений + состояние push на этом телефоне (почему могут не приходить)
   const [notifModal, setNotifModal] = useState(false)
-  const [notifs, setNotifs] = useState<NotificationDto[]>([])
-  const [notifLoading, setNotifLoading] = useState(false)
+  const notices = useNotices()
 
-  const openNotifications = async () => {
+  const openNotifications = () => {
     setNotifModal(true)
-    setNotifLoading(true)
-    try {
-      const r2 = await http.get<NotificationDto[]>('/v1/notifications')
-      setNotifs(r2.data)
-      http.post('/v1/notifications/read-all', {}).catch(() => {})
-    } catch {
-      setNotifs([])
-    } finally {
-      setNotifLoading(false)
-    }
+    notices.reload()
+  }
+  const closeNotifications = () => {
+    setNotifModal(false)
+    if (notices.unread) notices.markAllRead()
   }
 
   // Свой пароль человек меняет сам: админ чужие пароли не вводит
@@ -83,8 +69,9 @@ export default function ProfileScreen() {
 
   const openSettings = () => {
     const inst = user?.institution
+    // Это не настройки, а справка о приложении: так и называется
     Alert.alert(
-      uiText("Настройки"),
+      uiText("О приложении"),
       uiText("Учреждение: {0}", inst?.name ?? '—') +
         uiText("Тип: Школа") +
         uiText("Версия приложения: {0}", Constants.expoConfig?.version ?? '1.0.0') +
@@ -173,12 +160,12 @@ export default function ProfileScreen() {
 
         {isTeacher && hasFeature(user, 'lesson_materials') && (
           <>
-            <Text style={styles.section}>Уроки</Text>
+            <Text style={styles.section}>{uiText("Уроки")}</Text>
             <View style={styles.list}>
               <ListRow
                 icon={<FileText size={18} color={colors.yellowDeep} />}
                 bg={colors.yellowSoft}
-                title="Материалы к уроку"
+                title={uiText("Материалы к уроку")}
                 onPress={() => navigation.navigate('TeacherMaterials')}
                 last
               />
@@ -221,9 +208,9 @@ export default function ProfileScreen() {
             onPress={openSecurity}
           />
           <ListRow
-            icon={<Settings size={18} color={colors.muted} />}
+            icon={<Info size={18} color={colors.muted} />}
             bg={colors.surfaceAlt}
-            title={uiText("Настройки")}
+            title={uiText("О приложении")}
             onPress={openSettings}
             last
           />
@@ -244,32 +231,15 @@ export default function ProfileScreen() {
         <ChangePasswordForm onDone={() => setSecurityModal(false)} />
       </BottomModal>
 
-      <BottomModal
+      <NoticesSheet
         visible={notifModal}
-        onClose={() => setNotifModal(false)}
-        title={uiText("Уведомления")}
-      >
-        {notifLoading ? (
-          <View style={{ paddingVertical: 30, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : notifs.length === 0 ? (
-          <Text style={styles.notifEmpty}>{uiText("Уведомлений пока нет")}</Text>
-        ) : (
-          notifs.map((n) => (
-            <View key={n.id} style={styles.notifRow}>
-              <View style={styles.notifDot} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.notifTitle}>{n.title}</Text>
-                <Text style={styles.notifBody}>{n.body}</Text>
-                <Text style={styles.notifTime}>
-                  {dayjs(n.createdAt).format('D MMM, HH:mm')}
-                </Text>
-              </View>
-            </View>
-          ))
-        )}
-      </BottomModal>
+        onClose={closeNotifications}
+        notices={notices.notices}
+        loading={notices.loading}
+        failed={notices.failed}
+        onRetry={notices.reload}
+        statusCard="always"
+      />
     </Screen>
   )
 }
@@ -352,27 +322,4 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
   },
   rowTitle: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
-  notifEmpty: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    paddingVertical: 24,
-  },
-  notifRow: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSoft,
-  },
-  notifDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    marginTop: 6,
-  },
-  notifTitle: { fontSize: 14, fontWeight: '700', color: colors.text },
-  notifBody: { fontSize: 13, color: colors.textMid, marginTop: 2, lineHeight: 18 },
-  notifTime: { fontSize: 11, color: colors.muted, marginTop: 4 },
 }))

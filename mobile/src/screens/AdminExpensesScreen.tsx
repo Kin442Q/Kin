@@ -30,6 +30,7 @@ import {
 } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
+import StackHeader from '../components/StackHeader'
 import Card from '../components/Card'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
@@ -45,7 +46,7 @@ import {
 } from '../api/admin'
 
 import { themedStyles, themedValue } from '../theme/themedStyles'
-import { notifyError } from '../lib/notify'
+import { notify, notifyError } from '../lib/notify'
 interface CategoryMeta {
   value: ExpenseCategory
   label: string
@@ -120,7 +121,7 @@ export default function AdminExpensesScreen() {
   const submit = async () => {
     const n = Number(amount.replace(',', '.'))
     if (!description.trim() || !n || n <= 0) {
-      Alert.alert(uiText("Заполните"), uiText("Нужны описание и сумма > 0"))
+      notify.fail(uiText("Заполните"), uiText("Нужны описание и сумма > 0"))
       return
     }
     setSaving(true)
@@ -174,17 +175,7 @@ export default function AdminExpensesScreen() {
 
   return (
     <Screen>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.backBtn}
-        >
-          <ChevronLeft size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.topTitle}>{uiText("Расходы")}</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <StackHeader title={uiText("Расходы")} />
 
       <FlatList
         data={items}
@@ -239,7 +230,7 @@ export default function AdminExpensesScreen() {
                 <View style={styles.amountCol}>
                   <Text style={styles.amount}>
                     −{Math.round(Number(item.amount)).toLocaleString(uiLanguage() === 'en' ? 'en-US' : uiLanguage() === 'tg' ? 'tg-TJ' : 'ru-RU')} {" " + uiText("сомони") + " "}</Text>
-                  <Pressable onPress={() => remove(item)} hitSlop={8}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={uiText("Удалить")} onPress={() => remove(item)} hitSlop={8}>
                     <Trash2 size={16} color={colors.muted} />
                   </Pressable>
                 </View>
@@ -256,6 +247,8 @@ export default function AdminExpensesScreen() {
       />
 
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={uiText("Добавить")}
         onPress={() => setModal(true)}
         style={({ pressed }) => [
           styles.fab,
@@ -316,23 +309,6 @@ export default function AdminExpensesScreen() {
 
 const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-  },
-  topTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
   list: { padding: 16, paddingBottom: 120 },
   summary: { marginBottom: 14, backgroundColor: colors.roseSoft },
   summaryLabel: { fontSize: 12, color: colors.roseDeep, fontWeight: '700' },
@@ -355,7 +331,7 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
   },
   desc: { fontSize: 14, fontWeight: '700', color: colors.text },
-  metaRow: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  metaRow: { fontSize: 12, color: colors.muted, marginTop: 2 },
   amountCol: { alignItems: 'flex-end', gap: 6 },
   amount: {
     fontSize: 14,

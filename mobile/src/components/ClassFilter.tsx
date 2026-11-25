@@ -115,7 +115,7 @@ export default function ClassFilter({ groups, value, onChange, allowAllLetters =
 
 const styles = themedStyles(() => ({
   label: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.muted,
     letterSpacing: 0.6,
@@ -138,5 +138,5 @@ const styles = themedStyles(() => ({
   chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 14, fontWeight: '700', color: colors.text },
   chipTextOn: { color: '#fff' },
-  chipCount: { fontSize: 11, fontWeight: '600', color: colors.muted },
+  chipCount: { fontSize: 12, fontWeight: '600', color: colors.muted },
 }))

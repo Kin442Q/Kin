@@ -18,7 +18,7 @@ import { colors, shadow } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { extractStudentToken } from '../lib/studentLink'
 import { authApi } from '../api/auth'
-import { notifyError } from '../lib/notify'
+import { notify, notifyError } from '../lib/notify'
 
 import { themedStyles } from '../theme/themedStyles'
 
@@ -56,7 +56,7 @@ export default function LoginScreen() {
 
   const onSubmit = async () => {
     if (!emailOrPhone.trim() || !password) {
-      Alert.alert(uiText("Заполните поля"), uiText("Введите email, телефон или логин и пароль"))
+      notify.fail(uiText("Заполните поля"), uiText("Введите email, телефон или логин и пароль"))
       return
     }
     try {
@@ -74,24 +74,24 @@ export default function LoginScreen() {
     } catch (e: any) {
       // нет связи — красивая плашка; ответ сервера (неверный пароль) — как раньше
       if (!e?.response) notifyError(e)
-      else Alert.alert(uiText("Ошибка входа"), e?.response?.data?.message || uiText("Проверьте логин и пароль"))
+      else notify.fail(uiText("Ошибка входа"), e?.response?.data?.message || uiText("Проверьте логин и пароль"))
     }
   }
 
   const onSubmitForgot = async () => {
     const v = emailOrPhone.trim()
     if (!v) {
-      Alert.alert(uiText("Укажите email"), uiText("Введите email, под которым вы входите, — на него придёт ссылка."))
+      notify.fail(uiText("Укажите email"), uiText("Введите email, под которым вы входите, — на него придёт ссылка."))
       return
     }
     try {
       setForgotLoading(true)
       const res = await authApi.forgotPassword(v.includes('@') ? { email: v.toLowerCase() } : { phone: v })
-      Alert.alert(uiText("Проверьте почту"), res.message)
+      notify.success(uiText("Проверьте почту"), res.message)
       setForgotMode(false)
     } catch (e: any) {
       if (!e?.response) notifyError(e)
-      else Alert.alert(uiText("Не получилось"), e?.response?.data?.message || uiText("Не удалось отправить запрос. Попробуйте позже."))
+      else notify.fail(uiText("Не получилось"), e?.response?.data?.message || uiText("Не удалось отправить запрос. Попробуйте позже."))
     } finally {
       setForgotLoading(false)
     }
@@ -137,7 +137,7 @@ export default function LoginScreen() {
         accessibilityRole="button"
         style={({ pressed }) => [styles.qrBtn, pressed && { opacity: 0.85 }]}
       >
-        <QrCode size={20} color="#0D7A7C" />
+        <QrCode size={20} color={colors.primaryDeep} />
         <Text style={styles.qrBtnText}>{uiText("Сканировать QR-код с карточки")}</Text>
       </Pressable>
     ) : null
@@ -304,7 +304,7 @@ export default function LoginScreen() {
                           accessibilityRole="button"
                           accessibilityLabel={showPassword ? uiText("Скрыть пароль") : uiText("Показать пароль")}
                         >
-                          {showPassword ? <EyeOff size={22} color="#7A8C8E" /> : <Eye size={22} color="#7A8C8E" />}
+                          {showPassword ? <EyeOff size={22} color={colors.muted} /> : <Eye size={22} color={colors.muted} />}
                         </Pressable>,
                       )}
                     </View>
@@ -348,7 +348,7 @@ const styles = themedStyles(() => ({
     borderWidth: 1,
     borderColor: colors.glassBorder,
   },
-  roles: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 16, backgroundColor: 'rgba(16,40,42,0.06)' },
+  roles: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 16, backgroundColor: colors.surfaceAlt },
   roleBtn: {
     flex: 1,
     height: 44,
@@ -375,12 +375,12 @@ const styles = themedStyles(() => ({
     alignItems: 'center',
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: 'rgba(16,40,42,0.1)',
-    backgroundColor: 'rgba(255,255,255,0.85)',
+    borderColor: colors.border,
+    backgroundColor: colors.field,
   },
-  inputWrapFocus: { borderColor: '#0D7A7C' },
+  inputWrapFocus: { borderColor: colors.primary },
   inputIcon: { position: 'absolute', left: 14, top: 0, bottom: 0, justifyContent: 'center' },
-  input: { flex: 1, fontSize: 16, fontWeight: '600', color: '#10282A', paddingVertical: 16, paddingLeft: 48, paddingRight: 46 },
+  input: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text, paddingVertical: 16, paddingLeft: 48, paddingRight: 46 },
   eye: { position: 'absolute', right: 8, top: 8, width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
   submit: {
     height: 56,
@@ -392,7 +392,7 @@ const styles = themedStyles(() => ({
     gap: 8,
   },
   submitText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
-  link: { textAlign: 'center', fontSize: 14, fontWeight: '700', color: '#0D7A7C', paddingVertical: 4 },
+  link: { textAlign: 'center', fontSize: 14, fontWeight: '700', color: colors.primaryDeep, paddingVertical: 4 },
   qrBtn: {
     height: 52,
     borderRadius: 16,
@@ -404,7 +404,7 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
     gap: 10,
   },
-  qrBtnText: { fontSize: 15, fontWeight: '800', color: '#0D7A7C' },
+  qrBtnText: { fontSize: 15, fontWeight: '800', color: colors.primaryDeep },
   sectionTitle: { fontSize: 22, fontWeight: '800', color: colors.text },
   sectionSub: { fontSize: 14, lineHeight: 20, color: colors.muted, marginTop: -8 },
 }))

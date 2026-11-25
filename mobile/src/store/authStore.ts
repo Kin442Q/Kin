@@ -3,11 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { authApi, type LoginResponse, type User } from '../api/auth'
 import { REFRESH_KEY, TOKEN_KEY, USER_KEY, setTokenRefreshedHandler, setUnauthorizedHandler } from '../api/http'
 import { disconnectSocket } from '../lib/socket'
-import {
-  registerForPushNotificationsAsync,
-  registerPushTokenOnServer,
-  unregisterPushTokenOnServer,
-} from '../lib/push'
+import { setupPush, unregisterPushTokenOnServer, usePushStore } from '../lib/push'
 
 interface AuthState {
   user: User | null
@@ -52,9 +48,7 @@ async function startSession(
   set({ user, token: res.accessToken, loading: false })
 
   // Регистрируем Expo push token на бэкенде (без блокировки UI)
-  registerForPushNotificationsAsync()
-    .then((t) => (t ? registerPushTokenOnServer(t) : undefined))
-    .catch(() => {})
+  setupPush().catch(() => {})
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -81,9 +75,7 @@ export const useAuthStore = create<AuthState>((set) => ({
           })
           .catch(() => {})
         // И обновим push token (может смениться при переустановке)
-        registerForPushNotificationsAsync()
-          .then((tok) => (tok ? registerPushTokenOnServer(tok) : undefined))
-          .catch(() => {})
+        setupPush().catch(() => {})
       } else {
         set({ isHydrated: true })
       }
@@ -141,6 +133,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     // Снимаем push-токен на бэкенде — чтобы не получать уведомления
     // после выхода из аккаунта.
     await unregisterPushTokenOnServer().catch(() => {})
+    usePushStore.getState().set({ kind: 'unknown' })
     disconnectSocket()
     try {
       await authApi.logout(await AsyncStorage.getItem(REFRESH_KEY))

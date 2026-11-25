@@ -164,14 +164,14 @@ export default function AdminGroupsScreen() {
                 <Text style={styles.className}>{item.name}</Text>
                 {pct != null && (
                   <View style={[styles.pct, low && { backgroundColor: 'rgba(255,138,101,0.2)' }]}>
-                    <Text style={[styles.pctText, low && { color: '#B23E1A' }]}>{pct}%</Text>
+                    <Text style={[styles.pctText, low && { color: colors.roseDeep }]}>{pct}%</Text>
                   </View>
                 )}
               </View>
               <View style={styles.line}>
                 <User size={14} color={item.homeroomTeacher === null ? '#B23E1A' : colors.muted} />
                 <Text
-                  style={[styles.lineText, item.homeroomTeacher === null && { color: '#B23E1A' }]}
+                  style={[styles.lineText, item.homeroomTeacher === null && { color: colors.roseDeep }]}
                   numberOfLines={1}
                 >
                   {item.homeroomTeacher ? item.homeroomTeacher.fullName : item.homeroomTeacher === null ? uiText("нет руководителя") : '—'}
@@ -212,11 +212,11 @@ const styles = themedStyles(() => ({
     gap: 12,
     paddingHorizontal: 14,
     borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: colors.field,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.9)',
+    borderColor: colors.glassBorder,
   },
-  searchInput: { flex: 1, fontSize: 15, fontWeight: '600', color: '#10282A', paddingVertical: 14 },
+  searchInput: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text, paddingVertical: 14 },
   filters: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   chipText: { fontSize: 13, fontWeight: '700' },
@@ -232,7 +232,7 @@ const styles = themedStyles(() => ({
   cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   className: { fontSize: 26, fontWeight: '800', letterSpacing: -0.8, color: colors.text },
   pct: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: 'rgba(13,122,124,0.12)' },
-  pctText: { fontSize: 12, fontWeight: '700', color: '#0D7A7C' },
+  pctText: { fontSize: 12, fontWeight: '700', color: colors.primaryDeep },
   line: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   lineText: { flex: 1, fontSize: 12, fontWeight: '700', color: colors.muted },
   bar: { height: 6, borderRadius: 3, backgroundColor: 'rgba(16,40,42,0.07)', overflow: 'hidden' },

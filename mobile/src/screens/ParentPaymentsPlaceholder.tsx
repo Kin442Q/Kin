@@ -274,7 +274,7 @@ const styles = themedStyles(() => ({
   kpiRow: { flexDirection: 'row', gap: 10 },
   kpiCard: { flex: 1 },
   kpiHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  kpiLabel: { fontSize: 11, fontWeight: '700' },
+  kpiLabel: { fontSize: 12, fontWeight: '700' },
   kpiValue: {
     fontSize: 22,
     fontWeight: '800',

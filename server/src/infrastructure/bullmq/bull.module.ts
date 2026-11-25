@@ -12,6 +12,7 @@ export const QUEUE_PAYMENT_REMINDER = 'payment-reminder'
 export const QUEUE_MONTHLY_REPORT = 'monthly-report'
 export const QUEUE_AUDIT_LOG = 'audit-log'
 export const QUEUE_FILES_CLEANUP = 'files-cleanup'
+export const QUEUE_ATTENDANCE_NOTICE = 'attendance-notice'
 
 @Global()
 @Module({
@@ -38,6 +39,7 @@ export const QUEUE_FILES_CLEANUP = 'files-cleanup'
       { name: QUEUE_MONTHLY_REPORT },
       { name: QUEUE_AUDIT_LOG },
       { name: QUEUE_FILES_CLEANUP },
+      { name: QUEUE_ATTENDANCE_NOTICE },
     ),
   ],
   exports: [BullModule],

@@ -12,6 +12,7 @@ import { useNavigation } from '@react-navigation/native'
 import { ChevronLeft, Phone, Users } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
+import StackHeader from '../components/StackHeader'
 import Card from '../components/Card'
 import Avatar from '../components/Avatar'
 import ClassFilter, { EMPTY_SELECTION, selectedGroupIds, type ClassSelection } from '../components/ClassFilter'
@@ -97,17 +98,7 @@ export default function AdminStudentsScreen() {
 
   return (
     <Screen>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.backBtn}
-        >
-          <ChevronLeft size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.topTitle}>{L.students}</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <StackHeader title={L.students} />
 
       <FlatList
         data={visible}
@@ -256,23 +247,6 @@ function pluralizeStudent(n: number, base: string): string {
 
 const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-  },
-  topTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
   list: { padding: 16, paddingBottom: 40 },
   tabs: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   tab: {

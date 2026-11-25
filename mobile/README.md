@@ -1,9 +1,10 @@
-# KinderCRM Mobile (redi)
+# Мактаби ман — мобильное приложение
 
-Мобильное приложение KinderCRM на **Expo SDK 54 + React Native 0.81**.
-Два режима: **учитель** (приход/уход с Face ID, отметка посещаемости) и **родитель** (расписание ребёнка, статус в саду, оплата).
+Мобильное приложение школьной платформы «Мактаби ман» на **Expo SDK 54 + React Native 0.81**. Один вход для
+директора, учителей, родителей и учеников: роль берётся из аккаунта. Сервер общий с веб-версией (NestJS на Railway).
 
-Дизайн — Sprout (мята + крем, Plus Jakarta Sans). Бэк общий с веб-версией: NestJS на Railway.
+Интерфейс на русском, английском и таджикском; светлая и тёмная тема. Дизайн и правила для новых экранов:
+**[DESIGN.md](DESIGN.md)**.
 
 ---
 
@@ -11,13 +12,15 @@
 
 | Слой | Что |
 |---|---|
-| Runtime | Expo SDK 54, React Native 0.81, React 19 |
-| Навигация | `@react-navigation/native-stack` + `@react-navigation/bottom-tabs` |
-| Стор | `zustand` + `@react-native-async-storage/async-storage` (персист токена) |
-| HTTP | `axios` (общий клиент с авто-токеном) |
-| Биометрия | `expo-local-authentication` (Face ID / Touch ID) |
-| Шрифты | `@expo-google-fonts/plus-jakarta-sans` |
-| Иконки | `lucide-react-native` |
+| Runtime | Expo SDK 54, React Native 0.81 (новая архитектура, edge-to-edge на Android), React 19 |
+| Навигация | `@react-navigation/native-stack` + `@react-navigation/bottom-tabs` (своя панель `FloatingTabBar`) |
+| Состояние | `zustand` + `@react-native-async-storage/async-storage` (сессия, тема, язык) |
+| HTTP / realtime | `axios` (токен и обновление сессии) и `socket.io-client` (чат) |
+| Шрифты | Inter (текст) и Mont Black (крупные заголовки), файлы в `assets/fonts` |
+| Иконки / графика | `lucide-react-native`, `react-native-svg` (фон, градиенты) |
+| Уведомления | `expo-notifications` (push), `expo-device` |
+| Камера | `expo-camera` (вход ученика по QR-коду) |
+| Файлы | `expo-document-picker` (материалы к уроку) |
 | Даты | `dayjs` |
 
 ---
@@ -26,37 +29,19 @@
 
 ```
 mobile/
-├── App.tsx                  # точка входа: шрифты + hydration + навигатор
-├── index.ts                 # registerRootComponent
-├── src/
-│   ├── api/
-│   │   ├── http.ts          # axios + AsyncStorage token interceptor
-│   │   ├── auth.ts          # login / me
-│   │   ├── time.ts          # учитель: check-in/out + сводка месяца
-│   │   ├── students.ts      # список детей группы (для учителя)
-│   │   ├── attendance.ts    # отметка посещаемости
-│   │   └── parent.ts        # парент-API: kids / today / schedule / payments
-│   ├── components/
-│   │   ├── Screen.tsx       # SafeAreaView обёртка
-│   │   ├── Card.tsx         # карточка с тенью
-│   │   ├── Btn.tsx          # кнопка (primary / secondary / danger / ghost)
-│   │   └── Avatar.tsx       # инициалы в квадрате со скруглением
-│   ├── navigation/
-│   │   └── index.tsx        # Auth Stack + Main Tabs (роли разные табы)
-│   ├── screens/
-│   │   ├── LoginScreen.tsx
-│   │   ├── TeacherHomeScreen.tsx        # check-in/out + Face ID + KPI
-│   │   ├── TeacherAttendanceScreen.tsx  # список группы, 4 статуса
-│   │   ├── ParentHomeScreen.tsx         # ребёнок + статус + сегодня
-│   │   ├── ParentSchedulePlaceholder.tsx  # расписание по дням недели
-│   │   ├── ParentPaymentsPlaceholder.tsx  # история оплат + KPI
-│   │   ├── ParentChatPlaceholder.tsx      # (заглушка)
-│   │   └── ProfileScreen.tsx
-│   ├── store/
-│   │   └── authStore.ts     # zustand + persist
-│   └── theme/
-│       └── colors.ts        # Sprout токены (colors, radius, shadow, font)
-└── package.json
+├── App.tsx, index.ts          # точка входа: шрифты, сессия, тема, язык
+├── app.json, app.config.js    # настройки Expo; app.config.js подключает google-services.json для push на Android
+├── eas.json                   # профили сборки: preview (APK) и production (AAB / App Store)
+├── DESIGN.md                  # дизайн-система
+└── src/
+    ├── api/                   # запросы к серверу по разделам (auth, parent, student, school, chat, …)
+    ├── components/            # общие компоненты (Screen, Card, Btn, Skeleton, SegmentedTabs, …)
+    ├── i18n/                  # uiText, языки, messages.json (ru → en/tg)
+    ├── lib/                   # push, уведомления, ошибки, доступ к разделам (features), хуки
+    ├── navigation/            # вход (AuthNavigator) и основное приложение (вкладки по ролям)
+    ├── screens/               # экраны
+    ├── store/                 # authStore
+    └── theme/                 # colors (токены), themedStyles, themeStore, fonts, labels
 ```
 
 ---
@@ -69,87 +54,51 @@ npm install
 npm start
 ```
 
-Дальше:
-- На iPhone — открой **Expo Go**, отсканируй QR из терминала. Должен быть в одной Wi-Fi сети с ноутом.
-- На Android — `Expo Go` тоже работает. Или `npm run android` для эмулятора.
-- В браузере — `npm run web` (ограниченный режим, Face ID и часть нативных модулей не работают).
+- Android: `npm run android` (эмулятор) или установить APK из профиля `preview`.
+- iPhone: Expo Go на iPhone поддерживает другую версию SDK, чем наше приложение (SDK 54), поэтому для проверки на
+  iPhone нужна сборка TestFlight.
+- Web (`npm run web`) ограничен: часть нативных модулей (камера, push) не работает.
 
 ---
 
-## Конфигурация бэка
+## Конфигурация сервера
 
-Адрес бэка по умолчанию (боевой Railway) задан в [src/lib/config.ts](src/lib/config.ts). Его можно переопределить переменной `EXPO_PUBLIC_API_URL` — без правки кода (шаблон: [.env.example](.env.example)).
+Адрес сервера по умолчанию задан в [src/lib/config.ts](src/lib/config.ts). Переопределить без правки кода:
+переменная `EXPO_PUBLIC_API_URL` (шаблон: [.env.example](.env.example)).
 
-Чтобы подключиться к локальному бэку:
-1. Найди IP ноута в Wi-Fi: `ipconfig` → `IPv4 Address` (например `192.168.1.42`)
-2. Создай `mobile/.env.local` (не коммитится): `EXPO_PUBLIC_API_URL=http://192.168.1.42:4000` (без `/api` на конце), затем Reload в приложении
-3. Бэк должен быть запущен с `npm run start:dev` (см. [server/README](../server))
+Локальный сервер: найти IP компьютера в Wi-Fi (`ipconfig`), создать `mobile/.env.local` (не коммитится):
+`EXPO_PUBLIC_API_URL=http://192.168.1.42:4000` (без `/api` на конце), перезагрузить приложение. Сервер запускается
+как описано в [server/README](../server).
 
 ---
 
 ## Роли и навигация
 
-После логина роль приходит в `user.role` из `/v1/auth/me`. На основе этого строится таб-бар:
+После входа роль приходит в `user.role`. Вкладки зависят от роли, а разделы, выключенные для школы, скрываются
+(`src/lib/features.ts`).
 
-**Учитель** (`TEACHER`):
-- **Группа** — главный экран, check-in/out, KPI часов и зарплаты
-- **Отметить** — список группы с 4 статусами (Здесь / Нет / Болеет / Отпуск)
-- **Я** — профиль, выход
+| Роль | Вкладки | Экраны поверх вкладок |
+|---|---|---|
+| Директор / админ (`ADMIN`, `SUPER_ADMIN`) | Сводка · Классы · Оплаты · Я | Ученики, Расходы, Родительские собрания |
+| Учитель (`TEACHER`) | Кабинет · Отметить · Журнал · ДЗ · Я | Чат с родителями, Мой класс, Состав ДЗ, Материалы к уроку |
+| Родитель (`PARENT`) | Главная · Расписание · Оценки · Оплата · Я | Чат с учителем / администрацией |
+| Ученик (`STUDENT`) | Главная · ДЗ · Оценки · Учёба · Я | Библиотека, Расписание, Квизы, Экзамен, Игры, Материалы |
 
-**Родитель** (`PARENT`):
-- **Главная** — ребёнок, статус на сегодня, ближайшие занятия, оплата
-- **Сегодня** — расписание по дням недели
-- **Оплата** — KPI оплачено/долг + история по месяцам
-- **Чат** — (заглушка, в разработке)
-- **Профиль**
+Названия файлов `ParentSchedulePlaceholder` и `ParentPaymentsPlaceholder` историческое: это рабочие экраны
+(расписание и оплаты), не заглушки.
 
----
-
-## Face ID / Touch ID
-
-Используется `expo-local-authentication`. Учитель при check-in/out проходит биометрию **локально на устройстве** (Face ID на iPhone, Touch ID или PIN на Android). На бэк отправляется только факт подтверждения — биометрические данные с устройства не уходят.
-
-Если устройство не поддерживает или биометрия не настроена — приходит/уходит происходит без неё (запись помечается `verifyMethod: MANUAL`).
+«Оповещения» (колокольчик на главной, «Профиль → Уведомления»): события из чата, отметки отсутствия, оценок, ДЗ, оплат.
+Push-токен регистрируется при входе; причины, по которым push не приходят, видны на экране «Уведомления».
 
 ---
 
-## Дизайн-система Sprout
-
-Все цвета, радиусы, тени и шрифты — в [src/theme/colors.ts](src/theme/colors.ts). Не хардкодь, используй токены:
-
-```tsx
-import { colors, radius, shadow } from '../theme/colors'
-
-<View style={{
-  backgroundColor: colors.primarySoft,
-  borderRadius: radius.md,
-  ...shadow.sm,
-}} />
-```
-
-Палитра:
-- `primary` `#4FB286` — мята (бренд)
-- `bg` `#FBF9F4` — крем (фоны)
-- `yellow` / `rose` / `lilac` — акценты для KPI и статусов
-
----
-
-## TypeScript
+## Проверка типов
 
 ```powershell
 npx tsc --noEmit
 ```
 
-Все экраны и API строго типизированы, `strict: true`.
-
----
-
-## Известные ограничения
-
-- **Web-режим (`npm run web`)** — Face ID и native-stack работают частично. Для разработки UI ок, но для отладки auth-флоу — лучше Expo Go на телефоне.
-- **EAS build** — настроен: профиль `preview` (APK для проверки на телефоне) и `production` (AAB для Google Play и сборка для App Store), см. «Публикация в магазины» ниже.
-- **Push-уведомления** — подключены через `expo-notifications`; для сборок из магазинов нужны ключи FCM (Android) и APNs (iOS), см. ниже.
-- **Тёмная тема** — пока нет, цвета жёстко light.
+`strict: true`.
 
 ---
 
@@ -157,20 +106,41 @@ npx tsc --noEmit
 
 Нужны аккаунты Apple Developer Program и Google Play Console, а также вход в EAS (`npx eas-cli login`).
 
-1. **Номер сборки.** Перед КАЖДОЙ загрузкой новой сборки увеличьте `ios.buildNumber` (строка: "2", "3"…) и `android.versionCode` (число) в `app.json`: магазины не принимают повторный номер. `version` (1.0.0) меняйте только при заметных для пользователей обновлениях.
-2. **Сборка.** `npx eas-cli build --platform android --profile production` даёт AAB для Google Play, `--platform ios --profile production` — сборку для App Store (сертификаты EAS создаст сам после входа в Apple-аккаунт). Профиль `production` явно задаёт боевой адрес сервера. Профиль `preview` по-прежнему собирает APK для внутренних проверок.
-3. **Загрузка.** `npx eas-cli submit --platform android --latest` и `--platform ios --latest`, либо вручную через Play Console и App Store Connect (Transporter).
-4. **Push в магазинных сборках.** Android: ключ FCM v1 загрузить в EAS (`eas credentials`). iOS: ключ APNs EAS создаёт при сборке.
-5. **Политика конфиденциальности** лежит в `public/privacy/index.html` веб-приложения (адрес `/privacy/`). Её адрес нужен в карточках обоих магазинов; перед отправкой её нужно заполнить (оператор, почта) и показать юристу.
+1. **Номер сборки.** Перед КАЖДОЙ загрузкой новой сборки увеличьте `ios.buildNumber` (строка: "2", "3"…) и
+   `android.versionCode` (число) в `app.json`: магазины не принимают повторный номер. `version` меняйте только при
+   заметных пользователю обновлениях.
+2. **Сборка.** `npx eas-cli build --platform android --profile production` даёт AAB для Google Play,
+   `--platform ios --profile production` — сборку для App Store. Профиль `production` задаёт боевой адрес сервера.
+   Профиль `preview` собирает APK для внутренних проверок.
+3. **Загрузка.** `npx eas-cli submit --platform android --latest` и `--platform ios --latest`, либо вручную через
+   Play Console и App Store Connect.
+4. **Push в магазинных сборках.**
+   - Android: (а) файл `google-services.json` из Firebase Console (проект → приложение Android с пакетом
+     `cyou.tahlilgar.maktabiman`) положить в `mobile/google-services.json` или задать файловую переменную EAS
+     `GOOGLE_SERVICES_JSON` (его подхватывает `app.config.js`; без файла сборка предупреждает и собирается без push);
+     (б) ключ сервисного аккаунта FCM v1 загрузить в EAS (`eas credentials`).
+   - iOS: ключ APNs EAS создаёт при сборке; плагин `expo-notifications` в `app.json` добавляет нужное разрешение.
+5. **Политика конфиденциальности** лежит в `public/privacy/index.html` веб-приложения (адрес `/privacy/`).
+
+---
+
+## Известные ограничения
+
+- В приложении нет аналитики и отчётов о сбоях: причины проблем на устройствах видно только из описания пользователя.
+- SMS-уведомления не работают: на сервере стоит заглушка (`server/src/modules/push/sms.service.ts`), нужен
+  SMS-провайдер.
+- Тексты push-уведомлений пока только на русском (язык пользователя на сервере не хранится).
 
 ---
 
 ## Часто встречающиеся проблемы
 
-**`Unable to resolve module X`** — модуль не установлен. `npm install <name>` и перезагрузи Expo Go (тряхни телефон → Reload).
+**`Unable to resolve module X`** — модуль не установлен. `npm install <name>`, затем перезагрузить приложение.
 
-**`Cannot read property 'forEach' of null` в `processTransform`** — в стиле `transform: undefined`. Меняй на условный массив: `pressed && { transform: [{ scale: 0.97 }] }`.
+**`Cannot read property 'forEach' of null` в `processTransform`** — в стиле `transform: undefined`. Заменить на
+условный массив: `pressed && { transform: [{ scale: 0.97 }] }`.
 
-**`Network Error` / `ECONNREFUSED`** — бэк недоступен по URL из `http.ts`. Проверь Railway-инстанс или поправь `BASE_URL`.
+**`Network Error` / `ECONNREFUSED`** — сервер недоступен по адресу из `src/lib/config.ts`.
 
-**`Cannot GET /api/v1/...`** — эндпоинта нет на бэке. Скорее всего, нужно перепушить сервер на Railway, чтобы он подхватил новый код.
+**`expo config` завершается с кодом 1 без сообщения** — для плагина в `app.json` не установлен модуль
+(например `expo-camera`): выполнить `npm install` в папке `mobile`.

@@ -386,6 +386,14 @@ describe('ChatService — приватность переписок', () => {
       // пуш с текстом — строго учителю-собеседнику
       expect(push.sendToUsers).toHaveBeenCalledTimes(1)
       expect(push.sendToUsers.mock.calls[0][0]).toEqual(['tB'])
+      // по тапу на уведомление приложение открывает именно эту переписку
+      expect(push.sendToUsers.mock.calls[0][1]).toEqual(
+        expect.objectContaining({
+          title: expect.stringContaining('Сообщение от'),
+          body: 'вопрос Бобоеву',
+          data: expect.objectContaining({ kind: 'chat', conversationId: 'c2' }),
+        }),
+      )
       // список обновляется у родителя и у этого учителя, но не у других
       const notified = gateway.emitConversationUpdate.mock.calls.map((c) => c[0]).sort()
       expect(notified).toEqual(['p1', 'tB'])

@@ -2,7 +2,6 @@ import { uiLanguage, uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   View,
@@ -31,7 +30,7 @@ import { cap } from '../theme/labels'
 import { diaryApi, type DiaryEntryDto } from '../api/diary'
 
 import { themedStyles } from '../theme/themedStyles'
-import { notifyError } from '../lib/notify'
+import { notify, notifyError } from '../lib/notify'
 export default function TeacherDiaryScreen() {
   const user = useAuthStore((s) => s.user)
   const L = useLabels()
@@ -76,7 +75,7 @@ export default function TeacherDiaryScreen() {
 
   const save = async () => {
     if (!groupId) {
-      Alert.alert(uiText("Нет группы"), uiText("У вашего профиля не назначена {0}", L.group))
+      notify.fail(uiText("Нет группы"), uiText("У вашего профиля не назначена {0}", L.group))
       return
     }
     setSaving(true)
@@ -90,7 +89,7 @@ export default function TeacherDiaryScreen() {
         activities: activities.trim() || undefined,
         note: note.trim() || undefined,
       })
-      Alert.alert(uiText("Сохранено"), uiText("Родители увидят запись в своём приложении."))
+      notify.success(uiText("Сохранено"), uiText("Родители увидят запись в своём приложении."))
       reload()
     } catch (err: any) {
       notifyError(err)
@@ -121,6 +120,8 @@ export default function TeacherDiaryScreen() {
         {/* Day picker */}
         <Card padding={10} style={styles.dayBar}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={uiText("Предыдущий день")}
             onPress={() =>
               setDate(dayjs(date).subtract(1, 'day').format('YYYY-MM-DD'))
             }
@@ -139,6 +140,8 @@ export default function TeacherDiaryScreen() {
             )}
           </View>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={uiText("Следующий день")}
             onPress={() =>
               setDate(dayjs(date).add(1, 'day').format('YYYY-MM-DD'))
             }
@@ -305,13 +308,13 @@ const styles = themedStyles(() => ({
   dayMiddle: { flex: 1, alignItems: 'center' },
   dayLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
   dayHint: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.primaryDeep,
     fontWeight: '700',
     marginTop: 2,
   },
   dayTodayLink: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.primaryDeep,
     fontWeight: '700',
     marginTop: 2,
@@ -343,7 +346,7 @@ const styles = themedStyles(() => ({
     marginVertical: 10,
   },
   lastEditor: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.muted,
     textAlign: 'center',
     marginTop: 6,

@@ -1,6 +1,8 @@
-import { Alert, Linking } from 'react-native'
+import { Linking } from 'react-native'
 
+import { uiText } from '../i18n/uiText'
 import { SERVER_URL } from '../lib/config'
+import { useNoticeStore } from '../lib/notify'
 import { http } from './http'
 
 /* ============================================================
@@ -47,13 +49,14 @@ const KIND_BY_EXT: Record<string, Kind> = {
 
 export const MAX_FILE_MB: Record<Kind, number> = { document: 20, image: 20, audio: 20, video: 100 }
 
-export const LIMITS_HINT =
-  'PDF, Word, презентации, картинки и аудио — до 20 МБ, видео — до 100 МБ. Длинное видео лучше дать ссылкой.'
+/** Подсказка про лимиты файлов. Функция, а не константа: язык интерфейса может смениться после загрузки модуля. */
+export const limitsHint = () =>
+  uiText("PDF, Word, презентации, картинки и аудио — до 20 МБ, видео — до 100 МБ. Длинное видео лучше дать ссылкой.")
 
 export function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} Б`
-  if (bytes < MB) return `${Math.round(bytes / 1024)} КБ`
-  return `${Math.round((bytes / MB) * 10) / 10} МБ`
+  if (bytes < 1024) return uiText("{0} Б", bytes)
+  if (bytes < MB) return uiText("{0} КБ", Math.round(bytes / 1024))
+  return uiText("{0} МБ", Math.round((bytes / MB) * 10) / 10)
 }
 
 /**
@@ -64,11 +67,11 @@ export function checkFile(file: { name: string; size?: number }): string | null 
   const dot = file.name.lastIndexOf('.')
   const ext = dot < 0 ? '' : file.name.slice(dot + 1).toLowerCase()
   const kind = Object.prototype.hasOwnProperty.call(KIND_BY_EXT, ext) ? KIND_BY_EXT[ext] : undefined
-  if (!kind) return 'Этот тип файла не поддерживается. Подойдут PDF, Word, презентации, картинки, аудио и видео'
+  if (!kind) return uiText("Этот тип файла не поддерживается. Подойдут PDF, Word, презентации, картинки, аудио и видео")
   if (file.size === undefined) return null
-  if (file.size <= 0) return 'Файл пустой'
+  if (file.size <= 0) return uiText("Файл пустой")
   if (file.size > MAX_FILE_MB[kind] * MB) {
-    return `Файл слишком большой: ${formatSize(file.size)}. Для этого типа максимум ${MAX_FILE_MB[kind]} МБ`
+    return uiText("Файл слишком большой: {0}. Для этого типа максимум {1} МБ", formatSize(file.size), MAX_FILE_MB[kind])
   }
   return null
 }
@@ -81,11 +84,15 @@ export function uploadErrorText(e: any): string {
   if (status === 413) {
     return typeof text === 'string' && /[а-яё]/i.test(text)
       ? text
-      : 'Файл слишком большой. Документы до 20 МБ, видео до 100 МБ'
+      : uiText("Файл слишком большой. Документы до 20 МБ, видео до 100 МБ")
   }
-  if (status === 503) return 'Загрузка файлов пока не настроена. Используйте ссылку'
-  return text || 'Не удалось загрузить файл'
+  if (status === 503) return uiText("Загрузка файлов пока не настроена. Используйте ссылку")
+  return text || uiText("Не удалось загрузить файл")
 }
+
+/** Ошибка плашкой приложения (как остальные ошибки), а не системным окном. */
+const showError = (title: string, message?: string) =>
+  useNoticeStore.getState().show({ kind: 'error', title, message })
 
 /** Полный адрес по пути, который вернул сервер. */
 export function fileUrl(path: string): string {
@@ -114,13 +121,13 @@ export async function uploadFile(
 /** Открыть внешнюю ссылку. Только http(s): ссылку вводит учитель, но схему всё равно проверяем. */
 export async function openExternalUrl(url: string): Promise<void> {
   if (!/^https?:\/\//i.test(url)) {
-    Alert.alert('Ссылка не открывается', 'Адрес должен начинаться с http:// или https://')
+    showError(uiText("Ссылка не открывается"), uiText("Адрес должен начинаться с http:// или https://"))
     return
   }
   try {
     await Linking.openURL(url)
   } catch {
-    Alert.alert('Не удалось открыть', url)
+    showError(uiText("Не удалось открыть"), url)
   }
 }
 
@@ -130,6 +137,9 @@ export async function openFileLink(getLink: () => Promise<FileLink>): Promise<vo
     const link = await getLink()
     await Linking.openURL(fileUrl(link.path))
   } catch (e: any) {
-    Alert.alert('Не удалось открыть файл', e?.response?.data?.message || 'Проверьте интернет и попробуйте ещё раз')
+    showError(
+      uiText("Не удалось открыть файл"),
+      e?.response?.data?.message || uiText("Проверьте интернет и попробуйте ещё раз"),
+    )
   }
 }

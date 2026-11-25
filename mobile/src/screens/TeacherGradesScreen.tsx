@@ -349,6 +349,8 @@ export default function TeacherGradesScreen() {
                 <Text style={styles.section}>{uiText("Месяц")}</Text>
                 <View style={styles.dayBar}>
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={uiText("Предыдущий месяц")}
                     onPress={() => setMonth(dayjs(month + '-01').subtract(1, 'month').format('YYYY-MM'))}
                     hitSlop={10}
                     style={styles.dayBtn}
@@ -357,6 +359,8 @@ export default function TeacherGradesScreen() {
                   </Pressable>
                   <Text style={styles.dayLabel}>{dayjs(month + '-01').format('MMMM YYYY')}</Text>
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={uiText("Следующий месяц")}
                     onPress={() => setMonth(dayjs(month + '-01').add(1, 'month').format('YYYY-MM'))}
                     hitSlop={10}
                     style={styles.dayBtn}
@@ -409,6 +413,8 @@ export default function TeacherGradesScreen() {
                   )}
 
                   <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={uiText("Добавить")}
                     onPress={() => {
                       setEditingStudent(item)
                       setDate(today)
@@ -515,6 +521,8 @@ export default function TeacherGradesScreen() {
         {/* Дата */}
         <View style={styles.modalDayBar}>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={uiText("Предыдущий день")}
             onPress={() => setDate(dayjs(date).subtract(1, 'day').format('YYYY-MM-DD'))}
             hitSlop={8}
             style={styles.dayBtn}
@@ -526,6 +534,8 @@ export default function TeacherGradesScreen() {
             {date === today ? uiText("· сегодня") : ''}
           </Text>
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={uiText("Следующий день")}
             onPress={() => setDate(dayjs(date).add(1, 'day').format('YYYY-MM-DD'))}
             hitSlop={8}
             style={styles.dayBtn}
@@ -666,7 +676,7 @@ const styles = themedStyles(() => ({
   gradeBubbleText: { color: '#fff', fontSize: 13, fontWeight: '800' },
   noGrade: { fontSize: 12, color: colors.muted },
   avgBox: { alignItems: 'center', marginRight: 8, minWidth: 36 },
-  avgLabel: { fontSize: 9, color: colors.muted, fontWeight: '700', textTransform: 'uppercase' },
+  avgLabel: { fontSize: 12, color: colors.muted, fontWeight: '700', textTransform: 'uppercase' },
   avgValue: { fontSize: 17, fontWeight: '800', letterSpacing: -0.5 },
   addBtn: {
     width: 34,

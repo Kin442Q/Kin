@@ -547,7 +547,7 @@ export class ChatService {
 
     // Push другой стороне
     if (user.role === 'PARENT') {
-      this.notifyStaff(conv, user.sub, t).catch(() => {})
+      this.notifyStaff(conv, user.sub, msg.sender.fullName, t).catch(() => {})
     } else {
       // Сотрудник → родитель: пуш в приложение + мгновенное уведомление в Telegram
       // (как напоминания об оплате), чтобы родитель увидел сразу, даже без приложения.
@@ -603,12 +603,14 @@ export class ChatService {
    */
   private async notifyStaff(
     conv: {
+      id: string
       scope: Scope
       groupId: string
       teacherId: string | null
       kindergartenId: string | null
     },
     senderId: string,
+    senderName: string,
     text: string,
   ) {
     let audience: Record<string, unknown>
@@ -623,16 +625,17 @@ export class ChatService {
         kindergartenId: conv.kindergartenId,
       }
     }
+    // Без фильтра по токену: запись в «Оповещения» нужна и тому, у кого push ещё не настроен
     const staff = await this.prisma.user.findMany({
-      where: { isActive: true, expoPushToken: { not: null }, ...audience },
+      where: { isActive: true, ...audience },
       select: { id: true },
     })
     await this.push.sendToUsers(
       staff.map((s) => s.id),
       {
-        title: 'Новое сообщение от родителя',
+        title: `Сообщение от ${senderName}`,
         body: text.slice(0, 120),
-        data: { kind: 'chat', groupId: conv.groupId },
+        data: { kind: 'chat', conversationId: conv.id, groupId: conv.groupId },
       },
     )
   }

@@ -1,9 +1,11 @@
 import { Test } from '@nestjs/testing'
+import { getQueueToken } from '@nestjs/bullmq'
 import { ForbiddenException, NotFoundException } from '@nestjs/common'
 
 import { AttendanceService } from './attendance.service'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
+import { QUEUE_ATTENDANCE_NOTICE } from '../../infrastructure/bullmq/bull.module'
 import { createPrismaMock, PrismaMock } from '../../test-utils/prisma-mock'
 import type { AuthUser } from '../../common/types/jwt-payload'
 
@@ -28,14 +30,17 @@ const teacherK1: AuthUser = {
 describe('AttendanceService', () => {
   let service: AttendanceService
   let prisma: PrismaMock
+  let noticeQ: { add: jest.Mock; getJob: jest.Mock }
 
   beforeEach(async () => {
     prisma = createPrismaMock()
+    noticeQ = { add: jest.fn().mockResolvedValue({}), getJob: jest.fn().mockResolvedValue(null) }
     const ref = await Test.createTestingModule({
       providers: [
         AttendanceService,
         { provide: PrismaService, useValue: prisma },
         { provide: RedisService, useValue: { delByPattern: jest.fn() } },
+        { provide: getQueueToken(QUEUE_ATTENDANCE_NOTICE), useValue: noticeQ },
       ],
     }).compile()
     service = ref.get(AttendanceService)
@@ -161,6 +166,80 @@ describe('AttendanceService', () => {
           update: expect.objectContaining({ markedById: 't' }),
         }),
       )
+    })
+
+    describe('уведомление родителям об отсутствии', () => {
+      const today = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Dushanbe',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date())
+
+      beforeEach(() => {
+        prisma.student.findUnique.mockResolvedValue({
+          id: 's1',
+          groupId: 'g1',
+          kindergartenId: 'k1',
+        })
+        prisma.attendance.upsert.mockResolvedValue({ id: 'a1' })
+      })
+
+      it('ABSENT сегодня → задание с задержкой и ключом «ученик + день»', async () => {
+        await service.mark(teacherK1, { ...dto, date: today, status: 'ABSENT' })
+
+        expect(noticeQ.add).toHaveBeenCalledWith(
+          'absence',
+          { studentId: 's1', date: today },
+          expect.objectContaining({
+            jobId: `absence-s1-${today}`,
+            delay: expect.any(Number),
+            // завершённое задание не должно навсегда занимать jobId: иначе «Нет» после исправления «Есть» не уведомит
+            removeOnComplete: true,
+          }),
+        )
+        expect(noticeQ.add.mock.calls[0][2].delay).toBeGreaterThan(0)
+      })
+
+      it.each(['PRESENT', 'SICK', 'VACATION'] as const)(
+        '%s — родителей не беспокоим, новое задание не ставится',
+        async (status) => {
+          await service.mark(teacherK1, { ...dto, date: today, status })
+          expect(noticeQ.add).not.toHaveBeenCalled()
+        },
+      )
+
+      it('исправили «Нет» на «Есть» до отправки — ожидающее уведомление снимается', async () => {
+        const pending = { isDelayed: jest.fn().mockResolvedValue(true), remove: jest.fn().mockResolvedValue(undefined) }
+        noticeQ.getJob.mockResolvedValue(pending)
+
+        await service.mark(teacherK1, { ...dto, date: today, status: 'PRESENT' })
+
+        expect(noticeQ.getJob).toHaveBeenCalledWith(`absence-s1-${today}`)
+        expect(pending.remove).toHaveBeenCalledTimes(1)
+      })
+
+      it('задание уже выполняется или выполнено — не трогаем', async () => {
+        const running = { isDelayed: jest.fn().mockResolvedValue(false), remove: jest.fn() }
+        noticeQ.getJob.mockResolvedValue(running)
+
+        await service.mark(teacherK1, { ...dto, date: today, status: 'PRESENT' })
+
+        expect(running.remove).not.toHaveBeenCalled()
+      })
+
+      it('ABSENT за прошлый день (правка журнала) — не уведомляем', async () => {
+        await service.mark(teacherK1, { ...dto, date: '2020-01-10', status: 'ABSENT' })
+        expect(noticeQ.add).not.toHaveBeenCalled()
+      })
+
+      it('сбой очереди (нет Redis) не ломает отметку', async () => {
+        noticeQ.add.mockRejectedValue(new Error('redis down'))
+        await expect(
+          service.mark(teacherK1, { ...dto, date: today, status: 'ABSENT' }),
+        ).resolves.toBeDefined()
+        expect(prisma.attendance.upsert).toHaveBeenCalled()
+      })
     })
   })
 })

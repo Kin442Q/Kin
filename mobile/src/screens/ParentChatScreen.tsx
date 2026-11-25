@@ -18,6 +18,7 @@ import Screen from '../components/Screen'
 import { colors, radius } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { connectSocket } from '../lib/socket'
+import { useScrollToEndOnKeyboard } from '../lib/useKeyboardScroll'
 import {
   chatApi,
   pickTeacherId,
@@ -37,6 +38,7 @@ export default function ParentChatScreen() {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const listRef = useRef<FlatList<ChatMessage>>(null)
+  useScrollToEndOnKeyboard(listRef)
 
   // Личная переписка у родителя с каждым учителем класса своя
   const [teachers, setTeachers] = useState<ChatTeacher[]>([])
@@ -219,11 +221,12 @@ export default function ParentChatScreen() {
         )}
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
+      {/*
+        padding и на Android тоже: в приложении включён edge-to-edge, окно при показе клавиатуры больше не
+        сжимается само, поэтому без padding клавиатура закрывала поле ввода и кнопку «Отправить»
+        (как на экране входа, где padding уже стоит).
+      */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
         <FlatList
           ref={listRef}
           data={messages}
@@ -302,6 +305,8 @@ export default function ParentChatScreen() {
           <Pressable
             onPress={send}
             disabled={!text.trim() || sending || (scope === 'GENERAL' && noTeachers)}
+            accessibilityRole="button"
+            accessibilityLabel={uiText("Отправить")}
             style={[
               styles.sendBtn,
               {
@@ -365,16 +370,17 @@ const styles = themedStyles(() => ({
   payCard: {
     alignSelf: 'center',
     maxWidth: '90%',
-    backgroundColor: '#fff7e6',
+    // тёплая «оплатная» карточка из токенов темы: текст внутри светлый в тёмной теме, на светло-кремовом он бы пропал
+    backgroundColor: colors.yellowSoft,
     borderWidth: 1,
-    borderColor: '#ffd591',
+    borderColor: colors.yellow,
     borderRadius: radius.lg,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  payTitle: { fontSize: 12, fontWeight: '800', color: '#d46b08', marginBottom: 4 },
+  payTitle: { fontSize: 12, fontWeight: '800', color: colors.yellowDeep, marginBottom: 4 },
   payText: { fontSize: 14, color: colors.text, lineHeight: 19 },
-  payTime: { fontSize: 10, color: colors.muted, marginTop: 4, alignSelf: 'flex-end' },
+  payTime: { fontSize: 12, color: colors.muted, marginTop: 4, alignSelf: 'flex-end' },
   list: { padding: 16, gap: 8, flexGrow: 1 },
   bubbleRow: { flexDirection: 'row' },
   bubble: { maxWidth: '80%', borderRadius: radius.lg, paddingHorizontal: 12, paddingVertical: 8 },
@@ -385,9 +391,9 @@ const styles = themedStyles(() => ({
     borderColor: colors.borderSoft,
     borderBottomLeftRadius: 4,
   },
-  senderName: { fontSize: 11, fontWeight: '700', color: colors.primaryDeep, marginBottom: 2 },
+  senderName: { fontSize: 12, fontWeight: '700', color: colors.primaryDeep, marginBottom: 2 },
   msgText: { fontSize: 14, color: colors.text, lineHeight: 19 },
-  msgTime: { fontSize: 10, color: colors.muted, marginTop: 3, alignSelf: 'flex-end' },
+  msgTime: { fontSize: 12, color: colors.muted, marginTop: 3, alignSelf: 'flex-end' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 19 },
   inputBar: {

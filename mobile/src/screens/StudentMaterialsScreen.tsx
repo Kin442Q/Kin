@@ -1,26 +1,21 @@
 import { useCallback, useMemo, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { RefreshControl, ScrollView, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { FileText } from 'lucide-react-native'
 
+import { uiText } from '../i18n/uiText'
+import { Text } from '../components/Text'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Btn from '../components/Btn'
 import StackHeader from '../components/StackHeader'
 import EmptyState from '../components/EmptyState'
+import { SkeletonList } from '../components/Skeleton'
 import { colors, radius } from '../theme/colors'
+import { themedStyles } from '../theme/themedStyles'
+import { notifyError } from '../lib/notify'
 import { formatSize, openExternalUrl, openFileLink } from '../api/files'
 import { expiryText, lessonMaterialApi, type LessonMaterial } from '../api/lessonMaterials'
-
-const NO_SUBJECT = 'Без предмета'
 
 /** Материалы к урокам от учителей моего класса: файлы, ссылки и тексты. */
 export default function StudentMaterialsScreen() {
@@ -31,8 +26,8 @@ export default function StudentMaterialsScreen() {
   const load = useCallback(async () => {
     try {
       setItems(await lessonMaterialApi.list())
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить материалы')
+    } catch (e) {
+      notifyError(e, { fallback: uiText("Не удалось загрузить материалы"), retry: load })
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -49,7 +44,7 @@ export default function StudentMaterialsScreen() {
   const groups = useMemo(() => {
     const map = new Map<string, { color?: string; items: LessonMaterial[] }>()
     for (const m of items) {
-      const key = m.subject?.name ?? NO_SUBJECT
+      const key = m.subject?.name ?? uiText("Без предмета")
       if (!map.has(key)) map.set(key, { color: m.subject?.color, items: [] })
       map.get(key)!.items.push(m)
     }
@@ -58,10 +53,10 @@ export default function StudentMaterialsScreen() {
 
   return (
     <Screen>
-      <StackHeader title="Материалы к урокам" />
+      <StackHeader title={uiText("Материалы к урокам")} />
       {loading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator color={colors.primary} />
+        <View style={styles.container}>
+          <SkeletonList rows={4} />
         </View>
       ) : (
         <ScrollView
@@ -80,8 +75,8 @@ export default function StudentMaterialsScreen() {
           {groups.length === 0 ? (
             <EmptyState
               icon={<FileText size={34} color={colors.muted} />}
-              title="Материалов пока нет"
-              hint="Когда учитель выложит материал к уроку, он появится здесь"
+              title={uiText("Материалов пока нет")}
+              hint={uiText("Когда учитель выложит материал к уроку, он появится здесь")}
             />
           ) : (
             groups.map(([subject, g]) => (
@@ -96,16 +91,13 @@ export default function StudentMaterialsScreen() {
                     {m.description ? <Text style={styles.desc}>{m.description}</Text> : null}
                     <View style={styles.actions}>
                       {m.file && (
-                        <Btn
-                          size="sm"
-                          onPress={() => openFileLink(() => lessonMaterialApi.fileLink(m.id))}
-                        >
-                          {`Открыть файл · ${formatSize(m.file.size)}`}
+                        <Btn size="sm" onPress={() => openFileLink(() => lessonMaterialApi.fileLink(m.id))}>
+                          {uiText("Открыть файл · {0}", formatSize(m.file.size))}
                         </Btn>
                       )}
                       {m.url && (
                         <Btn size="sm" variant="secondary" onPress={() => openExternalUrl(m.url!)}>
-                          Ссылка
+                          {uiText("Ссылка")}
                         </Btn>
                       )}
                     </View>
@@ -133,8 +125,7 @@ export default function StudentMaterialsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+const styles = themedStyles(() => ({
   container: { padding: 16, paddingBottom: 40, gap: 16, flexGrow: 1 },
   subjectRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 4 },
   dot: { width: 10, height: 10, borderRadius: 5 },
@@ -143,13 +134,13 @@ const styles = StyleSheet.create({
   desc: { fontSize: 13, color: colors.textMid, lineHeight: 18 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 4 },
-  metaText: { fontSize: 11.5, color: colors.muted },
+  metaText: { fontSize: 12, color: colors.muted },
   badge: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.pill,
     overflow: 'hidden',
   },
-})
+}))

@@ -7,6 +7,8 @@ export interface NoticeDto {
   description: string | null
   read: boolean
   createdAt: string
+  /** Данные события (kind: chat | absence | grade | homework | …): по ним уведомление ведёт на нужный экран. */
+  payload?: { kind?: string; [key: string]: unknown } | null
 }
 
 export const notificationsApi = {

@@ -1,3 +1,4 @@
+import { uiText } from '../i18n/uiText'
 import { http } from './http'
 import { uploadFile, type FileLink, type PickedFile, type StoredFileView } from './files'
 
@@ -45,20 +46,20 @@ export const lessonMaterialApi = {
     uploadFile('/v1/lesson-materials/upload', file, onProgress),
 }
 
-/** «день / дня / дней» по числу. */
+/** «день / дня / дней» по числу (на английском и таджикском формы совпадают с единственным/множественным). */
 export function daysWord(n: number): string {
   const m10 = n % 10
   const m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return 'день'
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'дня'
-  return 'дней'
+  if (m10 === 1 && m100 !== 11) return uiText("день")
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return uiText("дня")
+  return uiText("дней")
 }
 
 /** Подпись срока: «удалится сегодня / завтра / через 5 дней». */
 export function expiryText(daysLeft: number): string {
-  if (daysLeft <= 0) return 'удалится сегодня'
-  if (daysLeft === 1) return 'удалится завтра'
-  return `удалится через ${daysLeft} ${daysWord(daysLeft)}`
+  if (daysLeft <= 0) return uiText("удалится сегодня")
+  if (daysLeft === 1) return uiText("удалится завтра")
+  return uiText("удалится через {0} {1}", daysLeft, daysWord(daysLeft))
 }
 
 export interface MaterialFormValues {
@@ -78,7 +79,7 @@ export function buildMaterialInput(v: MaterialFormValues): { body: LessonMateria
   const description = v.description?.trim() || null
   const url = v.url?.trim() || null
   if (!description && !url && !v.file) {
-    return { error: 'Добавьте файл, ссылку или текст — иначе ученикам нечего открыть' }
+    return { error: uiText("Добавьте файл, ссылку или текст — иначе ученикам нечего открыть") }
   }
   return {
     body: {
