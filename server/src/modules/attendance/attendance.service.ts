@@ -1,14 +1,35 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Queue } from 'bullmq'
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import { RedisService } from '../../infrastructure/redis/redis.service'
+import { QUEUE_ATTENDANCE_NOTICE } from '../../infrastructure/bullmq/bull.module'
 import { MarkAttendanceDto } from './dto/attendance.dto'
+import type { AbsenceNoticeJob } from './attendance-notice.processor'
 import type { AuthUser } from '../../common/types/jwt-payload'
+
+/** Через сколько сообщать родителям об отсутствии (секунды): время исправить случайный тап. */
+const ABSENCE_NOTICE_DELAY_SECONDS = Number(
+  process.env.ABSENCE_NOTICE_DELAY_SECONDS ?? 180,
+)
+
+/** Сегодняшний день школы (YYYY-MM-DD) по времени Душанбе, а не сервера. */
+const schoolToday = () =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Dushanbe',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
 
 @Injectable()
 export class AttendanceService {
+  private readonly logger = new Logger(AttendanceService.name)
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    @InjectQueue(QUEUE_ATTENDANCE_NOTICE) private readonly noticeQ: Queue,
   ) {}
 
   /** Все классы, которые ведёт учитель: основная группа + M:N teachingGroups. */
@@ -111,7 +132,44 @@ export class AttendanceService {
 
     // Инвалидируем кэш аналитики по группе (посещаемость влияет на показатели).
     await this.redis.delByPattern(`analytics:group:${student.groupId}:*`)
+
+    await this.scheduleAbsenceNotice(dto.studentId, date, dto.status)
     return a
+  }
+
+  /**
+   * Отсутствие сегодня → родителям уйдёт уведомление (push + «Оповещения») через несколько минут.
+   *
+   * - Не сегодняшние отметки (правка прошлых дней) родителей не беспокоят.
+   * - Пока задание ждёт своей очереди, jobId один на ученика и день: повторные тапы «Нет» его не дублируют.
+   * - Исправили отметку («Нет» → «Есть») до отправки — ожидающее задание снимается.
+   * - Завершённое задание удаляется (removeOnComplete), поэтому уже ПОСЛЕ исправления человек может снова
+   *   отметить «Нет», и родитель получит уведомление. От дубля по дню защищает процессор (смотрит в «Оповещения»).
+   */
+  private async scheduleAbsenceNotice(
+    studentId: string,
+    date: Date,
+    status: string,
+  ): Promise<void> {
+    const day = date.toISOString().slice(0, 10)
+    if (day !== schoolToday()) return
+    const jobId = `absence-${studentId}-${day}`
+    try {
+      if (status !== 'ABSENT') {
+        const pending = await this.noticeQ.getJob(jobId)
+        if (pending && (await pending.isDelayed())) await pending.remove()
+        return
+      }
+      const job: AbsenceNoticeJob = { studentId, date: day }
+      await this.noticeQ.add('absence', job, {
+        jobId,
+        delay: ABSENCE_NOTICE_DELAY_SECONDS * 1000,
+        removeOnComplete: true,
+      })
+    } catch (e) {
+      // без Redis отметка всё равно сохраняется; родитель просто не получит уведомление
+      this.logger.warn(`Не удалось обновить уведомление об отсутствии: ${(e as Error).message}`)
+    }
   }
 
   /**
