@@ -1,21 +1,21 @@
 import { uiText } from '../i18n/uiText'
 import { useEffect, useState, useCallback } from 'react'
 import { Pressable, RefreshControl, ScrollView, View } from 'react-native'
-import { Bell, CalendarCheck, Check, ClipboardList, Clock, MapPin, NotebookPen, Users } from 'lucide-react-native'
+import { CalendarCheck, Check, ClipboardList, Clock, MapPin, NotebookPen, Users } from 'lucide-react-native'
 import { useNavigation } from '@react-navigation/native'
 import dayjs from 'dayjs'
 
 import { Text } from '../components/Text'
 import Screen from '../components/Screen'
-import BottomModal from '../components/BottomModal'
 import GradientView from '../components/GradientView'
 import IconTile from '../components/IconTile'
+import NoticeBell from '../components/NoticeBell'
+import { HomeSkeleton } from '../components/Skeleton'
 import { subjectIcon } from '../lib/subjectIcon'
 import { colors, shadow } from '../theme/colors'
 import { hasFeature } from '../lib/features'
 import { useAuthStore } from '../store/authStore'
 import { scheduleApi, type ScheduleLesson } from '../api/schedule'
-import { notificationsApi, type NoticeDto } from '../api/notifications'
 import { adminApi, type GroupDto } from '../api/admin'
 import { attendanceApi } from '../api/attendance'
 import { schoolApi, type HomeworkDto } from '../api/school'
@@ -46,23 +46,20 @@ export default function TeacherHomeScreen() {
 
   const [lessons, setLessons] = useState<ScheduleLesson[]>([])
   const [groups, setGroups] = useState<GroupDto[]>([])
-  const [notices, setNotices] = useState<NoticeDto[]>([])
   const [classPresent, setClassPresent] = useState<{ here: number; total: number } | null>(null)
   // Ближайшее ДЗ моего класса: сколько учеников его уже сдали
   const [classHomework, setClassHomework] = useState<HomeworkDto | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [now, setNow] = useState(new Date())
-  const [noticesOpen, setNoticesOpen] = useState(false)
 
   const homeroomId = user?.homeroomGroups?.[0]?.id ?? user?.groupId ?? null
 
   const reload = useCallback(async () => {
     const day = dayjs().format('YYYY-MM-DD')
-    const [sch, grp, nt, att, hw] = await Promise.all([
+    const [sch, grp, att, hw] = await Promise.all([
       hasFeature(user, 'schedule') ? scheduleApi.list().catch(() => [] as ScheduleLesson[]) : Promise.resolve([] as ScheduleLesson[]),
       adminApi.groups().catch(() => [] as GroupDto[]),
-      notificationsApi.list().catch(() => [] as NoticeDto[]),
       homeroomId && hasFeature(user, 'attendance')
         ? attendanceApi.listByDay(day, homeroomId).catch(() => null)
         : Promise.resolve(null),
@@ -72,7 +69,6 @@ export default function TeacherHomeScreen() {
     ])
     setLessons(sch)
     setGroups(grp)
-    setNotices(Array.isArray(nt) ? nt.slice(0, 5) : [])
     setClassPresent(att && att.length ? { here: att.filter((a) => a.status === 'PRESENT').length, total: att.length } : null)
     // сервер отдаёт ДЗ по возрастанию срока: первое с данными о классе — ближайшее
     setClassHomework(hw.find((h) => h.stats && h.stats.total > 0) ?? null)
@@ -123,18 +119,18 @@ export default function TeacherHomeScreen() {
     todayLessons.length === 0 &&
     classesToday.length === 0 &&
     !classPresent &&
-    !classHomework &&
-    notices.length === 0
+    !classHomework
 
-  const markRead = () => {
-    notificationsApi
-      .markAllRead()
-      .then(() => setNotices((l) => l.map((n) => ({ ...n, read: true }))))
-      .catch(() => {})
-  }
-
-  const unread = notices.some((n) => !n.read)
   const hwGroup = classHomework ? (classHomework.group?.name ?? groupName(classHomework.groupId)) : ''
+
+  // Пока кабинет грузится — заглушка по форме экрана, а не пустой экран
+  if (loading) {
+    return (
+      <Screen variant="home">
+        <HomeSkeleton />
+      </Screen>
+    )
+  }
 
   return (
     <Screen variant="home">
@@ -160,15 +156,7 @@ export default function TeacherHomeScreen() {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable
-              onPress={() => setNoticesOpen(true)}
-              accessibilityRole="button"
-              accessibilityLabel={unread ? uiText("Оповещения: есть непрочитанные") : uiText("Оповещения")}
-              style={styles.bell}
-            >
-              <Bell size={22} color={colors.text} />
-              {unread && <View style={styles.bellDot} />}
-            </Pressable>
+            <NoticeBell />
             <GradientView from="#0D7A7C" to="#2FB3AC" style={[styles.avatar, shadow.sm]}>
               <Text style={styles.avatarText} accessibilityLabel={uiText("Профиль")}>
                 {initials}
@@ -188,7 +176,8 @@ export default function TeacherHomeScreen() {
                 </Text>
                 <Text style={styles.nowTitle} numberOfLines={2}>
                   {focus.subject?.name ?? focus.activity}
-                  {groupName(focus.groupId) ? ` · ${groupName(focus.groupId)}` : ''}
+                  {/* неразрывный пробел: «5 В» не рвётся на две строки */}
+                  {groupName(focus.groupId) ? ` · ${groupName(focus.groupId).replace(/ /g, ' ')}` : ''}
                 </Text>
               </View>
             </View>
@@ -314,30 +303,6 @@ export default function TeacherHomeScreen() {
           </View>
         )}
       </ScrollView>
-
-      <BottomModal visible={noticesOpen} onClose={() => setNoticesOpen(false)} title={uiText("Оповещения")}>
-        {notices.length === 0 ? (
-          <Text style={styles.muted}>{uiText("Новых оповещений нет")}</Text>
-        ) : (
-          <View style={{ gap: 12 }}>
-            {notices.map((n) => (
-              <View key={n.id} style={styles.noticeRow}>
-                <View style={[styles.dot, { backgroundColor: n.read ? colors.borderSoft : colors.coral }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.noticeTitle, !n.read && { fontWeight: '700' }]}>{n.title}</Text>
-                  {n.description ? <Text style={styles.noticeText}>{n.description}</Text> : null}
-                  <Text style={styles.noticeTime}>{dayjs(n.createdAt).format('DD.MM HH:mm')}</Text>
-                </View>
-              </View>
-            ))}
-            {unread && (
-              <Pressable onPress={markRead} accessibilityRole="button">
-                <Text style={styles.link}>{uiText("Прочитать все")}</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
-      </BottomModal>
     </Screen>
   )
 }
@@ -347,17 +312,6 @@ const styles = themedStyles(() => ({
   headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   eyebrow: { fontSize: 13, fontWeight: '600', color: colors.muted },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.8, lineHeight: 29, color: colors.text },
-  bell: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellDot: { position: 'absolute', right: 9, top: 9, width: 8, height: 8, borderRadius: 4, backgroundColor: '#FF8A65' },
   avatar: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   avatarText: { fontSize: 15, fontWeight: '800', color: '#FFFFFF' },
   nowCard: { padding: 18, borderRadius: 26, gap: 14 },
@@ -413,10 +367,4 @@ const styles = themedStyles(() => ({
   tileHint: { fontSize: 12, fontWeight: '700' },
   muted: { fontSize: 14, color: colors.textMid, textAlign: 'center' },
   quietTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
-  noticeRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
-  noticeTitle: { fontSize: 14, color: colors.text },
-  noticeText: { fontSize: 13, color: colors.textMid, lineHeight: 18 },
-  noticeTime: { fontSize: 11, color: colors.muted, marginTop: 2 },
-  link: { fontSize: 13, fontWeight: '700', color: colors.primaryDeep, paddingVertical: 4 },
 }))

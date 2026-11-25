@@ -323,10 +323,10 @@ const styles = themedStyles(() => ({
   meta: { fontSize: 12, color: colors.muted, marginTop: 1 },
   avg: { alignItems: 'center' },
   avgValue: { fontSize: 18, fontWeight: '800', color: colors.primaryDeep },
-  avgLabel: { fontSize: 10, color: colors.muted },
+  avgLabel: { fontSize: 12, color: colors.muted },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 8 },
   pill: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     paddingHorizontal: 8,
     paddingVertical: 3,

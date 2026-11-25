@@ -1,5 +1,6 @@
 import { uiText } from '../i18n/uiText'
 import { useEffect, useRef } from 'react'
+import { AppState } from 'react-native'
 import {
   NavigationContainer,
   DefaultTheme,
@@ -28,6 +29,8 @@ import {
 import FloatingTabBar from '../components/FloatingTabBar'
 import { useAuthStore } from '../store/authStore'
 import { hasFeature, type FeatureKey } from '../lib/features'
+import { noticeTarget } from '../lib/noticeRoute'
+import { setupPush } from '../lib/push'
 import { colors } from '../theme/colors'
 import { labels } from '../theme/labels'
 
@@ -246,37 +249,35 @@ let savedNavState: NavigationState | undefined
 let savedNavUser: string | undefined
 
 /**
- * Куда переходить при тапе по уведомлению — на основе data.kind:
- *   meeting | payment | diary  → главная родителя
- *   homework | grade           → экран Оценки родителя (или Журнал учителя)
+ * Куда переходить при тапе по уведомлению — по data.kind (таблица в lib/noticeRoute.ts, она же ведёт и по
+ * строкам списка «Оповещения»): chat → чат, absence/diary/payment/meeting/notice → главная родителя,
+ * grade/homework → оценки родителя или ДЗ учителя.
  */
 function handleNotificationTap(data: unknown, role?: string) {
-  if (!navRef.isReady() || !data || typeof data !== 'object') return
-  const kind = (data as any).kind
-  const r = String(role ?? '').toUpperCase()
-  const isParent = r === 'PARENT'
-  // Для родителя — главная (диари / оплата / собрание)
-  if (
-    isParent &&
-    (kind === 'diary' || kind === 'payment' || kind === 'meeting')
-  ) {
-    navRef.navigate('Tabs', { screen: 'ParentHome' })
-    return
-  }
-  // Школьные — оценки/домашка
-  if (isParent && (kind === 'grade' || kind === 'homework')) {
-    navRef.navigate('Tabs', { screen: 'ParentGrades' })
-    return
-  }
-  // Учитель — журнал/ДЗ
-  if (r === 'TEACHER' && kind === 'homework') {
-    navRef.navigate('Tabs', { screen: 'TeacherHomework' })
-  }
+  if (!navRef.isReady()) return
+  const target = noticeTarget(data, role)
+  if (target) navRef.navigate(target.name, target.params)
 }
 
 export default function RootNavigator() {
   const user = useAuthStore((s) => s.user)
   const responseListener = useRef<Notifications.Subscription | null>(null)
+
+  // Push: человек мог включить уведомления в настройках телефона, а токен — смениться.
+  // Перепроверяем при возврате в приложение и при смене токена устройства.
+  useEffect(() => {
+    if (!user) return
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') setupPush().catch(() => {})
+    })
+    const tokenChanged = Notifications.addPushTokenListener(() => {
+      setupPush().catch(() => {})
+    })
+    return () => {
+      appState.remove()
+      tokenChanged.remove()
+    }
+  }, [user?.id])
 
   useEffect(() => {
     // Холодный старт по уведомлению

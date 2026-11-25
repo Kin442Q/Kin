@@ -1,7 +1,6 @@
 import { uiText } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -17,6 +16,8 @@ import Card from '../components/Card'
 import EmptyState from '../components/EmptyState'
 import GradientView from '../components/GradientView'
 import IconTile from '../components/IconTile'
+import NoticeBell from '../components/NoticeBell'
+import { HomeSkeleton } from '../components/Skeleton'
 import { ScreenHeading } from '../components/ui'
 import { colors, shadow } from '../theme/colors'
 import { averageColor } from '../lib/gradeStyle'
@@ -125,9 +126,7 @@ export default function StudentHomeScreen() {
   if (loading) {
     return (
       <Screen variant="home">
-        <View style={styles.loader}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <HomeSkeleton />
       </Screen>
     )
   }
@@ -202,8 +201,11 @@ export default function StudentHomeScreen() {
           title={uiText("Салом, {0}!", first)}
           size={26}
           right={
-            <View style={styles.avatar} accessibilityLabel={uiText("Профиль: {0}", first)}>
-              <Text style={styles.avatarText}>{initials}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <NoticeBell />
+              <View style={styles.avatar} accessibilityLabel={uiText("Профиль: {0}", first)}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
             </View>
           }
         />

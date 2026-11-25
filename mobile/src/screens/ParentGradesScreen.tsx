@@ -252,7 +252,7 @@ const styles = themedStyles(() => ({
   avgCard: {
     padding: 16,
     borderRadius: 22,
-    backgroundColor: colors.primary,
+    backgroundColor: '#0D7A7C',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

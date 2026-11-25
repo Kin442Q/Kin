@@ -386,7 +386,7 @@ const styles = themedStyles(() => ({
   subtitle: { fontSize: 13, color: colors.muted, marginTop: 2 },
   kpiRow: { flexDirection: 'row', gap: 10, marginTop: 14 },
   kpiHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  kpiLabel: { fontSize: 11, fontWeight: '700' },
+  kpiLabel: { fontSize: 12, fontWeight: '700' },
   kpiValue: {
     fontSize: 22,
     fontWeight: '800',
@@ -394,7 +394,7 @@ const styles = themedStyles(() => ({
     letterSpacing: -0.5,
   },
   kpiUnit: { fontSize: 13, fontWeight: '600', opacity: 0.6 },
-  kpiSub: { fontSize: 11, opacity: 0.7, marginTop: 2, fontWeight: '600' },
+  kpiSub: { fontSize: 12, opacity: 0.7, marginTop: 2, fontWeight: '600' },
   tabs: { flexDirection: 'row', gap: 6, marginTop: 16 },
   tab: {
     flex: 1,

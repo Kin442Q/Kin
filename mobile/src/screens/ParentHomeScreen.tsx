@@ -1,7 +1,6 @@
 import { uiText, uiLanguage } from '../i18n/uiText'
 import { useCallback, useEffect, useState } from 'react'
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -30,6 +29,8 @@ import type { AttendanceStatus } from '../api/attendance'
 
 import GradientView from '../components/GradientView'
 import IconTile from '../components/IconTile'
+import NoticeBell from '../components/NoticeBell'
+import { HomeSkeleton } from '../components/Skeleton'
 import { subjectIcon } from '../lib/subjectIcon'
 import { themedStyles, themedValue } from '../theme/themedStyles'
 
@@ -128,9 +129,7 @@ export default function ParentHomeScreen() {
   if (loading) {
     return (
       <Screen variant="home">
-        <View style={styles.center}>
-          <ActivityIndicator color={colors.primary} />
-        </View>
+        <HomeSkeleton />
       </Screen>
     )
   }
@@ -186,6 +185,7 @@ export default function ParentHomeScreen() {
             </Text>
             <Text style={styles.title}>{greeting()}</Text>
           </View>
+          <NoticeBell />
           <Pressable
             onPress={cycleKid}
             disabled={kids.length < 2}
@@ -206,7 +206,8 @@ export default function ParentHomeScreen() {
         <GradientView
           from={status.bg === colors.primary ? '#12898A' : status.bg}
           to={status.bg === colors.primary ? '#075B5D' : status.bg}
-          style={[styles.statusCard, shadow.lg]}
+          // У полупрозрачной карточки («пока не отмечен») elevation не задаём: тень просвечивает серым прямоугольником
+          style={[styles.statusCard, status.bg === colors.surface ? shadow.sm : shadow.lg]}
         >
           <View style={styles.statusIcon}>
             <School size={26} color={status.fg} strokeWidth={2} />
@@ -356,7 +357,7 @@ const styles = themedStyles(() => ({
   cardLink: { fontSize: 13, fontWeight: '700', color: colors.primary },
   muted: { fontSize: 14, color: colors.textMid },
   lessonRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  lessonNo: { width: 18, fontSize: 13, fontWeight: '800', color: '#7A8C8E' },
+  lessonNo: { width: 18, fontSize: 13, fontWeight: '800', color: colors.muted },
   lessonName: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
   lessonHint: { fontSize: 13, fontWeight: '700', color: colors.muted },
   gradeBox: { width: 32, height: 32, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
@@ -364,7 +365,7 @@ const styles = themedStyles(() => ({
   nowBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: '#FF8A65' },
   nowBadgeText: { fontSize: 12, fontWeight: '700', color: '#10282A' },
   hwRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  hwEyebrow: { fontSize: 12, fontWeight: '700', color: '#B23E1A' },
+  hwEyebrow: { fontSize: 12, fontWeight: '700', color: colors.roseDeep },
   hwText: { fontSize: 14, fontWeight: '700', color: colors.text },
   chatBtn: {
     flexDirection: 'row',
@@ -373,9 +374,9 @@ const styles = themedStyles(() => ({
     gap: 8,
     height: 54,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.8)',
+    backgroundColor: colors.surfaceSolid,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.95)',
+    borderColor: colors.glassBorder,
   },
-  chatBtnText: { fontSize: 15, fontWeight: '800', color: '#075B5D' },
+  chatBtnText: { fontSize: 15, fontWeight: '800', color: colors.primaryDeep },
 }))

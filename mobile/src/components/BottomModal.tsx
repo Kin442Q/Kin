@@ -2,12 +2,13 @@ import { ReactNode } from 'react'
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   View,
 } from 'react-native'
+import { uiText } from '../i18n/uiText'
 import { Text } from './Text'
+import NoticeHost from './NoticeHost'
 import { X } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { colors, radius, shadow } from '../theme/colors'
@@ -31,15 +32,23 @@ export default function BottomModal({ visible, onClose, title, children }: Props
       statusBarTranslucent
     >
       <View style={styles.backdrop}>
-        <Pressable style={styles.backdropFill} onPress={onClose} />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={[styles.sheet, shadow.lg]}
-        >
+        <Pressable
+          style={styles.backdropFill}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={uiText("Закрыть")}
+        />
+        {/* padding и на Android: при edge-to-edge окно само не сжимается, и клавиатура закрывала поля формы */}
+        <KeyboardAvoidingView behavior="padding" style={[styles.sheet, shadow.lg]}>
           <View style={styles.handle} />
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
-            <Pressable onPress={onClose} hitSlop={12}>
+            <Pressable
+              onPress={onClose}
+              hitSlop={14}
+              accessibilityRole="button"
+              accessibilityLabel={uiText("Закрыть")}
+            >
               <X size={20} color={colors.muted} />
             </Pressable>
           </View>
@@ -50,6 +59,8 @@ export default function BottomModal({ visible, onClose, title, children }: Props
             {children}
           </ScrollView>
         </KeyboardAvoidingView>
+        {/* Окно Modal лежит поверх всего приложения: плашка сообщений из корня под ним не видна, поэтому своя */}
+        <NoticeHost />
       </View>
     </Modal>
   )

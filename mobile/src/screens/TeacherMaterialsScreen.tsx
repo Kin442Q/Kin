@@ -1,33 +1,29 @@
 import { useCallback, useEffect, useState } from 'react'
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { Alert, FlatList, Pressable, RefreshControl, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as DocumentPicker from 'expo-document-picker'
 import { FileText, Paperclip, Plus, Trash2, X } from 'lucide-react-native'
 
+import { uiText } from '../i18n/uiText'
+import { Text } from '../components/Text'
 import Screen from '../components/Screen'
 import Card from '../components/Card'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
 import StackHeader from '../components/StackHeader'
 import EmptyState from '../components/EmptyState'
+import { SkeletonList } from '../components/Skeleton'
 import { Field, Select } from '../components/Field'
 import { colors, radius, shadow } from '../theme/colors'
+import { themedStyles } from '../theme/themedStyles'
+import { notify, notifyError } from '../lib/notify'
 import { useAuthStore } from '../store/authStore'
 import { adminApi } from '../api/admin'
 import { schoolApi, type SubjectDto } from '../api/school'
 import {
-  LIMITS_HINT,
   checkFile,
   formatSize,
+  limitsHint,
   openExternalUrl,
   openFileLink,
   uploadErrorText,
@@ -36,6 +32,7 @@ import {
 import {
   LESSON_MATERIAL_TTL_DAYS,
   buildMaterialInput,
+  daysWord,
   expiryText,
   lessonMaterialApi,
   type LessonMaterial,
@@ -73,8 +70,8 @@ export default function TeacherMaterialsScreen() {
   const load = useCallback(async () => {
     try {
       setItems(await lessonMaterialApi.list({ groupId: filterGroup ?? undefined }))
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось загрузить материалы')
+    } catch (e) {
+      notifyError(e, { fallback: uiText("Не удалось загрузить материалы") })
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -121,14 +118,14 @@ export default function TeacherMaterialsScreen() {
     const a = res.assets[0]
     const problem = checkFile({ name: a.name, size: a.size })
     if (problem) {
-      Alert.alert('Файл не подходит', problem)
+      notify.fail(uiText("Файл не подходит"), problem)
       return
     }
     setPercent(0)
     try {
       setFile(await lessonMaterialApi.upload({ uri: a.uri, name: a.name, size: a.size, mimeType: a.mimeType }, setPercent))
     } catch (e) {
-      Alert.alert('Не удалось загрузить файл', uploadErrorText(e))
+      notify.fail(uiText("Не удалось загрузить файл"), uploadErrorText(e))
     } finally {
       setPercent(null)
     }
@@ -136,20 +133,20 @@ export default function TeacherMaterialsScreen() {
 
   const submit = async () => {
     if (!groupId) {
-      Alert.alert('Выберите класс', 'Материал выкладывается для одного класса')
+      notify.fail(uiText("Выберите класс"), uiText("Материал выкладывается для одного класса"))
       return
     }
     if (!title.trim()) {
-      Alert.alert('Название', 'Введите название материала')
+      notify.fail(uiText("Название"), uiText("Введите название материала"))
       return
     }
     if (url.trim() && !/^https?:\/\/\S+$/i.test(url.trim())) {
-      Alert.alert('Ссылка', 'Ссылка должна начинаться с http:// или https://')
+      notify.fail(uiText("Ссылка"), uiText("Ссылка должна начинаться с http:// или https://"))
       return
     }
     const built = buildMaterialInput({ groupId, subjectId, title, description, url, file })
     if ('error' in built) {
-      Alert.alert('Пустой материал', built.error)
+      notify.fail(uiText("Пустой материал"), built.error)
       return
     }
     setSaving(true)
@@ -157,26 +154,29 @@ export default function TeacherMaterialsScreen() {
       await lessonMaterialApi.create(built.body)
       setModal(false)
       load()
-      Alert.alert('Материал выложен', `Он сам удалится через ${LESSON_MATERIAL_TTL_DAYS} дней`)
-    } catch (e: any) {
-      Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось сохранить')
+      notify.success(
+        uiText("Материал выложен"),
+        uiText("Он сам удалится через {0} {1}", LESSON_MATERIAL_TTL_DAYS, daysWord(LESSON_MATERIAL_TTL_DAYS)),
+      )
+    } catch (e) {
+      notifyError(e, { fallback: uiText("Не удалось сохранить") })
     } finally {
       setSaving(false)
     }
   }
 
   const remove = (m: LessonMaterial) => {
-    Alert.alert('Удалить материал?', m.file ? `${m.title}\nФайл тоже удалится.` : m.title, [
-      { text: 'Отмена', style: 'cancel' },
+    Alert.alert(uiText("Удалить материал?"), m.file ? `${m.title}\n${uiText("Файл тоже удалится.")}` : m.title, [
+      { text: uiText("Отмена"), style: 'cancel' },
       {
-        text: 'Удалить',
+        text: uiText("Удалить"),
         style: 'destructive',
         onPress: async () => {
           try {
             await lessonMaterialApi.remove(m.id)
             load()
-          } catch (e: any) {
-            Alert.alert('Ошибка', e?.response?.data?.message || 'Не удалось удалить')
+          } catch (e) {
+            notifyError(e, { fallback: uiText("Не удалось удалить") })
           }
         },
       },
@@ -187,11 +187,11 @@ export default function TeacherMaterialsScreen() {
 
   return (
     <Screen>
-      <StackHeader title="Материалы к уроку" />
+      <StackHeader title={uiText("Материалы к уроку")} />
 
       {classes.length > 1 && (
-        <View style={styles.chips}>
-          {[{ id: null as string | null, name: 'Все классы' }, ...classes].map((c) => {
+        <View style={styles.chips} accessibilityRole="tablist">
+          {[{ id: null as string | null, name: uiText("Все классы") }, ...classes].map((c) => {
             const on = c.id === filterGroup
             return (
               <Pressable
@@ -200,9 +200,11 @@ export default function TeacherMaterialsScreen() {
                   setLoading(true)
                   setFilterGroup(c.id)
                 }}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: on }}
                 style={[styles.chip, { backgroundColor: on ? colors.primary : colors.surfaceAlt }]}
               >
-                <Text style={[styles.chipText, { color: on ? '#fff' : colors.text }]}>{c.name}</Text>
+                <Text style={[styles.chipText, { color: on ? colors.onPrimary : colors.text }]}>{c.name}</Text>
               </Pressable>
             )
           })}
@@ -210,8 +212,8 @@ export default function TeacherMaterialsScreen() {
       )}
 
       {loading ? (
-        <View style={styles.loader}>
-          <ActivityIndicator color={colors.primary} />
+        <View style={styles.list}>
+          <SkeletonList rows={4} />
         </View>
       ) : (
         <FlatList
@@ -232,8 +234,8 @@ export default function TeacherMaterialsScreen() {
           ListEmptyComponent={
             <EmptyState
               icon={<FileText size={34} color={colors.muted} />}
-              title="Материалов пока нет"
-              hint="Нажмите «+», чтобы выложить файл, ссылку или текст для класса"
+              title={uiText("Материалов пока нет")}
+              hint={uiText("Нажмите «+», чтобы выложить файл, ссылку или текст для класса")}
             />
           }
           renderItem={({ item: m }) => (
@@ -247,8 +249,13 @@ export default function TeacherMaterialsScreen() {
                   </Text>
                 </View>
                 {m.author?.id === user?.id && (
-                  <Pressable onPress={() => remove(m)} hitSlop={10} accessibilityLabel="Удалить материал">
-                    <Trash2 size={18} color={colors.muted} />
+                  <Pressable
+                    onPress={() => remove(m)}
+                    hitSlop={14}
+                    accessibilityRole="button"
+                    accessibilityLabel={uiText("Удалить материал")}
+                  >
+                    <Trash2 size={20} color={colors.muted} />
                   </Pressable>
                 )}
               </View>
@@ -265,7 +272,7 @@ export default function TeacherMaterialsScreen() {
                 )}
                 {m.url && (
                   <Btn size="sm" variant="secondary" onPress={() => openExternalUrl(m.url!)}>
-                    Ссылка
+                    {uiText("Ссылка")}
                   </Btn>
                 )}
               </View>
@@ -284,19 +291,23 @@ export default function TeacherMaterialsScreen() {
         />
       )}
 
-      <Pressable onPress={openCreate} style={({ pressed }) => [styles.fab, shadow.lg, pressed && { opacity: 0.85 }]}>
-        <Plus size={24} color="#fff" strokeWidth={2.5} />
+      <Pressable
+        onPress={openCreate}
+        accessibilityRole="button"
+        accessibilityLabel={uiText("Новый материал")}
+        style={({ pressed }) => [styles.fab, shadow.lg, pressed && { opacity: 0.85 }]}
+      >
+        <Plus size={24} color={colors.onPrimary} strokeWidth={2.5} />
       </Pressable>
 
-      <BottomModal visible={modal} onClose={() => setModal(false)} title="Новый материал">
+      <BottomModal visible={modal} onClose={() => setModal(false)} title={uiText("Новый материал")}>
         <Text style={styles.note}>
-          Материал увидят ученики и родители класса. Через {LESSON_MATERIAL_TTL_DAYS} дней он удалится сам вместе с
-          файлом.
+          {uiText("Материал увидят ученики и родители класса. Через {0} {1} он удалится сам вместе с файлом.", LESSON_MATERIAL_TTL_DAYS, daysWord(LESSON_MATERIAL_TTL_DAYS))}
         </Text>
 
         {classes.length > 0 && (
           <Select<string>
-            label="Класс"
+            label={uiText("Класс")}
             value={groupId}
             onChange={setGroupId}
             options={classes.map((c) => ({ value: c.id, label: c.name }))}
@@ -305,7 +316,7 @@ export default function TeacherMaterialsScreen() {
         )}
         {subjects.length > 0 && (
           <Select<string>
-            label="Предмет (необязательно)"
+            label={uiText("Предмет (необязательно)")}
             value={subjectId}
             onChange={setSubjectId}
             options={subjects.map((s) => ({ value: s.id, label: s.name }))}
@@ -313,18 +324,18 @@ export default function TeacherMaterialsScreen() {
           />
         )}
 
-        <Field label="Название" value={title} onChangeText={setTitle} placeholder="Тема 5 — дроби" maxLength={200} />
+        <Field label={uiText("Название")} value={title} onChangeText={setTitle} placeholder={uiText("Тема 5 — дроби")} maxLength={200} />
         <Field
-          label="Текст (необязательно)"
+          label={uiText("Текст (необязательно)")}
           value={description}
           onChangeText={setDescription}
-          placeholder="Что прочитать, что повторить к уроку"
+          placeholder={uiText("Что прочитать, что повторить к уроку")}
           multiline
           maxLength={5000}
           style={{ minHeight: 80, textAlignVertical: 'top' }}
         />
         <Field
-          label="Ссылка (необязательно)"
+          label={uiText("Ссылка (необязательно)")}
           value={url}
           onChangeText={setUrl}
           placeholder="https://…"
@@ -333,7 +344,7 @@ export default function TeacherMaterialsScreen() {
         />
 
         <View style={{ gap: 6 }}>
-          <Text style={styles.label}>Файл (необязательно)</Text>
+          <Text style={styles.label}>{uiText("Файл (необязательно)")}</Text>
           {file && !uploading && (
             <View style={styles.fileChip}>
               <Paperclip size={16} color={colors.primaryDeep} />
@@ -341,37 +352,41 @@ export default function TeacherMaterialsScreen() {
                 {file.name}
               </Text>
               <Text style={styles.fileSize}>{formatSize(file.size)}</Text>
-              <Pressable onPress={() => setFile(null)} hitSlop={10} accessibilityLabel="Убрать файл">
-                <X size={16} color={colors.muted} />
+              <Pressable
+                onPress={() => setFile(null)}
+                hitSlop={14}
+                accessibilityRole="button"
+                accessibilityLabel={uiText("Убрать файл")}
+              >
+                <X size={18} color={colors.muted} />
               </Pressable>
             </View>
           )}
           {uploading && (
-            <View>
+            <View accessibilityRole="progressbar" accessibilityLabel={uiText("Загружается… {0}%", percent ?? 0)}>
               <View style={styles.bar}>
                 <View style={[styles.barFill, { width: `${percent ?? 0}%` }]} />
               </View>
-              <Text style={styles.fileSize}>Загружается… {percent}%</Text>
+              <Text style={styles.fileSize}>{uiText("Загружается… {0}%", percent ?? 0)}</Text>
             </View>
           )}
           <Btn variant="secondary" disabled={uploading} onPress={pickFile}>
-            {file ? 'Выбрать другой файл' : 'Выбрать файл'}
+            {file ? uiText("Выбрать другой файл") : uiText("Выбрать файл")}
           </Btn>
-          <Text style={styles.hint}>{LIMITS_HINT}</Text>
+          <Text style={styles.hint}>{limitsHint()}</Text>
         </View>
 
         <Btn block size="lg" loading={saving} disabled={uploading} onPress={submit} style={{ marginTop: 14 }}>
-          Выложить
+          {uiText("Выложить")}
         </Btn>
       </BottomModal>
     </Screen>
   )
 }
 
-const styles = StyleSheet.create({
-  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+const styles = themedStyles(() => ({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
-  chip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: radius.pill },
+  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.pill, minHeight: 36, justifyContent: 'center' },
   chipText: { fontSize: 13, fontWeight: '700' },
   list: { padding: 16, paddingBottom: 120, flexGrow: 1 },
   row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
@@ -381,7 +396,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4 },
   badge: {
     alignSelf: 'flex-start',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -400,9 +415,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  note: { fontSize: 12.5, color: colors.textMid, lineHeight: 18, marginBottom: 12 },
+  note: { fontSize: 13, color: colors.textMid, lineHeight: 18, marginBottom: 12 },
   label: { fontSize: 12, fontWeight: '700', color: colors.textMid },
-  hint: { fontSize: 11.5, color: colors.muted, lineHeight: 16 },
+  hint: { fontSize: 12, color: colors.muted, lineHeight: 16 },
   fileChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -412,7 +427,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryGhost,
   },
   fileName: { flex: 1, fontSize: 13, fontWeight: '600', color: colors.text },
-  fileSize: { fontSize: 11.5, color: colors.muted },
+  fileSize: { fontSize: 12, color: colors.muted },
   bar: { height: 6, borderRadius: radius.pill, backgroundColor: colors.surfaceAlt, overflow: 'hidden', marginBottom: 4 },
   barFill: { height: 6, backgroundColor: colors.primary },
-})
+}))

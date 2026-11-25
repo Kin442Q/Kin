@@ -109,7 +109,7 @@ const styles = themedStyles(() => ({
     borderColor: colors.border,
   },
   inputFocus: { borderColor: colors.primary },
-  hint: { fontSize: 11, color: colors.muted, marginTop: 4 },
+  hint: { fontSize: 12, color: colors.muted, marginTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     paddingVertical: 10,

@@ -158,12 +158,12 @@ export default function ParentScheduleScreen() {
                     <Text style={styles.t1}>{l.startTime}</Text>
                     <Text style={styles.t2}>{l.endTime}</Text>
                   </View>
-                  <View style={[styles.lesson, live && { backgroundColor: '#FFFFFF' }]}>
+                  <View style={[styles.lesson, live && { backgroundColor: colors.surfaceSolid }]}>
                     <View style={[styles.bar, { backgroundColor: BAR[i % BAR.length] }]} />
                     <Text style={styles.subject} numberOfLines={1}>
                       {l.activity}
                     </Text>
-                    {live ? <Text style={[styles.tag, { color: '#D9532E' }]}>{uiText("СЕЙЧАС")}</Text> : past ? <Text style={[styles.tag, { color: '#7A8C8E' }]}>{uiText("прошёл")}</Text> : null}
+                    {live ? <Text style={[styles.tag, { color: colors.roseDeep }]}>{uiText("СЕЙЧАС")}</Text> : past ? <Text style={[styles.tag, { color: colors.muted }]}>{uiText("прошёл")}</Text> : null}
                   </View>
                 </View>
               )
@@ -204,11 +204,11 @@ const styles = themedStyles(() => ({
     borderRadius: 20,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.9)',
+    borderColor: colors.glassBorder,
   },
   t1: { fontSize: 14, fontWeight: '800', color: colors.text },
-  t2: { fontSize: 12, fontWeight: '600', color: '#7A8C8E' },
+  t2: { fontSize: 12, fontWeight: '600', color: colors.muted },
   bar: { width: 6, alignSelf: 'stretch', minHeight: 32, borderRadius: 3 },
   subject: { flex: 1, fontSize: 15, fontWeight: '800', color: colors.text },
-  tag: { fontSize: 11, fontWeight: '800' },
+  tag: { fontSize: 12, fontWeight: '800' },
 }))

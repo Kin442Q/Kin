@@ -20,6 +20,7 @@ import {
 } from 'lucide-react-native'
 
 import Screen from '../components/Screen'
+import StackHeader from '../components/StackHeader'
 import Card from '../components/Card'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
@@ -30,7 +31,7 @@ import { cap } from '../theme/labels'
 import { adminApi, type MeetingDto, type GroupDto } from '../api/admin'
 
 import { themedStyles } from '../theme/themedStyles'
-import { notifyError } from '../lib/notify'
+import { notify, notifyError } from '../lib/notify'
 export default function AdminMeetingsScreen() {
   const navigation = useNavigation()
   const L = useLabels()
@@ -85,12 +86,12 @@ export default function AdminMeetingsScreen() {
 
   const submit = async () => {
     if (!groupId || !title.trim()) {
-      Alert.alert(uiText("Заполните"), uiText("Нужны {0} и заголовок", L.group))
+      notify.fail(uiText("Заполните"), uiText("Нужны {0} и заголовок", L.group))
       return
     }
     const scheduledAt = `${dateStr}T${timeStr}:00`
     if (!dayjs(scheduledAt).isValid()) {
-      Alert.alert(uiText("Дата"), uiText("Неверный формат даты или времени"))
+      notify.fail(uiText("Дата"), uiText("Неверный формат даты или времени"))
       return
     }
     setSaving(true)
@@ -130,17 +131,7 @@ export default function AdminMeetingsScreen() {
 
   return (
     <Screen>
-      <View style={styles.topBar}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          hitSlop={12}
-          style={styles.backBtn}
-        >
-          <ChevronLeft size={24} color={colors.text} />
-        </Pressable>
-        <Text style={styles.topTitle}>{uiText("Собрания")}</Text>
-        <View style={{ width: 36 }} />
-      </View>
+      <StackHeader title={uiText("Собрания")} />
 
       <FlatList
         data={[...upcoming, ...past]}
@@ -221,6 +212,8 @@ export default function AdminMeetingsScreen() {
       />
 
       <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={uiText("Добавить")}
         onPress={() => setModal(true)}
         style={({ pressed }) => [
           styles.fab,
@@ -299,23 +292,6 @@ export default function AdminMeetingsScreen() {
 
 const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 8,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceAlt,
-  },
-  topTitle: { fontSize: 18, fontWeight: '800', color: colors.text },
   list: { padding: 16, paddingBottom: 120 },
   header: {
     flexDirection: 'row',
@@ -351,7 +327,7 @@ const styles = themedStyles(() => ({
     letterSpacing: -0.5,
   },
   dateMonth: {
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
     color: colors.primaryDeep,
     textTransform: 'uppercase',
@@ -389,7 +365,7 @@ const styles = themedStyles(() => ({
     justifyContent: 'center',
   },
   hint: {
-    fontSize: 11,
+    fontSize: 12,
     color: colors.muted,
     textAlign: 'center',
     marginTop: 4,

@@ -135,7 +135,7 @@ const styles = themedStyles(() => ({
   footer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 10 },
   meta: { flex: 1, fontSize: 12, color: colors.muted },
   badge: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     paddingHorizontal: 8,
     paddingVertical: 3,

@@ -17,6 +17,8 @@ import Screen from '../components/Screen'
 import Btn from '../components/Btn'
 import BottomModal from '../components/BottomModal'
 import ClassPicker from '../components/ClassPicker'
+import SegmentedTabs from '../components/SegmentedTabs'
+import { useTabBarSpace } from '../lib/useTabBarSpace'
 import IconTile from '../components/IconTile'
 import { Field, Select } from '../components/Field'
 import { colors, shadow } from '../theme/colors'
@@ -27,7 +29,7 @@ import { dueLabel, splitHomework, submittedShare, type HomeworkTab } from '../li
 import { subjectIcon } from '../lib/subjectIcon'
 
 import { themedStyles } from '../theme/themedStyles'
-import { notifyError } from '../lib/notify'
+import { notify, notifyError } from '../lib/notify'
 
 const EMPTY: Record<HomeworkTab, string> = localizeCopy({
   active: 'Нет активных заданий. Нажмите «Задать ДЗ».',
@@ -43,6 +45,7 @@ export default function TeacherHomeworkScreen() {
   const navigation = useNavigation<any>()
   const user = useAuthStore((s) => s.user)
   const { classes, loading: classesLoading } = useMyClasses()
+  const tabSpace = useTabBarSpace()
 
   const [items, setItems] = useState<HomeworkDto[]>([])
   const [subjects, setSubjects] = useState<SubjectDto[]>([])
@@ -97,11 +100,11 @@ export default function TeacherHomeworkScreen() {
 
   const submit = async () => {
     if (!subjectId || !title.trim() || !createGroupId) {
-      Alert.alert(uiText("Заполните"), uiText("Нужны класс, предмет, заголовок и срок"))
+      notify.fail(uiText("Заполните"), uiText("Нужны класс, предмет, заголовок и срок"))
       return
     }
     if (!dayjs(dueDate).isValid()) {
-      Alert.alert(uiText("Дата"), uiText("Неверный формат: YYYY-MM-DD"))
+      notify.fail(uiText("Дата"), uiText("Неверный формат: YYYY-MM-DD"))
       return
     }
     setSaving(true)
@@ -195,25 +198,7 @@ export default function TeacherHomeworkScreen() {
               <Text style={styles.eyebrow}>{eyebrow}</Text>
               <Text style={styles.title}>{uiText("Домашние задания")}</Text>
             </View>
-            <View style={styles.tabs} accessibilityRole="tablist">
-              {tabButtons.map((t) => {
-                const on = t.key === tab
-                return (
-                  <Pressable
-                    key={t.key}
-                    onPress={() => setTab(t.key)}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: on }}
-                    style={[styles.tab, on && styles.tabOn]}
-                  >
-                    <Text style={[styles.tabText, on && styles.tabTextOn]} numberOfLines={1}>
-                      {t.label}
-                      {t.count ? ` · ${t.count}` : ''}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
+            <SegmentedTabs tabs={tabButtons} value={tab} onChange={setTab} />
             {classes.length > 1 && <ClassPicker classes={classes} value={classFilter} onChange={setClassFilter} />}
           </View>
         }
@@ -258,7 +243,7 @@ export default function TeacherHomeworkScreen() {
                 ) : null}
                 <View style={[styles.duePill, soon && styles.duePillSoon]}>
                   {soon ? <Clock size={13} color="#B23E1A" /> : <CalendarDays size={13} color={colors.muted} />}
-                  <Text style={[styles.dueText, soon && { color: '#B23E1A' }]}>{label}</Text>
+                  <Text style={[styles.dueText, soon && { color: colors.roseDeep }]}>{label}</Text>
                 </View>
               </View>
             </Pressable>
@@ -272,7 +257,7 @@ export default function TeacherHomeworkScreen() {
         }
       />
 
-      <View style={styles.bottom}>
+      <View style={[styles.bottom, { bottom: tabSpace + 12 }]}>
         <Pressable
           onPress={openCreate}
           accessibilityRole="button"
@@ -319,29 +304,9 @@ export default function TeacherHomeworkScreen() {
 
 const styles = themedStyles(() => ({
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  list: { padding: 16, paddingBottom: 130 },
+  list: { padding: 16, paddingBottom: 96 },
   eyebrow: { fontSize: 13, fontWeight: '600', color: colors.muted },
   title: { fontSize: 26, fontWeight: '800', letterSpacing: -0.8, color: colors.text },
-  tabs: {
-    flexDirection: 'row',
-    gap: 4,
-    padding: 4,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  tab: { flex: 1, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
-  tabOn: {
-    backgroundColor: colors.surfaceSolid,
-    shadowColor: '#10282A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  tabText: { fontSize: 13, fontWeight: '700', color: colors.muted },
-  tabTextOn: { color: colors.text, fontWeight: '800' },
   card: {
     padding: 14,
     borderRadius: 22,

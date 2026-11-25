@@ -68,4 +68,6 @@ export const notify = {
   success: (title: string, message?: string) => useNoticeStore.getState().show({ kind: 'success', title, message }),
   info: (title: string, message?: string) => useNoticeStore.getState().show({ kind: 'info', title, message }),
   error: notifyError,
+  /** Ошибка со своим текстом (проверка формы: «выберите класс», «введите название»), без исключения запроса. */
+  fail: (title: string, message?: string) => useNoticeStore.getState().show({ kind: 'error', title, message }),
 }

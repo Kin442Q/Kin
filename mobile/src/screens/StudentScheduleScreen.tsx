@@ -150,6 +150,6 @@ const styles = themedStyles(() => ({
   lessonLive: { backgroundColor: colors.surfaceStrong, borderColor: colors.primary },
   subject: { fontSize: 15, fontWeight: '800', color: colors.text },
   meta: { fontSize: 12, color: colors.textMid, marginTop: 2 },
-  liveTag: { fontSize: 11, fontWeight: '800', color: colors.roseDeep, letterSpacing: 0.3 },
-  pastTag: { fontSize: 11, color: colors.muted },
+  liveTag: { fontSize: 12, fontWeight: '800', color: colors.roseDeep, letterSpacing: 0.3 },
+  pastTag: { fontSize: 12, color: colors.muted },
 }))

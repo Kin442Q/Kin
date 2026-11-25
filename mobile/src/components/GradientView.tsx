@@ -31,17 +31,25 @@ export default function GradientView({ from, to, via, viaAt = 0.5, style, childr
   const stops: [number, string][] = via ? [[0, from], [viaAt, via], [1, to]] : [[0, from], [1, to]]
   return (
     <View style={[{ overflow: 'hidden' }, style]}>
-      <Svg style={StyleSheet.absoluteFill} width="100%" height="100%" pointerEvents="none">
-        <Defs>
-          <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
-            {stops.map(([offset, raw]) => {
-              const { color, opacity } = splitColor(raw)
-              return <Stop key={offset} offset={offset} stopColor={color} stopOpacity={opacity} />
-            })}
-          </LinearGradient>
-        </Defs>
-        <Rect width="100%" height="100%" fill={`url(#${id})`} />
-      </Svg>
+      {/*
+        SVG кладём в отдельную обёртку без отступов. Раньше у самого Svg стояли width/height="100%": проценты
+        в Yoga считаются от области ВНУТРИ отступов родителя, поэтому у карточки с padding градиент выходил
+        меньше карточки (не доходил до правого и нижнего края, угол без скругления — «зелёный фон не до конца»).
+        У обёртки absoluteFill размер — вся карточка, отступы родителя на неё не влияют.
+      */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Svg width="100%" height="100%">
+          <Defs>
+            <LinearGradient id={id} x1="0" y1="0" x2="1" y2="1">
+              {stops.map(([offset, raw]) => {
+                const { color, opacity } = splitColor(raw)
+                return <Stop key={offset} offset={offset} stopColor={color} stopOpacity={opacity} />
+              })}
+            </LinearGradient>
+          </Defs>
+          <Rect width="100%" height="100%" fill={`url(#${id})`} />
+        </Svg>
+      </View>
       {children}
     </View>
   )

@@ -1,6 +1,7 @@
 import { uiText } from '../i18n/uiText'
+import { notify } from '../lib/notify'
 import { useState } from 'react'
-import { Alert, View } from 'react-native'
+import { View } from 'react-native'
 import Btn from './Btn'
 import { Field } from './Field'
 import { useAuthStore } from '../store/authStore'
@@ -32,7 +33,7 @@ export default function ChangePasswordForm({ onDone, submitText = uiText("Сме
   const submit = async () => {
     const problem = validateNewPassword(current, next, repeat)
     if (problem) {
-      Alert.alert(uiText("Проверьте поля"), problem)
+      notify.fail(uiText("Проверьте поля"), problem)
       return
     }
     setSaving(true)
@@ -41,10 +42,10 @@ export default function ChangePasswordForm({ onDone, submitText = uiText("Сме
       setCurrent('')
       setNext('')
       setRepeat('')
-      Alert.alert(uiText("Готово"), uiText("Пароль изменён. На других устройствах нужно войти заново."))
+      notify.success(uiText("Готово"), uiText("Пароль изменён. На других устройствах нужно войти заново."))
       onDone?.()
     } catch (e: any) {
-      Alert.alert(uiText("Не удалось сменить пароль"), e?.response?.data?.message || uiText("Попробуйте ещё раз"))
+      notify.fail(uiText("Не удалось сменить пароль"), e?.response?.data?.message || uiText("Попробуйте ещё раз"))
     } finally {
       setSaving(false)
     }

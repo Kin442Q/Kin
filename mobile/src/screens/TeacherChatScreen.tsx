@@ -20,6 +20,7 @@ import Avatar from '../components/Avatar'
 import { colors, radius } from '../theme/colors'
 import { useAuthStore } from '../store/authStore'
 import { connectSocket } from '../lib/socket'
+import { useScrollToEndOnKeyboard } from '../lib/useKeyboardScroll'
 import { chatApi, type ChatMessage, type StaffConversation } from '../api/chat'
 
 import { themedStyles } from '../theme/themedStyles'
@@ -36,6 +37,7 @@ export default function TeacherChatScreen() {
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
   const listRef = useRef<FlatList<ChatMessage>>(null)
+  useScrollToEndOnKeyboard(listRef)
 
   const loadList = useCallback(async () => {
     try {
@@ -119,7 +121,7 @@ export default function TeacherChatScreen() {
     return (
       <Screen>
         <View style={styles.threadHeader}>
-          <Pressable onPress={() => { setActive(null); loadList() }} hitSlop={12} style={styles.backBtn}>
+          <Pressable accessibilityRole="button" accessibilityLabel={uiText("Назад")} onPress={() => { setActive(null); loadList() }} hitSlop={12} style={styles.backBtn}>
             <ChevronLeft size={24} color={colors.text} />
           </Pressable>
           <View>
@@ -128,11 +130,8 @@ export default function TeacherChatScreen() {
           </View>
         </View>
 
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={0}
-        >
+        {/* padding и на Android: при edge-to-edge окно само не сжимается, и клавиатура закрывала поле ввода */}
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
           {msgLoading ? (
             <View style={styles.loader}>
               <ActivityIndicator color={colors.primary} />
@@ -177,6 +176,8 @@ export default function TeacherChatScreen() {
             <Pressable
               onPress={send}
               disabled={!text.trim() || sending}
+              accessibilityRole="button"
+              accessibilityLabel={uiText("Отправить")}
               style={[styles.sendBtn, { opacity: !text.trim() || sending ? 0.5 : 1 }]}
             >
               <Send size={20} color="#fff" />
@@ -252,9 +253,9 @@ const styles = themedStyles(() => ({
   convRow: { flexDirection: 'row', alignItems: 'center' },
   convTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   convName: { fontSize: 15, fontWeight: '700', color: colors.text },
-  convTime: { fontSize: 11, color: colors.muted },
+  convTime: { fontSize: 12, color: colors.muted },
   convLast: { fontSize: 13, color: colors.textMid, marginTop: 2 },
-  convGroup: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  convGroup: { fontSize: 12, color: colors.muted, marginTop: 2 },
   unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary, marginLeft: 8 },
   // thread
   threadHeader: {
@@ -286,7 +287,7 @@ const styles = themedStyles(() => ({
     borderBottomLeftRadius: 4,
   },
   msgText: { fontSize: 14, color: colors.text, lineHeight: 19 },
-  msgTime: { fontSize: 10, color: colors.muted, marginTop: 3, alignSelf: 'flex-end' },
+  msgTime: { fontSize: 12, color: colors.muted, marginTop: 3, alignSelf: 'flex-end' },
   empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 12 },
   emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 19 },
   inputBar: {
