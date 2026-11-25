@@ -28,7 +28,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "cyou.tahlilgar.maktabiman",
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "favicon": "./assets/favicon.png"

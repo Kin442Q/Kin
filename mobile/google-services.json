@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "89745666868",
+    "project_id": "maktabi-man",
+    "storage_bucket": "maktabi-man.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:89745666868:android:07df99b4015eef64b5ab61",
+        "android_client_info": {
+          "package_name": "cyou.tahlilgar.maktabiman"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBr9MhIkBawPrHfVrvylLmHNCpeT1Zi55c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
