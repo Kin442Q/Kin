@@ -94,6 +94,7 @@ export function createPrismaMock() {
     quizAttempt: model(),
     gameScore: model(),
     term: model(),
+    termGrade: model(),
     parentVerdict: model(),
     verdictConfig: model(),
     $transaction,

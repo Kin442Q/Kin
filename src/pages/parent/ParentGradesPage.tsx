@@ -16,6 +16,8 @@ import { motion } from 'framer-motion'
 
 import { SP, SproutPageHeader } from '../../components/sprout'
 import KidSwitcher from '../../components/parent/KidSwitcher'
+import TermGradesCard from '../../components/TermGradesCard'
+import type { StudentTermReport } from '../../api/termGradesApi'
 import {
   parentApi,
   type ParentKid,
@@ -49,6 +51,7 @@ export default function ParentGradesPage() {
   const [grades, setGrades] = useState<ParentGrade[]>([])
   const [stats, setStats] = useState<ParentGradeStats[]>([])
   const [homework, setHomework] = useState<ParentHomework[]>([])
+  const [termReport, setTermReport] = useState<StudentTermReport | null>(null)
   const [tab, setTab] = useState<'grades' | 'homework'>('grades')
   const [loading, setLoading] = useState(true)
 
@@ -69,15 +72,19 @@ export default function ParentGradesPage() {
   useEffect(() => {
     if (!activeKidId) return
     setLoading(true)
+    setTermReport(null)
     Promise.all([
       parentApi.grades(activeKidId),
       parentApi.gradeStats(activeKidId),
       parentApi.homework(activeKidId),
+      // Раздел периодов у школы может быть выключен — тогда просто без итогов.
+      parentApi.termGrades(activeKidId).catch(() => null),
     ])
-      .then(([g, s, h]) => {
+      .then(([g, s, h, t]) => {
         setGrades(g)
         setStats(s)
         setHomework(h)
+        setTermReport(t)
       })
       .catch((e) =>
         message.error(e?.response?.data?.message || uiText("Ошибка")),
@@ -118,6 +125,8 @@ export default function ParentGradesPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
         >
+          <TermGradesCard key={activeKidId} report={termReport} />
+
           {stats.length > 0 && (
             <Card
               className="glass"

@@ -1,5 +1,5 @@
 import { localizeCopy, uiLanguage, uiText } from '../i18n/uiText'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -25,6 +25,8 @@ import { themedStyles } from '../theme/themedStyles'
 import { gradeTone } from '../lib/gradeStyle'
 import { notifyError } from '../lib/notify'
 import { useMyClasses } from '../lib/useMyClasses'
+import TermGradeSheet from '../components/TermGradeSheet'
+import { termGradesApi, type TermGradeItem } from '../api/termGrades'
 import { studentsApi, type StudentDto } from '../api/students'
 import {
   schoolApi,
@@ -68,6 +70,16 @@ export default function TeacherGradesScreen() {
   const [loading, setLoading] = useState(true)
   const [studentsLoading, setStudentsLoading] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+
+  // Итоги четверти по выбранным классу и предмету: расчёт и оценки учителя (считает сервер).
+  // key — для какого выбора они загружены: чужие данные не показываем.
+  const [termGrades, setTermGrades] = useState<{
+    key: string
+    scaleMax: number
+    byStudent: Record<string, TermGradeItem>
+  } | null>(null)
+  const termRequest = useRef(0)
+  const [termStudent, setTermStudent] = useState<StudentDto | null>(null)
 
   // Быстрый ввод
   const [editingStudent, setEditingStudent] = useState<StudentDto | null>(null)
@@ -176,6 +188,41 @@ export default function TeacherGradesScreen() {
     void reloadGrades()
   }, [reloadGrades])
 
+  const termKey =
+    activeTermId && activeSubjectId && groupId ? `${activeTermId}|${activeSubjectId}|${groupId}` : null
+  const termData = termGrades && termGrades.key === termKey ? termGrades : null
+
+  const reloadTermGrades = useCallback(async () => {
+    if (!activeTermId || !activeSubjectId || !groupId) return
+    // Отвечает только последний запрос: старый ответ не должен затереть свежий
+    const request = ++termRequest.current
+    try {
+      const r = await termGradesApi.list({ termId: activeTermId, subjectId: activeSubjectId, groupId })
+      if (request !== termRequest.current) return
+      setTermGrades({
+        key: `${activeTermId}|${activeSubjectId}|${groupId}`,
+        scaleMax: r.scaleMax,
+        byStudent: Object.fromEntries(r.items.map((i) => [i.studentId, i])),
+      })
+    } catch (e) {
+      if (request !== termRequest.current) return
+      setTermGrades(null)
+      notifyError(e, { fallback: uiText("Не удалось загрузить итоги четверти"), retry: () => void reloadTermGrades() })
+    }
+  }, [activeTermId, activeSubjectId, groupId])
+
+  useEffect(() => {
+    setTermStudent(null)
+    void reloadTermGrades()
+  }, [reloadTermGrades])
+
+  const applyTermGrade = (item: TermGradeItem) => {
+    termRequest.current++
+    setTermGrades((prev) =>
+      prev && prev.key === termKey ? { ...prev, byStudent: { ...prev.byStudent, [item.studentId]: item } } : prev,
+    )
+  }
+
   const gradesByStudent = useMemo(() => {
     const map: Record<string, GradeDto[]> = {}
     for (const g of grades) {
@@ -211,6 +258,7 @@ export default function TeacherGradesScreen() {
       setComment('')
       setType('CLASSWORK')
       void reloadGrades()
+      void reloadTermGrades()
     } catch (e) {
       notifyError(e)
     } finally {
@@ -231,6 +279,7 @@ export default function TeacherGradesScreen() {
         date: today,
       })
       await reloadGrades()
+      void reloadTermGrades()
       const i = students.findIndex((s) => s.id === selectedId)
       setSelectedId(students[Math.min(i + 1, students.length - 1)]?.id ?? selectedId)
     } catch (e) {
@@ -253,6 +302,7 @@ export default function TeacherGradesScreen() {
             try {
               await schoolApi.deleteGrade(g.id)
               void reloadGrades()
+              void reloadTermGrades()
             } catch (e) {
               notifyError(e)
             }
@@ -293,7 +343,7 @@ export default function TeacherGradesScreen() {
             refreshing={refreshing}
             onRefresh={() => {
               setRefreshing(true)
-              void Promise.all([reload(), reloadClasses(), loadStudents(), reloadGrades()])
+              void Promise.all([reload(), reloadClasses(), loadStudents(), reloadGrades(), reloadTermGrades()])
             }}
             tintColor={colors.primary}
           />
@@ -341,6 +391,16 @@ export default function TeacherGradesScreen() {
                     ...terms.map((t) => ({ value: t.id, label: t.name })),
                   ]}
                 />
+                {termData ? (
+                  <Text style={styles.termHint}>
+                    {uiText("«Чет.» — итог четверти: залитый значок поставили вы, пунктирный — расчётный. Нажмите на него, чтобы изменить.")}
+                  </Text>
+                ) : !activeTermId ? (
+                  // На каникулах текущей четверти нет — без подсказки итог негде найти
+                  <Text style={styles.termHint}>
+                    {uiText("Чтобы увидеть и поставить итог четверти, выберите четверть.")}
+                  </Text>
+                ) : null}
               </View>
             )}
 
@@ -379,6 +439,9 @@ export default function TeacherGradesScreen() {
           const avg = avgByStudent[item.id] ?? 0
           const selected = selectedId === item.id
           const initials = `${item.firstName[0] ?? ''}${item.lastName[0] ?? ''}`.toUpperCase()
+          const term = termData?.byStudent[item.id]
+          const termByTeacher = term?.source === 'TEACHER'
+          const termTone = gradeTone(term?.value, termData?.scaleMax)
           return (
             <Pressable
               onPress={() => setSelectedId(item.id)}
@@ -410,6 +473,28 @@ export default function TeacherGradesScreen() {
                       <Text style={styles.avgLabel}>{uiText("ср.")}</Text>
                       <Text style={[styles.avgValue, { color: gradeColor(Math.round(avg)) }]}>{avg.toFixed(1)}</Text>
                     </View>
+                  )}
+
+                  {term && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={uiText("Итог четверти: {0} — {1}", fullName, term.value ?? '—')}
+                      onPress={() => setTermStudent(item)}
+                      hitSlop={8}
+                      style={styles.avgBox}
+                    >
+                      <Text style={styles.avgLabel}>{uiText("Чет.")}</Text>
+                      <View
+                        style={[
+                          styles.termMark,
+                          termByTeacher ? { backgroundColor: termTone.bg } : styles.termMarkCalculated,
+                        ]}
+                      >
+                        <Text style={[styles.termMarkText, { color: termByTeacher ? termTone.fg : colors.text }]}>
+                          {term.value ?? '—'}
+                        </Text>
+                      </View>
+                    </Pressable>
                   )}
 
                   <Pressable
@@ -508,6 +593,25 @@ export default function TeacherGradesScreen() {
           </Pressable>
         </View>
       )}
+
+      <TermGradeSheet
+        target={
+          termStudent && termData && activeTermId && subject
+            ? {
+                termId: activeTermId,
+                subjectId: subject.id,
+                studentId: termStudent.id,
+                studentName: `${termStudent.firstName} ${termStudent.lastName}`.trim(),
+                subjectName: subject.name,
+                termName: terms.find((t) => t.id === activeTermId)?.name ?? '',
+              }
+            : null
+        }
+        item={termStudent ? (termData?.byStudent[termStudent.id] ?? null) : null}
+        scaleMax={termData?.scaleMax ?? 5}
+        onClose={() => setTermStudent(null)}
+        onSaved={applyTermGrade}
+      />
 
       <BottomModal
         visible={!!editingStudent}
@@ -678,6 +782,11 @@ const styles = themedStyles(() => ({
   avgBox: { alignItems: 'center', marginRight: 8, minWidth: 36 },
   avgLabel: { fontSize: 12, color: colors.muted, fontWeight: '700', textTransform: 'uppercase' },
   avgValue: { fontSize: 17, fontWeight: '800', letterSpacing: -0.5 },
+  // итог четверти: залитый — поставил учитель, пунктирный — расчётный
+  termMark: { minWidth: 28, height: 28, borderRadius: 9, paddingHorizontal: 4, alignItems: 'center', justifyContent: 'center' },
+  termMarkCalculated: { borderWidth: 2, borderStyle: 'dashed', borderColor: colors.primary },
+  termMarkText: { fontSize: 15, fontWeight: '800' },
+  termHint: { fontSize: 12, color: colors.muted, marginTop: 6, marginLeft: 2, lineHeight: 17 },
   addBtn: {
     width: 34,
     height: 34,

@@ -58,6 +58,13 @@ export class StudentPortalController {
     return this.service.grades(user, { from, to })
   }
 
+  @Get('term-grades')
+  @Feature('portal', 'grades', 'terms')
+  @ApiOperation({ summary: 'Мои итоги четвертей (поставил учитель или расчётные)' })
+  termGrades(@CurrentUser() user: AuthUser) {
+    return this.service.termGrades(user)
+  }
+
   @Get('progress')
   @ApiOperation({ summary: 'Серия дней, XP и уровень (из квизов, игр и отметок «сделал»)' })
   progress(@CurrentUser() user: AuthUser) {

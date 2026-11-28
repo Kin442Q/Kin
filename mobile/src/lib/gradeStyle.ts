@@ -16,9 +16,11 @@ const MINT = themedValue<GradeTone>(() => ({ bg: colors.avatarBg, fg: colors.tex
 const CORAL = themedValue<GradeTone>(() => ({ bg: colors.coral, fg: '#10282A' }))
 const NONE = themedValue<GradeTone>(() => ({ bg: colors.surfaceAlt, fg: colors.textMid }))
 
-export function gradeTone(value: number | null | undefined): GradeTone {
+/** scaleMax (5 или 10) передают там, где шкала школы известна: тогда «5 из 10» не выглядит отличной. */
+export function gradeTone(value: number | null | undefined, scaleMax?: number): GradeTone {
   if (value == null || !isFinite(value)) return NONE()
-  if (value <= 5) return value >= 5 ? TEAL() : value >= 4 ? MINT() : CORAL()
+  const five = scaleMax ? scaleMax <= 5 : value <= 5
+  if (five) return value >= 5 ? TEAL() : value >= 4 ? MINT() : CORAL()
   return value >= 9 ? TEAL() : value >= 7 ? MINT() : CORAL()
 }
 

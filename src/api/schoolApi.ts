@@ -1,5 +1,6 @@
 import { localizeCopy } from '../i18n/uiText'
 import { http } from './http'
+import type { StudentTermReport } from './termGradesApi'
 
 /* ============================================================
    Статусы ДЗ, кабинет ученика, доступ учеников, классный руководитель.
@@ -141,6 +142,8 @@ export const studentApi = {
       .put<{ status: SubmissionStatus | null }>(`/v1/student/homework/${homeworkId}/submitted`, { submitted })
       .then((r) => r.data),
   grades: () => http.get<StudentGrades>('/v1/student/grades').then((r) => r.data),
+  /** Итоги четвертей: поставил учитель или расчётные. */
+  termGrades: () => http.get<StudentTermReport>('/v1/student/term-grades').then((r) => r.data),
   schedule: () => http.get<StudentLesson[]>('/v1/student/schedule').then((r) => r.data),
 }
 

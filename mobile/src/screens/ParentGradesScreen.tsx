@@ -24,16 +24,21 @@ import {
 
 import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
+import TermGradesBlock from '../components/TermGradesBlock'
+import type { StudentTermReport } from '../api/termGrades'
 /** Оценки и домашние задания ребёнка: средний балл, предметы с последними оценками. */
 export default function ParentGradesScreen() {
   const user = useAuthStore((s) => s.user)
   const showHomework = hasFeature(user, 'homework')
+  const showTerms = hasFeature(user, 'terms')
 
   const [kids, setKids] = useState<KidDto[]>([])
   const [activeKidId, setActiveKidId] = useState<string | null>(null)
   const [grades, setGrades] = useState<ParentGradeDto[]>([])
   const [stats, setStats] = useState<GradeStatsRow[]>([])
   const [homework, setHomework] = useState<ParentHomeworkDto[]>([])
+  // Итоги четвертей; вместе с id ребёнка, чтобы не показать итоги другого
+  const [termReport, setTermReport] = useState<{ kidId: string; report: StudentTermReport } | null>(null)
   const [tab, setTab] = useState<'grades' | 'homework'>('grades')
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -53,21 +58,24 @@ export default function ParentGradesScreen() {
   const loadData = useCallback(async () => {
     if (!activeKidId) return
     try {
-      const [g, s, h] = await Promise.all([
+      const [g, s, h, t] = await Promise.all([
         parentApi.grades(activeKidId),
         parentApi.gradeStats(activeKidId),
         showHomework ? parentApi.homework(activeKidId).catch(() => [] as ParentHomeworkDto[]) : Promise.resolve([] as ParentHomeworkDto[]),
+        // Раздел периодов у школы может быть выключен — тогда просто без итогов
+        showTerms ? parentApi.termGrades(activeKidId).catch(() => null) : Promise.resolve(null),
       ])
       setGrades(g)
       setStats(s)
       setHomework(h)
+      setTermReport(t ? { kidId: activeKidId, report: t } : null)
     } catch (e: any) {
       notifyError(e)
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [activeKidId, showHomework])
+  }, [activeKidId, showHomework, showTerms])
 
   useEffect(() => {
     loadKids()
@@ -182,6 +190,8 @@ export default function ParentGradesScreen() {
                 </Text>
               </View>
             </View>
+
+            <TermGradesBlock key={kid.id} report={termReport?.kidId === kid.id ? termReport.report : null} />
 
             {rows.length === 0 ? (
               <EmptyState title={uiText("Оценок пока нет")} hint={uiText("Они появятся здесь, как только учитель поставит первую.")} />

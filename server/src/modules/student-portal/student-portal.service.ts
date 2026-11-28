@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../../infrastructure/prisma/prisma.service'
 import type { AuthUser } from '../../common/types/jwt-payload'
 import { levelOf, STREAK_LOOKBACK_DAYS, streakDays, totalXp } from './student-progress'
+import { buildStudentTermReport } from '../term-grades/term-grade-report'
 
 /** Календарная дата «сегодня» как UTC-полночь (так хранятся @db.Date). */
 function today(): Date {
@@ -38,6 +39,7 @@ export class StudentPortalService {
         photoUrl: true,
         status: true,
         groupId: true,
+        kindergartenId: true,
         group: { select: { id: true, name: true, homeroomTeacher: { select: { id: true, fullName: true } } } },
       },
     })
@@ -147,6 +149,12 @@ export class StudentPortalService {
       .sort((a, b) => a.subject.name.localeCompare(b.subject.name, 'ru'))
 
     return { items, averages }
+  }
+
+  /** Мои итоги четвертей: оценка учителя, а без неё расчётная (см. term-grades). */
+  async termGrades(user: AuthUser) {
+    const s = await this.me(user)
+    return buildStudentTermReport(this.prisma, s)
   }
 
   async schedule(user: AuthUser) {
