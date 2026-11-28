@@ -29,6 +29,8 @@ import { SP, SproutPageHeader, SproutCard, SproutEmpty } from '../components/spr
 import { useDataStore } from '../store/dataStore'
 import { useAuthStore } from '../store/authStore'
 import { termsApi, type TermDto } from '../api/termsApi'
+import { termGradesApi, type TermGradeItem } from '../api/termGradesApi'
+import TermGradeModal from '../components/TermGradeModal'
 import { http } from '../api'
 import {
   extendToInclude,
@@ -136,6 +138,16 @@ export default function GradesPage() {
   // Диапазон дат, выбранный вручную («от какого числа показать журнал»).
   // null — показываем всю четверть.
   const [storedRange, setStoredRange] = useState<StoredRange | null>(null)
+
+  // Итоги четверти по выбранным классу и предмету: расчёт и оценки учителя (считает сервер).
+  // key — для какого выбора они загружены: чужие данные не показываем.
+  const [termGrades, setTermGrades] = useState<{
+    key: string
+    scaleMax: number
+    byStudent: Record<string, TermGradeItem>
+  } | null>(null)
+  const termRequest = useRef(0)
+  const [termTarget, setTermTarget] = useState<{ studentId: string; studentName: string } | null>(null)
 
   // Modal
   const [editing, setEditing] = useState<{
@@ -260,6 +272,49 @@ export default function GradesPage() {
     loadGrades()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSubjectId, gradeRange.from, gradeRange.to])
+
+  const termKey =
+    activeTermId && activeSubjectId && activeGroupId
+      ? `${activeTermId}|${activeSubjectId}|${activeGroupId}`
+      : null
+  const termData = termGrades && termGrades.key === termKey ? termGrades : null
+
+  const loadTermGrades = async () => {
+    if (!termKey || !activeTermId || !activeSubjectId || !activeGroupId) return
+    // Отвечает только последний запрос: старый ответ не должен затереть свежий.
+    const request = ++termRequest.current
+    try {
+      const r = await termGradesApi.list({
+        termId: activeTermId,
+        subjectId: activeSubjectId,
+        groupId: activeGroupId,
+      })
+      if (request !== termRequest.current) return
+      setTermGrades({
+        key: termKey,
+        scaleMax: r.scaleMax,
+        byStudent: Object.fromEntries(r.items.map((i) => [i.studentId, i])),
+      })
+    } catch (e: any) {
+      if (request !== termRequest.current) return
+      setTermGrades(null)
+      message.error(e?.response?.data?.message || uiText("Не удалось загрузить итоги четверти"))
+    }
+  }
+
+  useEffect(() => {
+    loadTermGrades()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [termKey])
+
+  const applyTermGrade = (item: TermGradeItem) => {
+    termRequest.current++
+    setTermGrades((prev) =>
+      prev && prev.key === termKey
+        ? { ...prev, byStudent: { ...prev.byStudent, [item.studentId]: item } }
+        : prev,
+    )
+  }
 
   const visibleChildren = useMemo(() => {
     let list = children
@@ -441,7 +496,7 @@ export default function GradesPage() {
       })
       message.success(uiText("Оценка поставлена"))
       setEditing(null)
-      await loadGrades()
+      await Promise.all([loadGrades(), loadTermGrades()])
     } catch (e: any) {
       if (e?.errorFields) return
       message.error(e?.response?.data?.message || uiText("Ошибка"))
@@ -454,7 +509,7 @@ export default function GradesPage() {
     try {
       await http.delete(`/v1/grades/${g.id}`)
       message.success(uiText("Удалено"))
-      await loadGrades()
+      await Promise.all([loadGrades(), loadTermGrades()])
     } catch (e: any) {
       message.error(e?.response?.data?.message || uiText("Ошибка"))
     }
@@ -462,6 +517,49 @@ export default function GradesPage() {
 
   const activeSubject = subjects.find((s) => s.id === activeSubjectId)
   const ready = !!activeGroupId && !!activeSubjectId
+
+  // Значок в колонке «Чет.»: сплошной — поставил учитель, пунктирный — расчётный итог.
+  const renderTermMark = (studentId: string, studentName: string) => {
+    const item = termData?.byStudent[studentId]
+    if (!item) return <span className="gj-term-mark">—</span>
+
+    const byTeacher = item.source === 'TEACHER'
+    const hint = byTeacher
+      ? uiText("Поставил учитель, {0}", dayjs(item.date).format('DD.MM.YYYY')) +
+        (item.calculated.value !== null ? ` · ${uiText("расчёт: {0}", item.calculated.value)}` : '')
+      : item.source === 'SYSTEM'
+        ? uiText("Расчётная: средний балл {0}, оценок: {1}", item.calculated.average, item.calculated.count)
+        : item.calculated.reason === 'OUT_OF_SCALE'
+          ? uiText("Есть оценки выше шкалы школы — расчёта нет")
+          : uiText("Нет оценок — итога пока нет")
+    const className = `gj-term-mark${byTeacher ? ' is-teacher' : item.value !== null ? ' is-system' : ''}`
+    const style =
+      item.value === null
+        ? undefined
+        : byTeacher
+          ? { background: gradeColor(item.value) }
+          : { color: gradeColor(item.value) }
+
+    if (!canGrade) {
+      return (
+        <span className={className} style={style} title={hint}>
+          {item.value ?? '—'}
+        </span>
+      )
+    }
+    return (
+      <button
+        type="button"
+        className={className}
+        style={style}
+        title={hint}
+        aria-label={uiText("Итог четверти: {0} — {1}", studentName, item.value ?? '—')}
+        onClick={() => setTermTarget({ studentId, studentName })}
+      >
+        {item.value ?? '—'}
+      </button>
+    )
+  }
 
   return (
     <div>
@@ -684,6 +782,23 @@ export default function GradesPage() {
                     </Text>
                   )}
 
+                  {activeTerm && (
+                    <div className="gj-term-legend">
+                      <b>{uiText("Чет.")}</b>
+                      <span>
+                        <span className="gj-term-mark is-teacher">5</span>
+                        {uiText("поставил учитель")}
+                      </span>
+                      <span>
+                        <span className="gj-term-mark is-system">5</span>
+                        {uiText("расчётная по среднему баллу")}
+                      </span>
+                      {canGrade && (
+                        <span>{uiText("Нажмите на итог, чтобы поставить его самому.")}</span>
+                      )}
+                    </div>
+                  )}
+
                   {visibleChildren.length === 0 ? (
                     <Empty
                       description={uiText("Учеников не найдено")}
@@ -708,7 +823,11 @@ export default function GradesPage() {
                             <th
                               rowSpan={2}
                               className="gj-th gj-sticky gj-col-term"
-                              title={uiText("Оценка за четверть (округлённый средний балл)")}
+                              title={
+                                activeTerm
+                                  ? uiText("Итог за четверть: оценка учителя, а без неё расчётная")
+                                  : uiText("Оценка за четверть (округлённый средний балл)")
+                              }
                             >
                               {" " + uiText("Чет.") + " "}</th>
                             {monthGroups.length > 0 ? (
@@ -809,7 +928,8 @@ export default function GradesPage() {
                                     color: termGrade ? gradeColor(termGrade) : SP.muted,
                                   }}
                                 >
-                                  {termGrade ?? '—'}
+                                  {/* Четвертей в школе нет — показываем только округлённый средний за месяц */}
+                                  {activeTerm ? renderTermMark(c.id, fullName) : (termGrade ?? '—')}
                                 </td>
 
                                 {cols.map((d) => {
@@ -907,6 +1027,24 @@ export default function GradesPage() {
           </motion.div>
         </>
       )}
+
+      <TermGradeModal
+        target={
+          termTarget && termData && activeTerm && activeSubject
+            ? {
+                ...termTarget,
+                termId: activeTerm.id,
+                subjectId: activeSubject.id,
+                termName: activeTerm.name,
+                subjectName: activeSubject.name,
+              }
+            : null
+        }
+        item={termTarget ? (termData?.byStudent[termTarget.studentId] ?? null) : null}
+        scaleMax={termData?.scaleMax ?? 5}
+        onClose={() => setTermTarget(null)}
+        onSaved={applyTermGrade}
+      />
 
       {/* Modal */}
       <Modal

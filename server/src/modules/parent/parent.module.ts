@@ -19,6 +19,7 @@ import { FeaturesService } from '../features/features.service'
 import { RolesGuard } from '../../common/guards/roles.guard'
 import { CurrentUser } from '../../common/decorators/current-user.decorator'
 import type { AuthUser } from '../../common/types/jwt-payload'
+import { buildStudentTermReport } from '../term-grades/term-grade-report'
 
 /** Prisma Decimal/строка/число → чистый number. */
 function num(v: unknown): number {
@@ -183,6 +184,12 @@ class ParentService {
     }))
   }
 
+  /** Итоги четвертей ребёнка: оценка учителя, а без неё расчётная (см. term-grades). */
+  async kidTermGrades(user: AuthUser, kidId: string) {
+    const kid = await this.ensureKidAccess(user, kidId)
+    return buildStudentTermReport(this.prisma, kid)
+  }
+
   async kidHomework(user: AuthUser, kidId: string) {
     const kid = await this.ensureKidAccess(user, kidId)
     const list = await this.prisma.homework.findMany({
@@ -329,6 +336,12 @@ class ParentController {
     @Query('to') to?: string,
   ) {
     return this.service.kidGradeStats(user, id, from, to)
+  }
+
+  @Feature('grades', 'terms')
+  @Get('kids/:id/term-grades')
+  kidTermGrades(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.service.kidTermGrades(user, id)
   }
 
   @Feature('homework')

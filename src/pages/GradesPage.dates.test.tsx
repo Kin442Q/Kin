@@ -13,6 +13,10 @@ vi.mock('../api', () => ({ http }))
 vi.mock('../api/termsApi', () => ({
   termsApi: { list: async () => [TERM] },
 }))
+// Итоги четверти здесь не проверяются (см. GradesPage.term.test.tsx).
+vi.mock('../api/termGradesApi', () => ({
+  termGradesApi: { list: async () => ({ scaleMax: 10, items: [] }) },
+}))
 
 import { App as AntdApp } from 'antd'
 import GradesPage from './GradesPage'

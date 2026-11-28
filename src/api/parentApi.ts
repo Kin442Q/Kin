@@ -4,6 +4,7 @@
  * фильтруют по childId / Student.parents[].
  */
 import { http } from './http'
+import type { StudentTermReport } from './termGradesApi'
 
 export interface ParentKid {
   id: string
@@ -145,5 +146,10 @@ export const parentApi = {
   homework: (kidId: string) =>
     http
       .get<ParentHomework[]>(`/v1/parent/kids/${kidId}/homework`)
+      .then((r) => r.data),
+  /** Итоги четвертей: поставил учитель или расчётные. */
+  termGrades: (kidId: string) =>
+    http
+      .get<StudentTermReport>(`/v1/parent/kids/${kidId}/term-grades`)
       .then((r) => r.data),
 }

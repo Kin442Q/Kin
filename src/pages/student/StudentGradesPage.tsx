@@ -6,6 +6,8 @@ import dayjs from 'dayjs'
 
 import { SP, SproutCard, SproutEmpty, SproutPageHeader } from '../../components/sprout'
 import { studentApi, type StudentGrade, type StudentGrades } from '../../api/schoolApi'
+import TermGradesCard from '../../components/TermGradesCard'
+import type { StudentTermReport } from '../../api/termGradesApi'
 
 const gradeColor = (v: number) => (v >= 9 ? 'green' : v >= 7 ? 'cyan' : v >= 5 ? 'orange' : 'red')
 
@@ -13,6 +15,7 @@ const gradeColor = (v: number) => (v >= 9 ? 'green' : v >= 7 ? 'cyan' : v >= 5 ?
 export default function StudentGradesPage() {
   const { message } = AntdApp.useApp()
   const [data, setData] = useState<StudentGrades | null>(null)
+  const [termReport, setTermReport] = useState<StudentTermReport | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -21,7 +24,14 @@ export default function StudentGradesPage() {
       .then(setData)
       .catch((e) => message.error(e?.response?.data?.message || uiText("Не удалось загрузить оценки")))
       .finally(() => setLoading(false))
+    // Раздел периодов у школы может быть выключен — тогда просто без итогов.
+    studentApi
+      .termGrades()
+      .then(setTermReport)
+      .catch(() => setTermReport(null))
   }, [message])
+
+  const hasTerms = !!termReport?.terms.length
 
   return (
     <div>
@@ -33,15 +43,19 @@ export default function StudentGradesPage() {
       />
 
       <Spin spinning={loading}>
+        <TermGradesCard report={termReport} />
         {!data || data.items.length === 0 ? (
-          <SproutCard>
-            <SproutEmpty
-              icon={<GraduationCap size={32} strokeWidth={1.8} />}
-              title={uiText("Оценок пока нет")}
-              description={uiText("Они появятся, как только учителя начнут их выставлять")}
-              minHeight={200}
-            />
-          </SproutCard>
+          // Итоги четвертей уже есть (учитель поставил без текущих оценок) — «оценок нет» не пишем.
+          !hasTerms && (
+            <SproutCard>
+              <SproutEmpty
+                icon={<GraduationCap size={32} strokeWidth={1.8} />}
+                title={uiText("Оценок пока нет")}
+                description={uiText("Они появятся, как только учителя начнут их выставлять")}
+                minHeight={200}
+              />
+            </SproutCard>
+          )
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 }}>

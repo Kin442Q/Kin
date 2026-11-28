@@ -22,6 +22,8 @@ import { studentApi, type StudentGrades } from '../api/student'
 
 import { themedStyles } from '../theme/themedStyles'
 import { notifyError } from '../lib/notify'
+import TermGradesBlock from '../components/TermGradesBlock'
+import type { StudentTermReport } from '../api/termGrades'
 const TYPE_LABEL: Record<string, string> = localizeCopy({
   CLASSWORK: 'Классная',
   HOMEWORK: 'Домашняя',
@@ -34,12 +36,19 @@ const TYPE_LABEL: Record<string, string> = localizeCopy({
 /** Оценки ученика: средний балл, предметы с последними оценками и список недавних оценок с комментариями учителя. */
 export default function StudentGradesScreen() {
   const [data, setData] = useState<StudentGrades | null>(null)
+  const [termReport, setTermReport] = useState<StudentTermReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
   const load = useCallback(async () => {
     try {
-      setData(await studentApi.grades())
+      const [grades, terms] = await Promise.all([
+        studentApi.grades(),
+        // Раздел периодов у школы может быть выключен — тогда просто без итогов
+        studentApi.termGrades().catch(() => null),
+      ])
+      setData(grades)
+      setTermReport(terms)
     } catch (e: any) {
       notifyError(e, uiText("Не удалось загрузить оценки"))
     } finally {
@@ -105,11 +114,16 @@ export default function StudentGradesScreen() {
         />
 
         {items.length === 0 ? (
-          <EmptyState
-            icon={<GraduationCap size={34} color={colors.muted} />}
-            title={uiText("Оценок пока нет")}
-            hint={uiText("Они появятся здесь, когда учитель их выставит")}
-          />
+          termReport?.terms.length ? (
+            // Итоги четвертей уже есть (учитель поставил без текущих оценок) — «оценок нет» не пишем
+            <TermGradesBlock report={termReport} />
+          ) : (
+            <EmptyState
+              icon={<GraduationCap size={34} color={colors.muted} />}
+              title={uiText("Оценок пока нет")}
+              hint={uiText("Они появятся здесь, когда учитель их выставит")}
+            />
+          )
         ) : (
           <>
             <GradientView from="#12898A" to="#075B5D" style={[styles.avgCard, shadow.lg]}>
@@ -123,6 +137,8 @@ export default function StudentGradesScreen() {
                 </View>
               )}
             </GradientView>
+
+            <TermGradesBlock report={termReport} />
 
             {averages.map((a) => {
               const marks = (marksBySubject.get(a.subject.id) ?? []).slice(-6)

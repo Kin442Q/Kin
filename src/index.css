@@ -1751,6 +1751,58 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   font-size: 15px;
   border-right: 2px solid var(--sp-border) !important;
 }
+/* Итог четверти: сплошной значок — поставил учитель, пунктирный — расчётный */
+.gj-term-mark {
+  display: inline-grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sp-muted);
+  font: inherit;
+  font-weight: 800;
+  line-height: 1;
+}
+button.gj-term-mark {
+  cursor: pointer;
+}
+button.gj-term-mark:hover,
+button.gj-term-mark:focus-visible {
+  box-shadow: 0 0 0 3px var(--sp-primary-ghost);
+}
+.gj-term-mark.is-system {
+  border: 2px dashed currentColor;
+}
+.gj-term-mark.is-teacher {
+  color: #fff;
+}
+.gj-term-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: var(--sp-muted);
+}
+.gj-term-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.gj-term-legend .gj-term-mark {
+  min-width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.gj-term-legend .gj-term-mark.is-teacher {
+  background: var(--sp-primary-deep);
+  color: var(--sp-solid);
+}
 /* Ячейка оценки */
 .gj-cell {
   height: 42px;
@@ -1873,6 +1925,11 @@ html[data-theme='dark'] .ant-segmented .ant-segmented-item-selected {
   .gj-col-avg,
   .gj-col-term {
     font-size: 13px;
+  }
+  .gj-term-mark {
+    min-width: 24px;
+    height: 24px;
+    padding: 0 2px;
   }
 }
 

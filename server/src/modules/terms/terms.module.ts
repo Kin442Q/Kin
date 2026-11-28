@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Delete,
   ForbiddenException,
@@ -101,6 +102,13 @@ export class TermsService {
 
   async remove(user: AuthUser, id: string) {
     await this.assertAccess(user, id)
+    // Итоги, поставленные учителями, удаляются вместе с периодом — случайно их так терять нельзя.
+    const marks = await this.prisma.termGrade.count({ where: { termId: id } })
+    if (marks > 0) {
+      throw new ConflictException(
+        `В этом периоде учителя уже поставили итоговые оценки (${marks}). Удалить период нельзя.`,
+      )
+    }
     await this.prisma.term.delete({ where: { id } })
   }
 

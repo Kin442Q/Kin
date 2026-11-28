@@ -454,6 +454,7 @@ model User {
   diaryEntries  DiaryEntry[]    @relation("DiaryAuthor")
   kidNotes      KidNote[]       @relation("KidNoteAuthor")
   gradesGiven   Grade[]         @relation("GradeAuthor")
+  termGradesSet TermGrade[]     @relation("TermGradeAuthor")
   homeworkSet   Homework[]      @relation("HomeworkAuthor")
   conversations Conversation[]  @relation("ParentConversations")
   /// Для TEACHER — личные переписки с родителями (видны только ему и родителю).
@@ -659,6 +660,7 @@ model Student {
   account       User?         @relation("StudentAccount")
   kidNotes      KidNote[]
   grades        Grade[]
+  termGrades    TermGrade[]
   homeworkSubmissions HomeworkSubmission[]
   quizAttempts  QuizAttempt[]
   gameScores    GameScore[]
@@ -998,6 +1000,7 @@ model Subject {
 
   lessons         ScheduleItem[]
   grades          Grade[]
+  termGrades      TermGrade[]
   homework        Homework[]
   libraryItems    LibraryItem[]
   quizzes         Quiz[]
@@ -1104,7 +1107,37 @@ model Term {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  /// Итоговые оценки за этот период, поставленные учителями.
+  termGrades      TermGrade[]
+
   @@index([kindergartenId, startDate])
+}
+
+/// Итоговая оценка ученика за учебный период (четверть) по предмету, поставленная учителем.
+/// Расчётный итог (среднее по оценкам периода) нигде не хранится — считается на лету
+/// (modules/term-grades/term-grade-calc.ts). Есть запись — действует оценка учителя, расчёт её
+/// не меняет; запись удалена («Сбросить») — снова показывается расчётная.
+model TermGrade {
+  id        String   @id @default(cuid())
+  studentId String
+  subjectId String
+  termId    String
+  /// От 1 до максимума шкалы школы (5 или 10).
+  value     Int
+  /// Кто поставил; null — этот пользователь удалён.
+  setById   String?
+  /// Когда поставили или в последний раз изменили.
+  setAt     DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  student   Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  term      Term     @relation(fields: [termId], references: [id], onDelete: Cascade)
+  setBy     User?    @relation("TermGradeAuthor", fields: [setById], references: [id], onDelete: SetNull)
+
+  @@unique([studentId, subjectId, termId])
+  @@index([termId, subjectId])
 }
 
 // ---------------------------------------------------------------------------

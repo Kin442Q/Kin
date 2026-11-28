@@ -38,6 +38,7 @@ import { SchoolModule } from './modules/school/school.module'
 import { DirectorReportsModule } from './modules/director-reports/director-reports.module'
 import { PushModule } from './modules/push/push.module'
 import { TermsModule } from './modules/terms/terms.module'
+import { TermGradesModule } from './modules/term-grades/term-grades.module'
 import { ChatModule } from './modules/chat/chat.module'
 import { FeaturesModule } from './modules/features/features.module'
 import { HomeworkStatusModule } from './modules/homework-status/homework-status.module'
@@ -117,6 +118,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor'
     DirectorReportsModule,
     PushModule,
     TermsModule,
+    TermGradesModule,
     ChatModule,
     FeaturesModule,
     HomeworkStatusModule,
